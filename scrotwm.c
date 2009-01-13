@@ -67,16 +67,20 @@
 #include <X11/Xproto.h>
 #include <X11/Xutil.h>
 
-/* #define SWM_DEBUG */
+#define SWM_DEBUG
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while(0)
 #define DNPRINTF(n,x...)	do { if (swm_debug & n) fprintf(stderr, x); } while(0)
 #define	SWM_D_EVENT		0x0001
 #define	SWM_D_WS		0x0002
+#define	SWM_D_FOCUS		0x0004
+#define	SWM_D_MISC		0x0008
 
 uint32_t		swm_debug = 0
 			    | SWM_D_EVENT
 			    | SWM_D_WS
+			    | SWM_D_FOCUS
+			    | SWM_D_MISC
 			    ;
 #else
 #define DPRINTF(x...)
@@ -94,7 +98,7 @@ int			width, height;
 int			running = 1;
 int			ignore_enter = 0;
 unsigned int		numlockmask = 0;
-unsigned long		col_focus = 0xff0000;
+unsigned long		col_focus = 0xff0000;	/* XXX should this be per ws? */
 unsigned long		col_unfocus = 0x888888;
 Display			*display;
 Window			root;
@@ -102,6 +106,10 @@ Window			root;
 struct ws_win {
 	TAILQ_ENTRY(ws_win)	entry;
 	Window			id;
+	int			x;
+	int			y;
+	int			width;
+	int			height;
 };
 
 TAILQ_HEAD(ws_win_list, ws_win);
@@ -128,12 +136,14 @@ union arg {
 void
 quit(union arg *args)
 {
+	DNPRINTF(SWM_D_MISC, "quit\n");
 	running = 0;
 }
 
 void
 spawn(union arg *args)
 {
+	DNPRINTF(SWM_D_MISC, "spawn: %s\n", args->argv[0]);
 	/*
 	 * The double-fork construct avoids zombie processes and keeps the code
 	 * clean from stupid signal handlers.
@@ -155,6 +165,7 @@ spawn(union arg *args)
 void
 focus_win(struct ws_win *win)
 {
+	DNPRINTF(SWM_D_FOCUS, "focus_win: id: %d\n", win->id);
 	XSetWindowBorder(display, win->id, col_focus);
 	XSetInputFocus(display, win->id, RevertToPointerRoot, CurrentTime);
 	ws[current_ws].focus = win;
@@ -163,6 +174,7 @@ focus_win(struct ws_win *win)
 void
 unfocus_win(struct ws_win *win)
 {
+	DNPRINTF(SWM_D_FOCUS, "unfocus_win: id: %d\n", win->id);
 	XSetWindowBorder(display, win->id, col_unfocus);
 	if (ws[current_ws].focus == win)
 		ws[current_ws].focus = NULL;
@@ -202,6 +214,7 @@ focus(union arg *args)
 {
 	struct ws_win		*winfocus, *winlostfocus;
 
+	DNPRINTF(SWM_D_FOCUS, "focus: id %d\n", args->id);
 	if (ws[current_ws].focus == NULL || ws[current_ws].winno == 0)
 		return;
 
@@ -295,10 +308,10 @@ stack(void)
 		}
 
 		bzero(&wc, sizeof wc);
-		wc.x = x;
-		wc.y = y;
-		wc.width = w;
-		wc.height = h;
+		win->x = wc.x = x;
+		win->y = wc.y = y;
+		win->width = wc.width = w;
+		win->height = wc.height = h;
 		wc.border_width = 1;
 		XConfigureWindow(display, win->id, CWX | CWY | CWWidth |
 		    CWHeight | CWBorderWidth, &wc);
@@ -319,6 +332,7 @@ swap_to_main(union arg *args)
 {
 	struct ws_win 		*tmpwin = TAILQ_FIRST(&ws[current_ws].winlist);
 
+	DNPRINTF(SWM_D_MISC, "swap_to_main: win: %d\n", ws[current_ws].focus->id);
 	TAILQ_REMOVE(&ws[current_ws].winlist, tmpwin, entry);
 	TAILQ_INSERT_AFTER(&ws[current_ws].winlist, ws[current_ws].focus,
 	    tmpwin, entry);
@@ -364,6 +378,7 @@ updatenumlockmask(void)
 	unsigned int		i, j;
 	XModifierKeymap		*modmap;
 
+	DNPRINTF(SWM_D_MISC, "updatenumlockmask\n");
 	numlockmask = 0;
 	modmap = XGetModifierMapping(display);
 	for (i = 0; i < 8; i++)
@@ -383,6 +398,7 @@ grabkeys(void)
 	unsigned int		modifiers[] =
 	    { 0, LockMask, numlockmask, numlockmask | LockMask };
 
+	DNPRINTF(SWM_D_MISC, "grabkeys\n");
 	updatenumlockmask();
 
 	XUngrabKey(display, AnyKey, AnyModifier, root);
@@ -486,7 +502,6 @@ destroynotify(XEvent *e)
 	DNPRINTF(SWM_D_EVENT, "destroynotify: window %d\n", ev->window);
 
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
-		DNPRINTF(SWM_D_EVENT, "trying: %x\n", win->id);
 		if (ev->window == win->id) {
 			/* find a window to focus */
 			ws[current_ws].focus =
