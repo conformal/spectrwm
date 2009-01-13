@@ -117,20 +117,20 @@ TAILQ_HEAD(ws_win_list, ws_win);
 /* define work spaces */
 #define SWM_WS_MAX		(10)
 struct workspace {
-	int			 visible;	/* workspace visible */
+	int			visible;	/* workspace visible */
 	struct ws_win		*focus;		/* which win has focus */
-	int			 winno;		/* total nr of windows */
-	struct ws_win_list	 winlist;
+	int			winno;		/* total nr of windows */
+	struct ws_win_list	winlist;
 } ws[SWM_WS_MAX];
 int			current_ws = 0;
 
 /* args to functions */
 union arg {
-	int		id;
+	int			id;
 #define SWM_ARG_ID_FOCUSNEXT	(0)
 #define SWM_ARG_ID_FOCUSPREV	(1)
 #define SWM_ARG_ID_FOCUSMAIN	(2)
-	char		**argv;
+	char			**argv;
 };
 
 void
