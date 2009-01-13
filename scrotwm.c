@@ -1,5 +1,5 @@
-/* cc -O2 -I /usr/X11R6/include/ scrotwm.c -L /usr/X11R6/lib/ -lX11 -o scrotwm */
-/* then add to .xinitrc */
+/* $scrotwm$
+/* add to .xinitrc */
 /*
  * Copyright (c) 2009 Marco Peereboom <marco@peereboom.us>
  * Copyright (c) 2009 Ryan McBride <mcbride@countersiege.com>
