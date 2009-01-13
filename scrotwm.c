@@ -94,6 +94,8 @@ int			width, height;
 int			running = 1;
 int			ignore_enter = 0;
 unsigned int		numlockmask = 0;
+unsigned long		col_focus = 0xff0000;
+unsigned long		col_unfocus = 0x888888;
 Display			*display;
 Window			root;
 
@@ -120,6 +122,7 @@ union arg {
 #define SWM_ARG_ID_FOCUSNEXT	(0)
 #define SWM_ARG_ID_FOCUSPREV	(1)
 #define SWM_ARG_ID_FOCUSMAIN	(2)
+	char		**argv;
 };
 
 void
@@ -131,8 +134,6 @@ quit(union arg *args)
 void
 spawn(union arg *args)
 {
-	char			*argv[] = { "xterm", NULL }; /* XXX make this in args */
-
 	/*
 	 * The double-fork construct avoids zombie processes and keeps the code
 	 * clean from stupid signal handlers.
@@ -142,7 +143,7 @@ spawn(union arg *args)
 			if(display)
 				close(ConnectionNumber(display));
 			setsid();
-			execvp(argv[0], argv);
+			execvp(args->argv[0], args->argv);
 			fprintf(stderr, "execvp failed\n");
 			perror(" failed");
 		}
@@ -154,7 +155,7 @@ spawn(union arg *args)
 void
 focus_win(struct ws_win *win)
 {
-	XSetWindowBorder(display, win->id, 0xff0000);
+	XSetWindowBorder(display, win->id, col_focus);
 	XSetInputFocus(display, win->id, RevertToPointerRoot, CurrentTime);
 	ws[current_ws].focus = win;
 }
@@ -162,7 +163,7 @@ focus_win(struct ws_win *win)
 void
 unfocus_win(struct ws_win *win)
 {
-	XSetWindowBorder(display, win->id, 0x888888);
+	XSetWindowBorder(display, win->id, col_unfocus);
 	if (ws[current_ws].focus == win)
 		ws[current_ws].focus = NULL;
 }
@@ -309,7 +310,7 @@ stack(void)
 		i++;
 	}
 
-	focus_win(winfocus);
+	focus_win(winfocus); /* this has to be done outside of the loop */
 	XSync(display, False);
 }
 
@@ -328,6 +329,9 @@ swap_to_main(union arg *args)
 	stack();
 }
 
+/* terminal + args */
+char				*term[] = { "xterm", NULL };
+
 /* key definitions */
 struct key {
 	unsigned int		mod;
@@ -337,7 +341,7 @@ struct key {
 } keys[] = {
 	/* modifier		key	function		argument */
 	{ MODKEY,		XK_Return,	swap_to_main,	{0} },
-	{ MODKEY | ShiftMask,	XK_Return,	spawn,		{0} },
+	{ MODKEY | ShiftMask,	XK_Return,	spawn,		{.argv = term } },
 	{ MODKEY | ShiftMask,	XK_q,		quit,		{0} },
 	{ MODKEY,		XK_m,		focus,		{.id = SWM_ARG_ID_FOCUSMAIN} },
 	{ MODKEY,		XK_1,		switchws,	{.id = 0} },
