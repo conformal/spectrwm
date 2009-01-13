@@ -495,7 +495,7 @@ configurenotify(XEvent *e)
 void
 destroynotify(XEvent *e)
 {
-	size_t			 sz;
+	size_t			sz;
 	struct ws_win		*win;
 	XDestroyWindowEvent	*ev = &e->xdestroywindow;
 
