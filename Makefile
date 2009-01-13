@@ -1,4 +1,4 @@
-# $epitome$
+# $scrotwm$
 .include <bsd.xconf.mk>
 
 PROG=scrotwm
