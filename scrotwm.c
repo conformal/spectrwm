@@ -1,5 +1,4 @@
 /* $scrotwm$
-/* add to .xinitrc */
 /*
  * Copyright (c) 2009 Marco Peereboom <marco@peereboom.us>
  * Copyright (c) 2009 Ryan McBride <mcbride@countersiege.com>
