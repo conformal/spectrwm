@@ -152,6 +152,22 @@ spawn(union arg *args)
 }
 
 void
+focus_win(struct ws_win *win)
+{
+	XSetWindowBorder(display, win->id, 0xff0000);
+	XSetInputFocus(display, win->id, RevertToPointerRoot, CurrentTime);
+	ws[current_ws].focus = win;
+}
+
+void
+unfocus_win(struct ws_win *win)
+{
+	XSetWindowBorder(display, win->id, 0x888888);
+	if (ws[current_ws].focus == win)
+		ws[current_ws].focus = NULL;
+}
+
+void
 switchws(union arg *args)
 {
 	int			wsid = args->id;
@@ -175,23 +191,20 @@ switchws(union arg *args)
 	current_ws = wsid;
 
 	ignore_enter = 1;
-	if (ws[wsid].focus != NULL) {
-		DNPRINTF(SWM_D_WS, "switchws: focus %d\n", ws[wsid].focus);
-		XSetInputFocus(display, ws[wsid].focus->id, RevertToPointerRoot,
-		    CurrentTime);
-	}
+	if (ws[wsid].focus != NULL)
+		focus_win(ws[wsid].focus);
 	XSync(display, False);
 }
 
 void
 focus(union arg *args)
 {
-	Window			winfocus, winlostfocus;
+	struct ws_win		*winfocus, *winlostfocus;
 
 	if (ws[current_ws].focus == NULL || ws[current_ws].winno == 0)
 		return;
 
-	winlostfocus = ws[current_ws].focus->id;
+	winlostfocus = ws[current_ws].focus;
 
 	switch (args->id) {
 	case SWM_ARG_ID_FOCUSPREV:
@@ -222,10 +235,9 @@ focus(union arg *args)
 		return;
 	}
 
-	winfocus = ws[current_ws].focus->id;
-	XSetWindowBorder(display, winlostfocus, 0x888888);
-	XSetWindowBorder(display, winfocus, 0xff0000);
-	XSetInputFocus(display, winfocus, RevertToPointerRoot, CurrentTime);
+	winfocus = ws[current_ws].focus;
+	unfocus_win(winlostfocus);
+	focus_win(winfocus);
 	XSync(display, False);
 }
 
@@ -234,11 +246,12 @@ void
 stack(void)
 {
 	XWindowChanges		wc;
-	struct ws_win		*win;
-	Window			winfocus = root;
+	struct ws_win		wf, *win, *winfocus = &wf;
 	int			i, h, w, x, y, winno, hrh;
 
 	DNPRINTF(SWM_D_EVENT, "stack: workspace: %d\n", current_ws);
+
+	winfocus->id = root;
 
 	if (ws[current_ws].winno == 0)
 		return;
@@ -288,16 +301,15 @@ stack(void)
 		wc.border_width = 1;
 		XConfigureWindow(display, win->id, CWX | CWY | CWWidth |
 		    CWHeight | CWBorderWidth, &wc);
-		if (win == ws[current_ws].focus) {
-			winfocus = win->id;
-			XSetWindowBorder(display, win->id, 0xff0000);
-		} else
-			XSetWindowBorder(display, win->id, 0x888888);
+		if (win == ws[current_ws].focus)
+			winfocus = win;
+		else
+			unfocus_win(win);
 		XMapWindow(display, win->id);
 		i++;
 	}
 
-	XSetInputFocus(display, winfocus, RevertToPointerRoot, CurrentTime);
+	focus_win(winfocus);
 	XSync(display, False);
 }
 
@@ -415,7 +427,7 @@ buttonpress(XEvent *e)
 		return;
 	if (ev->window == ws[current_ws].focus->id)
 		return;
-
+#if 0
 	TAILQ_FOREACH(win, &ws[current_ws].winlist, entry)
 		if (win->id == ev->window) {
 			/* focus in the clicked window */
@@ -428,6 +440,7 @@ buttonpress(XEvent *e)
 			XSync(display, False);
 			break;
 	}
+#endif
 }
 
 void
@@ -505,13 +518,10 @@ enternotify(XEvent *e)
 		return;
 	}
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
-		if (win->id == ev->window) {
-			XSetInputFocus(display, ev->window, RevertToPointerRoot,
-			    CurrentTime);
-			XSetWindowBorder(display, ev->window, 0xff0000);
-			ws[current_ws].focus = win;
-		} else
-			XSetWindowBorder(display, win->id, 0x888888);
+		if (win->id == ev->window)
+			focus_win(win);
+		else
+			unfocus_win(win);
 	}
 }
 
