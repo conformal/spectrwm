@@ -58,10 +58,14 @@
 #include <time.h>
 #include <signal.h>
 #include <string.h>
+#include <util.h>
+#include <pwd.h>
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/queue.h>
+#include <sys/param.h>
 
 #include <X11/cursorfont.h>
 #include <X11/keysym.h>
@@ -101,19 +105,30 @@ int			width, height;
 int			running = 1;
 int			ignore_enter = 0;
 unsigned int		numlockmask = 0;
-unsigned long		col_focus = 0xff0000;	/* XXX should this be per ws? */
-unsigned long		col_unfocus = 0x888888;
+unsigned long		color_focus = 0xff0000;	/* XXX should this be per ws? */
+unsigned long		color_unfocus = 0x888888;
 Display			*display;
 Window			root;
 
 /* status bar */
 int			bar_enabled = 1;
-int			bar_height = 12;
+int			bar_height = 0;
+unsigned long		bar_border = 0x008080;
+unsigned long		bar_color = 0x000000;
+unsigned long		bar_font_color = 0xa0a0a0;
 Window			bar_window;
 GC			bar_gc;
 XGCValues		bar_gcv;
 XFontStruct		*bar_fs;
 char			bar_text[128];
+char			*bar_fonts[] = {
+				"-*-terminus-*-*-*-*-*-*-*-*-*-*-*-*",
+				"-*-times-medium-r-*-*-*-*-*-*-*-*-*-*",
+				NULL
+};
+
+/* terminal + args */
+char				*spawn_term[] = { "xterm", NULL };
 
 struct ws_win {
 	TAILQ_ENTRY(ws_win)	entry;
@@ -149,6 +164,90 @@ union arg {
 
 void	stack(void);
 
+#define	SWM_CONF_WS	"\n= \t"
+#define SWM_CONF_FILE	"scrotwm.conf"
+int
+conf_load(char *filename)
+{
+	FILE			*config;
+	char			*line, *cp, *var, *val;
+	size_t			 len, lineno = 0;
+
+	DNPRINTF(SWM_D_MISC, "conf_load: filename %s\n", filename);
+
+	if (filename == NULL)
+		return (1);
+
+	if ((config = fopen(filename, "r")) == NULL)
+		return (1);
+
+	for (;;) {
+		if ((line = fparseln(config, &len, &lineno, NULL, 0)) == NULL)
+			if (feof(config))
+				break;
+
+		cp = line;
+		cp += (long)strspn(cp, SWM_CONF_WS);
+		if (cp[0] == '\0') {
+			/* empty line */
+			free(line);
+			continue;
+		}
+
+		if ((var = strsep(&cp, SWM_CONF_WS)) == NULL || cp == NULL)
+			break;
+
+		cp += (long)strspn(cp, SWM_CONF_WS);
+		if ((val = strsep(&cp, SWM_CONF_WS)) == NULL)
+			break;
+
+		DNPRINTF(SWM_D_MISC, "conf_load: %s=%s\n",var ,val);
+		switch (var[0]) {
+		case 'b':
+			if (!strncmp(var, "bar_enabled", strlen("bar_enabled")))
+				bar_enabled = atoi(val);
+			else if (!strncmp(var, "bar_border",
+			    strlen("bar_border")))
+				bar_border = strtol(val, NULL, 16);
+			else if (!strncmp(var, "bar_color",
+			    strlen("bar_color")))
+				bar_color = strtol(val, NULL, 16);
+			else if (!strncmp(var, "bar_font_color",
+			    strlen("bar_font_color")))
+				bar_font_color = strtol(val, NULL, 16);
+			else if (!strncmp(var, "bar_font", strlen("bar_font")))
+				asprintf(&bar_fonts[0], "%s", val);
+			else
+				goto bad;
+			break;
+
+		case 'c':
+			if (!strncmp(var, "color_focus", strlen("color_focus")))
+				color_focus = strtol(val, NULL, 16);
+			else if (!strncmp(var, "color_unfocus",
+			    strlen("color_unfocus")))
+				color_unfocus = strtol(val, NULL, 16);
+			else
+				goto bad;
+			break;
+
+		case 's':
+			if (!strncmp(var, "spawn_term", strlen("spawn_term")))
+				asprintf(&spawn_term[0], "%s", val); /* XXX args? */
+			break;
+		default:
+			goto bad;
+		}
+
+		free(line);
+	}
+
+	fclose(config);
+	return (0);
+bad:
+	errx(1, "invalid conf file entry: %s=%s", var, val);
+}
+
 void
 bar_print(void)
 {
@@ -159,7 +258,7 @@ bar_print(void)
 		return;
 
 	/* clear old text */
-	XSetForeground(display, bar_gc, 0x000000);
+	XSetForeground(display, bar_gc, bar_color);
 	XDrawString(display, bar_window, bar_gc, 4, bar_fs->ascent, bar_text,
 	    strlen(bar_text));
 
@@ -167,7 +266,7 @@ bar_print(void)
 	time(&tmt);
 	localtime_r(&tmt, &tm);
 	strftime(bar_text, sizeof bar_text, "%a %b %d %R %Z %Y", &tm);
-	XSetForeground(display, bar_gc, 0xa0a0a0);
+	XSetForeground(display, bar_gc, bar_font_color);
 	XDrawString(display, bar_window, bar_gc, 4, bar_fs->ascent, bar_text,
 	    strlen(bar_text));
 	XSync(display, False);
@@ -207,6 +306,34 @@ bar_toggle(union arg *args)
 }
 
 void
+bar_setup(void)
+{
+	int			i;
+
+	for (i = 0; bar_fonts[i] != NULL; i++) {
+		bar_fs = XLoadQueryFont(display, bar_fonts[i]);
+		if (bar_fs)
+			break;
+	}
+	if (bar_fonts[i] == NULL)
+			errx(1, "couldn't load font");
+	bar_height = bar_fs->ascent + bar_fs->descent + 3;
+
+	bar_window = XCreateSimpleWindow(display, root, 0, 0, width,
+	    bar_height - 2, 1, bar_border, bar_color);
+	bar_gc = XCreateGC(display, bar_window, 0, &bar_gcv);
+	XSetFont(display, bar_gc, bar_fs->fid);
+	if (bar_enabled) {
+		height -= bar_height; /* correct screen height */
+		XMapWindow(display, bar_window);
+	}
+
+	if (signal(SIGALRM, bar_signal) == SIG_ERR)
+		err(1, "could not install bar_signal");
+	bar_print();
+}
+
+void
 quit(union arg *args)
 {
 	DNPRINTF(SWM_D_MISC, "quit\n");
@@ -239,7 +366,7 @@ void
 focus_win(struct ws_win *win)
 {
 	DNPRINTF(SWM_D_FOCUS, "focus_win: id: %lu\n", win->id);
-	XSetWindowBorder(display, win->id, col_focus);
+	XSetWindowBorder(display, win->id, color_focus);
 	XSetInputFocus(display, win->id, RevertToPointerRoot, CurrentTime);
 	ws[current_ws].focus = win;
 }
@@ -248,7 +375,7 @@ void
 unfocus_win(struct ws_win *win)
 {
 	DNPRINTF(SWM_D_FOCUS, "unfocus_win: id: %lu\n", win->id);
-	XSetWindowBorder(display, win->id, col_unfocus);
+	XSetWindowBorder(display, win->id, color_unfocus);
 	if (ws[current_ws].focus == win)
 		ws[current_ws].focus = NULL;
 }
@@ -449,9 +576,6 @@ send_to_ws(union arg *args)
 	stack();
 }
 
-/* terminal + args */
-char				*term[] = { "xterm", NULL };
-
 /* key definitions */
 struct key {
 	unsigned int		mod;
@@ -461,7 +585,7 @@ struct key {
 } keys[] = {
 	/* modifier		key	function		argument */
 	{ MODKEY,		XK_Return,	swap_to_main,	{0} },
-	{ MODKEY | ShiftMask,	XK_Return,	spawn,		{.argv = term } },
+	{ MODKEY | ShiftMask,	XK_Return,	spawn,		{.argv = spawn_term } },
 	{ MODKEY | ShiftMask,	XK_q,		quit,		{0} },
 	{ MODKEY,		XK_m,		focus,		{.id = SWM_ARG_ID_FOCUSMAIN} },
 	{ MODKEY,		XK_1,		switchws,	{.id = 0} },
@@ -764,6 +888,9 @@ active_wm(void)
 int
 main(int argc, char *argv[])
 {
+	struct passwd		*pwd;
+	char			conf[PATH_MAX], *cfile = NULL;
+	struct stat		sb;
 	XEvent			e;
 	int			i;
 
@@ -782,6 +909,25 @@ main(int argc, char *argv[])
 	width = DisplayWidth(display, screen) - 2;
 	height = DisplayHeight(display, screen) - 2;
 
+	/* look for local and globale conf file */
+	pwd = getpwuid(getuid());
+	if (pwd == NULL)
+		errx(1, "invalid user %d", getuid());
+
+	snprintf(conf, sizeof conf, "%s/.%s", pwd->pw_dir, SWM_CONF_FILE);
+	if (stat(conf, &sb) != -1) {
+		if (S_ISREG(sb.st_mode))
+			cfile = conf;
+	} else {
+		/* try global conf file */
+		snprintf(conf, sizeof conf, "/etc/%s", SWM_CONF_FILE);
+		if (!stat(conf, &sb))
+			if (S_ISREG(sb.st_mode))
+				cfile = conf;
+	}
+	if (cfile)
+		conf_load(cfile);
+
 	/* make work space 1 active */
 	ws[0].visible = 1;
 	ws[0].restack = 0;
@@ -797,16 +943,7 @@ main(int argc, char *argv[])
 	}
 
 	/* setup status bar */
-	bar_fs = XLoadQueryFont(display,
-	    "-*-terminus-*-*-*-*-*-*-*-*-*-*-*-*");
-	if (bar_fs == NULL) {
-		/* load a font that is default */
-		bar_fs = XLoadQueryFont(display,
-		    "-*-times-medium-r-*-*-*-*-*-*-*-*-*-*");
-		if (bar_fs == NULL)
-			errx(1, "couldn't load font");
-	}
-	bar_height = bar_fs->ascent + bar_fs->descent + 3;
+	bar_setup();
 
 	XSelectInput(display, root, SubstructureRedirectMask |
 	    SubstructureNotifyMask | ButtonPressMask | KeyPressMask |
@@ -814,19 +951,6 @@ main(int argc, char *argv[])
 	    FocusChangeMask | PropertyChangeMask);
 
 	grabkeys();
-
-	bar_window = XCreateSimpleWindow(display, root, 0, 0, width,
-	    bar_height - 2, 1, 0x008080, 0x000000);
-	bar_gc = XCreateGC(display, bar_window, 0, &bar_gcv);
-	XSetFont(display, bar_gc, bar_fs->fid);
-	if (bar_enabled) {
-		height -= bar_height; /* correct screen height */
-		XMapWindow(display, bar_window);
-	}
-
-	if (signal(SIGALRM, bar_signal) == SIG_ERR)
-		err(1, "could not install bar_signal");
-	bar_print();
 
 	while (running) {
 		XNextEvent(display, &e);
