@@ -462,7 +462,6 @@ struct key {
 	{ MODKEY | ShiftMask,	XK_0,		send_to_ws,	{.id = 9} },
 	{ MODKEY,		XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
 	{ MODKEY | ShiftMask,	XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
-	{ MODKEY | ShiftMask,	XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
 };
 
 void
