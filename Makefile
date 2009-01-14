@@ -7,7 +7,7 @@ NOMAN=
 
 CFLAGS+= -Wall -Wno-uninitialized
 CPPFLAGS+= -I${X11BASE}/include
-LDADD+=-L${X11BASE}/lib -lX11
+LDADD+=-lutil -L${X11BASE}/lib -lX11
 
 MANDIR= ${X11BASE}/man/cat
 

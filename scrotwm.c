@@ -138,6 +138,8 @@ struct ws_win {
 	int			y;
 	int			width;
 	int			height;
+	int			floating;
+	int			transient;
 };
 
 TAILQ_HEAD(ws_win_list, ws_win);
@@ -148,7 +150,6 @@ struct workspace {
 	int			visible;	/* workspace visible */
 	int			restack;	/* restack on switch */
 	struct ws_win		*focus;		/* which win has focus */
-	int			winno;		/* total nr of windows */
 	struct ws_win_list	winlist;	/* list of windows in ws */
 } ws[SWM_WS_MAX];
 int			current_ws = 0;
@@ -332,6 +333,21 @@ bar_setup(void)
 	bar_print();
 }
 
+int
+count_win(int wsid, int count_transient)
+{
+	struct ws_win		*win;
+	int			count = 0;
+
+	TAILQ_FOREACH (win, &ws[wsid].winlist, entry) {
+		if (count_transient == 0 && win->transient)
+			continue;
+		count++;
+	}
+	DNPRINTF(SWM_D_MISC, "count_win: %d\n", count);
+
+	return (count);
+}
 void
 quit(union arg *args)
 {
@@ -418,7 +434,7 @@ focus(union arg *args)
 	struct ws_win		*winfocus, *winlostfocus;
 
 	DNPRINTF(SWM_D_FOCUS, "focus: id %d\n", args->id);
-	if (ws[current_ws].focus == NULL || ws[current_ws].winno == 0)
+	if (ws[current_ws].focus == NULL || count_win(current_ws, 1) == 0)
 		return;
 
 	winlostfocus = ws[current_ws].focus;
@@ -459,7 +475,9 @@ stack(void)
 {
 	XWindowChanges		wc;
 	struct ws_win		wf, *win, *winfocus = &wf;
-	int			i, h, w, x, y, hrh;
+	int			i, h, w, x, y, hrh, winno;
+	int floater = 0;
+	unsigned int mask;
 
 	DNPRINTF(SWM_D_EVENT, "stack: workspace: %d\n", current_ws);
 
@@ -467,16 +485,17 @@ stack(void)
 
 	ws[current_ws].restack = 0;
 
-	if (ws[current_ws].winno == 0)
+	winno = count_win(current_ws, 0);
+	if (winno == 0)
 		return;
 
-	if (ws[current_ws].winno > 1)
+	if (winno > 1)
 		w = width / 2;
 	else
 		w = width;
 
-	if (ws[current_ws].winno > 2)
-		hrh = height / (ws[current_ws].winno - 1);
+	if (winno > 2)
+		hrh = height / (winno - 1);
 	else
 		hrh = 0;
 
@@ -507,14 +526,26 @@ stack(void)
 			}
 		}
 
+		if (win->transient != 0 || win->floating != 0)
+			floater = 1;
+		else
+			floater = 0;
+
 		bzero(&wc, sizeof wc);
-		win->x = wc.x = x;
-		win->y = wc.y = y;
-		win->width = wc.width = w;
-		win->height = wc.height = h;
 		wc.border_width = 1;
-		XConfigureWindow(display, win->id, CWX | CWY | CWWidth |
-		    CWHeight | CWBorderWidth, &wc);
+		if (floater == 0) {
+			win->x = wc.x = x;
+			win->y = wc.y = y;
+			win->width = wc.width = w;
+			win->height = wc.height = h;
+			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
+		} else {
+			win->x = wc.x = width / 2;
+			win->y = wc.y = height / 2;
+			mask = CWX | CWY | CWBorderWidth;
+		}
+		XConfigureWindow(display, win->id, mask, &wc);
+
 		if (win == ws[current_ws].focus)
 			winfocus = win;
 		else
@@ -564,12 +595,10 @@ send_to_ws(union arg *args)
 		ws[current_ws].focus = TAILQ_FIRST(&ws[current_ws].winlist);
 
 	TAILQ_REMOVE(&ws[current_ws].winlist, win, entry);
-	ws[current_ws].winno--;
 
 	TAILQ_INSERT_TAIL(&ws[wsid].winlist, win, entry);
-	if (ws[wsid].winno == 0)
+	if (count_win(wsid, 1) == 0)
 		ws[wsid].focus = win;
-	ws[wsid].winno++;
 	ws[wsid].restack = 1;
 
 	stack();
@@ -709,6 +738,7 @@ void
 configurerequest(XEvent *e)
 {
 	XConfigureRequestEvent	*ev = &e->xconfigurerequest;
+	Window			trans;
 	struct ws_win		*win;
 
 	DNPRINTF(SWM_D_EVENT, "configurerequest: window: %lu\n", ev->window);
@@ -719,7 +749,7 @@ configurerequest(XEvent *e)
 	}
 
 	XSelectInput(display, ev->window, ButtonPressMask | EnterWindowMask |
-	    FocusChangeMask);
+	    FocusChangeMask | ExposureMask);
 
 	if ((win = calloc(1, sizeof(struct ws_win))) == NULL)
 		errx(1, "calloc: failed to allocate memory for new window");
@@ -727,7 +757,26 @@ configurerequest(XEvent *e)
 	win->id = ev->window;
 	TAILQ_INSERT_TAIL(&ws[current_ws].winlist, win, entry);
 	ws[current_ws].focus = win; /* make new win focused */
-	ws[current_ws].winno++;
+
+	XGetTransientForHint(display, win->id, &trans);
+	if (trans) {
+		win->transient = trans;
+		DNPRINTF(SWM_D_MISC, "configurerequest: win %u transient %u\n",
+		    (unsigned)win->id, win->transient);
+	}
+#if 0
+	XClassHint ch = { 0 };
+	if(XGetClassHint(display, win->id, &ch)) {
+		fprintf(stderr, "class: %s name: %s\n", ch.res_class, ch.res_name);
+		if (!strcmp(ch.res_class, "Gvim") && !strcmp(ch.res_name, "gvim")) {
+			win->floating = 0;
+		}
+		if(ch.res_class)
+			XFree(ch.res_class);
+		if(ch.res_name)
+			XFree(ch.res_name);
+	}
+#endif
 	stack();
 }
 
@@ -757,7 +806,6 @@ destroynotify(XEvent *e)
 	
 			TAILQ_REMOVE(&ws[current_ws].winlist, win, entry);
 			free(win);
-			ws[current_ws].winno--;
 			break;
 		}
 	}
@@ -949,13 +997,11 @@ main(int argc, char *argv[])
 	ws[0].visible = 1;
 	ws[0].restack = 0;
 	ws[0].focus = NULL;
-	ws[0].winno = 0;
 	TAILQ_INIT(&ws[0].winlist);
 	for (i = 1; i < SWM_WS_MAX; i++) {
 		ws[i].visible = 0;
 		ws[i].restack = 0;
 		ws[i].focus = NULL;
-		ws[i].winno = 0;
 		TAILQ_INIT(&ws[i].winlist);
 	}
 
@@ -965,7 +1011,7 @@ main(int argc, char *argv[])
 	XSelectInput(display, root, SubstructureRedirectMask |
 	    SubstructureNotifyMask | ButtonPressMask | KeyPressMask |
 	    EnterWindowMask | LeaveWindowMask | StructureNotifyMask |
-	    FocusChangeMask | PropertyChangeMask);
+	    FocusChangeMask | PropertyChangeMask | ExposureMask);
 
 	grabkeys();
 
