@@ -55,6 +55,7 @@
 #include <err.h>
 #include <locale.h>
 #include <unistd.h>
+#include <time.h>
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -103,6 +104,15 @@ unsigned long		col_unfocus = 0x888888;
 Display			*display;
 Window			root;
 
+/* status bar */
+int			bar_enabled = 1;
+int			bar_height = 12;
+Window			bar_window;
+GC			bar_gc;
+XGCValues		bar_gcv;
+XFontStruct		*bar_fs;
+char			bar_text[128];
+
 struct ws_win {
 	TAILQ_ENTRY(ws_win)	entry;
 	Window			id;
@@ -133,6 +143,26 @@ union arg {
 	char			**argv;
 };
 
+void
+bar_print(void)
+{
+	time_t			tmt;
+	struct tm		tm;
+
+	/* clear old text */
+	XSetForeground(display, bar_gc, 0x000000);
+	XDrawString(display, bar_window, bar_gc, 4, bar_fs->ascent, bar_text,
+	    strlen(bar_text));
+
+	/* draw new text */
+	time(&tmt);
+	localtime_r(&tmt, &tm);
+	strftime(bar_text, sizeof bar_text, "%a %b %d %R %Z %Y", &tm);
+	XSetForeground(display, bar_gc, 0xa0a0a0);
+	XDrawString(display, bar_window, bar_gc, 4, bar_fs->ascent, bar_text,
+	    strlen(bar_text));
+	XSync(display, False);
+}
 void
 quit(union arg *args)
 {
@@ -281,7 +311,7 @@ stack(void)
 		hrh = 0;
 
 	x = 0;
-	y = 0;
+	y = bar_height;
 	h = height;
 	i = 0;
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
@@ -682,12 +712,34 @@ main(int argc, char *argv[])
 		TAILQ_INIT(&ws[i].winlist);
 	}
 
+	/* setup status bar */
+	bar_fs = XLoadQueryFont(display,
+	    "-*-terminus-*-*-*-*-*-*-*-*-*-*-*-*");
+	if (bar_fs == NULL) {
+		/* load a font that is default */
+		bar_fs = XLoadQueryFont(display,
+		    "-*-times-medium-r-*-*-*-*-*-*-*-*-*-*");
+		if (bar_fs == NULL)
+			errx(1, "couldn't load font");
+	}
+	bar_height = bar_fs->ascent + bar_fs->descent + 3;
+
 	XSelectInput(display, root, SubstructureRedirectMask |
 	    SubstructureNotifyMask | ButtonPressMask | KeyPressMask |
 	    EnterWindowMask | LeaveWindowMask | StructureNotifyMask |
 	    FocusChangeMask | PropertyChangeMask);
 
 	grabkeys();
+
+	bar_window = XCreateSimpleWindow(display, root, 0, 0, width,
+	    bar_height - 2, 1, 0x008080, 0x000000);
+	bar_gc = XCreateGC(display, bar_window, 0, &bar_gcv);
+	XSetFont(display, bar_gc, bar_fs->fid);
+	if (bar_enabled) {
+		height -= bar_height; /* correct screen height */
+		XMapWindow(display, bar_window);
+	}
+	bar_print();
 
 	while (running) {
 		XNextEvent(display, &e);
