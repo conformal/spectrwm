@@ -278,6 +278,7 @@ switchws(union arg *args)
 	ignore_enter = 1;
 	if (ws[wsid].restack) {
 		stack();
+		bar_print();
 	} else {
 		if (ws[wsid].focus != NULL)
 			focus_win(ws[wsid].focus);
