@@ -56,6 +56,7 @@
 #include <locale.h>
 #include <unistd.h>
 #include <time.h>
+#include <string.h>
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -195,7 +196,7 @@ spawn(union arg *args)
 void
 focus_win(struct ws_win *win)
 {
-	DNPRINTF(SWM_D_FOCUS, "focus_win: id: %d\n", win->id);
+	DNPRINTF(SWM_D_FOCUS, "focus_win: id: %lu\n", win->id);
 	XSetWindowBorder(display, win->id, col_focus);
 	XSetInputFocus(display, win->id, RevertToPointerRoot, CurrentTime);
 	ws[current_ws].focus = win;
@@ -204,7 +205,7 @@ focus_win(struct ws_win *win)
 void
 unfocus_win(struct ws_win *win)
 {
-	DNPRINTF(SWM_D_FOCUS, "unfocus_win: id: %d\n", win->id);
+	DNPRINTF(SWM_D_FOCUS, "unfocus_win: id: %lu\n", win->id);
 	XSetWindowBorder(display, win->id, col_unfocus);
 	if (ws[current_ws].focus == win)
 		ws[current_ws].focus = NULL;
@@ -215,7 +216,6 @@ switchws(union arg *args)
 {
 	int			wsid = args->id;
 	struct ws_win		*win;
-	Window			winfocus;
 
 	DNPRINTF(SWM_D_WS, "switchws: %d\n", wsid + 1);
 
@@ -291,7 +291,7 @@ stack(void)
 {
 	XWindowChanges		wc;
 	struct ws_win		wf, *win, *winfocus = &wf;
-	int			i, h, w, x, y, winno, hrh;
+	int			i, h, w, x, y, hrh;
 
 	DNPRINTF(SWM_D_EVENT, "stack: workspace: %d\n", current_ws);
 
@@ -362,7 +362,9 @@ swap_to_main(union arg *args)
 {
 	struct ws_win 		*tmpwin = TAILQ_FIRST(&ws[current_ws].winlist);
 
-	DNPRINTF(SWM_D_MISC, "swap_to_main: win: %d\n", ws[current_ws].focus->id);
+	DNPRINTF(SWM_D_MISC, "swap_to_main: win: %lu\n",
+	    ws[current_ws].focus->id);
+
 	TAILQ_REMOVE(&ws[current_ws].winlist, tmpwin, entry);
 	TAILQ_INSERT_AFTER(&ws[current_ws].winlist, ws[current_ws].focus,
 	    tmpwin, entry);
@@ -443,9 +445,7 @@ grabkeys(void)
 void
 expose(XEvent *e)
 {
-	XExposeEvent		*ev = &e->xexpose;
-
-	DNPRINTF(SWM_D_EVENT, "expose: window: %d\n", ev->window);
+	DNPRINTF(SWM_D_EVENT, "expose: window: %lu\n", e->xexpose.window);
 }
 
 void
@@ -455,7 +455,7 @@ keypress(XEvent *e)
 	KeySym			keysym;
 	XKeyEvent		*ev = &e->xkey;
 
-	DNPRINTF(SWM_D_EVENT, "keypress: window: %d\n", ev->window);
+	DNPRINTF(SWM_D_EVENT, "keypress: window: %lu\n", ev->window);
 
 	keysym = XKeycodeToKeysym(display, (KeyCode)ev->keycode, 0);
 	for(i = 0; i < LENGTH(keys); i++)
@@ -469,15 +469,18 @@ void
 buttonpress(XEvent *e)
 {
 	XButtonPressedEvent	*ev = &e->xbutton;
+#ifdef SWM_CLICKTOFOCUS
 	struct ws_win		*win;
+#endif
 
-	DNPRINTF(SWM_D_EVENT, "buttonpress: window: %d\n", ev->window);
+
+	DNPRINTF(SWM_D_EVENT, "buttonpress: window: %lu\n", ev->window);
 
 	if (ev->window == root)
 		return;
 	if (ev->window == ws[current_ws].focus->id)
 		return;
-#if 0
+#ifdef SWM_CLICKTOFOCUS
 	TAILQ_FOREACH(win, &ws[current_ws].winlist, entry)
 		if (win->id == ev->window) {
 			/* focus in the clicked window */
@@ -499,7 +502,7 @@ configurerequest(XEvent *e)
 	XConfigureRequestEvent	*ev = &e->xconfigurerequest;
 	struct ws_win		*win;
 
-	DNPRINTF(SWM_D_EVENT, "configurerequest: window: %d\n", ev->window);
+	DNPRINTF(SWM_D_EVENT, "configurerequest: window: %lu\n", ev->window);
 
 	XSelectInput(display, ev->window, ButtonPressMask | EnterWindowMask |
 	    FocusChangeMask);
@@ -517,19 +520,17 @@ configurerequest(XEvent *e)
 void
 configurenotify(XEvent *e)
 {
-	XConfigureEvent		*ev = &e->xconfigure;
-
-	DNPRINTF(SWM_D_EVENT, "configurenotify: window: %d\n", ev->window);
+	DNPRINTF(SWM_D_EVENT, "configurenotify: window: %lu\n",
+	    e->xconfigure.window);
 }
 
 void
 destroynotify(XEvent *e)
 {
-	size_t			sz;
 	struct ws_win		*win;
 	XDestroyWindowEvent	*ev = &e->xdestroywindow;
 
-	DNPRINTF(SWM_D_EVENT, "destroynotify: window %d\n", ev->window);
+	DNPRINTF(SWM_D_EVENT, "destroynotify: window %lu\n", ev->window);
 
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
 		if (ev->window == win->id) {
@@ -556,7 +557,7 @@ enternotify(XEvent *e)
 	XCrossingEvent		*ev = &e->xcrossing;
 	struct ws_win		*win;
 
-	DNPRINTF(SWM_D_EVENT, "enternotify: window: %d\n", ev->window);
+	DNPRINTF(SWM_D_EVENT, "enternotify: window: %lu\n", ev->window);
 
 	if((ev->mode != NotifyNormal || ev->detail == NotifyInferior) &&
 	    ev->window != root)
@@ -579,7 +580,7 @@ focusin(XEvent *e)
 {
 	XFocusChangeEvent	*ev = &e->xfocus;
 
-	DNPRINTF(SWM_D_EVENT, "focusin: window: %d\n", ev->window);
+	DNPRINTF(SWM_D_EVENT, "focusin: window: %lu\n", ev->window);
 
 	if (ev->window == root)
 		return;
@@ -589,7 +590,7 @@ focusin(XEvent *e)
 	 * click to focus
 	 */
 	/*
-	DNPRINTF(SWM_D_EVENT, "focusin: window: %d grabbing\n", ev->window);
+	DNPRINTF(SWM_D_EVENT, "focusin: window: %lu grabbing\n", ev->window);
 	XGrabButton(display, Button1, AnyModifier, ev->window, False,
 	    ButtonPress, GrabModeAsync, GrabModeSync, None, None);
 	*/
@@ -600,7 +601,7 @@ mappingnotify(XEvent *e)
 {
 	XMappingEvent		*ev = &e->xmapping;
 
-	DNPRINTF(SWM_D_EVENT, "mappingnotify: window: %d\n", ev->window);
+	DNPRINTF(SWM_D_EVENT, "mappingnotify: window: %lu\n", ev->window);
 
 	XRefreshKeyboardMapping(ev);
 	if(ev->request == MappingKeyboard)
@@ -610,25 +611,21 @@ mappingnotify(XEvent *e)
 void
 maprequest(XEvent *e)
 {
-	XMapRequestEvent	*ev = &e->xmaprequest;
-
-	DNPRINTF(SWM_D_EVENT, "maprequest: window: %d\n", ev->window);
+	DNPRINTF(SWM_D_EVENT, "maprequest: window: %lu\n",
+	    e->xmaprequest.window);
 }
 
 void
 propertynotify(XEvent *e)
 {
-	XPropertyEvent		*ev = &e->xproperty;
-
-	DNPRINTF(SWM_D_EVENT, "propertynotify: window: %d\n", ev->window);
+	DNPRINTF(SWM_D_EVENT, "propertynotify: window: %lu\n",
+	    e->xproperty.window);
 }
 
 void
 unmapnotify(XEvent *e)
 {
-	XUnmapEvent		*ev = &e->xunmap;
-
-	DNPRINTF(SWM_D_EVENT, "unmapnotify: window: %d\n", ev->window);
+	DNPRINTF(SWM_D_EVENT, "unmapnotify: window: %lu\n", e->xunmap.window);
 }
 
 void			(*handler[LASTEvent])(XEvent *) = {
