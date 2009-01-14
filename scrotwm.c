@@ -122,9 +122,9 @@ XGCValues		bar_gcv;
 XFontStruct		*bar_fs;
 char			bar_text[128];
 char			*bar_fonts[] = {
-				"-*-terminus-*-*-*-*-*-*-*-*-*-*-*-*",
-				"-*-times-medium-r-*-*-*-*-*-*-*-*-*-*",
-				NULL
+			    "-*-terminus-*-*-*-*-*-*-*-*-*-*-*-*",
+			    "-*-times-medium-r-*-*-*-*-*-*-*-*-*-*",
+			    NULL
 };
 
 /* terminal + args */
@@ -185,7 +185,6 @@ conf_load(char *filename)
 		if ((line = fparseln(config, &len, &lineno, NULL, 0)) == NULL)
 			if (feof(config))
 				break;
-
 		cp = line;
 		cp += (long)strspn(cp, SWM_CONF_WS);
 		if (cp[0] == '\0') {
@@ -193,10 +192,8 @@ conf_load(char *filename)
 			free(line);
 			continue;
 		}
-
 		if ((var = strsep(&cp, SWM_CONF_WS)) == NULL || cp == NULL)
 			break;
-
 		cp += (long)strspn(cp, SWM_CONF_WS);
 		if ((val = strsep(&cp, SWM_CONF_WS)) == NULL)
 			break;
@@ -238,7 +235,6 @@ conf_load(char *filename)
 		default:
 			goto bad;
 		}
-
 		free(line);
 	}
 
