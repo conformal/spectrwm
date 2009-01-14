@@ -271,27 +271,22 @@ focus(union arg *args)
 
 	switch (args->id) {
 	case SWM_ARG_ID_FOCUSPREV:
-		if (ws[current_ws].focus ==
-		    TAILQ_FIRST(&ws[current_ws].winlist))
+		ws[current_ws].focus =
+		    TAILQ_PREV(ws[current_ws].focus, ws_win_list, entry);
+		if (ws[current_ws].focus == NULL)
 			ws[current_ws].focus =
 			    TAILQ_LAST(&ws[current_ws].winlist, ws_win_list);
-		else
-			ws[current_ws].focus =TAILQ_PREV(ws[current_ws].focus,
-			    ws_win_list, entry);
 		break;
 
 	case SWM_ARG_ID_FOCUSNEXT:
-		if (ws[current_ws].focus == TAILQ_LAST(&ws[current_ws].winlist,
-		    ws_win_list))
+		ws[current_ws].focus = TAILQ_NEXT(ws[current_ws].focus, entry);
+		if (ws[current_ws].focus == NULL)
 			ws[current_ws].focus =
 			    TAILQ_FIRST(&ws[current_ws].winlist);
-		else
-			ws[current_ws].focus =
-			    TAILQ_NEXT(ws[current_ws].focus, entry);
 		break;
 
 	case SWM_ARG_ID_FOCUSMAIN:
-		ws[current_ws].focus = TAILQ_FIRST(&ws[current_ws].winlist);;
+		ws[current_ws].focus = TAILQ_FIRST(&ws[current_ws].winlist);
 		break;
 
 	default:
@@ -460,8 +455,8 @@ struct key {
 	{ MODKEY | ShiftMask,	XK_8,		send_to_ws,	{.id = 7} },
 	{ MODKEY | ShiftMask,	XK_9,		send_to_ws,	{.id = 8} },
 	{ MODKEY | ShiftMask,	XK_0,		send_to_ws,	{.id = 9} },
-	{ MODKEY,		XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
-	{ MODKEY | ShiftMask,	XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
+	{ MODKEY,		XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
+	{ MODKEY | ShiftMask,	XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
 };
 
 void
