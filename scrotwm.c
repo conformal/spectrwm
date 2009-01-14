@@ -129,9 +129,10 @@ TAILQ_HEAD(ws_win_list, ws_win);
 #define SWM_WS_MAX		(10)
 struct workspace {
 	int			visible;	/* workspace visible */
+	int			restack;	/* restack on switch */
 	struct ws_win		*focus;		/* which win has focus */
 	int			winno;		/* total nr of windows */
-	struct ws_win_list	winlist;
+	struct ws_win_list	winlist;	/* list of windows in ws */
 } ws[SWM_WS_MAX];
 int			current_ws = 0;
 
@@ -143,6 +144,9 @@ union arg {
 #define SWM_ARG_ID_FOCUSMAIN	(2)
 	char			**argv;
 };
+
+
+void	stack(void);
 
 void
 bar_print(void)
@@ -234,9 +238,13 @@ switchws(union arg *args)
 	current_ws = wsid;
 
 	ignore_enter = 1;
-	if (ws[wsid].focus != NULL)
-		focus_win(ws[wsid].focus);
-	XSync(display, False);
+	if (ws[wsid].restack) {
+		stack();
+	} else {
+		if (ws[wsid].focus != NULL)
+			focus_win(ws[wsid].focus);
+		XSync(display, False);
+	}
 }
 
 void
@@ -375,6 +383,34 @@ swap_to_main(union arg *args)
 	stack();
 }
 
+void
+send_to_ws(union arg *args)
+{
+	int			wsid = args->id;
+	struct ws_win		*win = ws[current_ws].focus;
+
+	DNPRINTF(SWM_D_MISC, "send_to_ws: win: %lu\n", win->id);
+
+	XUnmapWindow(display, win->id);
+
+	/* find a window to focus */
+	ws[current_ws].focus = TAILQ_PREV(win, ws_win_list,entry);
+	if (ws[current_ws].focus == NULL)
+		ws[current_ws].focus = TAILQ_FIRST(&ws[current_ws].winlist);
+
+	TAILQ_REMOVE(&ws[current_ws].winlist, win, entry);
+	ws[current_ws].winno--;
+
+	TAILQ_INSERT_TAIL(&ws[wsid].winlist, win, entry);
+	if (ws[wsid].winno == 0)
+		ws[wsid].focus = win;
+	ws[wsid].winno++;
+	ws[wsid].restack = 1;
+
+	stack();
+}
+
+
 /* terminal + args */
 char				*term[] = { "xterm", NULL };
 
@@ -400,7 +436,18 @@ struct key {
 	{ MODKEY,		XK_8,		switchws,	{.id = 7} },
 	{ MODKEY,		XK_9,		switchws,	{.id = 8} },
 	{ MODKEY,		XK_0,		switchws,	{.id = 9} },
-	{ MODKEY,		XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
+	{ MODKEY | ShiftMask,	XK_1,		send_to_ws,	{.id = 0} },
+	{ MODKEY | ShiftMask,	XK_2,		send_to_ws,	{.id = 1} },
+	{ MODKEY | ShiftMask,	XK_3,		send_to_ws,	{.id = 2} },
+	{ MODKEY | ShiftMask,	XK_4,		send_to_ws,	{.id = 3} },
+	{ MODKEY | ShiftMask,	XK_5,		send_to_ws,	{.id = 4} },
+	{ MODKEY | ShiftMask,	XK_6,		send_to_ws,	{.id = 5} },
+	{ MODKEY | ShiftMask,	XK_7,		send_to_ws,	{.id = 6} },
+	{ MODKEY | ShiftMask,	XK_8,		send_to_ws,	{.id = 7} },
+	{ MODKEY | ShiftMask,	XK_9,		send_to_ws,	{.id = 8} },
+	{ MODKEY | ShiftMask,	XK_0,		send_to_ws,	{.id = 9} },
+	{ MODKEY,		XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
+	{ MODKEY | ShiftMask,	XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
 	{ MODKEY | ShiftMask,	XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
 };
 
@@ -699,11 +746,13 @@ main(int argc, char *argv[])
 
 	/* make work space 1 active */
 	ws[0].visible = 1;
+	ws[0].restack = 0;
 	ws[0].focus = NULL;
 	ws[0].winno = 0;
 	TAILQ_INIT(&ws[0].winlist);
 	for (i = 1; i < SWM_WS_MAX; i++) {
 		ws[i].visible = 0;
+		ws[i].restack = 0;
 		ws[i].focus = NULL;
 		ws[i].winno = 0;
 		TAILQ_INIT(&ws[i].winlist);
