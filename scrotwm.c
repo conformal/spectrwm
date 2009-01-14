@@ -320,10 +320,12 @@ bar_setup(void)
 	    bar_height - 2, 1, bar_border, bar_color);
 	bar_gc = XCreateGC(display, bar_window, 0, &bar_gcv);
 	XSetFont(display, bar_gc, bar_fs->fid);
+	XSelectInput(display, bar_window, VisibilityChangeMask);
 	if (bar_enabled) {
 		height -= bar_height; /* correct screen height */
 		XMapWindow(display, bar_window);
 	}
+	DNPRINTF(SWM_D_MISC, "bar_setup: bar_window %d\n", (int)bar_window);
 
 	if (signal(SIGALRM, bar_signal) == SIG_ERR)
 		err(1, "could not install bar_signal");
@@ -841,6 +843,16 @@ unmapnotify(XEvent *e)
 	DNPRINTF(SWM_D_EVENT, "unmapnotify: window: %lu\n", e->xunmap.window);
 }
 
+void
+visibilitynotify(XEvent *e)
+{
+	DNPRINTF(SWM_D_EVENT, "visibilitynotify: window: %lu\n", e->xvisibility.window);
+
+	if (e->xvisibility.window == bar_window &&
+	    e->xvisibility.state == VisibilityUnobscured)
+		bar_print();
+}
+
 void			(*handler[LASTEvent])(XEvent *) = {
 				[Expose] = expose,
 				[KeyPress] = keypress,
@@ -854,6 +866,7 @@ void			(*handler[LASTEvent])(XEvent *) = {
 				[MapRequest] = maprequest,
 				[PropertyNotify] = propertynotify,
 				[UnmapNotify] = unmapnotify,
+				[VisibilityNotify] = visibilitynotify,
 };
 
 int
