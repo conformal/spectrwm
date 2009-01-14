@@ -129,6 +129,7 @@ char			*bar_fonts[] = {
 
 /* terminal + args */
 char				*spawn_term[] = { "xterm", NULL };
+char				*spawn_menu[] = { "dmenu_run", NULL };
 
 struct ws_win {
 	TAILQ_ENTRY(ws_win)	entry;
@@ -581,7 +582,8 @@ struct key {
 } keys[] = {
 	/* modifier		key	function		argument */
 	{ MODKEY,		XK_Return,	swap_to_main,	{0} },
-	{ MODKEY | ShiftMask,	XK_Return,	spawn,		{.argv = spawn_term } },
+	{ MODKEY | ShiftMask,	XK_Return,	spawn,		{.argv = spawn_term} },
+	{ MODKEY,		XK_p,		spawn,		{.argv = spawn_menu} },
 	{ MODKEY | ShiftMask,	XK_q,		quit,		{0} },
 	{ MODKEY,		XK_m,		focus,		{.id = SWM_ARG_ID_FOCUSMAIN} },
 	{ MODKEY,		XK_1,		switchws,	{.id = 0} },
