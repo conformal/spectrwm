@@ -155,6 +155,9 @@ bar_print(void)
 	time_t			tmt;
 	struct tm		tm;
 
+	if (bar_enabled == 0)
+		return;
+
 	/* clear old text */
 	XSetForeground(display, bar_gc, 0x000000);
 	XDrawString(display, bar_window, bar_gc, 4, bar_fs->ascent, bar_text,
@@ -177,6 +180,26 @@ bar_signal(int sig)
 {
 	/* XXX yeah yeah byte me */
 	bar_print();
+}
+
+void
+bar_toggle(union arg *args)
+{
+	DNPRINTF(SWM_D_MISC, "bar_toggle\n");
+
+	if (bar_enabled) {
+		bar_enabled = 0;
+		height += bar_height; /* correct screen height */
+		XUnmapWindow(display, bar_window);
+	} else {
+		bar_enabled = 1;
+		height -= bar_height; /* correct screen height */
+		XMapWindow(display, bar_window);
+	}
+	XSync(display, False);
+
+	stack();
+	bar_print(); /* must be after stack */
 }
 
 void
@@ -325,7 +348,7 @@ stack(void)
 		hrh = 0;
 
 	x = 0;
-	y = bar_height;
+	y = bar_enabled ? bar_height : 0;
 	h = height;
 	i = 0;
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
@@ -419,7 +442,6 @@ send_to_ws(union arg *args)
 	stack();
 }
 
-
 /* terminal + args */
 char				*term[] = { "xterm", NULL };
 
@@ -455,6 +477,7 @@ struct key {
 	{ MODKEY | ShiftMask,	XK_8,		send_to_ws,	{.id = 7} },
 	{ MODKEY | ShiftMask,	XK_9,		send_to_ws,	{.id = 8} },
 	{ MODKEY | ShiftMask,	XK_0,		send_to_ws,	{.id = 9} },
+	{ MODKEY,		XK_b,		bar_toggle,	{0} },
 	{ MODKEY,		XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
 	{ MODKEY | ShiftMask,	XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
 };
