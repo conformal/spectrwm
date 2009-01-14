@@ -140,6 +140,7 @@ struct ws_win {
 	int			height;
 	int			floating;
 	int			transient;
+	XWindowAttributes	wa;
 };
 
 TAILQ_HEAD(ws_win_list, ws_win);
@@ -540,8 +541,13 @@ stack(void)
 			win->height = wc.height = h;
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 		} else {
-			win->x = wc.x = width / 2;
-			win->y = wc.y = height / 2;
+			/* make sure we don't clobber the screen */
+			if (win->wa.width > width)
+				win->wa.width = width;
+			if (win->wa.height > height)
+				win->wa.width = height;
+			win->x = wc.x = (width - win->wa.width) / 2;
+			win->y = wc.y = (height - win->wa.height) / 2;
 			mask = CWX | CWY | CWBorderWidth;
 		}
 		XConfigureWindow(display, win->id, mask, &wc);
@@ -764,6 +770,7 @@ configurerequest(XEvent *e)
 		DNPRINTF(SWM_D_MISC, "configurerequest: win %u transient %u\n",
 		    (unsigned)win->id, win->transient);
 	}
+	XGetWindowAttributes(display, win->id, &win->wa);
 #if 0
 	XClassHint ch = { 0 };
 	if(XGetClassHint(display, win->id, &ch)) {
