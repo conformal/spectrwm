@@ -389,7 +389,7 @@ switchws(union arg *args)
 
 	/* map new window first to prevent ugly blinking */
 	TAILQ_FOREACH (win, &ws[wsid].winlist, entry)
-		XMapWindow(display, win->id);
+		XMapRaised(display, win->id);
 	ws[wsid].visible = 1;
 
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry)
@@ -516,7 +516,7 @@ stack(void)
 			winfocus = win;
 		else
 			unfocus_win(win);
-		XMapWindow(display, win->id);
+		XMapRaised(display, win->id);
 		i++;
 	}
 
@@ -709,6 +709,11 @@ configurerequest(XEvent *e)
 
 	DNPRINTF(SWM_D_EVENT, "configurerequest: window: %lu\n", ev->window);
 
+	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
+		if (ev->window == win->id)
+			return;
+	}
+
 	XSelectInput(display, ev->window, ButtonPressMask | EnterWindowMask |
 	    FocusChangeMask);
 
@@ -787,9 +792,10 @@ focusin(XEvent *e)
 
 	DNPRINTF(SWM_D_EVENT, "focusin: window: %lu\n", ev->window);
 
+	XSync(display, False); /* not sure this helps redrawing graphic apps */
+
 	if (ev->window == root)
 		return;
-
 	/*
 	 * kill grab for now so that we can cut and paste , this screws up
 	 * click to focus
@@ -905,7 +911,7 @@ main(int argc, char *argv[])
 	width = DisplayWidth(display, screen) - 2;
 	height = DisplayHeight(display, screen) - 2;
 
-	/* look for local and globale conf file */
+	/* look for local and global conf file */
 	pwd = getpwuid(getuid());
 	if (pwd == NULL)
 		errx(1, "invalid user %d", getuid());
