@@ -371,7 +371,10 @@ swap_to_main(union arg *args)
 	struct ws_win 		*tmpwin = TAILQ_FIRST(&ws[current_ws].winlist);
 
 	DNPRINTF(SWM_D_MISC, "swap_to_main: win: %lu\n",
-	    ws[current_ws].focus->id);
+	    ws[current_ws].focus ? ws[current_ws].focus->id : 0);
+
+	if (ws[current_ws].focus == NULL || ws[current_ws].focus == tmpwin)
+		return;
 
 	TAILQ_REMOVE(&ws[current_ws].winlist, tmpwin, entry);
 	TAILQ_INSERT_AFTER(&ws[current_ws].winlist, ws[current_ws].focus,
