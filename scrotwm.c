@@ -56,6 +56,7 @@
 #include <locale.h>
 #include <unistd.h>
 #include <time.h>
+#include <signal.h>
 #include <string.h>
 
 #include <sys/types.h>
@@ -167,7 +168,17 @@ bar_print(void)
 	XDrawString(display, bar_window, bar_gc, 4, bar_fs->ascent, bar_text,
 	    strlen(bar_text));
 	XSync(display, False);
+
+	alarm(60);
 }
+
+void
+bar_signal(int sig)
+{
+	/* XXX yeah yeah byte me */
+	bar_print();
+}
+
 void
 quit(union arg *args)
 {
@@ -392,7 +403,7 @@ send_to_ws(union arg *args)
 	int			wsid = args->id;
 	struct ws_win		*win = ws[current_ws].focus;
 
-	DNPRINTF(SWM_D_MISC, "send_to_ws: win: %lu\n", win->id);
+	DNPRINTF(SWM_D_WS, "send_to_ws: win: %lu\n", win->id);
 
 	XUnmapWindow(display, win->id);
 
@@ -788,6 +799,9 @@ main(int argc, char *argv[])
 		height -= bar_height; /* correct screen height */
 		XMapWindow(display, bar_window);
 	}
+
+	if (signal(SIGALRM, bar_signal) == SIG_ERR)
+		err(1, "could not install bar_signal");
 	bar_print();
 
 	while (running) {
