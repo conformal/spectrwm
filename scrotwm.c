@@ -185,6 +185,8 @@ bar_signal(int sig)
 void
 bar_toggle(union arg *args)
 {
+	int i;
+
 	DNPRINTF(SWM_D_MISC, "bar_toggle\n");
 
 	if (bar_enabled) {
@@ -197,6 +199,8 @@ bar_toggle(union arg *args)
 		XMapWindow(display, bar_window);
 	}
 	XSync(display, False);
+	for (i = 0; i < SWM_WS_MAX; i++)
+		ws[i].restack = 1;
 
 	stack();
 	bar_print(); /* must be after stack */
@@ -333,6 +337,8 @@ stack(void)
 	DNPRINTF(SWM_D_EVENT, "stack: workspace: %d\n", current_ws);
 
 	winfocus->id = root;
+
+	ws[current_ws].restack = 0;
 
 	if (ws[current_ws].winno == 0)
 		return;
