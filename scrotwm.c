@@ -78,16 +78,18 @@
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while(0)
 #define DNPRINTF(n,x...)	do { if (swm_debug & n) fprintf(stderr, x); } while(0)
-#define	SWM_D_EVENT		0x0001
-#define	SWM_D_WS		0x0002
-#define	SWM_D_FOCUS		0x0004
-#define	SWM_D_MISC		0x0008
+#define	SWM_D_MISC		0x8001
+#define	SWM_D_EVENT		0x0002
+#define	SWM_D_WS		0x0004
+#define	SWM_D_FOCUS		0x0008
+#define	SWM_D_FOCUS		0x0010
 
 u_int32_t		swm_debug = 0
+			    | SWM_D_MISC
 			    | SWM_D_EVENT
 			    | SWM_D_WS
 			    | SWM_D_FOCUS
-			    | SWM_D_MISC
+			    | SWM_D_MOVE
 			    ;
 #else
 #define DPRINTF(x...)
@@ -162,6 +164,9 @@ union arg {
 #define SWM_ARG_ID_FOCUSNEXT	(0)
 #define SWM_ARG_ID_FOCUSPREV	(1)
 #define SWM_ARG_ID_FOCUSMAIN	(2)
+#define SWM_ARG_ID_SWAPNEXT	(3)
+#define SWM_ARG_ID_SWAPPREV	(4)
+#define SWM_ARG_ID_SWAPMAIN	(5)
 	char			**argv;
 };
 
@@ -442,41 +447,103 @@ switchws(union arg *args)
 }
 
 void
+swapwin(union arg *args)
+{
+	struct ws_win		*target;
+
+	DNPRINTF(SWM_D_MOVE, "swapwin: id %d\n", args->id);
+	if (ws[current_ws].focus == NULL)
+		return;
+
+	switch (args->id) {
+	case SWM_ARG_ID_SWAPPREV:
+		target = TAILQ_PREV(ws[current_ws].focus, ws_win_list, entry);
+		if (target == NULL)
+			target = TAILQ_LAST(&ws[current_ws].winlist,
+			    ws_win_list);
+		if (target == ws[current_ws].focus)
+			return;
+		TAILQ_REMOVE(&ws[current_ws].winlist,
+		    ws[current_ws].focus, entry);
+		TAILQ_INSERT_BEFORE(target, ws[current_ws].focus, entry);
+		break;
+	case SWM_ARG_ID_SWAPNEXT: {
+		int loop = 0;
+
+		target = TAILQ_NEXT(ws[current_ws].focus, entry);
+		if (target == NULL) {
+			loop = 1;
+			target = TAILQ_FIRST(&ws[current_ws].winlist);
+		}
+		if (target == ws[current_ws].focus)
+			return;
+		TAILQ_REMOVE(&ws[current_ws].winlist,
+		    ws[current_ws].focus, entry);
+		TAILQ_INSERT_AFTER(&ws[current_ws].winlist, target,
+		    ws[current_ws].focus, entry);
+		if (loop) {
+			TAILQ_REMOVE(&ws[current_ws].winlist, target, entry);
+			TAILQ_INSERT_TAIL(&ws[current_ws].winlist,
+			    target, entry);
+		}
+		break;
+	}
+	case SWM_ARG_ID_SWAPMAIN:
+		target = TAILQ_FIRST(&ws[current_ws].winlist);
+		if (target == ws[current_ws].focus)
+			return;
+		TAILQ_REMOVE(&ws[current_ws].winlist, target, entry);
+		TAILQ_INSERT_BEFORE(ws[current_ws].focus, target, entry);
+		TAILQ_REMOVE(&ws[current_ws].winlist,
+		    ws[current_ws].focus, entry);
+		TAILQ_INSERT_HEAD(&ws[current_ws].winlist,
+		    ws[current_ws].focus, entry);
+		break;
+	default:
+		DNPRINTF(SWM_D_MOVE, "invalid id: %d\n", args->id);
+		return;
+	}
+
+	ignore_enter = 2;
+	stack();
+}
+
+void
 focus(union arg *args)
 {
 	struct ws_win		*winfocus, *winlostfocus;
 
 	DNPRINTF(SWM_D_FOCUS, "focus: id %d\n", args->id);
-	if (ws[current_ws].focus == NULL || count_win(current_ws, 1) == 0)
+	if (ws[current_ws].focus == NULL)
 		return;
 
 	winlostfocus = ws[current_ws].focus;
 
 	switch (args->id) {
 	case SWM_ARG_ID_FOCUSPREV:
-		ws[current_ws].focus =
-		    TAILQ_PREV(ws[current_ws].focus, ws_win_list, entry);
-		if (ws[current_ws].focus == NULL)
-			ws[current_ws].focus =
+		winfocus = TAILQ_PREV(ws[current_ws].focus, ws_win_list, entry);
+		if (winfocus == NULL)
+			winfocus =
 			    TAILQ_LAST(&ws[current_ws].winlist, ws_win_list);
 		break;
 
 	case SWM_ARG_ID_FOCUSNEXT:
-		ws[current_ws].focus = TAILQ_NEXT(ws[current_ws].focus, entry);
-		if (ws[current_ws].focus == NULL)
-			ws[current_ws].focus =
-			    TAILQ_FIRST(&ws[current_ws].winlist);
+		winfocus = TAILQ_NEXT(ws[current_ws].focus, entry);
+		if (winfocus == NULL)
+			winfocus = TAILQ_FIRST(&ws[current_ws].winlist);
 		break;
 
 	case SWM_ARG_ID_FOCUSMAIN:
-		ws[current_ws].focus = TAILQ_FIRST(&ws[current_ws].winlist);
+		winfocus = TAILQ_FIRST(&ws[current_ws].winlist);
 		break;
 
 	default:
 		return;
 	}
 
-	winfocus = ws[current_ws].focus;
+	if (winfocus == winlostfocus)
+		return;
+
 	unfocus_win(winlostfocus);
 	focus_win(winfocus);
 	XSync(display, False);
@@ -577,40 +644,21 @@ stack(void)
 }
 
 void
-swap_to_main(union arg *args)
-{
-	struct ws_win 		*tmpwin = TAILQ_FIRST(&ws[current_ws].winlist);
-
-	DNPRINTF(SWM_D_MISC, "swap_to_main: win: %lu\n",
-	    ws[current_ws].focus ? ws[current_ws].focus->id : 0);
-
-	if (ws[current_ws].focus == NULL || ws[current_ws].focus == tmpwin)
-		return;
-
-	TAILQ_REMOVE(&ws[current_ws].winlist, tmpwin, entry);
-	TAILQ_INSERT_AFTER(&ws[current_ws].winlist, ws[current_ws].focus,
-	    tmpwin, entry);
-	TAILQ_REMOVE(&ws[current_ws].winlist, ws[current_ws].focus, entry);
-	TAILQ_INSERT_HEAD(&ws[current_ws].winlist, ws[current_ws].focus, entry);
-	ws[current_ws].focus = TAILQ_FIRST(&ws[current_ws].winlist);
-	ignore_enter = 2;
-	stack();
-}
-
-void
 send_to_ws(union arg *args)
 {
 	int			wsid = args->id;
 	struct ws_win		*win = ws[current_ws].focus;
 
-	DNPRINTF(SWM_D_WS, "send_to_ws: win: %lu\n", win->id);
+	DNPRINTF(SWM_D_MOVE, "send_to_ws: win: %lu\n", win->id);
 
 	XUnmapWindow(display, win->id);
 
 	/* find a window to focus */
-	ws[current_ws].focus = TAILQ_PREV(win, ws_win_list,entry);
+	ws[current_ws].focus = TAILQ_PREV(win, ws_win_list, entry);
 	if (ws[current_ws].focus == NULL)
 		ws[current_ws].focus = TAILQ_FIRST(&ws[current_ws].winlist);
+	if (ws[current_ws].focus == win)
+		ws[current_ws].focus = NULL;
 
 	TAILQ_REMOVE(&ws[current_ws].winlist, win, entry);
 
@@ -630,7 +678,11 @@ struct key {
 	union arg		args;
 } keys[] = {
 	/* modifier		key	function		argument */
-	{ MODKEY,		XK_Return,	swap_to_main,	{0} },
+	{ MODKEY,		XK_Return,	swapwin,	{.id = SWM_ARG_ID_SWAPMAIN} },
+	{ MODKEY,		XK_j,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
+	{ MODKEY,		XK_k,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
+	{ MODKEY | ShiftMask,	XK_j,		swapwin,	{.id = SWM_ARG_ID_SWAPNEXT} },
+	{ MODKEY | ShiftMask,	XK_k,		swapwin,	{.id = SWM_ARG_ID_SWAPPREV} },
 	{ MODKEY | ShiftMask,	XK_Return,	spawn,		{.argv = spawn_term} },
 	{ MODKEY,		XK_p,		spawn,		{.argv = spawn_menu} },
 	{ MODKEY | ShiftMask,	XK_q,		quit,		{0} },
@@ -830,11 +882,13 @@ destroynotify(XEvent *e)
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
 		if (ev->window == win->id) {
 			/* find a window to focus */
-			ws[current_ws].focus =
-			    TAILQ_PREV(win, ws_win_list,entry);
+			ws[current_ws].focus = TAILQ_PREV(win,
+			    ws_win_list, entry);
 			if (ws[current_ws].focus == NULL)
 				ws[current_ws].focus =
 				    TAILQ_FIRST(&ws[current_ws].winlist);
+			if (win == ws[current_ws].focus)
+				ws[current_ws].focus = NULL;
 	
 			TAILQ_REMOVE(&ws[current_ws].winlist, win, entry);
 			free(win);
