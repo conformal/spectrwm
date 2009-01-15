@@ -83,7 +83,7 @@
 #define	SWM_D_FOCUS		0x0004
 #define	SWM_D_MISC		0x0008
 
-uint32_t		swm_debug = 0
+u_int32_t		swm_debug = 0
 			    | SWM_D_EVENT
 			    | SWM_D_WS
 			    | SWM_D_FOCUS
@@ -130,6 +130,7 @@ char			*bar_fonts[] = {
 /* terminal + args */
 char				*spawn_term[] = { "xterm", NULL };
 char				*spawn_menu[] = { "dmenu_run", NULL };
+char				*spawn_scrotwm[] = { "scrotwm", NULL };
 
 struct ws_win {
 	TAILQ_ENTRY(ws_win)	entry;
@@ -354,6 +355,17 @@ quit(union arg *args)
 {
 	DNPRINTF(SWM_D_MISC, "quit\n");
 	running = 0;
+}
+
+
+void
+restart(union arg *args)
+{	
+	XCloseDisplay(display);
+	execvp(args->argv[0], args->argv);
+	fprintf(stderr, "execvp failed\n");
+	perror(" failed");
+	quit(NULL);
 }
 
 void
@@ -622,6 +634,7 @@ struct key {
 	{ MODKEY | ShiftMask,	XK_Return,	spawn,		{.argv = spawn_term} },
 	{ MODKEY,		XK_p,		spawn,		{.argv = spawn_menu} },
 	{ MODKEY | ShiftMask,	XK_q,		quit,		{0} },
+	{ MODKEY,		XK_q,		restart,	{.argv = spawn_scrotwm } },
 	{ MODKEY,		XK_m,		focus,		{.id = SWM_ARG_ID_FOCUSMAIN} },
 	{ MODKEY,		XK_1,		switchws,	{.id = 0} },
 	{ MODKEY,		XK_2,		switchws,	{.id = 1} },
@@ -740,6 +753,29 @@ buttonpress(XEvent *e)
 #endif
 }
 
+struct ws_win *
+manage_window(Window id)
+{
+	struct ws_win		*win;
+
+	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
+		if (win->id == id)
+			return (win);	/* already being managed */
+	}
+
+	if ((win = calloc(1, sizeof(struct ws_win))) == NULL)
+		errx(1, "calloc: failed to allocate memory for new window");
+
+	win->id = id;
+	TAILQ_INSERT_TAIL(&ws[current_ws].winlist, win, entry);
+
+	XSelectInput(display, id, ButtonPressMask | EnterWindowMask |
+	    FocusChangeMask | ExposureMask);
+
+	return win;
+}
+
+
 void
 configurerequest(XEvent *e)
 {
@@ -749,19 +785,8 @@ configurerequest(XEvent *e)
 
 	DNPRINTF(SWM_D_EVENT, "configurerequest: window: %lu\n", ev->window);
 
-	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
-		if (ev->window == win->id)
-			return;
-	}
 
-	XSelectInput(display, ev->window, ButtonPressMask | EnterWindowMask |
-	    FocusChangeMask | ExposureMask);
-
-	if ((win = calloc(1, sizeof(struct ws_win))) == NULL)
-		errx(1, "calloc: failed to allocate memory for new window");
-
-	win->id = ev->window;
-	TAILQ_INSERT_TAIL(&ws[current_ws].winlist, win, entry);
+	win = manage_window(ev->window);
 	ws[current_ws].focus = win; /* make new win focused */
 
 	XGetTransientForHint(display, win->id, &trans);
@@ -964,7 +989,9 @@ main(int argc, char *argv[])
 	char			conf[PATH_MAX], *cfile = NULL;
 	struct stat		sb;
 	XEvent			e;
-	int			i;
+	unsigned int		i, num;
+	Window			d1, d2, *wins = NULL;
+	XWindowAttributes	wa;
 
 	fprintf(stderr, "Welcome to scrotwm V%s\n", SWM_VERSION);
 	if(!setlocale(LC_CTYPE, "") || !XSupportsLocale())
@@ -1002,15 +1029,28 @@ main(int argc, char *argv[])
 
 	/* make work space 1 active */
 	ws[0].visible = 1;
-	ws[0].restack = 0;
-	ws[0].focus = NULL;
+	ws[0].restack = 1;
 	TAILQ_INIT(&ws[0].winlist);
 	for (i = 1; i < SWM_WS_MAX; i++) {
 		ws[i].visible = 0;
-		ws[i].restack = 0;
+		ws[i].restack = 1;
 		ws[i].focus = NULL;
 		TAILQ_INIT(&ws[i].winlist);
 	}
+
+	/* grab existing windows */
+	if (XQueryTree(display, root, &d1, &d2, &wins, &num)) {
+		for (i = 0; i < num; i++) {
+                        if (!XGetWindowAttributes(display, wins[i], &wa)
+			    || wa.override_redirect ||
+			    XGetTransientForHint(display, wins[i], &d1))
+				continue;
+			manage_window(wins[i]);
+                }
+                if(wins)
+                        XFree(wins);
+        }
+	ws[0].focus = TAILQ_FIRST(&ws[0].winlist);
 
 	/* setup status bar */
 	bar_setup();
@@ -1021,6 +1061,7 @@ main(int argc, char *argv[])
 	    FocusChangeMask | PropertyChangeMask | ExposureMask);
 
 	grabkeys();
+	stack();
 
 	while (running) {
 		XNextEvent(display, &e);
