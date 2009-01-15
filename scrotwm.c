@@ -908,6 +908,9 @@ maprequest(XEvent *e)
 {
 	DNPRINTF(SWM_D_EVENT, "maprequest: window: %lu\n",
 	    e->xmaprequest.window);
+
+	manage_window(e->xmaprequest.window);
+	stack();
 }
 
 void
