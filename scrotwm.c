@@ -166,6 +166,7 @@ struct ws_win {
 	int			floating;
 	int			transient;
 	XWindowAttributes	wa;
+	XSizeHints		sh;
 };
 
 TAILQ_HEAD(ws_win_list, ws_win);
@@ -581,6 +582,67 @@ stack(void) {
 }
 
 void
+stack_floater(struct ws_win *win)
+{
+	unsigned int		mask;
+	XWindowChanges		wc;
+
+	bzero(&wc, sizeof wc);
+	wc.border_width = 1;
+	mask = CWX | CWY | CWBorderWidth;
+
+	/* use obsolete width height */
+	if (win->sh.flags & USPosition) {
+		win->width = wc.width = win->sh.width;
+		win->height = wc.height = win->sh.height;
+		mask |= CWWidth | CWHeight;
+	}
+
+	/* try min max */
+	if (win->sh.flags & PMinSize) {
+		/* some hints are retarded */
+		if (win->sh.min_width < width / 10)
+			win->sh.min_width = width / 3;
+		if (win->sh.min_height < height / 10)
+			win->wa.height = height / 3;
+
+		win->width = wc.width = win->sh.min_width * 2;
+		win->height = wc.height = win->sh.min_height * 2;
+		mask |= CWWidth | CWHeight;
+	}
+	if (win->sh.flags & PMaxSize) {
+		/* potentially override min values */
+		if (win->sh.max_width < width) {
+			win->width = wc.width = win->sh.max_width;
+			mask |= CWWidth;
+		}
+		if (win->sh.max_height < height) {
+			win->height = wc.height = win->sh.max_height;
+			mask |= CWHeight;
+		}
+	}
+
+	/* make sure we don't clobber the screen */
+	if ((mask & CWWidth) && win->wa.width > width)
+		win->wa.width = width - 4;
+	if ((mask & CWHeight) && win->wa.height > height)
+		win->wa.height = height - 4;
+
+	/* supposed to be obsolete */
+	if (win->sh.flags & USPosition) {
+		win->x = wc.x = win->sh.x;
+		win->y = wc.y = win->sh.y;
+	} else {
+		win->x = wc.x = (width - win->wa.width) / 2;
+		win->y = wc.y = (height - win->wa.height) / 2;
+	}
+	DNPRINTF(SWM_D_EVENT, "stack_floater: win %d x %d y %d w %d h %d\n",
+	    win, wc.x, wc.y, wc.width, wc.height);
+
+	XConfigureWindow(display, win->id, mask, &wc);
+}
+
+void
 vertical_init(void)
 {
 	DNPRINTF(SWM_D_EVENT, "vertical_init: workspace: %d\n", current_ws);
@@ -592,8 +654,7 @@ vertical_stack(void) {
 	XWindowChanges		wc;
 	struct ws_win		wf, *win, *winfocus = &wf;
 	int			i, h, w, x, y, hrh, winno;
-	int floater = 0;
-	unsigned int mask;
+	unsigned int		mask;
 
 	DNPRINTF(SWM_D_EVENT, "vertical_stack: workspace: %d\n", current_ws);
 
@@ -641,29 +702,17 @@ vertical_stack(void) {
 		}
 
 		if (win->transient != 0 || win->floating != 0)
-			floater = 1;
-		else
-			floater = 0;
-
-		bzero(&wc, sizeof wc);
-		wc.border_width = 1;
-		if (floater == 0) {
+			stack_floater(win);
+		else {
+			bzero(&wc, sizeof wc);
+			wc.border_width = 1;
 			win->x = wc.x = x;
 			win->y = wc.y = y;
 			win->width = wc.width = w;
 			win->height = wc.height = h;
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
-		} else {
-			/* make sure we don't clobber the screen */
-			if (win->wa.width > width)
-				win->wa.width = width;
-			if (win->wa.height > height)
-				win->wa.width = height;
-			win->x = wc.x = (width - win->wa.width) / 2;
-			win->y = wc.y = (height - win->wa.height) / 2;
-			mask = CWX | CWY | CWBorderWidth;
+			XConfigureWindow(display, win->id, mask, &wc);
 		}
-		XConfigureWindow(display, win->id, mask, &wc);
 
 		if (win == ws[current_ws].focus)
 			winfocus = win;
@@ -687,8 +736,7 @@ horizontal_stack(void) {
 	XWindowChanges		wc;
 	struct ws_win		wf, *win, *winfocus = &wf;
 	int			i, h, w, x, y, hrw, winno;
-	int floater = 0;
-	unsigned int mask;
+	unsigned int		mask;
 
 	DNPRINTF(SWM_D_EVENT, "horizontal_stack: workspace: %d\n", current_ws);
 
@@ -736,29 +784,17 @@ horizontal_stack(void) {
 		}
 
 		if (win->transient != 0 || win->floating != 0)
-			floater = 1;
-		else
-			floater = 0;
-
-		bzero(&wc, sizeof wc);
-		wc.border_width = 1;
-		if (floater == 0) {
+			stack_floater(win);
+		else {
+			bzero(&wc, sizeof wc);
+			wc.border_width = 1;
 			win->x = wc.x = x;
 			win->y = wc.y = y;
 			win->width = wc.width = w;
 			win->height = wc.height = h;
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
-		} else {
-			/* make sure we don't clobber the screen */
-			if (win->wa.width > width)
-				win->wa.width = width;
-			if (win->wa.height > height)
-				win->wa.width = height;
-			win->x = wc.x = (width - win->wa.width) / 2;
-			win->y = wc.y = (height - win->wa.height) / 2;
-			mask = CWX | CWY | CWBorderWidth;
+			XConfigureWindow(display, win->id, mask, &wc);
 		}
-		XConfigureWindow(display, win->id, mask, &wc);
 
 		if (win == ws[current_ws].focus)
 			winfocus = win;
@@ -1008,7 +1044,6 @@ manage_window(Window id)
 	return win;
 }
 
-
 void
 configurerequest(XEvent *e)
 {
@@ -1029,6 +1064,7 @@ configurerequest(XEvent *e)
 		    (unsigned)win->id, win->transient);
 	}
 	XGetWindowAttributes(display, win->id, &win->wa);
+	XGetNormalHints(display, win->id, &win->sh);
 #if 0
 	XClassHint ch = { 0 };
 	if(XGetClassHint(display, win->id, &ch)) {
@@ -1048,6 +1084,7 @@ configurerequest(XEvent *e)
 void
 configurenotify(XEvent *e)
 {
+
 	DNPRINTF(SWM_D_EVENT, "configurenotify: window: %lu\n",
 	    e->xconfigure.window);
 }
