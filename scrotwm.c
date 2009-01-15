@@ -842,7 +842,7 @@ send_to_ws(union arg *args)
 	TAILQ_REMOVE(&ws[current_ws].winlist, win, entry);
 
 	TAILQ_INSERT_TAIL(&ws[wsid].winlist, win, entry);
-	if (count_win(wsid, 1) == 0)
+	if (count_win(wsid, 1) == 1)
 		ws[wsid].focus = win;
 	ws[wsid].restack = 1;
 
