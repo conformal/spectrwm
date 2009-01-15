@@ -82,7 +82,7 @@
 #define	SWM_D_EVENT		0x0002
 #define	SWM_D_WS		0x0004
 #define	SWM_D_FOCUS		0x0008
-#define	SWM_D_FOCUS		0x0010
+#define	SWM_D_MOVE		0x0010
 
 u_int32_t		swm_debug = 0
 			    | SWM_D_MISC
