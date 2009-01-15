@@ -78,7 +78,7 @@
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while(0)
 #define DNPRINTF(n,x...)	do { if (swm_debug & n) fprintf(stderr, x); } while(0)
-#define	SWM_D_MISC		0x8001
+#define	SWM_D_MISC		0x0001
 #define	SWM_D_EVENT		0x0002
 #define	SWM_D_WS		0x0004
 #define	SWM_D_FOCUS		0x0008
@@ -134,6 +134,28 @@ char				*spawn_term[] = { "xterm", NULL };
 char				*spawn_menu[] = { "dmenu_run", NULL };
 char				*spawn_scrotwm[] = { "scrotwm", NULL };
 
+/* layout manager data */
+void	stack(void);
+void	vertical_init(void);
+void	vertical_stack(void);
+void	horizontal_init(void);
+void	horizontal_stack(void);
+void	max_init(void);
+void	max_stack(void);
+
+struct layout {
+	void			(*l_init)(void);	/* init/reset */
+	void			(*l_stack)(void);	/* restack windows */
+} layouts[] =  {
+	/* init			stack */
+	{ vertical_init,	vertical_stack},
+	{ horizontal_init,	horizontal_stack},
+	/* XXX not working yet
+	 * { max_init,		max_stack},
+	 */
+	{ NULL,			NULL},
+};
+
 struct ws_win {
 	TAILQ_ENTRY(ws_win)	entry;
 	Window			id;
@@ -153,6 +175,7 @@ TAILQ_HEAD(ws_win_list, ws_win);
 struct workspace {
 	int			visible;	/* workspace visible */
 	int			restack;	/* restack on switch */
+	struct layout		*cur_layout;	/* current layout handlers */
 	struct ws_win		*focus;		/* which win has focus */
 	struct ws_win_list	winlist;	/* list of windows in ws */
 } ws[SWM_WS_MAX];
@@ -171,7 +194,6 @@ union arg {
 };
 
 
-void	stack(void);
 
 #define	SWM_CONF_WS	"\n= \t"
 #define SWM_CONF_FILE	"scrotwm.conf"
@@ -539,21 +561,46 @@ focus(union arg *args)
 	XSync(display, False);
 }
 
+void
+cycle_layout(union arg *args)
+{
+	DNPRINTF(SWM_D_EVENT, "cycle_layout: workspace: %d\n", current_ws);
+
+	ws[current_ws].cur_layout++;
+	if (ws[current_ws].cur_layout->l_stack == NULL)
+		ws[current_ws].cur_layout = &layouts[0];
+	stack();
+}
+
+void
+stack(void) {
+	DNPRINTF(SWM_D_EVENT, "stack: workspace: %d\n", current_ws);
+
+	ws[current_ws].restack = 0;
+
+	ws[current_ws].cur_layout->l_stack();
+
+	XSync(display, False);
+}
+
+void
+vertical_init(void)
+{
+	DNPRINTF(SWM_D_EVENT, "vertical_init: workspace: %d\n", current_ws);
+}
+
 /* I know this sucks but it works well enough */
 void
-stack(void)
-{
+vertical_stack(void) {
 	XWindowChanges		wc;
 	struct ws_win		wf, *win, *winfocus = &wf;
 	int			i, h, w, x, y, hrh, winno;
 	int floater = 0;
 	unsigned int mask;
 
-	DNPRINTF(SWM_D_EVENT, "stack: workspace: %d\n", current_ws);
+	DNPRINTF(SWM_D_EVENT, "vertical_stack: workspace: %d\n", current_ws);
 
 	winfocus->id = root;
-
-	ws[current_ws].restack = 0;
 
 	winno = count_win(current_ws, 0);
 	if (winno == 0)
@@ -630,7 +677,152 @@ stack(void)
 	}
 
 	focus_win(winfocus); /* this has to be done outside of the loop */
-	XSync(display, False);
+}
+
+void
+horizontal_init(void)
+{
+	DNPRINTF(SWM_D_EVENT, "horizontal_init: workspace: %d\n", current_ws);
+}
+
+void
+horizontal_stack(void) {
+	XWindowChanges		wc;
+	struct ws_win		wf, *win, *winfocus = &wf;
+	int			i, h, w, x, y, hrw, winno;
+	int floater = 0;
+	unsigned int mask;
+
+	DNPRINTF(SWM_D_EVENT, "horizontal_stack: workspace: %d\n", current_ws);
+
+	winfocus->id = root;
+
+	winno = count_win(current_ws, 0);
+	if (winno == 0)
+		return;
+
+	if (winno > 1)
+		h = height / 2;
+	else
+		h = height;
+
+	if (winno > 2)
+		hrw = width / (winno - 1);
+	else
+		hrw = 0;
+
+	x = 0;
+	y = bar_enabled ? bar_height : 0;
+	w = width;
+	i = 0;
+	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
+		if (i == 1) {
+			y += h + 2;
+			h -= 2;
+		}
+		if (i != 0 && hrw != 0) {
+			/* correct the last window for lost pixels */
+			if (win == TAILQ_LAST(&ws[current_ws].winlist,
+			    ws_win_list)) {
+				w = width - (i * hrw);
+				if (w == 0)
+					w = hrw;
+				else
+					w += hrw;
+				x += hrw;
+			} else {
+				w = hrw - 2;
+				/* leave first bottom window at x = 0 */
+				if (i > 1)
+					x += w + 2;
+			}
+		}
+
+		if (win->transient != 0 || win->floating != 0)
+			floater = 1;
+		else
+			floater = 0;
+
+		bzero(&wc, sizeof wc);
+		wc.border_width = 1;
+		if (floater == 0) {
+			win->x = wc.x = x;
+			win->y = wc.y = y;
+			win->width = wc.width = w;
+			win->height = wc.height = h;
+			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
+		} else {
+			/* make sure we don't clobber the screen */
+			if (win->wa.width > width)
+				win->wa.width = width;
+			if (win->wa.height > height)
+				win->wa.width = height;
+			win->x = wc.x = (width - win->wa.width) / 2;
+			win->y = wc.y = (height - win->wa.height) / 2;
+			mask = CWX | CWY | CWBorderWidth;
+		}
+		XConfigureWindow(display, win->id, mask, &wc);
+
+		if (win == ws[current_ws].focus)
+			winfocus = win;
+		else
+			unfocus_win(win);
+		XMapRaised(display, win->id);
+		i++;
+	}
+
+	focus_win(winfocus); /* this has to be done outside of the loop */
+}
+
+/* fullscreen view */
+void
+max_init(void)
+{
+	DNPRINTF(SWM_D_EVENT, "max_init: workspace: %d\n", current_ws);
+}
+
+void
+max_stack(void) {
+	XWindowChanges		wc;
+	struct ws_win		wf, *win, *winfocus = &wf;
+	int			i, h, w, x, y, winno;
+	unsigned int mask;
+
+	DNPRINTF(SWM_D_EVENT, "max_stack: workspace: %d\n", current_ws);
+
+	winfocus->id = root;
+
+	winno = count_win(current_ws, 0);
+	if (winno == 0)
+		return;
+
+	x = 0;
+	y = bar_enabled ? bar_height : 0;
+	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
+		if (i == 1 && win->transient == 0 && win->floating != 0) {
+			h = height - 2;
+			w = width - 2;
+
+			winfocus = win;
+
+			bzero(&wc, sizeof wc);
+			wc.border_width = 1;
+			win->x = wc.x = x;
+			win->y = wc.y = y;
+			win->width = wc.width = w;
+			win->height = wc.height = h;
+			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
+			XConfigureWindow(display, win->id, mask, &wc);
+
+			XMapRaised(display, win->id);
+		} else {
+			/* hide all but the master window */
+			XUnmapWindow(display, win->id);
+		}
+		i++;
+	}
+
+	focus_win(winfocus); /* this has to be done outside of the loop */
 }
 
 void
@@ -668,6 +860,8 @@ struct key {
 	union arg		args;
 } keys[] = {
 	/* modifier		key	function		argument */
+	/* XXX alt-c is temporary, until I figure out how to grab spacebar */
+	{ MODKEY,		XK_c,		cycle_layout,	{0} }, 
 	{ MODKEY,		XK_Return,	swapwin,	{.id = SWM_ARG_ID_SWAPMAIN} },
 	{ MODKEY,		XK_j,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
 	{ MODKEY,		XK_k,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
@@ -1074,16 +1268,16 @@ main(int argc, char *argv[])
 	if (cfile)
 		conf_load(cfile);
 
-	/* make work space 1 active */
-	ws[0].visible = 1;
-	ws[0].restack = 1;
-	TAILQ_INIT(&ws[0].winlist);
-	for (i = 1; i < SWM_WS_MAX; i++) {
+	/* init all workspaces */
+	for (i = 0; i < SWM_WS_MAX; i++) {
 		ws[i].visible = 0;
 		ws[i].restack = 1;
 		ws[i].focus = NULL;
 		TAILQ_INIT(&ws[i].winlist);
+		ws[i].cur_layout = &layouts[0];
 	}
+	/* make work space 1 active */
+	ws[0].visible = 1;
 
 	/* grab existing windows */
 	if (XQueryTree(display, root, &d1, &d2, &wins, &num)) {
