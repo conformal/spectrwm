@@ -716,7 +716,6 @@ horizontal_stack(void) {
 		if (i == 1) {
 			y += h + 2;
 			h -= (2 - height % 2);
-			fprintf(stderr, "h: %d mod: %d\n", h, height % 2);
 		}
 		if (i != 0 && hrw != 0) {
 			/* correct the last window for lost pixels */
