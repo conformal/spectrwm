@@ -458,36 +458,26 @@ swapwin(union arg *args)
 	switch (args->id) {
 	case SWM_ARG_ID_SWAPPREV:
 		target = TAILQ_PREV(ws[current_ws].focus, ws_win_list, entry);
+		TAILQ_REMOVE(&ws[current_ws].winlist,
+		    ws[current_ws].focus, entry);
 		if (target == NULL)
-			target = TAILQ_LAST(&ws[current_ws].winlist,
-			    ws_win_list);
-		if (target == ws[current_ws].focus)
-			return;
-		TAILQ_REMOVE(&ws[current_ws].winlist,
-		    ws[current_ws].focus, entry);
-		TAILQ_INSERT_BEFORE(target, ws[current_ws].focus, entry);
-		break;
-	case SWM_ARG_ID_SWAPNEXT: {
-		int loop = 0;
-
-		target = TAILQ_NEXT(ws[current_ws].focus, entry);
-		if (target == NULL) {
-			loop = 1;
-			target = TAILQ_FIRST(&ws[current_ws].winlist);
-		}
-		if (target == ws[current_ws].focus)
-			return;
-		TAILQ_REMOVE(&ws[current_ws].winlist,
-		    ws[current_ws].focus, entry);
-		TAILQ_INSERT_AFTER(&ws[current_ws].winlist, target,
-		    ws[current_ws].focus, entry);
-		if (loop) {
-			TAILQ_REMOVE(&ws[current_ws].winlist, target, entry);
 			TAILQ_INSERT_TAIL(&ws[current_ws].winlist,
-			    target, entry);
-		}
+			    ws[current_ws].focus, entry);
+		else
+			TAILQ_INSERT_BEFORE(target, ws[current_ws].focus,
+			    entry);
 		break;
-	}
+	case SWM_ARG_ID_SWAPNEXT: 
+		target = TAILQ_NEXT(ws[current_ws].focus, entry);
+		TAILQ_REMOVE(&ws[current_ws].winlist,
+		    ws[current_ws].focus, entry);
+		if (target == NULL)
+			TAILQ_INSERT_HEAD(&ws[current_ws].winlist,
+			    ws[current_ws].focus, entry);
+		else
+			TAILQ_INSERT_AFTER(&ws[current_ws].winlist, target,
+			    ws[current_ws].focus, entry);
+		break;
 	case SWM_ARG_ID_SWAPMAIN:
 		target = TAILQ_FIRST(&ws[current_ws].winlist);
 		if (target == ws[current_ws].focus)
