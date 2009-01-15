@@ -193,8 +193,7 @@ union arg {
 	char			**argv;
 };
 
-
-
+/* conf file stuff */
 #define	SWM_CONF_WS	"\n= \t"
 #define SWM_CONF_FILE	"scrotwm.conf"
 int
@@ -387,7 +386,7 @@ quit(union arg *args)
 
 void
 restart(union arg *args)
-{	
+{
 	XCloseDisplay(display);
 	execvp(args->argv[0], args->argv);
 	fprintf(stderr, "execvp failed\n");
@@ -577,9 +576,7 @@ stack(void) {
 	DNPRINTF(SWM_D_EVENT, "stack: workspace: %d\n", current_ws);
 
 	ws[current_ws].restack = 0;
-
 	ws[current_ws].cur_layout->l_stack();
-
 	XSync(display, False);
 }
 
@@ -718,7 +715,8 @@ horizontal_stack(void) {
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
 		if (i == 1) {
 			y += h + 2;
-			h -= 2;
+			h -= (2 - height % 2);
+			fprintf(stderr, "h: %d mod: %d\n", h, height % 2);
 		}
 		if (i != 0 && hrw != 0) {
 			/* correct the last window for lost pixels */
