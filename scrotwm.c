@@ -718,7 +718,6 @@ vertical_resize(int id)
 	stack();
 }
 
-/* I know this sucks but it works well enough */
 void
 vertical_stack(struct swm_geometry *g) {
 	XWindowChanges		wc;
@@ -1119,6 +1118,7 @@ buttonpress(XEvent *e)
 struct ws_win *
 manage_window(Window id)
 {
+	Window			trans;
 	struct ws_win		*win;
 
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
@@ -1132,17 +1132,25 @@ manage_window(Window id)
 	win->id = id;
 	TAILQ_INSERT_TAIL(&ws[current_ws].winlist, win, entry);
 
+	XGetTransientForHint(display, win->id, &trans);
+	if (trans) {
+		win->transient = trans;
+		DNPRINTF(SWM_D_MISC, "manage_window: win %u transient %u\n",
+		    (unsigned)win->id, win->transient);
+	}
+	XGetWindowAttributes(display, win->id, &win->wa);
+	XGetNormalHints(display, win->id, &win->sh);
+
 	XSelectInput(display, id, ButtonPressMask | EnterWindowMask |
 	    FocusChangeMask | ExposureMask);
 
-	return win;
+	return (win);
 }
 
 void
 configurerequest(XEvent *e)
 {
 	XConfigureRequestEvent	*ev = &e->xconfigurerequest;
-	Window			trans;
 	struct ws_win		*win;
 
 	DNPRINTF(SWM_D_EVENT, "configurerequest: window: %lu\n", ev->window);
@@ -1151,14 +1159,6 @@ configurerequest(XEvent *e)
 	win = manage_window(ev->window);
 	ws[current_ws].focus = win; /* make new win focused */
 
-	XGetTransientForHint(display, win->id, &trans);
-	if (trans) {
-		win->transient = trans;
-		DNPRINTF(SWM_D_MISC, "configurerequest: win %u transient %u\n",
-		    (unsigned)win->id, win->transient);
-	}
-	XGetWindowAttributes(display, win->id, &win->wa);
-	XGetNormalHints(display, win->id, &win->sh);
 #if 0
 	XClassHint ch = { 0 };
 	if(XGetClassHint(display, win->id, &ch)) {
@@ -1276,7 +1276,7 @@ maprequest(XEvent *e)
 	    e->xmaprequest.window);
 
 	manage_window(e->xmaprequest.window);
-	stack();
+	XMapRaised(display, e->xmaprequest.window);
 }
 
 void
