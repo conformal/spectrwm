@@ -153,7 +153,6 @@ struct ws_win {
 };
 TAILQ_HEAD(ws_win_list, ws_win);
 
-
 /* layout handlers */
 void	stack(void);
 void	vertical_init(int);
@@ -332,7 +331,7 @@ bar_toggle(union arg *args)
 		XUnmapWindow(display, bar_window);
 	} else {
 		bar_enabled = 1;
-		XMapWindow(display, bar_window);
+		XMapRaised(display, bar_window);
 	}
 	XSync(display, False);
 	for (i = 0; i < SWM_WS_MAX; i++)
@@ -362,13 +361,34 @@ bar_setup(void)
 	XSetFont(display, bar_gc, bar_fs->fid);
 	XSelectInput(display, bar_window, VisibilityChangeMask);
 	if (bar_enabled) {
-		XMapWindow(display, bar_window);
+		XMapRaised(display, bar_window);
 	}
 	DNPRINTF(SWM_D_MISC, "bar_setup: bar_window %d\n", (int)bar_window);
 
 	if (signal(SIGALRM, bar_signal) == SIG_ERR)
 		err(1, "could not install bar_signal");
 	bar_print();
+}
+
+void
+config_win(struct ws_win *win)
+{
+	XConfigureEvent		ce;
+
+	DNPRINTF(SWM_D_MISC, "config_win: win %lu x %d y %d w %d h %d\n",
+	    win->id, win->g.x, win->g.y, win->g.w, win->g.h);
+	ce.type = ConfigureNotify;
+	ce.display = display;
+	ce.event = win->id;
+	ce.window = win->id;
+	ce.x = win->g.x;
+	ce.y = win->g.y;
+	ce.width = win->g.w;
+	ce.height = win->g.h;
+	ce.border_width = 1; /* XXX store this! */
+	ce.above = None;
+	ce.override_redirect = False;
+	XSendEvent(display, win->id, False, StructureNotifyMask, (XEvent *)&ce);
 }
 
 int
@@ -378,6 +398,8 @@ count_win(int wsid, int count_transient)
 	int			count = 0;
 
 	TAILQ_FOREACH (win, &ws[wsid].winlist, entry) {
+		if (count_transient == 0 && win->floating)
+			continue;
 		if (count_transient == 0 && win->transient)
 			continue;
 		count++;
@@ -628,6 +650,22 @@ stack_floater(struct ws_win *win)
 	unsigned int		mask;
 	XWindowChanges		wc;
 
+#if 0
+	bzero(&wc, sizeof wc);
+	wc.border_width = 1;
+	mask = CWX | CWY | CWBorderWidth;
+
+	win->g.w = wc.width = win->wa.width;
+	win->g.h = wc.height = win->wa.height;
+	win->g.x = wc.x = (ws[current_ws].g.w - win->wa.width) / 2;
+	win->g.y = wc.y = (ws[current_ws].g.h - win->wa.height) / 2;
+
+	DNPRINTF(SWM_D_EVENT, "stack_floater: win %d x %d y %d w %d h %d\n",
+	    win, wc.x, wc.y, wc.width, wc.height);
+
+	XConfigureWindow(display, win->id, mask, &wc);
+return;
+#endif
 	bzero(&wc, sizeof wc);
 	wc.border_width = 1;
 	mask = CWX | CWY | CWBorderWidth;
@@ -645,7 +683,7 @@ stack_floater(struct ws_win *win)
 		if (win->sh.min_width < ws[current_ws].g.w / 10)
 			win->sh.min_width = ws[current_ws].g.w / 3;
 		if (win->sh.min_height < ws[current_ws].g.h / 10)
-			win->wa.height = ws[current_ws].g.h / 3;
+			win->sh.height = ws[current_ws].g.h / 3;
 
 		win->g.w = wc.width = win->sh.min_width * 2;
 		win->g.h = wc.height = win->sh.min_height * 2;
@@ -1120,6 +1158,7 @@ manage_window(Window id)
 {
 	Window			trans;
 	struct ws_win		*win;
+	XClassHint		ch;
 
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
 		if (win->id == id)
@@ -1131,6 +1170,7 @@ manage_window(Window id)
 
 	win->id = id;
 	TAILQ_INSERT_TAIL(&ws[current_ws].winlist, win, entry);
+	ws[current_ws].focus = win; /* make new win focused */
 
 	XGetTransientForHint(display, win->id, &trans);
 	if (trans) {
@@ -1140,6 +1180,19 @@ manage_window(Window id)
 	}
 	XGetWindowAttributes(display, win->id, &win->wa);
 	XGetNormalHints(display, win->id, &win->sh);
+
+	/* XXX */
+	bzero(&ch, sizeof ch);
+	if(XGetClassHint(display, win->id, &ch)) {
+		/*fprintf(stderr, "class: %s name: %s\n", ch.res_class, ch.res_name); */
+		if (!strcmp(ch.res_class, "MPlayer") && !strcmp(ch.res_name, "xv")) {
+			win->floating = 1;
+		}
+		if(ch.res_class)
+			XFree(ch.res_class);
+		if(ch.res_name)
+			XFree(ch.res_name);
+	}
 
 	XSelectInput(display, id, ButtonPressMask | EnterWindowMask |
 	    FocusChangeMask | ExposureMask);
@@ -1152,33 +1205,38 @@ configurerequest(XEvent *e)
 {
 	XConfigureRequestEvent	*ev = &e->xconfigurerequest;
 	struct ws_win		*win;
+	int			new = 1;
+	XWindowChanges		wc;
 
-	DNPRINTF(SWM_D_EVENT, "configurerequest: window: %lu\n", ev->window);
-
-
-	win = manage_window(ev->window);
-	ws[current_ws].focus = win; /* make new win focused */
-
-#if 0
-	XClassHint ch = { 0 };
-	if(XGetClassHint(display, win->id, &ch)) {
-		fprintf(stderr, "class: %s name: %s\n", ch.res_class, ch.res_name);
-		if (!strcmp(ch.res_class, "Gvim") && !strcmp(ch.res_name, "gvim")) {
-			win->floating = 0;
+	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
+		if (win->id == ev->window) {
+			new = 0;
+			break;
 		}
-		if(ch.res_class)
-			XFree(ch.res_class);
-		if(ch.res_name)
-			XFree(ch.res_name);
 	}
-#endif
-	stack();
+
+	if (new) {
+		DNPRINTF(SWM_D_EVENT, "configurerequest: new window: %lu\n",
+		    ev->window);
+		bzero(&wc, sizeof wc);
+		wc.x = ev->x;
+		wc.y = ev->y;
+		wc.width = ev->width;
+		wc.height = ev->height;
+		wc.border_width = ev->border_width;
+		wc.sibling = ev->above;
+		wc.stack_mode = ev->detail;
+		XConfigureWindow(display, ev->window, ev->value_mask, &wc);
+	} else {
+		DNPRINTF(SWM_D_EVENT, "configurerequest: change window: %lu\n",
+		    ev->window);
+		config_win(win);
+	}
 }
 
 void
 configurenotify(XEvent *e)
 {
-
 	DNPRINTF(SWM_D_EVENT, "configurenotify: window: %lu\n",
 	    e->xconfigure.window);
 }
@@ -1242,8 +1300,6 @@ focusin(XEvent *e)
 
 	DNPRINTF(SWM_D_EVENT, "focusin: window: %lu\n", ev->window);
 
-	XSync(display, False); /* not sure this helps redrawing graphic apps */
-
 	if (ev->window == root)
 		return;
 	/*
@@ -1276,7 +1332,7 @@ maprequest(XEvent *e)
 	    e->xmaprequest.window);
 
 	manage_window(e->xmaprequest.window);
-	XMapRaised(display, e->xmaprequest.window);
+	stack();
 }
 
 void
