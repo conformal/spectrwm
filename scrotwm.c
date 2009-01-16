@@ -141,29 +141,6 @@ struct swm_geometry {
 	int			h;
 };
 
-void	stack(void);
-void	vertical_init(int);
-void	vertical_resize(int);
-void	vertical_stack(struct swm_geometry *);
-void	horizontal_init(int);
-void	horizontal_resize(int);
-void	horizontal_stack(struct swm_geometry *);
-void	max_init(int);
-void	max_stack(struct swm_geometry *);
-
-struct layout {
-	void			(*l_init)(int);	/* init/reset */
-	void			(*l_stack)(struct swm_geometry *);
-	void			(*l_resize)(int);
-} layouts[] =  {
-	/* init			stack,			resize*/
-	{ vertical_init,	vertical_stack,		vertical_resize},
-	{ horizontal_init,	horizontal_stack,	horizontal_resize},
-	/* XXX not working yet
-	 * { max_init,		max_stack,		NULL},
-	 */
-	{ NULL,			NULL},
-};
 
 struct ws_win {
 	TAILQ_ENTRY(ws_win)	entry;
@@ -174,8 +151,34 @@ struct ws_win {
 	XWindowAttributes	wa;
 	XSizeHints		sh;
 };
-
 TAILQ_HEAD(ws_win_list, ws_win);
+
+
+/* layout handlers */
+void	stack(void);
+void	vertical_init(int);
+void	vertical_resize(int);
+void	vertical_stack(struct swm_geometry *);
+void	horizontal_init(int);
+void	horizontal_resize(int);
+void	horizontal_stack(struct swm_geometry *);
+void	max_init(int);
+void	max_focus(struct ws_win *);
+void	max_stack(struct swm_geometry *);
+
+struct layout {
+	void			(*l_init)(int);	/* init/reset */
+	void			(*l_stack)(struct swm_geometry *);
+	void			(*l_resize)(int);
+	void			(*l_focus)(struct ws_win *);
+} layouts[] =  {
+	/* init			stack,			resize */
+	{ vertical_init,	vertical_stack,		vertical_resize,	NULL},
+	{ horizontal_init,	horizontal_stack,	horizontal_resize,	NULL},
+	{ NULL,			max_stack,		NULL,			max_focus},
+	{ NULL,			NULL,			NULL,			NULL},
+};
+
 
 /* define work spaces */
 #define SWM_WS_MAX		(10)
@@ -564,6 +567,9 @@ focus(union arg *args)
 
 	unfocus_win(winlostfocus);
 	focus_win(winfocus);
+	/* XXX if we hook in focus_win(), we get a nasty cycle */
+	if (ws[current_ws].cur_layout->l_focus != NULL)
+		ws[current_ws].cur_layout->l_focus(winfocus);
 	XSync(display, False);
 }
 
@@ -575,6 +581,7 @@ cycle_layout(union arg *args)
 	ws[current_ws].cur_layout++;
 	if (ws[current_ws].cur_layout->l_stack == NULL)
 		ws[current_ws].cur_layout = &layouts[0];
+
 	stack();
 }
 
@@ -882,36 +889,40 @@ horizontal_stack(struct swm_geometry *g) {
 	focus_win(winfocus); /* this has to be done outside of the loop */
 }
 
-/* fullscreen view */
 void
-max_init(int ws_idx)
+max_focus(struct ws_win *fwin)
 {
-	DNPRINTF(SWM_D_EVENT, "max_init: workspace: %d\n", ws_idx);
+	struct ws_win *win;
+
+	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
+		if (win->transient == 0 && win->floating == 0 && win == fwin)
+			XMapRaised(display, win->id);
+		else
+			XUnmapWindow(display, win->id);
+	}
 }
 
+/* fullscreen view */
 void
 max_stack(struct swm_geometry *g) {
 	XWindowChanges		wc;
 	struct swm_geometry	gg = *g;
-	struct ws_win		wf, *win, *winfocus = &wf;
-	int			i, winno;
+	struct ws_win		*win, *winfocus;
+	int			i, found = 0, winno;
 	unsigned int mask;
 
 	DNPRINTF(SWM_D_EVENT, "max_stack: workspace: %d\n", current_ws);
-
-	winfocus->id = root;
 
 	winno = count_win(current_ws, 0);
 	if (winno == 0)
 		return;
 
+	winfocus = TAILQ_FIRST(&ws[current_ws].winlist);
+
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
-		if (i == 1 && win->transient == 0 && win->floating != 0) {
-			gg.h -= 2;
-			gg.w -= 2;
-
-			winfocus = win;
-
+		if (win->transient != 0 || win->floating != 0) {
+			stack_floater(win);
+		} else {
 			bzero(&wc, sizeof wc);
 			wc.border_width = 1;
 			win->g.x = wc.x = gg.x;
@@ -921,11 +932,18 @@ max_stack(struct swm_geometry *g) {
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 			XConfigureWindow(display, win->id, mask, &wc);
 
-			XMapRaised(display, win->id);
-		} else {
-			/* hide all but the master window */
-			XUnmapWindow(display, win->id);
+			if (!found) {
+				found = 1;
+				XMapRaised(display, win->id);
+			} else {
+				/* hide all but the master window */
+				XUnmapWindow(display, win->id);
+			}
 		}
+		if (win == ws[current_ws].focus)
+			winfocus = win;
+		else
+			unfocus_win(win);
 		i++;
 	}
 
