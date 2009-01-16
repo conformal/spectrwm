@@ -142,22 +142,25 @@ struct swm_geometry {
 };
 
 void	stack(void);
-void	vertical_init(void);
+void	vertical_init(int);
+void	vertical_resize(int);
 void	vertical_stack(struct swm_geometry *);
-void	horizontal_init(void);
+void	horizontal_init(int);
+void	horizontal_resize(int);
 void	horizontal_stack(struct swm_geometry *);
-void	max_init(void);
+void	max_init(int);
 void	max_stack(struct swm_geometry *);
 
 struct layout {
-	void			(*l_init)(void);	/* init/reset */
+	void			(*l_init)(int);	/* init/reset */
 	void			(*l_stack)(struct swm_geometry *);
+	void			(*l_resize)(int);
 } layouts[] =  {
-	/* init			stack */
-	{ vertical_init,	vertical_stack},
-	{ horizontal_init,	horizontal_stack},
+	/* init			stack,			resize*/
+	{ vertical_init,	vertical_stack,		vertical_resize},
+	{ horizontal_init,	horizontal_stack,	horizontal_resize},
 	/* XXX not working yet
-	 * { max_init,		max_stack},
+	 * { max_init,		max_stack,		NULL},
 	 */
 	{ NULL,			NULL},
 };
@@ -195,6 +198,8 @@ union arg {
 #define SWM_ARG_ID_SWAPNEXT	(3)
 #define SWM_ARG_ID_SWAPPREV	(4)
 #define SWM_ARG_ID_SWAPMAIN	(5)
+#define SWM_ARG_ID_MASTERSHRINK (6)
+#define SWM_ARG_ID_MASTERGROW	(7)
 	char			**argv;
 };
 
@@ -574,6 +579,26 @@ cycle_layout(union arg *args)
 }
 
 void
+resize_master(union arg *args)
+{
+	DNPRINTF(SWM_D_EVENT, "resize_master: id %d\n", args->id);
+
+	if (ws[current_ws].cur_layout->l_resize != NULL)
+		ws[current_ws].cur_layout->l_resize(args->id);
+}
+
+void
+stack_reset(union arg *args)
+{
+	DNPRINTF(SWM_D_EVENT, "stack_reset: ws %d\n", current_ws);
+
+	if (ws[current_ws].cur_layout->l_init != NULL) {
+		ws[current_ws].cur_layout->l_init(current_ws);
+		stack();
+	}
+}
+
+void
 stack(void) {
 	struct swm_geometry g;
 	DNPRINTF(SWM_D_EVENT, "stack: workspace: %d\n", current_ws);
@@ -651,10 +676,39 @@ stack_floater(struct ws_win *win)
 	XConfigureWindow(display, win->id, mask, &wc);
 }
 
+
+int vertical_msize[SWM_WS_MAX];
+
 void
-vertical_init(void)
+vertical_init(int ws_idx)
 {
-	DNPRINTF(SWM_D_EVENT, "vertical_init: workspace: %d\n", current_ws);
+	DNPRINTF(SWM_D_MISC, "vertical_init: workspace: %d\n", current_ws);
+
+	vertical_msize[ws_idx] = ws[ws_idx].g.w / 2;
+}
+
+void
+vertical_resize(int id)
+{
+	DNPRINTF(SWM_D_MISC, "vertical_resize: workspace: %d\n", current_ws);
+
+	switch (id) {
+	case SWM_ARG_ID_MASTERSHRINK:
+		vertical_msize[current_ws] -= ws[current_ws].g.w / 32;
+		if ( vertical_msize[current_ws] < ws[current_ws].g.w / 16)
+			vertical_msize[current_ws] = ws[current_ws].g.w / 16;
+		break;
+	case SWM_ARG_ID_MASTERGROW:
+		vertical_msize[current_ws] += ws[current_ws].g.w / 32;
+		if ( vertical_msize[current_ws] >
+		   (ws[current_ws].g.w - (ws[current_ws].g.w / 16)))
+			vertical_msize[current_ws] =
+			    ws[current_ws].g.w - ws[current_ws].g.w / 16;
+		break;
+	default:
+		return;
+	}
+	stack();
 }
 
 /* I know this sucks but it works well enough */
@@ -675,7 +729,7 @@ vertical_stack(struct swm_geometry *g) {
 		return;
 
 	if (winno > 1)
-		gg.w = g->w / 2;
+		gg.w = vertical_msize[current_ws];
 
 	if (winno > 2)
 		hrh = g->h / (winno - 1);
@@ -685,8 +739,8 @@ vertical_stack(struct swm_geometry *g) {
 	i = 0;
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
 		if (i == 1) {
-			gg.x += gg.w + 2;
-			gg.w -= 2;
+			gg.x += vertical_msize[current_ws] + 2;
+			gg.w = g->w - (vertical_msize[current_ws] + 2);
 		}
 		if (i != 0 && hrh != 0) {
 			/* correct the last window for lost pixels */
@@ -726,10 +780,38 @@ vertical_stack(struct swm_geometry *g) {
 	focus_win(winfocus); /* this has to be done outside of the loop */
 }
 
+int horizontal_msize[SWM_WS_MAX];
+
 void
-horizontal_init(void)
+horizontal_init(int ws_idx)
 {
-	DNPRINTF(SWM_D_EVENT, "horizontal_init: workspace: %d\n", current_ws);
+	DNPRINTF(SWM_D_MISC, "horizontal_init: workspace: %d\n", current_ws);
+
+	horizontal_msize[ws_idx] = ws[ws_idx].g.h / 2;
+}
+
+void
+horizontal_resize(int id)
+{
+	DNPRINTF(SWM_D_MISC, "horizontal_resize: workspace: %d\n", current_ws);
+
+	switch (id) {
+	case SWM_ARG_ID_MASTERSHRINK:
+		horizontal_msize[current_ws] -= ws[current_ws].g.h / 32;
+		if ( horizontal_msize[current_ws] < ws[current_ws].g.h / 16)
+			horizontal_msize[current_ws] = ws[current_ws].g.h / 16;
+		break;
+	case SWM_ARG_ID_MASTERGROW:
+		horizontal_msize[current_ws] += ws[current_ws].g.h / 32;
+		if ( horizontal_msize[current_ws] >
+		   (ws[current_ws].g.h - (ws[current_ws].g.h / 16)))
+			horizontal_msize[current_ws] =
+			    ws[current_ws].g.h - ws[current_ws].g.h / 16;
+		break;
+	default:
+		return;
+	}
+	stack();
 }
 
 void
@@ -749,7 +831,7 @@ horizontal_stack(struct swm_geometry *g) {
 		return;
 
 	if (winno > 1)
-		gg.h = g->h / 2;
+		gg.h = horizontal_msize[current_ws];
 
 	if (winno > 2)
 		hrw = g->w / (winno - 1);
@@ -759,8 +841,8 @@ horizontal_stack(struct swm_geometry *g) {
 	i = 0;
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
 		if (i == 1) {
-			gg.y += gg.h + 2;
-			gg.h -= (2 - g->h % 2);
+			gg.y += horizontal_msize[current_ws] + 2;
+			gg.h = g->h - (horizontal_msize[current_ws] + 2);
 		}
 		if (i != 0 && hrw != 0) {
 			/* correct the last window for lost pixels */
@@ -802,9 +884,9 @@ horizontal_stack(struct swm_geometry *g) {
 
 /* fullscreen view */
 void
-max_init(void)
+max_init(int ws_idx)
 {
-	DNPRINTF(SWM_D_EVENT, "max_init: workspace: %d\n", current_ws);
+	DNPRINTF(SWM_D_EVENT, "max_init: workspace: %d\n", ws_idx);
 }
 
 void
@@ -885,8 +967,10 @@ struct key {
 	union arg		args;
 } keys[] = {
 	/* modifier		key	function		argument */
-	/* XXX alt-c is temporary, until I figure out how to grab spacebar */
-	{ MODKEY,		XK_c,		cycle_layout,	{0} }, 
+	{ MODKEY,		XK_space,	cycle_layout,	{0} }, 
+	{ MODKEY | ShiftMask,	XK_space,	stack_reset,	{0} }, 
+	{ MODKEY,		XK_h,		resize_master,	{.id = SWM_ARG_ID_MASTERSHRINK} },
+	{ MODKEY,		XK_l,		resize_master,	{.id = SWM_ARG_ID_MASTERGROW} },
 	{ MODKEY,		XK_Return,	swapwin,	{.id = SWM_ARG_ID_SWAPMAIN} },
 	{ MODKEY,		XK_j,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
 	{ MODKEY,		XK_k,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
@@ -1256,7 +1340,7 @@ main(int argc, char *argv[])
 	char			conf[PATH_MAX], *cfile = NULL;
 	struct stat		sb;
 	XEvent			e;
-	unsigned int		i, num;
+	unsigned int		i, j, num;
 	Window			d1, d2, *wins = NULL;
 	XWindowAttributes	wa;
 
@@ -1302,6 +1386,11 @@ main(int argc, char *argv[])
 		ws[i].g.w = DisplayWidth(display, screen) - 2;
 		ws[i].g.h = DisplayHeight(display, screen) - 2;
 		TAILQ_INIT(&ws[i].winlist);
+
+		for (j = 0; layouts[j].l_stack != NULL; j++) {
+			if (layouts[j].l_init != NULL)
+				layouts[j].l_init(i);
+		}
 		ws[i].cur_layout = &layouts[0];
 	}
 	/* make work space 1 active */
