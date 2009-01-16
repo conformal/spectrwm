@@ -103,7 +103,6 @@ u_int32_t		swm_debug = 0
 int			(*xerrorxlib)(Display *, XErrorEvent *);
 int			other_wm;
 int			screen;
-int			width, height;
 int			running = 1;
 int			ignore_enter = 0;
 unsigned int		numlockmask = 0;
@@ -135,17 +134,24 @@ char				*spawn_menu[] = { "dmenu_run", NULL };
 char				*spawn_scrotwm[] = { "scrotwm", NULL };
 
 /* layout manager data */
+struct swm_geometry {
+	int			x;
+	int			y;
+	int			w;
+	int			h;
+};
+
 void	stack(void);
 void	vertical_init(void);
-void	vertical_stack(void);
+void	vertical_stack(struct swm_geometry *);
 void	horizontal_init(void);
-void	horizontal_stack(void);
+void	horizontal_stack(struct swm_geometry *);
 void	max_init(void);
-void	max_stack(void);
+void	max_stack(struct swm_geometry *);
 
 struct layout {
 	void			(*l_init)(void);	/* init/reset */
-	void			(*l_stack)(void);	/* restack windows */
+	void			(*l_stack)(struct swm_geometry *);
 } layouts[] =  {
 	/* init			stack */
 	{ vertical_init,	vertical_stack},
@@ -159,10 +165,7 @@ struct layout {
 struct ws_win {
 	TAILQ_ENTRY(ws_win)	entry;
 	Window			id;
-	int			x;
-	int			y;
-	int			width;
-	int			height;
+	struct swm_geometry	g;
 	int			floating;
 	int			transient;
 	XWindowAttributes	wa;
@@ -176,6 +179,7 @@ TAILQ_HEAD(ws_win_list, ws_win);
 struct workspace {
 	int			visible;	/* workspace visible */
 	int			restack;	/* restack on switch */
+	struct swm_geometry	g;
 	struct layout		*cur_layout;	/* current layout handlers */
 	struct ws_win		*focus;		/* which win has focus */
 	struct ws_win_list	winlist;	/* list of windows in ws */
@@ -317,11 +321,9 @@ bar_toggle(union arg *args)
 
 	if (bar_enabled) {
 		bar_enabled = 0;
-		height += bar_height; /* correct screen height */
 		XUnmapWindow(display, bar_window);
 	} else {
 		bar_enabled = 1;
-		height -= bar_height; /* correct screen height */
 		XMapWindow(display, bar_window);
 	}
 	XSync(display, False);
@@ -346,13 +348,12 @@ bar_setup(void)
 			errx(1, "couldn't load font");
 	bar_height = bar_fs->ascent + bar_fs->descent + 3;
 
-	bar_window = XCreateSimpleWindow(display, root, 0, 0, width,
-	    bar_height - 2, 1, bar_border, bar_color);
+	bar_window = XCreateSimpleWindow(display, root, 0, 0,
+	    ws[current_ws].g.w, bar_height - 2, 1, bar_border, bar_color);
 	bar_gc = XCreateGC(display, bar_window, 0, &bar_gcv);
 	XSetFont(display, bar_gc, bar_fs->fid);
 	XSelectInput(display, bar_window, VisibilityChangeMask);
 	if (bar_enabled) {
-		height -= bar_height; /* correct screen height */
 		XMapWindow(display, bar_window);
 	}
 	DNPRINTF(SWM_D_MISC, "bar_setup: bar_window %d\n", (int)bar_window);
@@ -574,10 +575,18 @@ cycle_layout(union arg *args)
 
 void
 stack(void) {
+	struct swm_geometry g;
 	DNPRINTF(SWM_D_EVENT, "stack: workspace: %d\n", current_ws);
 
+	/* start with workspace geometry, adjust for bar */
+	g = ws[current_ws].g;
+	if (bar_enabled) {
+		g.y += bar_height;
+		g.h -= bar_height;
+	} 
+
 	ws[current_ws].restack = 0;
-	ws[current_ws].cur_layout->l_stack();
+	ws[current_ws].cur_layout->l_stack(&g);
 	XSync(display, False);
 }
 
@@ -593,48 +602,48 @@ stack_floater(struct ws_win *win)
 
 	/* use obsolete width height */
 	if (win->sh.flags & USPosition) {
-		win->width = wc.width = win->sh.width;
-		win->height = wc.height = win->sh.height;
+		win->g.w = wc.width = win->sh.width;
+		win->g.h = wc.height = win->sh.height;
 		mask |= CWWidth | CWHeight;
 	}
 
 	/* try min max */
 	if (win->sh.flags & PMinSize) {
 		/* some hints are retarded */
-		if (win->sh.min_width < width / 10)
-			win->sh.min_width = width / 3;
-		if (win->sh.min_height < height / 10)
-			win->wa.height = height / 3;
+		if (win->sh.min_width < ws[current_ws].g.w / 10)
+			win->sh.min_width = ws[current_ws].g.w / 3;
+		if (win->sh.min_height < ws[current_ws].g.h / 10)
+			win->wa.height = ws[current_ws].g.h / 3;
 
-		win->width = wc.width = win->sh.min_width * 2;
-		win->height = wc.height = win->sh.min_height * 2;
+		win->g.w = wc.width = win->sh.min_width * 2;
+		win->g.h = wc.height = win->sh.min_height * 2;
 		mask |= CWWidth | CWHeight;
 	}
 	if (win->sh.flags & PMaxSize) {
 		/* potentially override min values */
-		if (win->sh.max_width < width) {
-			win->width = wc.width = win->sh.max_width;
+		if (win->sh.max_width < ws[current_ws].g.w) {
+			win->g.w = wc.width = win->sh.max_width;
 			mask |= CWWidth;
 		}
-		if (win->sh.max_height < height) {
-			win->height = wc.height = win->sh.max_height;
+		if (win->sh.max_height < ws[current_ws].g.h) {
+			win->g.h = wc.height = win->sh.max_height;
 			mask |= CWHeight;
 		}
 	}
 
 	/* make sure we don't clobber the screen */
-	if ((mask & CWWidth) && win->wa.width > width)
-		win->wa.width = width - 4;
-	if ((mask & CWHeight) && win->wa.height > height)
-		win->wa.height = height - 4;
+	if ((mask & CWWidth) && win->wa.width > ws[current_ws].g.w)
+		win->wa.width = ws[current_ws].g.w - 4;
+	if ((mask & CWHeight) && win->wa.height > ws[current_ws].g.h)
+		win->wa.height = ws[current_ws].g.h - 4;
 
 	/* supposed to be obsolete */
 	if (win->sh.flags & USPosition) {
-		win->x = wc.x = win->sh.x;
-		win->y = wc.y = win->sh.y;
+		win->g.x = wc.x = win->sh.x;
+		win->g.y = wc.y = win->sh.y;
 	} else {
-		win->x = wc.x = (width - win->wa.width) / 2;
-		win->y = wc.y = (height - win->wa.height) / 2;
+		win->g.x = wc.x = (ws[current_ws].g.w - win->wa.width) / 2;
+		win->g.y = wc.y = (ws[current_ws].g.h - win->wa.height) / 2;
 	}
 	DNPRINTF(SWM_D_EVENT, "stack_floater: win %d x %d y %d w %d h %d\n",
 	    win, wc.x, wc.y, wc.width, wc.height);
@@ -650,10 +659,11 @@ vertical_init(void)
 
 /* I know this sucks but it works well enough */
 void
-vertical_stack(void) {
+vertical_stack(struct swm_geometry *g) {
 	XWindowChanges		wc;
+	struct swm_geometry	gg = *g;
 	struct ws_win		wf, *win, *winfocus = &wf;
-	int			i, h, w, x, y, hrh, winno;
+	int			i, hrh, winno;
 	unsigned int		mask;
 
 	DNPRINTF(SWM_D_EVENT, "vertical_stack: workspace: %d\n", current_ws);
@@ -665,39 +675,30 @@ vertical_stack(void) {
 		return;
 
 	if (winno > 1)
-		w = width / 2;
-	else
-		w = width;
+		gg.w = g->w / 2;
 
 	if (winno > 2)
-		hrh = height / (winno - 1);
+		hrh = g->h / (winno - 1);
 	else
 		hrh = 0;
 
-	x = 0;
-	y = bar_enabled ? bar_height : 0;
-	h = height;
 	i = 0;
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
 		if (i == 1) {
-			x += w + 2;
-			w -= 2;
+			gg.x += gg.w + 2;
+			gg.w -= 2;
 		}
 		if (i != 0 && hrh != 0) {
 			/* correct the last window for lost pixels */
 			if (win == TAILQ_LAST(&ws[current_ws].winlist,
 			    ws_win_list)) {
-				h = height - (i * hrh);
-				if (h == 0)
-					h = hrh;
-				else
-					h += hrh;
-				y += hrh;
+				gg.h = hrh + (g->h - (i * hrh));
+				gg.y += hrh;
 			} else {
-				h = hrh - 2;
+				gg.h = hrh - 2;
 				/* leave first right hand window at y = 0 */
 				if (i > 1)
-					y += h + 2;
+					gg.y += gg.h + 2;
 			}
 		}
 
@@ -706,10 +707,10 @@ vertical_stack(void) {
 		else {
 			bzero(&wc, sizeof wc);
 			wc.border_width = 1;
-			win->x = wc.x = x;
-			win->y = wc.y = y;
-			win->width = wc.width = w;
-			win->height = wc.height = h;
+			win->g.x = wc.x = gg.x;
+			win->g.y = wc.y = gg.y;
+			win->g.w = wc.width = gg.w;
+			win->g.h = wc.height = gg.h;
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 			XConfigureWindow(display, win->id, mask, &wc);
 		}
@@ -732,10 +733,11 @@ horizontal_init(void)
 }
 
 void
-horizontal_stack(void) {
+horizontal_stack(struct swm_geometry *g) {
 	XWindowChanges		wc;
+	struct swm_geometry	gg = *g;
 	struct ws_win		wf, *win, *winfocus = &wf;
-	int			i, h, w, x, y, hrw, winno;
+	int			i, hrw, winno;
 	unsigned int		mask;
 
 	DNPRINTF(SWM_D_EVENT, "horizontal_stack: workspace: %d\n", current_ws);
@@ -747,39 +749,30 @@ horizontal_stack(void) {
 		return;
 
 	if (winno > 1)
-		h = height / 2;
-	else
-		h = height;
+		gg.h = g->h / 2;
 
 	if (winno > 2)
-		hrw = width / (winno - 1);
+		hrw = g->w / (winno - 1);
 	else
 		hrw = 0;
 
-	x = 0;
-	y = bar_enabled ? bar_height : 0;
-	w = width;
 	i = 0;
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
 		if (i == 1) {
-			y += h + 2;
-			h -= (2 - height % 2);
+			gg.y += gg.h + 2;
+			gg.h -= (2 - g->h % 2);
 		}
 		if (i != 0 && hrw != 0) {
 			/* correct the last window for lost pixels */
 			if (win == TAILQ_LAST(&ws[current_ws].winlist,
 			    ws_win_list)) {
-				w = width - (i * hrw);
-				if (w == 0)
-					w = hrw;
-				else
-					w += hrw;
-				x += hrw;
+				gg.w = hrw + (g->w - (i * hrw));
+				gg.x += hrw;
 			} else {
-				w = hrw - 2;
+				gg.w = hrw - 2;
 				/* leave first bottom window at x = 0 */
 				if (i > 1)
-					x += w + 2;
+					gg.x += gg.w + 2;
 			}
 		}
 
@@ -788,10 +781,10 @@ horizontal_stack(void) {
 		else {
 			bzero(&wc, sizeof wc);
 			wc.border_width = 1;
-			win->x = wc.x = x;
-			win->y = wc.y = y;
-			win->width = wc.width = w;
-			win->height = wc.height = h;
+			win->g.x = wc.x = gg.x;
+			win->g.y = wc.y = gg.y;
+			win->g.w = wc.width = gg.w;
+			win->g.h = wc.height = gg.h;
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 			XConfigureWindow(display, win->id, mask, &wc);
 		}
@@ -815,10 +808,11 @@ max_init(void)
 }
 
 void
-max_stack(void) {
+max_stack(struct swm_geometry *g) {
 	XWindowChanges		wc;
+	struct swm_geometry	gg = *g;
 	struct ws_win		wf, *win, *winfocus = &wf;
-	int			i, h, w, x, y, winno;
+	int			i, winno;
 	unsigned int mask;
 
 	DNPRINTF(SWM_D_EVENT, "max_stack: workspace: %d\n", current_ws);
@@ -829,21 +823,19 @@ max_stack(void) {
 	if (winno == 0)
 		return;
 
-	x = 0;
-	y = bar_enabled ? bar_height : 0;
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
 		if (i == 1 && win->transient == 0 && win->floating != 0) {
-			h = height - 2;
-			w = width - 2;
+			gg.h -= 2;
+			gg.w -= 2;
 
 			winfocus = win;
 
 			bzero(&wc, sizeof wc);
 			wc.border_width = 1;
-			win->x = wc.x = x;
-			win->y = wc.y = y;
-			win->width = wc.width = w;
-			win->height = wc.height = h;
+			win->g.x = wc.x = gg.x;
+			win->g.y = wc.y = gg.y;
+			win->g.w = wc.width = gg.w;
+			win->g.h = wc.height = gg.h;
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 			XConfigureWindow(display, win->id, mask, &wc);
 
@@ -1280,8 +1272,6 @@ main(int argc, char *argv[])
 
 	screen = DefaultScreen(display);
 	root = RootWindow(display, screen);
-	width = DisplayWidth(display, screen) - 2;
-	height = DisplayHeight(display, screen) - 2;
 
 	/* look for local and global conf file */
 	pwd = getpwuid(getuid());
@@ -1307,6 +1297,10 @@ main(int argc, char *argv[])
 		ws[i].visible = 0;
 		ws[i].restack = 1;
 		ws[i].focus = NULL;
+		ws[i].g.x = 0;
+		ws[i].g.y = 0;
+		ws[i].g.w = DisplayWidth(display, screen) - 2;
+		ws[i].g.h = DisplayHeight(display, screen) - 2;
 		TAILQ_INIT(&ws[i].winlist);
 		ws[i].cur_layout = &layouts[0];
 	}
