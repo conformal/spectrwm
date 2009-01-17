@@ -603,6 +603,7 @@ cycle_layout(union arg *args)
 	ws[current_ws].cur_layout++;
 	if (ws[current_ws].cur_layout->l_stack == NULL)
 		ws[current_ws].cur_layout = &layouts[0];
+	ignore_enter = 1;
 
 	stack();
 }
