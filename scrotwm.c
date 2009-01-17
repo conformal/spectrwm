@@ -436,9 +436,9 @@ spawn(union arg *args)
 	 * The double-fork construct avoids zombie processes and keeps the code
 	 * clean from stupid signal handlers.
 	 */
-	if(fork() == 0) {
-		if(fork() == 0) {
-			if(display)
+	if (fork() == 0) {
+		if (fork() == 0) {
+			if (display)
 				close(ConnectionNumber(display));
 			setsid();
 			execvp(args->argv[0], args->argv);
@@ -1087,9 +1087,9 @@ grabkeys(void)
 	updatenumlockmask();
 
 	XUngrabKey(display, AnyKey, AnyModifier, root);
-	for(i = 0; i < LENGTH(keys); i++) {
-		if((code = XKeysymToKeycode(display, keys[i].keysym)))
-			for(j = 0; j < LENGTH(modifiers); j++)
+	for (i = 0; i < LENGTH(keys); i++) {
+		if ((code = XKeysymToKeycode(display, keys[i].keysym)))
+			for (j = 0; j < LENGTH(modifiers); j++)
 				XGrabKey(display, code,
 				    keys[i].mod | modifiers[j], root,
 				    True, GrabModeAsync, GrabModeAsync);
@@ -1111,8 +1111,8 @@ keypress(XEvent *e)
 	DNPRINTF(SWM_D_EVENT, "keypress: window: %lu\n", ev->window);
 
 	keysym = XKeycodeToKeysym(display, (KeyCode)ev->keycode, 0);
-	for(i = 0; i < LENGTH(keys); i++)
-		if(keysym == keys[i].keysym
+	for (i = 0; i < LENGTH(keys); i++)
+		if (keysym == keys[i].keysym
 		   && CLEANMASK(keys[i].mod) == CLEANMASK(ev->state)
 		   && keys[i].func)
 			keys[i].func(&(keys[i].args));
@@ -1190,14 +1190,14 @@ manage_window(Window id)
 
 	/* XXX */
 	bzero(&ch, sizeof ch);
-	if(XGetClassHint(display, win->id, &ch)) {
+	if (XGetClassHint(display, win->id, &ch)) {
 		/*fprintf(stderr, "class: %s name: %s\n", ch.res_class, ch.res_name); */
 		if (!strcmp(ch.res_class, "MPlayer") && !strcmp(ch.res_name, "xv")) {
 			win->floating = 1;
 		}
-		if(ch.res_class)
+		if (ch.res_class)
 			XFree(ch.res_class);
-		if(ch.res_name)
+		if (ch.res_name)
 			XFree(ch.res_name);
 	}
 
@@ -1287,7 +1287,7 @@ enternotify(XEvent *e)
 
 	DNPRINTF(SWM_D_EVENT, "enternotify: window: %lu\n", ev->window);
 
-	if((ev->mode != NotifyNormal || ev->detail == NotifyInferior) &&
+	if ((ev->mode != NotifyNormal || ev->detail == NotifyInferior) &&
 	    ev->window != root)
 		return;
 	if (ignore_enter) {
@@ -1331,7 +1331,7 @@ mappingnotify(XEvent *e)
 	DNPRINTF(SWM_D_EVENT, "mappingnotify: window: %lu\n", ev->window);
 
 	XRefreshKeyboardMapping(ev);
-	if(ev->request == MappingKeyboard)
+	if (ev->request == MappingKeyboard)
 		grabkeys();
 }
 
@@ -1344,9 +1344,9 @@ maprequest(XEvent *e)
 	DNPRINTF(SWM_D_EVENT, "maprequest: window: %lu\n",
 	    e->xmaprequest.window);
 
-	if(!XGetWindowAttributes(display, ev->window, &wa))
+	if (!XGetWindowAttributes(display, ev->window, &wa))
 		return;
-	if(wa.override_redirect)
+	if (wa.override_redirect)
 		return;
 	manage_window(e->xmaprequest.window);
 	stack();
@@ -1415,7 +1415,7 @@ active_wm(void)
 	XSelectInput(display, DefaultRootWindow(display),
 	    SubstructureRedirectMask);
 	XSync(display, False);
-	if(other_wm)
+	if (other_wm)
 		return (1);
 
 	XSetErrorHandler(xerror);
@@ -1435,9 +1435,9 @@ getstate(Window w)
 	astate = XInternAtom(display, "WM_STATE", False);
 	status = XGetWindowProperty(display, w, astate, 0L, 2L, False, astate,
 	    &real, &format, &n, &extra, (unsigned char **)&p);
-	if(status != Success)
+	if (status != Success)
 		return (-1);
-	if(n != 0)
+	if (n != 0)
 		result = *p;
 	XFree(p);
 	return (result);
@@ -1456,10 +1456,10 @@ main(int argc, char *argv[])
 
 	start_argv = argv;
 	fprintf(stderr, "Welcome to scrotwm V%s\n", SWM_VERSION);
-	if(!setlocale(LC_CTYPE, "") || !XSupportsLocale())
+	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
 		warnx("no locale support");
 
-	if(!(display = XOpenDisplay(0)))
+	if (!(display = XOpenDisplay(0)))
 		errx(1, "can not open display");
 
 	if (active_wm())
@@ -1521,14 +1521,14 @@ main(int argc, char *argv[])
 		}
 		/* transient windows */
 		for (i = 0; i < num; i++) {
-			if(!XGetWindowAttributes(display, wins[i], &wa))
+			if (!XGetWindowAttributes(display, wins[i], &wa))
 				continue;
 			if (XGetTransientForHint(display, wins[i], &d1) &&
 			    (wa.map_state == IsViewable || getstate(wins[i]) ==
 			    NormalState))
 				manage_window(wins[i]);
                 }
-                if(wins)
+                if (wins)
                         XFree(wins);
         }
 	ws[0].focus = TAILQ_FIRST(&ws[0].winlist);
