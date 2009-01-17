@@ -1477,7 +1477,8 @@ main(int argc, char *argv[])
 	if (XQueryTree(display, root, &d1, &d2, &wins, &num)) {
 		for (i = 0; i < num; i++) {
                         if (!XGetWindowAttributes(display, wins[i], &wa)
-			    || wa.override_redirect ||
+			    || wa.override_redirect
+			    || wa.map_state != IsViewable ||
 			    XGetTransientForHint(display, wins[i], &d1))
 				continue;
 			manage_window(wins[i]);
