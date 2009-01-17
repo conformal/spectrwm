@@ -766,11 +766,10 @@ vertical_stack(struct swm_geometry *g) {
 
 	DNPRINTF(SWM_D_EVENT, "vertical_stack: workspace: %d\n", current_ws);
 
-	winfocus->id = root;
-
 	winno = count_win(current_ws, 0);
 	if (winno == 0)
 		return;
+	winfocus->id = root;
 
 	if (winno > 1)
 		gg.w = vertical_msize[current_ws];
@@ -868,11 +867,10 @@ horizontal_stack(struct swm_geometry *g) {
 
 	DNPRINTF(SWM_D_EVENT, "horizontal_stack: workspace: %d\n", current_ws);
 
-	winfocus->id = root;
-
 	winno = count_win(current_ws, 0);
 	if (winno == 0)
 		return;
+	winfocus->id = root;
 
 	if (winno > 1)
 		gg.h = horizontal_msize[current_ws];
@@ -945,20 +943,23 @@ max_stack(struct swm_geometry *g) {
 	XWindowChanges		wc;
 	struct swm_geometry	gg = *g;
 	struct ws_win		*win, *winfocus;
-	int			i, found = 0, winno;
-	unsigned int mask;
+	unsigned int		mask;
 
 	DNPRINTF(SWM_D_EVENT, "max_stack: workspace: %d\n", current_ws);
 
-	winno = count_win(current_ws, 0);
-	if (winno == 0)
+	if (count_win(current_ws, 0) == 0)
 		return;
 
-	winfocus = TAILQ_FIRST(&ws[current_ws].winlist);
+	winfocus = ws[current_ws].focus;
+	if (!winfocus)
+		winfocus = TAILQ_FIRST(&ws[current_ws].winlist);
 
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
 		if (win->transient != 0 || win->floating != 0) {
-			stack_floater(win);
+			if (win == winfocus)
+				stack_floater(win); /* XXX maximize? */
+			else
+				XUnmapWindow(display, win->id);
 		} else {
 			bzero(&wc, sizeof wc);
 			wc.border_width = 1;
@@ -969,19 +970,11 @@ max_stack(struct swm_geometry *g) {
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 			XConfigureWindow(display, win->id, mask, &wc);
 
-			if (!found) {
-				found = 1;
+			if (winfocus == win)
 				XMapRaised(display, win->id);
-			} else {
-				/* hide all but the master window */
+			else
 				XUnmapWindow(display, win->id);
-			}
 		}
-		if (win == ws[current_ws].focus)
-			winfocus = win;
-		else
-			unfocus_win(win);
-		i++;
 	}
 
 	focus_win(winfocus); /* this has to be done outside of the loop */
