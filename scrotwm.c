@@ -100,6 +100,7 @@ u_int32_t		swm_debug = 0
 #define MODKEY			Mod1Mask
 #define CLEANMASK(mask)         (mask & ~(numlockmask | LockMask))
 
+char			**start_argv;
 int			(*xerrorxlib)(Display *, XErrorEvent *);
 int			other_wm;
 int			screen;
@@ -131,7 +132,6 @@ char			*bar_fonts[] = {
 /* terminal + args */
 char				*spawn_term[] = { "xterm", NULL };
 char				*spawn_menu[] = { "dmenu_run", NULL };
-char				*spawn_scrotwm[] = { "scrotwm", NULL };
 
 /* layout manager data */
 struct swm_geometry {
@@ -415,12 +415,13 @@ quit(union arg *args)
 	running = 0;
 }
 
-
 void
 restart(union arg *args)
 {
+	DNPRINTF(SWM_D_MISC, "restart: %s\n", start_argv[0]);
+
 	XCloseDisplay(display);
-	execvp(args->argv[0], args->argv);
+	execvp(start_argv[0], start_argv);
 	fprintf(stderr, "execvp failed\n");
 	perror(" failed");
 	quit(NULL);
@@ -1028,7 +1029,7 @@ struct key {
 	{ MODKEY | ShiftMask,	XK_Return,	spawn,		{.argv = spawn_term} },
 	{ MODKEY,		XK_p,		spawn,		{.argv = spawn_menu} },
 	{ MODKEY | ShiftMask,	XK_q,		quit,		{0} },
-	{ MODKEY,		XK_q,		restart,	{.argv = spawn_scrotwm } },
+	{ MODKEY,		XK_q,		restart,	{0} },
 	{ MODKEY,		XK_m,		focus,		{.id = SWM_ARG_ID_FOCUSMAIN} },
 	{ MODKEY,		XK_1,		switchws,	{.id = 0} },
 	{ MODKEY,		XK_2,		switchws,	{.id = 1} },
@@ -1322,9 +1323,16 @@ mappingnotify(XEvent *e)
 void
 maprequest(XEvent *e)
 {
+	XMapRequestEvent	*ev = &e->xmaprequest;
+	XWindowAttributes	wa;
+
 	DNPRINTF(SWM_D_EVENT, "maprequest: window: %lu\n",
 	    e->xmaprequest.window);
 
+	if(!XGetWindowAttributes(display, ev->window, &wa))
+		return;
+	if(wa.override_redirect)
+		return;
 	manage_window(e->xmaprequest.window);
 	stack();
 }
@@ -1412,6 +1420,7 @@ main(int argc, char *argv[])
 	Window			d1, d2, *wins = NULL;
 	XWindowAttributes	wa;
 
+	start_argv = argv;
 	fprintf(stderr, "Welcome to scrotwm V%s\n", SWM_VERSION);
 	if(!setlocale(LC_CTYPE, "") || !XSupportsLocale())
 		warnx("no locale support");
