@@ -1478,8 +1478,7 @@ main(int argc, char *argv[])
 		for (i = 0; i < num; i++) {
                         if (!XGetWindowAttributes(display, wins[i], &wa)
 			    || wa.override_redirect
-			    || wa.map_state != IsViewable ||
-			    XGetTransientForHint(display, wins[i], &d1))
+			    || wa.map_state != IsViewable)
 				continue;
 			manage_window(wins[i]);
                 }
