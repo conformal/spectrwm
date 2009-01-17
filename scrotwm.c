@@ -101,6 +101,7 @@ u_int32_t		swm_debug = 0
 #define CLEANMASK(mask)         (mask & ~(numlockmask | LockMask))
 
 char			**start_argv;
+Atom			astate;
 int			(*xerrorxlib)(Display *, XErrorEvent *);
 int			other_wm;
 int			screen;
@@ -1148,6 +1149,17 @@ buttonpress(XEvent *e)
 #endif
 }
 
+void
+set_win_state(struct ws_win *win, long state)
+{
+	long			data[] = {state, None};
+
+	DNPRINTF(SWM_D_EVENT, "set_win_state: window: %lu\n", win->id);
+
+	XChangeProperty(display, win->id, astate, astate, 32, PropModeReplace,
+	    (unsigned char *)data, 2);
+}
+
 struct ws_win *
 manage_window(Window id)
 {
@@ -1191,6 +1203,8 @@ manage_window(Window id)
 
 	XSelectInput(display, id, ButtonPressMask | EnterWindowMask |
 	    FocusChangeMask | ExposureMask);
+
+	set_win_state(win, NormalState);
 
 	return (win);
 }
@@ -1256,6 +1270,7 @@ destroynotify(XEvent *e)
 				ws[current_ws].focus = NULL;
 	
 			TAILQ_REMOVE(&ws[current_ws].winlist, win, entry);
+			set_win_state(win, WithdrawnState);
 			free(win);
 			break;
 		}
@@ -1386,8 +1401,7 @@ xerror_start(Display *d, XErrorEvent *ee)
 int
 xerror(Display *d, XErrorEvent *ee)
 {
-	fprintf(stderr, "error: %p %p\n", display, ee);
-
+	/* fprintf(stderr, "error: %p %p\n", display, ee); */
 	return (-1);
 }
 
@@ -1407,6 +1421,26 @@ active_wm(void)
 	XSetErrorHandler(xerror);
 	XSync(display, False);
 	return (0);
+}
+
+long
+getstate(Window w)
+{
+	int			format, status;
+	long			result = -1;
+	unsigned char		*p = NULL;
+	unsigned long		n, extra;
+	Atom			real;
+
+	astate = XInternAtom(display, "WM_STATE", False);
+	status = XGetWindowProperty(display, w, astate, 0L, 2L, False, astate,
+	    &real, &format, &n, &extra, (unsigned char **)&p);
+	if(status != Success)
+		return (-1);
+	if(n != 0)
+		result = *p;
+	XFree(p);
+	return (result);
 }
 
 int
@@ -1433,6 +1467,7 @@ main(int argc, char *argv[])
 
 	screen = DefaultScreen(display);
 	root = RootWindow(display, screen);
+	astate = XInternAtom(display, "WM_STATE", False);
 
 	/* look for local and global conf file */
 	pwd = getpwuid(getuid());
@@ -1475,12 +1510,23 @@ main(int argc, char *argv[])
 
 	/* grab existing windows */
 	if (XQueryTree(display, root, &d1, &d2, &wins, &num)) {
+		/* normal windows */
 		for (i = 0; i < num; i++) {
-                        if (!XGetWindowAttributes(display, wins[i], &wa)
-			    || wa.override_redirect
-			    || wa.map_state != IsViewable)
+                        XGetWindowAttributes(display, wins[i], &wa);
+			if (!XGetWindowAttributes(display, wins[i], &wa) ||
+			    wa.override_redirect || XGetTransientForHint(display, wins[i], &d1))
 				continue;
-			manage_window(wins[i]);
+			if (wa.map_state == IsViewable || getstate(wins[i]) == NormalState)
+				manage_window(wins[i]);
+		}
+		/* transient windows */
+		for (i = 0; i < num; i++) {
+			if(!XGetWindowAttributes(display, wins[i], &wa))
+				continue;
+			if (XGetTransientForHint(display, wins[i], &d1) &&
+			    (wa.map_state == IsViewable || getstate(wins[i]) ==
+			    NormalState))
+				manage_window(wins[i]);
                 }
                 if(wins)
                         XFree(wins);
