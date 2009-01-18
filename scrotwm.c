@@ -116,6 +116,8 @@ unsigned long		color_unfocus = 0x888888;
 Display			*display;
 Window			root;
 
+/* dialog windows */
+double			dialog_ratio = .6;
 /* status bar */
 int			bar_enabled = 1;
 int			bar_height = 0;
@@ -270,6 +272,16 @@ conf_load(char *filename)
 			    strlen("color_unfocus")))
 				color_unfocus = strtol(val, NULL, 16);
 			else
+				goto bad;
+			break;
+
+		case 'd':
+			if (!strncmp(var, "dialog_ratio",
+			    strlen("dialog_ratio"))) {
+				dialog_ratio = atof(val);
+				if (dialog_ratio > 1.0 || dialog_ratio <= .3)
+					dialog_ratio = .6;
+			} else
 				goto bad;
 			break;
 
@@ -659,9 +671,8 @@ stack_floater(struct ws_win *win)
 	mask = CWX | CWY | CWBorderWidth | CWWidth | CWHeight;
 	wc.border_width = 1;
 	if (win->transient) {
-		/* XXX dialog window, make it bigger but not too big */
-		win->g.w *= 2;
-		win->g.h *= 2;
+		win->g.w = (double)WIDTH * dialog_ratio;
+		win->g.h = (double)HEIGHT * dialog_ratio;
 	}
 	wc.width = win->g.w;
 	wc.height = win->g.h;
