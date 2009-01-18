@@ -100,6 +100,9 @@ u_int32_t		swm_debug = 0
 #define MODKEY			Mod1Mask
 #define CLEANMASK(mask)         (mask & ~(numlockmask | LockMask))
 
+#define WIDTH		ws[current_ws].g.w
+#define HEIGHT		ws[current_ws].g.h
+
 char			**start_argv;
 Atom			astate;
 int			(*xerrorxlib)(Display *, XErrorEvent *);
@@ -357,7 +360,7 @@ bar_setup(void)
 	bar_height = bar_fs->ascent + bar_fs->descent + 3;
 
 	bar_window = XCreateSimpleWindow(display, root, 0, 0,
-	    ws[current_ws].g.w, bar_height - 2, 1, bar_border, bar_color);
+	    WIDTH, bar_height - 2, 1, bar_border, bar_color);
 	bar_gc = XCreateGC(display, bar_window, 0, &bar_gcv);
 	XSetFont(display, bar_gc, bar_fs->fid);
 	XSelectInput(display, bar_window, VisibilityChangeMask);
@@ -653,22 +656,6 @@ stack_floater(struct ws_win *win)
 	unsigned int		mask;
 	XWindowChanges		wc;
 
-#if 0
-	bzero(&wc, sizeof wc);
-	wc.border_width = 1;
-	mask = CWX | CWY | CWBorderWidth;
-
-	win->g.w = wc.width = win->wa.width;
-	win->g.h = wc.height = win->wa.height;
-	win->g.x = wc.x = (ws[current_ws].g.w - win->wa.width) / 2;
-	win->g.y = wc.y = (ws[current_ws].g.h - win->wa.height) / 2;
-
-	DNPRINTF(SWM_D_EVENT, "stack_floater: win %d x %d y %d w %d h %d\n",
-	    win, wc.x, wc.y, wc.width, wc.height);
-
-	XConfigureWindow(display, win->id, mask, &wc);
-return;
-#endif
 	bzero(&wc, sizeof wc);
 	wc.border_width = 1;
 	mask = CWX | CWY | CWBorderWidth;
@@ -683,10 +670,10 @@ return;
 	/* try min max */
 	if (win->sh.flags & PMinSize) {
 		/* some hints are retarded */
-		if (win->sh.min_width < ws[current_ws].g.w / 10)
-			win->sh.min_width = ws[current_ws].g.w / 3;
-		if (win->sh.min_height < ws[current_ws].g.h / 10)
-			win->sh.height = ws[current_ws].g.h / 3;
+		if (win->sh.min_width < WIDTH / 10)
+			win->sh.min_width = WIDTH / 3;
+		if (win->sh.min_height < HEIGHT / 10)
+			win->sh.height = HEIGHT / 3;
 
 		win->g.w = wc.width = win->sh.min_width * 2;
 		win->g.h = wc.height = win->sh.min_height * 2;
@@ -694,29 +681,29 @@ return;
 	}
 	if (win->sh.flags & PMaxSize) {
 		/* potentially override min values */
-		if (win->sh.max_width < ws[current_ws].g.w) {
+		if (win->sh.max_width < WIDTH) {
 			win->g.w = wc.width = win->sh.max_width;
 			mask |= CWWidth;
 		}
-		if (win->sh.max_height < ws[current_ws].g.h) {
+		if (win->sh.max_height < HEIGHT) {
 			win->g.h = wc.height = win->sh.max_height;
 			mask |= CWHeight;
 		}
 	}
 
 	/* make sure we don't clobber the screen */
-	if ((mask & CWWidth) && win->wa.width > ws[current_ws].g.w)
-		win->wa.width = ws[current_ws].g.w - 4;
-	if ((mask & CWHeight) && win->wa.height > ws[current_ws].g.h)
-		win->wa.height = ws[current_ws].g.h - 4;
+	if ((mask & CWWidth) && win->wa.width > WIDTH)
+		win->wa.width = WIDTH - 4;
+	if ((mask & CWHeight) && win->wa.height > HEIGHT)
+		win->wa.height = HEIGHT - 4;
 
 	/* supposed to be obsolete */
 	if (win->sh.flags & USPosition) {
 		win->g.x = wc.x = win->sh.x;
 		win->g.y = wc.y = win->sh.y;
 	} else {
-		win->g.x = wc.x = (ws[current_ws].g.w - win->wa.width) / 2;
-		win->g.y = wc.y = (ws[current_ws].g.h - win->wa.height) / 2;
+		win->g.x = wc.x = (WIDTH - win->wa.width) / 2;
+		win->g.y = wc.y = (HEIGHT - win->wa.height) / 2;
 	}
 	DNPRINTF(SWM_D_EVENT, "stack_floater: win %d x %d y %d w %d h %d\n",
 	    win, wc.x, wc.y, wc.width, wc.height);
@@ -742,16 +729,16 @@ vertical_resize(int id)
 
 	switch (id) {
 	case SWM_ARG_ID_MASTERSHRINK:
-		vertical_msize[current_ws] -= ws[current_ws].g.w / 32;
-		if ( vertical_msize[current_ws] < ws[current_ws].g.w / 16)
-			vertical_msize[current_ws] = ws[current_ws].g.w / 16;
+		vertical_msize[current_ws] -= WIDTH / 32;
+		if ( vertical_msize[current_ws] < WIDTH / 16)
+			vertical_msize[current_ws] = WIDTH / 16;
 		break;
 	case SWM_ARG_ID_MASTERGROW:
-		vertical_msize[current_ws] += ws[current_ws].g.w / 32;
+		vertical_msize[current_ws] += WIDTH / 32;
 		if ( vertical_msize[current_ws] >
-		   (ws[current_ws].g.w - (ws[current_ws].g.w / 16)))
+		   (WIDTH - (WIDTH / 16)))
 			vertical_msize[current_ws] =
-			    ws[current_ws].g.w - ws[current_ws].g.w / 16;
+			    WIDTH - WIDTH / 16;
 		break;
 	default:
 		return;
@@ -843,16 +830,16 @@ horizontal_resize(int id)
 
 	switch (id) {
 	case SWM_ARG_ID_MASTERSHRINK:
-		horizontal_msize[current_ws] -= ws[current_ws].g.h / 32;
-		if ( horizontal_msize[current_ws] < ws[current_ws].g.h / 16)
-			horizontal_msize[current_ws] = ws[current_ws].g.h / 16;
+		horizontal_msize[current_ws] -= HEIGHT / 32;
+		if ( horizontal_msize[current_ws] < HEIGHT / 16)
+			horizontal_msize[current_ws] = HEIGHT / 16;
 		break;
 	case SWM_ARG_ID_MASTERGROW:
-		horizontal_msize[current_ws] += ws[current_ws].g.h / 32;
+		horizontal_msize[current_ws] += HEIGHT / 32;
 		if ( horizontal_msize[current_ws] >
-		   (ws[current_ws].g.h - (ws[current_ws].g.h / 16)))
+		   (HEIGHT - (HEIGHT / 16)))
 			horizontal_msize[current_ws] =
-			    ws[current_ws].g.h - ws[current_ws].g.h / 16;
+			    HEIGHT - HEIGHT / 16;
 		break;
 	default:
 		return;
@@ -959,9 +946,10 @@ max_stack(struct swm_geometry *g) {
 
 	TAILQ_FOREACH (win, &ws[current_ws].winlist, entry) {
 		if (win->transient != 0 || win->floating != 0) {
-			if (win == winfocus)
+			if (win == winfocus) {
 				stack_floater(win); /* XXX maximize? */
-			else
+				XMapRaised(display, win->id);
+			} else
 				XUnmapWindow(display, win->id);
 		} else {
 			bzero(&wc, sizeof wc);
@@ -1188,7 +1176,7 @@ manage_window(Window id)
 	XGetWindowAttributes(display, win->id, &win->wa);
 	XGetNormalHints(display, win->id, &win->sh);
 
-	/* XXX */
+	/* XXX make this a table */
 	bzero(&ch, sizeof ch);
 	if (XGetClassHint(display, win->id, &ch)) {
 		/*fprintf(stderr, "class: %s name: %s\n", ch.res_class, ch.res_name); */
@@ -1239,7 +1227,31 @@ configurerequest(XEvent *e)
 	} else {
 		DNPRINTF(SWM_D_EVENT, "configurerequest: change window: %lu\n",
 		    ev->window);
-		config_win(win);
+		if(win->floating) {
+			if(ev->value_mask & CWX)
+				win->g.x = ev->x;
+			if(ev->value_mask & CWY)
+				win->g.y = ev->y;
+			if(ev->value_mask & CWWidth)
+				win->g.w = ev->width;
+			if(ev->value_mask & CWHeight)
+				win->g.h = ev->height;
+			/* this seems to be full screen */
+			if (win->g.w > WIDTH) {
+				/* kill border */
+				win->g.x -= 1;
+				win->g.w += 1;
+			}
+			if (win->g.h > HEIGHT) {
+				/* kill border */
+				win->g.y -= 1;
+				win->g.h += 1;
+			}
+			if((ev->value_mask & (CWX|CWY)) && !(ev->value_mask & (CWWidth|CWHeight)))
+				config_win(win);
+			XMoveResizeWindow(display, win->id, win->g.x, win->g.y, win->g.w, win->g.h);
+		} else
+			config_win(win);
 	}
 }
 
