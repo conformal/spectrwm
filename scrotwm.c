@@ -153,7 +153,6 @@ struct ws_win {
 	int			floating;
 	int			transient;
 	XWindowAttributes	wa;
-	XSizeHints		sh;
 };
 TAILQ_HEAD(ws_win_list, ws_win);
 
@@ -657,54 +656,18 @@ stack_floater(struct ws_win *win)
 	XWindowChanges		wc;
 
 	bzero(&wc, sizeof wc);
+	mask = CWX | CWY | CWBorderWidth | CWWidth | CWHeight;
 	wc.border_width = 1;
-	mask = CWX | CWY | CWBorderWidth;
-
-	/* use obsolete width height */
-	if (win->sh.flags & USPosition) {
-		win->g.w = wc.width = win->sh.width;
-		win->g.h = wc.height = win->sh.height;
-		mask |= CWWidth | CWHeight;
+	if (win->transient) {
+		/* XXX dialog window, make it bigger but not too big */
+		win->g.w *= 2;
+		win->g.h *= 2;
 	}
+	wc.width = win->g.w;
+	wc.height = win->g.h;
+	wc.x = (WIDTH - win->g.w) / 2;
+	wc.y = (HEIGHT - win->g.h) / 2;
 
-	/* try min max */
-	if (win->sh.flags & PMinSize) {
-		/* some hints are retarded */
-		if (win->sh.min_width < WIDTH / 10)
-			win->sh.min_width = WIDTH / 3;
-		if (win->sh.min_height < HEIGHT / 10)
-			win->sh.height = HEIGHT / 3;
-
-		win->g.w = wc.width = win->sh.min_width * 2;
-		win->g.h = wc.height = win->sh.min_height * 2;
-		mask |= CWWidth | CWHeight;
-	}
-	if (win->sh.flags & PMaxSize) {
-		/* potentially override min values */
-		if (win->sh.max_width < WIDTH) {
-			win->g.w = wc.width = win->sh.max_width;
-			mask |= CWWidth;
-		}
-		if (win->sh.max_height < HEIGHT) {
-			win->g.h = wc.height = win->sh.max_height;
-			mask |= CWHeight;
-		}
-	}
-
-	/* make sure we don't clobber the screen */
-	if ((mask & CWWidth) && win->wa.width > WIDTH)
-		win->wa.width = WIDTH - 4;
-	if ((mask & CWHeight) && win->wa.height > HEIGHT)
-		win->wa.height = HEIGHT - 4;
-
-	/* supposed to be obsolete */
-	if (win->sh.flags & USPosition) {
-		win->g.x = wc.x = win->sh.x;
-		win->g.y = wc.y = win->sh.y;
-	} else {
-		win->g.x = wc.x = (WIDTH - win->wa.width) / 2;
-		win->g.y = wc.y = (HEIGHT - win->wa.height) / 2;
-	}
 	DNPRINTF(SWM_D_EVENT, "stack_floater: win %d x %d y %d w %d h %d\n",
 	    win, wc.x, wc.y, wc.width, wc.height);
 
@@ -1174,7 +1137,10 @@ manage_window(Window id)
 		    (unsigned)win->id, win->transient);
 	}
 	XGetWindowAttributes(display, win->id, &win->wa);
-	XGetNormalHints(display, win->id, &win->sh);
+	win->g.w = win->wa.width;
+	win->g.h = win->wa.height;
+	win->g.x = win->wa.x;
+	win->g.y = win->wa.y;
 
 	/* XXX make this a table */
 	bzero(&ch, sizeof ch);
