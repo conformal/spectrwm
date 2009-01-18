@@ -210,6 +210,30 @@ union arg {
 	char			**argv;
 };
 
+unsigned long
+name_to_color(char *colorname)
+{
+	Colormap		cmap;
+	Status			r;
+	XColor			screen_def, exact_def;
+	unsigned long		result = 0;
+	char			cname[32] = "#";
+
+	cmap = DefaultColormap(display, screen);
+	r = XAllocNamedColor(display, cmap, colorname, &screen_def, &exact_def);
+	if (!r) {
+		strlcat(cname, colorname + 2, sizeof cname - 1);
+		r = XAllocNamedColor(display, cmap, cname, &screen_def,
+		    &exact_def);
+	}
+	if (r)
+		result = screen_def.pixel;
+	else
+		fprintf(stderr, "color '%s' not found.\n", colorname);
+
+	return (result);
+}
+
 /* conf file stuff */
 #define	SWM_CONF_WS	"\n= \t"
 #define SWM_CONF_FILE	"scrotwm.conf"
@@ -252,13 +276,13 @@ conf_load(char *filename)
 				bar_enabled = atoi(val);
 			else if (!strncmp(var, "bar_border",
 			    strlen("bar_border")))
-				bar_border = strtol(val, NULL, 16);
+				bar_border = name_to_color(val);
 			else if (!strncmp(var, "bar_color",
 			    strlen("bar_color")))
-				bar_color = strtol(val, NULL, 16);
+				bar_color = name_to_color(val);
 			else if (!strncmp(var, "bar_font_color",
 			    strlen("bar_font_color")))
-				bar_font_color = strtol(val, NULL, 16);
+				bar_font_color = name_to_color(val);
 			else if (!strncmp(var, "bar_font", strlen("bar_font")))
 				asprintf(&bar_fonts[0], "%s", val);
 			else
@@ -267,10 +291,10 @@ conf_load(char *filename)
 
 		case 'c':
 			if (!strncmp(var, "color_focus", strlen("color_focus")))
-				color_focus = strtol(val, NULL, 16);
+				color_focus = name_to_color(val);
 			else if (!strncmp(var, "color_unfocus",
 			    strlen("color_unfocus")))
-				color_unfocus = strtol(val, NULL, 16);
+				color_unfocus = name_to_color(val);
 			else
 				goto bad;
 			break;
@@ -1457,6 +1481,13 @@ main(int argc, char *argv[])
 	screen = DefaultScreen(display);
 	root = RootWindow(display, screen);
 	astate = XInternAtom(display, "WM_STATE", False);
+
+	/* set default colors */
+	color_focus = name_to_color("red");
+	color_unfocus = name_to_color("rgb:88/88/88");
+	bar_border = name_to_color("rgb:00/80/80");
+	bar_color = name_to_color("black");
+	bar_font_color = name_to_color("rgb:a0/a0/a0");
 
 	/* look for local and global conf file */
 	pwd = getpwuid(getuid());
