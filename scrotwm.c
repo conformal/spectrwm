@@ -1189,8 +1189,8 @@ manage_window(Window id)
 			XFree(ch.res_name);
 	}
 
-	XSelectInput(display, id, ButtonPressMask | EnterWindowMask |
-	    FocusChangeMask | ExposureMask);
+	XSelectInput(display, id, EnterWindowMask | FocusChangeMask |
+	    PropertyChangeMask | StructureNotifyMask);
 
 	set_win_state(win, NormalState);
 
