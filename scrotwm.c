@@ -479,7 +479,7 @@ bar_setup(struct swm_region *r)
 	bar_height = bar_fs->ascent + bar_fs->descent + 3;
 
 	r->bar_window = XCreateSimpleWindow(display, 
-	    r->s->root, X(r), Y(r), WIDTH(r), bar_height - 2,
+	    r->s->root, X(r), Y(r), WIDTH(r) - 2, bar_height - 2,
 	    1, r->s->bar_border, r->s->bar_color);
 	bar_gc = XCreateGC(display, r->bar_window, 0, &bar_gcv);
 	XSetFont(display, bar_gc, bar_fs->fid);
