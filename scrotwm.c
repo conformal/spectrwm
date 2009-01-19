@@ -1673,9 +1673,9 @@ setup_screens(void)
 	Window			d1, d2, *wins = NULL;
 	XWindowAttributes	wa;
 	struct swm_region	*r;
-	unsigned int		num;
+	unsigned int		no;
 	int			errorbase, major, minor;
-	int			ncrtc, w = 0;
+	int			ncrtc = 0, w = 0;
         int			i, j, k;
 	struct workspace	*ws;
 
@@ -1709,10 +1709,9 @@ setup_screens(void)
 			ws->r = NULL;
 			TAILQ_INIT(&ws->winlist);
 
-			for (k = 0; layouts[k].l_stack != NULL; k++) {
+			for (k = 0; layouts[k].l_stack != NULL; k++)
 				if (layouts[k].l_init != NULL)
 					layouts[k].l_init(ws);
-			}
 			ws->cur_layout = &layouts[0];
 		}
 
@@ -1732,21 +1731,16 @@ setup_screens(void)
 #endif
 
 		/* grab existing windows (before we build the bars)*/
-		if (!XQueryTree(display, screens[i].root,
-		    &d1, &d2, &wins, &num)) {
-                	if (wins)	/* not sure if this is necessary */
-                       		XFree(wins);
+		if (!XQueryTree(display, screens[i].root, &d1, &d2, &wins, &no))
 			continue;
-		}
 
 #ifdef SWM_XRR_HAS_CRTC
 		sr = XRRGetScreenResources(display, screens[i].root);
-		if (sr == NULL) {
-			ncrtc = 0;
+		if (sr == NULL)
 			new_region(&screens[i], &screens[i].ws[w],
 			    0, 0, DisplayWidth(display, i),
 			    DisplayHeight(display, i)); 
-		} else 
+		else 
 			ncrtc = sr->ncrtc;
 
 		for (c = 0; c < ncrtc; c++) {
@@ -1755,8 +1749,8 @@ setup_screens(void)
 				continue;
 
 			if (ci != NULL && ci->mode == None)
-				new_region(&screens[i], &screens[i].ws[w],
-				    0, 0, DisplayWidth(display, i),
+				new_region(&screens[i], &screens[i].ws[w], 0, 0,
+				    DisplayWidth(display, i),
 				    DisplayHeight(display, i)); 
 			else
 				new_region(&screens[i], &screens[i].ws[w],
@@ -1766,8 +1760,8 @@ setup_screens(void)
 		XRRFreeCrtcInfo(ci);
 		XRRFreeScreenResources(sr);
 #else
-		new_region(&screens[i], &screens[i].ws[w],
-		    0, 0, DisplayWidth(display, i),
+		new_region(&screens[i], &screens[i].ws[w], 0, 0,
+		    DisplayWidth(display, i),
 		    DisplayHeight(display, i)); 
 #endif /* SWM_XRR_HAS_CRTC */
 
@@ -1776,27 +1770,31 @@ setup_screens(void)
 		if ((r = TAILQ_FIRST(&screens[i].rl)) == NULL)
 			errx(1, "no regions on screen %d", i);
 
-		for (i = 0; i < num; i++) {
+		for (i = 0; i < no; i++) {
                         XGetWindowAttributes(display, wins[i], &wa);
 			if (!XGetWindowAttributes(display, wins[i], &wa) ||
 			    wa.override_redirect ||
 			    XGetTransientForHint(display, wins[i], &d1))
 				continue;
+
 			if (wa.map_state == IsViewable ||
 			    getstate(wins[i]) == NormalState)
 				manage_window(wins[i], r->ws);
 		}
 		/* transient windows */
-		for (i = 0; i < num; i++) {
+		for (i = 0; i < no; i++) {
 			if (!XGetWindowAttributes(display, wins[i], &wa))
 				continue;
+
 			if (XGetTransientForHint(display, wins[i], &d1) &&
 			    (wa.map_state == IsViewable || getstate(wins[i]) ==
 			    NormalState))
 				manage_window(wins[i], r->ws);
                 }
-                if (wins)
+                if (wins) {
                         XFree(wins);
+			wins = NULL;
+		}
 	}
 }
 
