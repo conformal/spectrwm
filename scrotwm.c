@@ -85,6 +85,7 @@
 #endif
 #endif
 
+#define SWM_DEBUG
 /* #define SWM_DEBUG */
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while(0)
@@ -538,7 +539,9 @@ struct swm_region *
 root_to_region(Window root)
 {
 	struct swm_region	*r;
-	int i;
+	Window			rr, cr;
+	int			i, x, y, wx, wy;
+	unsigned int		mask;
 
 	for (i = 0; i < ScreenCount(display); i++)
 		if (screens[i].root == root)
@@ -548,19 +551,14 @@ root_to_region(Window root)
 	    cur_focus && cur_focus->ws->r && cur_focus->s == &screens[i])
 		r = cur_focus->ws->r;
 	else {
-		Window			rr, cr;
-		int			x, y, wx, wy;
-		unsigned int		mask;
-			
 		if (XQueryPointer(display, screens[i].root, 
 		    &rr, &cr, &x, &y, &wx, &wy, &mask) == False) {
 			r = TAILQ_FIRST(&screens[i].rl);
 		} else {
 			TAILQ_FOREACH(r, &screens[i].rl, entry) {
 				if (x > X(r) && x < X(r) + WIDTH(r) &&
-				    y > Y(r) && y < Y(r) + HEIGHT(r)) {
+				    y > Y(r) && y < Y(r) + HEIGHT(r))
 					break;
-				}
 			}
 
 			if (r == NULL)
@@ -573,8 +571,8 @@ root_to_region(Window root)
 struct ws_win *
 find_window(Window id)
 {
-	struct ws_win *win;
-	int i, j;
+	struct ws_win		*win;
+	int			i, j;
 
 	for (i = 0; i < ScreenCount(display); i++)
 		for (j = 0; j < SWM_WS_MAX; j++)
@@ -662,8 +660,9 @@ switchws(struct swm_region *r, union arg *args)
 		return;
 
 	other_r = new_ws->r;
+	fprintf(stderr, "switchws: other_r %p\n", other_r);
 	if (!other_r) {
-		/* if the other region is hidden, switch windows */
+		/* if the other workspace is hidden, switch windows */
 	
 		/* map new window first to prevent ugly blinking */
 		TAILQ_FOREACH(win, &new_ws->winlist, entry)
@@ -783,7 +782,7 @@ focus(struct swm_region *r, union arg *args)
 void
 cycle_layout(struct swm_region *r, union arg *args)
 {
-	struct workspace *ws = r->ws;
+	struct workspace	*ws = r->ws;
 
 	DNPRINTF(SWM_D_EVENT, "cycle_layout: workspace: %d\n", ws->idx);
 
@@ -822,9 +821,9 @@ stack_reset(struct swm_region *r, union arg *args)
 
 void
 stack(void) {
-	struct swm_geometry g;
-	struct swm_region *r;
-	int i, j;
+	struct swm_geometry	g;
+	struct swm_region	*r;
+	int			i, j;
 
 	DNPRINTF(SWM_D_STACK, "stack\n");
 
@@ -1561,9 +1560,11 @@ unmapnotify(XEvent *e)
 void
 visibilitynotify(XEvent *e)
 {
-	int i;
-	struct swm_region *r;
-	DNPRINTF(SWM_D_EVENT, "visibilitynotify: window: %lu\n", e->xvisibility.window);
+	int			i;
+	struct swm_region	*r;
+
+	DNPRINTF(SWM_D_EVENT, "visibilitynotify: window: %lu\n",
+	    e->xvisibility.window);
 	if (e->xvisibility.state == VisibilityUnobscured)
 		for (i = 0; i < ScreenCount(display); i++) 
 			TAILQ_FOREACH(r, &screens[i].rl, entry)
@@ -1643,7 +1644,7 @@ void
 new_region(struct swm_screen *s, struct workspace *ws,
     int x, int y, int w, int h)
 {
-	struct swm_region *r;
+	struct swm_region	*r;
 
 	DNPRINTF(SWM_D_MISC, "new region on screen %d: %dx%d (%d, %d)\n",
 	     s->idx, x, y, w, h);
@@ -1665,8 +1666,19 @@ new_region(struct swm_screen *s, struct workspace *ws,
 void
 setup_screens(void)
 {
-        int i;
-
+#ifdef SWM_XRR_HAS_CRTC
+	XRRCrtcInfo		*crtc_info;
+	XRRScreenResources	*res;
+	int			c;
+#endif /* SWM_XRR_HAS_CRTC */
+	Window			d1, d2, *wins = NULL;
+	XWindowAttributes	wa;
+	struct swm_region	*r;
+	unsigned int		num;
+	int			errorbase, major, minor;
+	int			ncrtc, w = 0;
+        int			i, j, k;
+	struct workspace	*ws;
 
 	if ((screens = calloc(ScreenCount(display),
 	     sizeof(struct swm_screen))) == NULL)
@@ -1674,18 +1686,7 @@ setup_screens(void)
 
 	/* map physical screens */
 	for (i = 0; i < ScreenCount(display); i++) {
-#ifdef SWM_XRR_HAS_CRTC
-		XRRCrtcInfo		*crtc_info;
-		XRRScreenResources	*res;
-		int			c;
-#endif /* SWM_XRR_HAS_CRTC */
-		Window			d1, d2, *wins = NULL;
-		XWindowAttributes	wa;
-		struct swm_region	*r;
-		int			errorbase, major, minor;
-		int			j, ncrtc, w = 0;
-		unsigned int		num;
-
+		DNPRINTF(SWM_D_WS, "setup_screens: init screen %d\n", i);
 		screens[i].idx = i;
 		TAILQ_INIT(&screens[i].rl);
 		screens[i].root = RootWindow(display, i);
@@ -1702,9 +1703,7 @@ setup_screens(void)
 
 		/* init all workspaces */
 		for (j = 0; j < SWM_WS_MAX; j++) {
-			int			k;
-			struct workspace	*ws = &screens[i].ws[j];
-
+			ws = &screens[i].ws[j];
 			ws->idx = j;
 			ws->restack = 1;
 			ws->focus = NULL;
@@ -1741,9 +1740,8 @@ setup_screens(void)
 			continue;
 		}
 
-
 #ifdef SWM_XRR_HAS_CRTC
-		res = XRRGetScreenResources (display, screens[i].root);
+		res = XRRGetScreenResources(display, screens[i].root);
 		if (res == NULL) {
 			ncrtc = 0;
 			new_region(&screens[i], &screens[i].ws[w],
@@ -1754,6 +1752,9 @@ setup_screens(void)
 
 		for (c = 0; c < ncrtc; c++) {
 			crtc_info = XRRGetCrtcInfo(display, res, res->crtcs[c]);
+			if (crtc_info->noutput == 0)
+				continue;
+
 			if (crtc_info != NULL && crtc_info->mode == None)
 				new_region(&screens[i], &screens[i].ws[w],
 				    0, 0, DisplayWidth(display, i),
