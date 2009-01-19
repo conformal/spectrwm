@@ -659,7 +659,6 @@ switchws(struct swm_region *r, union arg *args)
 		return;
 
 	other_r = new_ws->r;
-	fprintf(stderr, "switchws: other_r %p\n", other_r);
 	if (!other_r) {
 		/* if the other workspace is hidden, switch windows */
 	
@@ -1460,7 +1459,6 @@ destroynotify(XEvent *e)
 		set_win_state(win, WithdrawnState);
 		free(win);
 	}
-
 	stack();
 }
 
