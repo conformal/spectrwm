@@ -185,10 +185,10 @@ TAILQ_HEAD(ws_win_list, ws_win);
 /* layout handlers */
 void	stack(void);
 void	vertical_init(struct workspace *);
-void	vertical_resize(int);
+void	vertical_resize(struct workspace *, int);
 void	vertical_stack(struct workspace *, struct swm_geometry *);
 void	horizontal_init(struct workspace *);
-void	horizontal_resize(int);
+void	horizontal_resize(struct workspace *, int);
 void	horizontal_stack(struct workspace *, struct swm_geometry *);
 void	max_init(struct workspace *);
 void	max_stack(struct workspace *, struct swm_geometry *);
@@ -196,7 +196,7 @@ void	max_stack(struct workspace *, struct swm_geometry *);
 struct layout {
 	void		(*l_init)(struct workspace *);	/* init/reset */
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
-	void		(*l_resize)(int);
+	void		(*l_resize)(struct workspace *, int);
 } layouts[] =  {
 	/* init			stack,			resize */
 	{ vertical_init,	vertical_stack,		vertical_resize},
@@ -243,6 +243,7 @@ struct swm_screen {
 };
 struct swm_screen	*screens;
 int			num_screens;
+Window rootclick = 0;
 
 struct ws_win		*cur_focus = NULL;
 
@@ -417,21 +418,21 @@ bar_signal(int sig)
 }
 
 void
-bar_toggle(union arg *args)
+bar_toggle(struct swm_region *r, union arg *args)
 {
-	struct swm_region *r;
+	struct swm_region *tmpr;
 	int i, j;	
 
 	DNPRINTF(SWM_D_MISC, "bar_toggle\n");
 
 	if (bar_enabled) {
 		for (i = 0; i < ScreenCount(display); i++)
-			TAILQ_FOREACH(r, &screens[i].rl, entry)
-				XUnmapWindow(display, r->bar_window);
+			TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
+				XUnmapWindow(display, tmpr->bar_window);
 	} else {
 		for (i = 0; i < ScreenCount(display); i++)
-			TAILQ_FOREACH(r, &screens[i].rl, entry)
-				XMapRaised(display, r->bar_window);
+			TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
+				XMapRaised(display, tmpr->bar_window);
 	}
 	bar_enabled = !bar_enabled;
 	XSync(display, False);
@@ -442,8 +443,8 @@ bar_toggle(union arg *args)
 	stack();
 	/* must be after stack */
 	for (i = 0; i < ScreenCount(display); i++)
-		TAILQ_FOREACH(r, &screens[i].rl, entry)
-			bar_print(r);
+		TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
+			bar_print(tmpr);
 }
 
 void
@@ -515,14 +516,14 @@ count_win(struct workspace *ws, int count_transient)
 }
 
 void
-quit(union arg *args)
+quit(struct swm_region *r, union arg *args)
 {
 	DNPRINTF(SWM_D_MISC, "quit\n");
 	running = 0;
 }
 
 void
-restart(union arg *args)
+restart(struct swm_region *r, union arg *args)
 {
 	DNPRINTF(SWM_D_MISC, "restart: %s\n", start_argv[0]);
 
@@ -530,29 +531,43 @@ restart(union arg *args)
 	execvp(start_argv[0], start_argv);
 	fprintf(stderr, "execvp failed\n");
 	perror(" failed");
-	quit(NULL);
+	quit(NULL, NULL);
 }
 
 struct swm_region *
-cur_region(void)
+root_to_region(Window root)
 {
-	if (cur_focus && cur_focus->ws->r) {
-		return (cur_focus->ws->r);
-	} else {
-		/* XXX get region from pointer */
-		int i;
-		struct swm_region *r;
-		for (i = 0; i < ScreenCount(display); i++)
-			if ((r = TAILQ_FIRST(&screens[i].rl)) != NULL)
-				return (r);
-	}
-errx(1, "cur_region: no regions!?!?!\n");
-}
+	struct swm_region	*r;
+	int i;
 
-struct workspace *
-cur_ws(void)
-{
-	return (cur_region()->ws);
+	for (i = 0; i < ScreenCount(display); i++)
+		if (screens[i].root == root)
+			break;
+
+	if (rootclick != root && /* if root was just clicked in, use cursor */
+	    cur_focus && cur_focus->ws->r && cur_focus->s == &screens[i])
+		r = cur_focus->ws->r;
+	else {
+		Window			rr, cr;
+		int			x, y, wx, wy;
+		unsigned int		mask;
+			
+		if (XQueryPointer(display, screens[i].root, 
+		    &rr, &cr, &x, &y, &wx, &wy, &mask) == False) {
+			r = TAILQ_FIRST(&screens[i].rl);
+		} else {
+			TAILQ_FOREACH(r, &screens[i].rl, entry) {
+				if (x > X(r) && x < X(r) + WIDTH(r) &&
+				    y > Y(r) && y < Y(r) + HEIGHT(r)) {
+					break;
+				}
+			}
+
+			if (r == NULL)
+				r = TAILQ_FIRST(&screens[i].rl);
+		}
+	}
+	return (r);
 }
 
 struct ws_win *
@@ -570,7 +585,7 @@ find_window(Window id)
 }
 
 void
-spawn(union arg *args)
+spawn(struct swm_region *r, union arg *args)
 {
 	DNPRINTF(SWM_D_MISC, "spawn: %s\n", args->argv[0]);
 	/*
@@ -611,6 +626,8 @@ focus_win(struct ws_win *win)
 {
 	DNPRINTF(SWM_D_FOCUS, "focus_win: id: %lu\n", win->id);
 
+	rootclick = 0;
+
 	win->ws->focus = win;
 	if (win->ws->r != NULL) {
 		if (cur_focus && cur_focus != win)
@@ -626,18 +643,20 @@ focus_win(struct ws_win *win)
 }
 
 void
-switchws(union arg *args)
+switchws(struct swm_region *r, union arg *args)
 {
 	int			wsid = args->id;
 	struct swm_region	*this_r, *other_r;
 	struct ws_win		*win;
 	struct workspace	*new_ws, *old_ws;
 
-	DNPRINTF(SWM_D_WS, "switchws: %d\n", wsid + 1);
-
-	this_r = cur_region();
+	this_r = r;
 	old_ws = this_r->ws;
 	new_ws = &this_r->s->ws[wsid];
+
+	DNPRINTF(SWM_D_WS, "switchws screen %d region %dx%d+%d+%d: "
+	    "%d -> %d\n", r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r),
+	    old_ws->idx, wsid);
 
 	if (new_ws == old_ws)
 		return;
@@ -654,34 +673,31 @@ switchws(union arg *args)
 			XUnmapWindow(display, win->id);
 
 		old_ws->r = NULL;
+		old_ws->restack = 1;
 	} else {
 		other_r->ws = old_ws;
 		old_ws->r = other_r;
 	}
-
 	this_r->ws = new_ws;
 	new_ws->r = this_r;
 
 	ignore_enter = 1;
 	/* set focus */
-	if (new_ws->restack) {
-		stack();
-		bar_print(this_r);
-	} else {	
-		if (new_ws->focus)
-			focus_win(new_ws->focus);
-		XSync(display, False);
-	}
+	if (new_ws->focus)
+		focus_win(new_ws->focus);
+	stack();
 }
 
 void
-swapwin(union arg *args)
+swapwin(struct swm_region *r, union arg *args)
 {
 	struct ws_win		*target;
 	struct ws_win_list	*wl;
 
 
-	DNPRINTF(SWM_D_MOVE, "swapwin: id %d\n", args->id);
+	DNPRINTF(SWM_D_WS, "swapwin id %d "
+	    "in screen %d region %dx%d+%d+%d ws %d\n", args->id,
+	    r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
 	if (cur_focus == NULL)
 		return;
 
@@ -723,7 +739,7 @@ swapwin(union arg *args)
 }
 
 void
-focus(union arg *args)
+focus(struct swm_region *r, union arg *args)
 {
 	struct ws_win		*winfocus, *winlostfocus;
 	struct ws_win_list	*wl;
@@ -765,11 +781,9 @@ focus(union arg *args)
 }
 
 void
-cycle_layout(union arg *args)
+cycle_layout(struct swm_region *r, union arg *args)
 {
-	struct workspace *ws;
-
-	ws = cur_ws();
+	struct workspace *ws = r->ws;
 
 	DNPRINTF(SWM_D_EVENT, "cycle_layout: workspace: %d\n", ws->idx);
 
@@ -782,21 +796,21 @@ cycle_layout(union arg *args)
 }
 
 void
-resize_master(union arg *args)
+resize_master(struct swm_region *r, union arg *args)
 {
-	struct workspace	*ws = cur_ws();
+	struct workspace	*ws = r->ws;
 
 	DNPRINTF(SWM_D_STACK, "resize_master for workspace %d (id %d\n",
 	    args->id, ws->idx);
 
 	if (ws->cur_layout->l_resize != NULL)
-		ws->cur_layout->l_resize(args->id);
+		ws->cur_layout->l_resize(ws, args->id);
 }
 
 void
-stack_reset(union arg *args)
+stack_reset(struct swm_region *r, union arg *args)
 {
-	struct workspace	*ws = cur_ws();
+	struct workspace	*ws = r->ws;
 
 	DNPRINTF(SWM_D_STACK, "stack_reset: ws %d\n", ws->idx);
 
@@ -871,10 +885,8 @@ vertical_init(struct workspace *ws)
 }
 
 void
-vertical_resize(int id)
+vertical_resize(struct workspace *ws, int id)
 {
-	struct workspace *ws = cur_ws();
-
 	DNPRINTF(SWM_D_STACK, "vertical_resize: workspace: %d\n", ws->idx);
 
 	switch (id) {
@@ -972,9 +984,8 @@ horizontal_init(struct workspace *ws)
 }
 
 void
-horizontal_resize(int id)
+horizontal_resize(struct workspace *ws, int id)
 {
-	struct workspace *ws = cur_ws();
 	DNPRINTF(SWM_D_STACK, "horizontal_resize: workspace: %d\n", ws->idx);
 
 	switch (id) {
@@ -1109,7 +1120,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g) {
 }
 
 void
-send_to_ws(union arg *args)
+send_to_ws(struct swm_region *r, union arg *args)
 {
 	int			wsid = args->id;
 	struct ws_win		*win = cur_focus;
@@ -1146,7 +1157,7 @@ send_to_ws(union arg *args)
 struct key {
 	unsigned int		mod;
 	KeySym			keysym;
-	void			(*func)(union arg *);
+	void			(*func)(struct swm_region *r, union arg *);
 	union arg		args;
 } keys[] = {
 	/* modifier		key	function		argument */
@@ -1252,7 +1263,8 @@ keypress(XEvent *e)
 		if (keysym == keys[i].keysym
 		   && CLEANMASK(keys[i].mod) == CLEANMASK(ev->state)
 		   && keys[i].func)
-			keys[i].func(&(keys[i].args));
+			keys[i].func(root_to_region(ev->root),
+			    &(keys[i].args));
 }
 
 void
@@ -1261,16 +1273,21 @@ buttonpress(XEvent *e)
 	XButtonPressedEvent	*ev = &e->xbutton;
 #ifdef SWM_CLICKTOFOCUS
 	struct ws_win		*win;
-	struct workspace	*ws = cur_ws();
+	struct workspace	*ws;
+	struct swm_region	*r;
 #endif
 
 	DNPRINTF(SWM_D_EVENT, "buttonpress: window: %lu\n", ev->window);
 
-	if (ev->window == ev->root)
+	if (ev->window == ev->root) {
+		rootclick = ev->root;
 		return;
+	}
 	if (ev->window == cur_focus->id)
 		return;
 #ifdef SWM_CLICKTOFOCUS
+	r = root_to_region(ev->root);
+	ws = r->ws;
 	TAILQ_FOREACH(win, &ws->winlist, entry)
 		if (win->id == ev->window) {
 			/* focus in the clicked window */
@@ -1325,7 +1342,7 @@ manage_window(Window id, struct workspace *ws)
 		DNPRINTF(SWM_D_MISC, "manage_window: win %u transient %u\n",
 		    (unsigned)win->id, win->transient);
 	}
-	XGetWindowAttributes(display, win->id, &win->wa);
+	XGetWindowAttributes(display, id, &win->wa);
 	win->g.w = win->wa.width;
 	win->g.h = win->wa.height;
 	win->g.x = win->wa.x;
@@ -1466,7 +1483,7 @@ enternotify(XEvent *e)
 		ignore_enter--;
 		return;
 	}
-	/* XXX update cur_ws here?... brute force for now */
+	/* brute force for now */
 	for (i = 0; i < ScreenCount(display); i++) {
 		for (j = 0; j < SWM_WS_MAX; j++) {
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist , entry) {
@@ -1514,7 +1531,7 @@ maprequest(XEvent *e)
 {
 	XMapRequestEvent	*ev = &e->xmaprequest;
 	XWindowAttributes	wa;
-	struct workspace	*ws = cur_ws();
+	struct swm_region	*r;
 
 	DNPRINTF(SWM_D_EVENT, "maprequest: window: %lu\n",
 	    e->xmaprequest.window);
@@ -1523,7 +1540,8 @@ maprequest(XEvent *e)
 		return;
 	if (wa.override_redirect)
 		return;
-	manage_window(e->xmaprequest.window, ws); /* RRR */
+	r = root_to_region(wa.root);
+	manage_window(e->xmaprequest.window, r->ws);
 	stack();
 }
 
@@ -1670,8 +1688,10 @@ setup_screens(void)
 
 		screens[i].idx = i;
 		TAILQ_INIT(&screens[i].rl);
-		screens[i].root = ScreenOfDisplay(display, i)->root;
 		screens[i].root = RootWindow(display, i);
+		XGetWindowAttributes(display, screens[i].root, &wa);
+		XSelectInput(display, screens[i].root,
+		    ButtonPressMask | wa.your_event_mask);
 
 		/* set default colors */
 		screens[i].color_focus = name_to_color("red");
