@@ -85,7 +85,6 @@
 #endif
 #endif
 
-#define SWM_DEBUG
 /* #define SWM_DEBUG */
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while(0)
@@ -1667,8 +1666,8 @@ void
 setup_screens(void)
 {
 #ifdef SWM_XRR_HAS_CRTC
-	XRRCrtcInfo		*crtc_info;
-	XRRScreenResources	*res;
+	XRRCrtcInfo		*ci;
+	XRRScreenResources	*sr;
 	int			c;
 #endif /* SWM_XRR_HAS_CRTC */
 	Window			d1, d2, *wins = NULL;
@@ -1741,30 +1740,31 @@ setup_screens(void)
 		}
 
 #ifdef SWM_XRR_HAS_CRTC
-		res = XRRGetScreenResources(display, screens[i].root);
-		if (res == NULL) {
+		sr = XRRGetScreenResources(display, screens[i].root);
+		if (sr == NULL) {
 			ncrtc = 0;
 			new_region(&screens[i], &screens[i].ws[w],
 			    0, 0, DisplayWidth(display, i),
 			    DisplayHeight(display, i)); 
 		} else 
-			ncrtc = res->ncrtc;
+			ncrtc = sr->ncrtc;
 
 		for (c = 0; c < ncrtc; c++) {
-			crtc_info = XRRGetCrtcInfo(display, res, res->crtcs[c]);
-			if (crtc_info->noutput == 0)
+			ci = XRRGetCrtcInfo(display, sr, sr->crtcs[c]);
+			if (ci->noutput == 0)
 				continue;
 
-			if (crtc_info != NULL && crtc_info->mode == None)
+			if (ci != NULL && ci->mode == None)
 				new_region(&screens[i], &screens[i].ws[w],
 				    0, 0, DisplayWidth(display, i),
 				    DisplayHeight(display, i)); 
 			else
 				new_region(&screens[i], &screens[i].ws[w],
-				    crtc_info->x, crtc_info->y,
-				    crtc_info->width, crtc_info->height);
+				    ci->x, ci->y, ci->width, ci->height);
 			w++;
 		}
+		XRRFreeCrtcInfo(ci);
+		XRRFreeScreenResources(sr);
 #else
 		new_region(&screens[i], &screens[i].ws[w],
 		    0, 0, DisplayWidth(display, i),
@@ -1842,7 +1842,7 @@ main(int argc, char *argv[])
 
 	setup_screens();
 
-	//ws[0].focus = TAILQ_FIRST(&ws[0].winlist);
+	/* ws[0].focus = TAILQ_FIRST(&ws[0].winlist); */
 
 	grabkeys();
 	stack();
