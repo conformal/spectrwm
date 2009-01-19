@@ -365,13 +365,11 @@ bar_toggle(union arg *args)
 
 	DNPRINTF(SWM_D_MISC, "bar_toggle\n");
 
-	if (bar_enabled) {
-		bar_enabled = 0;
+	if (bar_enabled)
 		XUnmapWindow(display, bar_window);
-	} else {
-		bar_enabled = 1;
+	else
 		XMapRaised(display, bar_window);
-	}
+	bar_enabled = !bar_enabled;
 	XSync(display, False);
 	for (i = 0; i < SWM_WS_MAX; i++)
 		ws[i].restack = 1;
@@ -399,9 +397,8 @@ bar_setup(void)
 	bar_gc = XCreateGC(display, bar_window, 0, &bar_gcv);
 	XSetFont(display, bar_gc, bar_fs->fid);
 	XSelectInput(display, bar_window, VisibilityChangeMask);
-	if (bar_enabled) {
+	if (bar_enabled)
 		XMapRaised(display, bar_window);
-	}
 	DNPRINTF(SWM_D_MISC, "bar_setup: bar_window %d\n", (int)bar_window);
 
 	if (signal(SIGALRM, bar_signal) == SIG_ERR)
