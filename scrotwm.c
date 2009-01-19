@@ -137,6 +137,7 @@ double			dialog_ratio = .6;
 #define SWM_BAR_MAX	(128)
 sig_atomic_t		bar_alarm = 0;
 int			bar_enabled = 1;
+int			bar_verbose = 1;
 int			bar_height = 0;
 GC			bar_gc;
 XGCValues		bar_gcv;
@@ -389,40 +390,39 @@ bad:
 }
 
 void
-bar_print(void)
+bar_print(struct swm_region *r, char *s, int erase)
+{
+	if (erase) {
+		XSetForeground(display, bar_gc, r->s->bar_color);
+		XDrawString(display, r->bar_window, bar_gc, 4, bar_fs->ascent,
+		    r->s->bar_text, strlen(r->s->bar_text));
+	}
+
+	strlcpy(r->s->bar_text, s, sizeof r->s->bar_text);
+	XSetForeground(display, bar_gc, r->s->bar_font_color);
+	XDrawString(display, r->bar_window, bar_gc, 4, bar_fs->ascent,
+	    r->s->bar_text, strlen(r->s->bar_text));
+}
+
+void
+bar_update(void)
 {
 	time_t			tmt;
 	struct tm		tm;
-	struct swm_region	*tmpr;
+	struct swm_region	*r;
 	int			i;
-	char			tmp[SWM_BAR_MAX];
+	char			s[SWM_BAR_MAX];
  
 	if (bar_enabled == 0)
 		return;
 
-	/* clear old text */
-	for (i = 0; i < ScreenCount(display); i++)
-		TAILQ_FOREACH(tmpr, &screens[i].rl, entry) {
-			XSetForeground(display, bar_gc, tmpr->s->bar_color);
-			XDrawString(display, tmpr->bar_window,
-			    bar_gc, 4, bar_fs->ascent, tmpr->s->bar_text,
-			        strlen(tmpr->s->bar_text));
-		}
-
 	/* draw new text */
 	time(&tmt);
 	localtime_r(&tmt, &tm);
-	strftime(tmp, sizeof tmp, "%a %b %d %R %Z %Y", &tm);
+	strftime(s, sizeof s, "%a %b %d %R %Z %Y", &tm);
 	for (i = 0; i < ScreenCount(display); i++)
-		TAILQ_FOREACH(tmpr, &screens[i].rl, entry) {
-			XSetForeground(display, bar_gc,
-			    tmpr->s->bar_font_color);
-			snprintf(tmpr->s->bar_text, sizeof tmpr->s->bar_text,
-			    "%s    %d", tmp, i);
-			XDrawString(display, tmpr->bar_window, bar_gc, 4,
-			    bar_fs->ascent, tmpr->s->bar_text,
-			    strlen(tmpr->s->bar_text));
-		}
+		TAILQ_FOREACH(r, &screens[i].rl, entry)
+			bar_print(r, s, 1);
 
 	XSync(display, False);
 	alarm(60);
@@ -461,7 +461,7 @@ bar_toggle(struct swm_region *r, union arg *args)
 	/* must be after stack */
 	for (i = 0; i < ScreenCount(display); i++)
 		TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
-			bar_print();
+			bar_update();
 }
 
 void
@@ -490,7 +490,7 @@ bar_setup(struct swm_region *r)
 
 	if (signal(SIGALRM, bar_signal) == SIG_ERR)
 		err(1, "could not install bar_signal");
-	bar_print();
+	bar_update();
 }
 
 void
@@ -683,7 +683,6 @@ switchws(struct swm_region *r, union arg *args)
 	other_r = new_ws->r;
 	if (!other_r) {
 		/* if the other workspace is hidden, switch windows */
-	
 		/* map new window first to prevent ugly blinking */
 		TAILQ_FOREACH(win, &new_ws->winlist, entry)
 			XMapRaised(display, win->id);
@@ -1588,7 +1587,7 @@ visibilitynotify(XEvent *e)
 		for (i = 0; i < ScreenCount(display); i++) 
 			TAILQ_FOREACH(r, &screens[i].rl, entry)
 				if (e->xvisibility.window == r->bar_window)
-					bar_print();
+					bar_update();
 }
 
 void			(*handler[LASTEvent])(XEvent *) = {
@@ -1875,7 +1874,7 @@ main(int argc, char *argv[])
 				errx(1, "select failed");
 		if (bar_alarm) {
 			bar_alarm = 0;
-			bar_print();
+			bar_update();
 		}
 		while(XPending(display)) {
 			XNextEvent(display, &e);
