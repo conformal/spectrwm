@@ -53,6 +53,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <err.h>
+#include <errno.h>
 #include <locale.h>
 #include <unistd.h>
 #include <time.h>
@@ -62,10 +63,12 @@
 #include <pwd.h>
 
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/queue.h>
 #include <sys/param.h>
+#include <sys/select.h>
 
 #include <X11/cursorfont.h>
 #include <X11/keysym.h>
@@ -131,12 +134,13 @@ Display			*display;
 /* dialog windows */
 double			dialog_ratio = .6;
 /* status bar */
+#define SWM_BAR_MAX	(128)
+sig_atomic_t		bar_alarm = 0;
 int			bar_enabled = 1;
 int			bar_height = 0;
 GC			bar_gc;
 XGCValues		bar_gcv;
 XFontStruct		*bar_fs;
-char			bar_text[128];
 char			*bar_fonts[] = {
 			    "-*-terminus-*-*-*-*-*-*-*-*-*-*-*-*",
 			    "-*-times-medium-r-*-*-*-*-*-*-*-*-*-*",
@@ -240,6 +244,7 @@ struct swm_screen {
 	unsigned long		bar_font_color;
 	unsigned long		color_focus;		/* XXX should this be per ws? */
 	unsigned long		color_unfocus;
+	char			bar_text[SWM_BAR_MAX];
 };
 struct swm_screen	*screens;
 int			num_screens;
@@ -384,44 +389,56 @@ bad:
 }
 
 void
-bar_print(struct swm_region *r)
+bar_print(void)
 {
 	time_t			tmt;
 	struct tm		tm;
-
+	struct swm_region	*tmpr;
+	int			i;
+	char			tmp[SWM_BAR_MAX];
+ 
 	if (bar_enabled == 0)
 		return;
 
 	/* clear old text */
-	XSetForeground(display, bar_gc, r->s->bar_color);
-	XDrawString(display, r->bar_window,
-	    bar_gc, 4, bar_fs->ascent, bar_text, strlen(bar_text));
+	for (i = 0; i < ScreenCount(display); i++)
+		TAILQ_FOREACH(tmpr, &screens[i].rl, entry) {
+			XSetForeground(display, bar_gc, tmpr->s->bar_color);
+			XDrawString(display, tmpr->bar_window,
+			    bar_gc, 4, bar_fs->ascent, tmpr->s->bar_text,
+			        strlen(tmpr->s->bar_text));
+		}
 
 	/* draw new text */
 	time(&tmt);
 	localtime_r(&tmt, &tm);
-	strftime(bar_text, sizeof bar_text, "%a %b %d %R %Z %Y", &tm);
-	XSetForeground(display, bar_gc, r->s->bar_font_color);
-	XDrawString(display, r->bar_window, bar_gc, 4,
-	    bar_fs->ascent, bar_text, strlen(bar_text));
-	XSync(display, False);
+	strftime(tmp, sizeof tmp, "%a %b %d %R %Z %Y", &tm);
+	for (i = 0; i < ScreenCount(display); i++)
+		TAILQ_FOREACH(tmpr, &screens[i].rl, entry) {
+			XSetForeground(display, bar_gc,
+			    tmpr->s->bar_font_color);
+			snprintf(tmpr->s->bar_text, sizeof tmpr->s->bar_text,
+			    "%s    %d", tmp, i);
+			XDrawString(display, tmpr->bar_window, bar_gc, 4,
+			    bar_fs->ascent, tmpr->s->bar_text,
+			    strlen(tmpr->s->bar_text));
+		}
 
+	XSync(display, False);
 	alarm(60);
 }
 
 void
 bar_signal(int sig)
 {
-	/* XXX yeah yeah byte me */
-	if (cur_focus)
-		bar_print(cur_focus->ws->r);
+	bar_alarm = 1;
 }
 
 void
 bar_toggle(struct swm_region *r, union arg *args)
 {
-	struct swm_region *tmpr;
-	int i, j;	
+	struct swm_region	*tmpr;
+	int			i, j;	
 
 	DNPRINTF(SWM_D_MISC, "bar_toggle\n");
 
@@ -444,7 +461,7 @@ bar_toggle(struct swm_region *r, union arg *args)
 	/* must be after stack */
 	for (i = 0; i < ScreenCount(display); i++)
 		TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
-			bar_print(tmpr);
+			bar_print();
 }
 
 void
@@ -473,7 +490,7 @@ bar_setup(struct swm_region *r)
 
 	if (signal(SIGALRM, bar_signal) == SIG_ERR)
 		err(1, "could not install bar_signal");
-	bar_print(r);
+	bar_print();
 }
 
 void
@@ -526,6 +543,11 @@ void
 restart(struct swm_region *r, union arg *args)
 {
 	DNPRINTF(SWM_D_MISC, "restart: %s\n", start_argv[0]);
+
+	/* disable alarm because the following code may not be interrupted */
+	alarm(0);
+	if (signal(SIGALRM, SIG_IGN) == SIG_ERR)
+		errx(1, "can't disable alarm");
 
 	XCloseDisplay(display);
 	execvp(start_argv[0], start_argv);
@@ -1230,9 +1252,9 @@ grabkeys(void)
 		if (TAILQ_EMPTY(&screens[k].rl))
 			continue;
 		XUngrabKey(display, AnyKey, AnyModifier, screens[k].root);
-		for(i = 0; i < LENGTH(keys); i++) {
-			if((code = XKeysymToKeycode(display, keys[i].keysym)))
-				for(j = 0; j < LENGTH(modifiers); j++)
+		for (i = 0; i < LENGTH(keys); i++) {
+			if ((code = XKeysymToKeycode(display, keys[i].keysym)))
+				for (j = 0; j < LENGTH(modifiers); j++)
 					XGrabKey(display, code,
 					    keys[i].mod | modifiers[j],
 					    screens[k].root, True,
@@ -1471,7 +1493,7 @@ enternotify(XEvent *e)
 
 	DNPRINTF(SWM_D_EVENT, "enternotify: window: %lu\n", ev->window);
 
-	if((ev->mode != NotifyNormal || ev->detail == NotifyInferior) &&
+	if ((ev->mode != NotifyNormal || ev->detail == NotifyInferior) &&
 	    ev->window != ev->root)
 		return;
 	if (ignore_enter) {
@@ -1566,7 +1588,7 @@ visibilitynotify(XEvent *e)
 		for (i = 0; i < ScreenCount(display); i++) 
 			TAILQ_FOREACH(r, &screens[i].rl, entry)
 				if (e->xvisibility.window == r->bar_window)
-					bar_print(r);
+					bar_print();
 }
 
 void			(*handler[LASTEvent])(XEvent *) = {
@@ -1803,6 +1825,8 @@ main(int argc, char *argv[])
 	char			conf[PATH_MAX], *cfile = NULL;
 	struct stat		sb;
 	XEvent			e;
+	int			xfd;
+	fd_set			rd;
 
 	start_argv = argv;
 	fprintf(stderr, "Welcome to scrotwm V%s\n", SWM_VERSION);
@@ -1843,10 +1867,21 @@ main(int argc, char *argv[])
 	grabkeys();
 	stack();
 
+	xfd = ConnectionNumber(display);
 	while (running) {
-		XNextEvent(display, &e);
-		if (handler[e.type])
-			handler[e.type](&e);
+		FD_SET(xfd, &rd);
+		if (select(xfd + 1, &rd, NULL, NULL, NULL) == -1)
+			if (errno != EINTR)
+				errx(1, "select failed");
+		if (bar_alarm) {
+			bar_alarm = 0;
+			bar_print();
+		}
+		while(XPending(display)) {
+			XNextEvent(display, &e);
+			if (handler[e.type])
+				handler[e.type](&e);
+		}
 	}
 
 	XCloseDisplay(display);
