@@ -1856,10 +1856,12 @@ main(int argc, char *argv[])
 			if (S_ISREG(sb.st_mode))
 				cfile = conf;
 	}
+
+	setup_screens();
+
 	if (cfile)
 		conf_load(cfile);
 
-	setup_screens();
 
 	/* ws[0].focus = TAILQ_FIRST(&ws[0].winlist); */
 
