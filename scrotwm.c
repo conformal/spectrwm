@@ -189,25 +189,21 @@ TAILQ_HEAD(ws_win_list, ws_win);
 
 /* layout handlers */
 void	stack(void);
-void	vertical_init(struct workspace *);
-void	vertical_resize(struct workspace *, int);
+void	vertical_config(struct workspace *, int);
 void	vertical_stack(struct workspace *, struct swm_geometry *);
-void	horizontal_init(struct workspace *);
-void	horizontal_resize(struct workspace *, int);
+void	horizontal_config(struct workspace *, int);
 void	horizontal_stack(struct workspace *, struct swm_geometry *);
-void	max_init(struct workspace *);
 void	max_stack(struct workspace *, struct swm_geometry *);
 
 struct layout {
-	void		(*l_init)(struct workspace *);	/* init/reset */
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
-	void		(*l_resize)(struct workspace *, int);
+	void		(*l_config)(struct workspace *, int);
 } layouts[] =  {
-	/* init			stack,			resize */
-	{ vertical_init,	vertical_stack,		vertical_resize},
-	{ horizontal_init,	horizontal_stack,	horizontal_resize},
-	{ NULL,			max_stack,		NULL},
-	{ NULL,			NULL,			NULL},
+	/* stack,		configure */
+	{ vertical_stack,	vertical_config},
+	{ horizontal_stack,	horizontal_config},
+	{ max_stack,		NULL},
+	{ NULL,			NULL},
 };
 
 #define SWM_H_SLICE		(32)
@@ -225,7 +221,9 @@ struct workspace {
 	/* stacker state */
 	struct {
 				int horizontal_msize;
+				int horizontal_mwin;
 				int vertical_msize;
+				int vertical_mwin;
 	} l_state;
 };
 
@@ -263,6 +261,10 @@ union arg {
 #define SWM_ARG_ID_SWAPMAIN	(5)
 #define SWM_ARG_ID_MASTERSHRINK (6)
 #define SWM_ARG_ID_MASTERGROW	(7)
+#define SWM_ARG_ID_MASTERADD	(8)
+#define SWM_ARG_ID_MASTERDEL	(9)
+#define SWM_ARG_ID_STACKRESET	(10)
+#define SWM_ARG_ID_STACKINIT	(11)
 	char			**argv;
 };
 
@@ -818,28 +820,18 @@ cycle_layout(struct swm_region *r, union arg *args)
 }
 
 void
-resize_master(struct swm_region *r, union arg *args)
+stack_config(struct swm_region *r, union arg *args)
 {
 	struct workspace	*ws = r->ws;
 
-	DNPRINTF(SWM_D_STACK, "resize_master for workspace %d (id %d\n",
+	DNPRINTF(SWM_D_STACK, "stack_config for workspace %d (id %d\n",
 	    args->id, ws->idx);
 
-	if (ws->cur_layout->l_resize != NULL)
-		ws->cur_layout->l_resize(ws, args->id);
-}
+	if (ws->cur_layout->l_config != NULL)
+		ws->cur_layout->l_config(ws, args->id);
 
-void
-stack_reset(struct swm_region *r, union arg *args)
-{
-	struct workspace	*ws = r->ws;
-
-	DNPRINTF(SWM_D_STACK, "stack_reset: ws %d\n", ws->idx);
-
-	if (ws->cur_layout->l_init != NULL) {
-		ws->cur_layout->l_init(ws);
+	if (args->id != SWM_ARG_ID_STACKINIT);
 		stack();
-	}
 }
 
 void
@@ -896,36 +888,36 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 	XConfigureWindow(display, win->id, mask, &wc);
 }
 
-int vertical_msize[SWM_WS_MAX];
 
 void
-vertical_init(struct workspace *ws)
-{
-	DNPRINTF(SWM_D_MISC, "vertical_init: workspace: %d\n", ws->idx);
-
-	ws->l_state.vertical_msize = SWM_V_SLICE / 2;
-}
-
-void
-vertical_resize(struct workspace *ws, int id)
+vertical_config(struct workspace *ws, int id)
 {
 	DNPRINTF(SWM_D_STACK, "vertical_resize: workspace: %d\n", ws->idx);
 
 	switch (id) {
+	case SWM_ARG_ID_STACKRESET:
+	case SWM_ARG_ID_STACKINIT:
+		ws->l_state.vertical_msize = SWM_V_SLICE / 2;
+		ws->l_state.vertical_mwin = 1;
+		break;
 	case SWM_ARG_ID_MASTERSHRINK:
-		ws->l_state.vertical_msize--;
-		if (ws->l_state.vertical_msize < 1)
-			ws->l_state.vertical_msize = 1;
+		if (ws->l_state.vertical_msize > 1)
+			ws->l_state.vertical_msize--;
 		break;
 	case SWM_ARG_ID_MASTERGROW:
-		ws->l_state.vertical_msize++;
-		if (ws->l_state.vertical_msize > SWM_V_SLICE - 1)
-			ws->l_state.vertical_msize = SWM_V_SLICE - 1;
+		if (ws->l_state.vertical_msize < SWM_V_SLICE - 1)
+			ws->l_state.vertical_msize++;
+		break;
+	case SWM_ARG_ID_MASTERADD:
+		ws->l_state.vertical_mwin++;
+		break;
+	case SWM_ARG_ID_MASTERDEL:
+		if (ws->l_state.vertical_mwin > 0)
+			ws->l_state.vertical_mwin--;
 		break;
 	default:
 		return;
 	}
-	stack();
 }
 
 void
@@ -933,7 +925,7 @@ vertical_stack(struct workspace *ws, struct swm_geometry *g) {
 	XWindowChanges		wc;
 	struct swm_geometry	gg = *g;
 	struct ws_win		*win, *winfocus;
-	int			i, hrh, winno, main_width;
+	int			i, j, split, colno, hrh, winno, main_width;
 	unsigned int		mask;
 
 	DNPRINTF(SWM_D_STACK, "vertical_stack: workspace: %d\n", ws->idx);
@@ -945,35 +937,37 @@ vertical_stack(struct workspace *ws, struct swm_geometry *g) {
 		ws->focus = TAILQ_FIRST(&ws->winlist);
 	winfocus = cur_focus ? cur_focus : ws->focus;
 
-	if (winno > 1) {
+	if (ws->l_state.vertical_mwin &&
+	    winno > ws->l_state.vertical_mwin) {
+		split = ws->l_state.vertical_mwin;
+		colno = split;
 		main_width = (g->w / SWM_V_SLICE) *
 		   ws->l_state.vertical_msize;
 		gg.w = main_width;
+	} else {
+		colno = winno;
+		split = 0;
 	}
+	hrh = g->h / colno;
+	gg.h = hrh;
 
-	if (winno > 2)
-		hrh = g->h / (winno - 1);
-	else
-		hrh = 0;
-
-	i = 0;
+	i = j = 0;
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
-		if (i == 1) {
+		if (split && i == split) {
+			colno = winno - split;
+			hrh = (g->h / colno);
 			gg.x += main_width + 2;
 			gg.w = g->w - (main_width + 2);
-		}
-		if (i != 0 && hrh != 0) {
-			/* correct the last window for lost pixels */
-			if (win == TAILQ_LAST(&ws->winlist, ws_win_list)) {
-				gg.h = hrh + (g->h - (i * hrh));
-				gg.y += hrh;
-			} else {
-				gg.h = hrh - 2;
-				/* leave first right hand window at y = 0 */
-				if (i > 1)
-					gg.y += gg.h + 2;
-			}
-		}
+			gg.h = hrh;
+			j = 0;
+		} else if (j == colno - 1)
+			gg.h = (hrh + (g->h - (colno * hrh)));
+		 
+		if (j == 0)
+			gg.y = g->y;
+		else
+			gg.y += hrh;
+
 
 		if (win->transient != 0 || win->floating != 0)
 			stack_floater(win, ws->r);
@@ -990,6 +984,7 @@ vertical_stack(struct workspace *ws, struct swm_geometry *g) {
 
 		XMapRaised(display, win->id);
 		i++;
+		j++;
 	}
 
 	if (winfocus)
@@ -998,33 +993,34 @@ vertical_stack(struct workspace *ws, struct swm_geometry *g) {
 
 
 void
-horizontal_init(struct workspace *ws)
+horizontal_config(struct workspace *ws, int id)
 {
-	DNPRINTF(SWM_D_STACK, "horizontal_init: workspace: %d\n", ws->idx);
-
-	ws->l_state.horizontal_msize = SWM_H_SLICE / 2;
-}
-
-void
-horizontal_resize(struct workspace *ws, int id)
-{
-	DNPRINTF(SWM_D_STACK, "horizontal_resize: workspace: %d\n", ws->idx);
+	DNPRINTF(SWM_D_STACK, "horizontal_config: workspace: %d\n", ws->idx);
 
 	switch (id) {
+	case SWM_ARG_ID_STACKRESET:
+	case SWM_ARG_ID_STACKINIT:
+		ws->l_state.horizontal_mwin = 1;
+		ws->l_state.horizontal_msize = SWM_H_SLICE / 2;
+		break;
 	case SWM_ARG_ID_MASTERSHRINK:
-		ws->l_state.horizontal_msize--;
-		if (ws->l_state.horizontal_msize < 1)
-			ws->l_state.horizontal_msize = 1;
+		if (ws->l_state.horizontal_msize > 1)
+			ws->l_state.horizontal_msize--;
 		break;
 	case SWM_ARG_ID_MASTERGROW:
-		ws->l_state.horizontal_msize++;
-		if (ws->l_state.horizontal_msize > SWM_H_SLICE - 1)
-			ws->l_state.horizontal_msize = SWM_H_SLICE - 1;
+		if (ws->l_state.horizontal_msize < SWM_H_SLICE - 1)
+			ws->l_state.horizontal_msize++;
+		break;
+	case SWM_ARG_ID_MASTERADD:
+		ws->l_state.horizontal_mwin++;
+		break;
+	case SWM_ARG_ID_MASTERDEL:
+		if (ws->l_state.horizontal_mwin > 0)
+			ws->l_state.horizontal_mwin--;
 		break;
 	default:
 		return;
 	}
-	stack();
 }
 
 void
@@ -1032,7 +1028,7 @@ horizontal_stack(struct workspace *ws, struct swm_geometry *g) {
 	XWindowChanges		wc;
 	struct swm_geometry	gg = *g;
 	struct ws_win		*win, *winfocus;
-	int			i, hrw, winno, main_height;
+	int			i, j, split, rowno, hrw, winno, main_height;
 	unsigned int		mask;
 
 	DNPRINTF(SWM_D_STACK, "horizontal_stack: workspace: %d\n", ws->idx);
@@ -1044,35 +1040,36 @@ horizontal_stack(struct workspace *ws, struct swm_geometry *g) {
 		ws->focus = TAILQ_FIRST(&ws->winlist);
 	winfocus = cur_focus ? cur_focus : ws->focus;
 
-	if (winno > 1) {
-		main_height = (g->h / SWM_H_SLICE) *
-		    ws->l_state.horizontal_msize;
+	if (ws->l_state.horizontal_mwin &&
+	    winno > ws->l_state.horizontal_mwin) {
+		split = ws->l_state.horizontal_mwin;
+		rowno = split;
+		main_height = (g->h / SWM_V_SLICE) *
+		   ws->l_state.horizontal_msize;
 		gg.h = main_height;
+	} else {
+		rowno = winno;
+		split = 0;
 	}
+	hrw = g->w / rowno;
+	gg.w = hrw;
 
-	if (winno > 2)
-		hrw = g->w / (winno - 1);
-	else
-		hrw = 0;
-
-	i = 0;
+	i = j = 0;
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
-		if (i == 1) {
+		if (split && i == split) {
+			rowno = winno - split;
+			hrw = (g->w / rowno);
 			gg.y += main_height + 2;
 			gg.h = g->h - (main_height + 2);
-		}
-		if (i != 0 && hrw != 0) {
-			/* correct the last window for lost pixels */
-			if (win == TAILQ_LAST(&ws->winlist, ws_win_list)) {
-				gg.w = hrw + (g->w - (i * hrw));
-				gg.x += hrw;
-			} else {
-				gg.w = hrw - 2;
-				/* leave first bottom window at x = 0 */
-				if (i > 1)
-					gg.x += gg.w + 2;
-			}
-		}
+			gg.w = hrw;
+			j = 0;
+		} else if (j == rowno - 1)
+			gg.w = (hrw + (g->w - (rowno * hrw)));
+
+		if (j == 0)
+			gg.x = g->x;
+		else
+			gg.x += hrw;
 
 		if (win->transient != 0 || win->floating != 0)
 			stack_floater(win, ws->r);
@@ -1088,6 +1085,7 @@ horizontal_stack(struct workspace *ws, struct swm_geometry *g) {
 		}
 
 		XMapRaised(display, win->id);
+		j++;
 		i++;
 	}
 
@@ -1184,9 +1182,11 @@ struct key {
 } keys[] = {
 	/* modifier		key	function		argument */
 	{ MODKEY,		XK_space,	cycle_layout,	{0} }, 
-	{ MODKEY | ShiftMask,	XK_space,	stack_reset,	{0} }, 
-	{ MODKEY,		XK_h,		resize_master,	{.id = SWM_ARG_ID_MASTERSHRINK} },
-	{ MODKEY,		XK_l,		resize_master,	{.id = SWM_ARG_ID_MASTERGROW} },
+	{ MODKEY | ShiftMask,	XK_space,	stack_config,	{.id = SWM_ARG_ID_STACKRESET} }, 
+	{ MODKEY,		XK_h,		stack_config,	{.id = SWM_ARG_ID_MASTERSHRINK} },
+	{ MODKEY,		XK_l,		stack_config,	{.id = SWM_ARG_ID_MASTERGROW} },
+	{ MODKEY,		XK_comma,	stack_config,	{.id = SWM_ARG_ID_MASTERADD} },
+	{ MODKEY,		XK_period,	stack_config,	{.id = SWM_ARG_ID_MASTERDEL} },
 	{ MODKEY,		XK_Return,	swapwin,	{.id = SWM_ARG_ID_SWAPMAIN} },
 	{ MODKEY,		XK_j,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
 	{ MODKEY,		XK_k,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
@@ -1733,8 +1733,9 @@ setup_screens(void)
 			TAILQ_INIT(&ws->winlist);
 
 			for (k = 0; layouts[k].l_stack != NULL; k++)
-				if (layouts[k].l_init != NULL)
-					layouts[k].l_init(ws);
+				if (layouts[k].l_config != NULL)
+					layouts[k].l_config(ws,
+					    SWM_ARG_ID_STACKINIT);
 			ws->cur_layout = &layouts[0];
 		}
 
