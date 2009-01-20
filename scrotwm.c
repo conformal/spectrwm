@@ -564,7 +564,8 @@ bar_refresh(void)
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
 			wa.border_pixel = screens[i].bar_border;
 			wa.background_pixel = screens[i].bar_color;
-			XChangeWindowAttributes(display, r->bar_window, CWBackPixel | CWBorderPixel, &wa);
+			XChangeWindowAttributes(display, r->bar_window,
+			    CWBackPixel | CWBorderPixel, &wa);
 		}
 	bar_update();
 }
