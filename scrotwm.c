@@ -949,7 +949,7 @@ vertical_stack(struct workspace *ws, struct swm_geometry *g) {
 		split = 0;
 	}
 	hrh = g->h / colno;
-	gg.h = hrh;
+	gg.h = hrh - 2;
 
 	i = j = 0;
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
@@ -958,10 +958,10 @@ vertical_stack(struct workspace *ws, struct swm_geometry *g) {
 			hrh = (g->h / colno);
 			gg.x += main_width + 2;
 			gg.w = g->w - (main_width + 2);
-			gg.h = hrh;
+			gg.h = hrh - 2;
 			j = 0;
 		} else if (j == colno - 1)
-			gg.h = (hrh + (g->h - (colno * hrh)));
+			gg.h = (hrh + (g->h - (colno * hrh))) - 2;
 		 
 		if (j == 0)
 			gg.y = g->y;
@@ -1052,7 +1052,7 @@ horizontal_stack(struct workspace *ws, struct swm_geometry *g) {
 		split = 0;
 	}
 	hrw = g->w / rowno;
-	gg.w = hrw;
+	gg.w = hrw - 2;
 
 	i = j = 0;
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
@@ -1061,10 +1061,10 @@ horizontal_stack(struct workspace *ws, struct swm_geometry *g) {
 			hrw = (g->w / rowno);
 			gg.y += main_height + 2;
 			gg.h = g->h - (main_height + 2);
-			gg.w = hrw;
+			gg.w = hrw - 2;
 			j = 0;
 		} else if (j == rowno - 1)
-			gg.w = (hrw + (g->w - (rowno * hrw)));
+			gg.w = (hrw + (g->w - (rowno * hrw))) - 2;
 
 		if (j == 0)
 			gg.x = g->x;
