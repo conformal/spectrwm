@@ -61,6 +61,7 @@
 #include <string.h>
 #include <util.h>
 #include <pwd.h>
+#include <ctype.h>
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -242,7 +243,6 @@ struct swm_screen {
 	unsigned long		bar_font_color;
 	unsigned long		color_focus;		/* XXX should this be per ws? */
 	unsigned long		color_unfocus;
-	char			bar_text[SWM_BAR_MAX];
 };
 struct swm_screen	*screens;
 int			num_screens;
@@ -293,6 +293,32 @@ name_to_color(char *colorname)
 	return (result);
 }
 
+int
+varmatch(char *var, char *name, int *index)
+{
+	char			*p, buf[5];
+	int 			i;
+
+	i = strncmp(var, name, 255);
+	if (index == NULL)
+		return (i);
+
+	*index = -1;
+	if (i <= 0)
+		return (i);
+	p = var + strlen(name);
+	if (*p++ != '[')
+		return (i);
+	bzero(buf, sizeof buf);
+	i = 0;
+	while (isdigit(*p) && i < sizeof buf)
+		buf[i++] = *p++;
+	if (i == 0 || i >= sizeof buf || *p != ']')
+		return (1);
+	*index = strtonum(buf, 0, 99, NULL);
+	return (0);
+}
+
 /* conf file stuff */
 #define	SWM_CONF_WS	"\n= \t"
 #define SWM_CONF_FILE	"scrotwm.conf"
@@ -302,7 +328,7 @@ conf_load(char *filename)
 	FILE			*config;
 	char			*line, *cp, *var, *val;
 	size_t			len, lineno = 0;
-	int			i;
+	int			i, sc;
 
 	DNPRINTF(SWM_D_MISC, "conf_load: filename %s\n", filename);
 
@@ -312,7 +338,7 @@ conf_load(char *filename)
 	if ((config = fopen(filename, "r")) == NULL)
 		return (1);
 
-	for (;;) {
+	for (sc = ScreenCount(display);;) {
 		if ((line = fparseln(config, &len, &lineno, NULL, 0)) == NULL)
 			if (feof(config))
 				break;
@@ -334,18 +360,37 @@ conf_load(char *filename)
 		case 'b':
 			if (!strncmp(var, "bar_enabled", strlen("bar_enabled")))
 				bar_enabled = atoi(val);
-			else if (!strncmp(var, "bar_border",
-			    strlen("bar_border")))
-				for (i = 0; i < ScreenCount(display); i++)
-					screens[i].bar_border = name_to_color(val);
-			else if (!strncmp(var, "bar_color",
-			    strlen("bar_color")))
-				for (i = 0; i < ScreenCount(display); i++)
-					screens[i].bar_color = name_to_color(val);
-			else if (!strncmp(var, "bar_font_color",
-			    strlen("bar_font_color")))
-				for (i = 0; i < ScreenCount(display); i++)
-					screens[i].bar_font_color = name_to_color(val);
+			else if (!varmatch(var, "bar_border", &i))
+				if (i > 0 && i <= sc)
+					screens[i - 1].bar_border =
+					    name_to_color(val);
+				else if (i == -1)
+					for (i = 0; i < sc; i++)
+						screens[i].bar_border =
+						    name_to_color(val);
+				 else
+					goto badidx;
+			else if (!varmatch(var, "bar_color", &i))
+				if (i > 0 && i <= sc)
+					screens[i - 1].bar_color =
+					    name_to_color(val);
+				else if (i == -1)
+					for (i = 0; i < sc; i++)
+						screens[i].bar_color =
+						    name_to_color(val);
+				else
+					goto badidx;
+			else if (!varmatch(var, "bar_font_color", &i))
+				if (i > 0 && i <= sc)
+					screens[i - 1].bar_font_color =
+						name_to_color(val);
+				else if (i == -1)
+					for (i = 0; i < sc; i++)
+						screens[i].bar_font_color =
+						    name_to_color(val);
+				else
+					goto badidx;
+
 			else if (!strncmp(var, "bar_font", strlen("bar_font")))
 				asprintf(&bar_fonts[0], "%s", val);
 			else
@@ -353,13 +398,26 @@ conf_load(char *filename)
 			break;
 
 		case 'c':
-			if (!strncmp(var, "color_focus", strlen("color_focus")))
-				for (i = 0; i < ScreenCount(display); i++)
-					screens[i].color_focus = name_to_color(val);
-			else if (!strncmp(var, "color_unfocus",
-			    strlen("color_unfocus")))
-				for (i = 0; i < ScreenCount(display); i++)
-					screens[i].color_unfocus = name_to_color(val);
+			if (!varmatch(var, "color_focus", &i))
+				if (i > 0 && i <= sc)
+					screens[i - 1].color_focus =
+					    name_to_color(val);
+				else if (i == -1)
+					for (i = 0; i < sc; i++)
+						screens[i].color_focus =
+						    name_to_color(val);
+				else
+					goto badidx;
+			else if (!varmatch(var, "color_unfocus", &i))
+				if (i > 0 && i <= sc)
+					screens[i - 1].color_unfocus =
+					    name_to_color(val);
+				else if (i == -1)
+					for (i = 0; i < sc; i++)
+						screens[i].color_unfocus =
+						    name_to_color(val);
+				else
+					goto badidx;
 			else
 				goto bad;
 			break;
@@ -388,21 +446,17 @@ conf_load(char *filename)
 	return (0);
 bad:
 	errx(1, "invalid conf file entry: %s=%s", var, val);
+badidx:
+	errx(1, "invalid screen index: %s out of bounds", var);
 }
 
 void
-bar_print(struct swm_region *r, char *s, int erase)
+bar_print(struct swm_region *r, char *s)
 {
-	if (erase) {
-		XSetForeground(display, bar_gc, r->s->bar_color);
-		XDrawString(display, r->bar_window, bar_gc, 4, bar_fs->ascent,
-		    r->s->bar_text, strlen(r->s->bar_text));
-	}
-
-	strlcpy(r->s->bar_text, s, sizeof r->s->bar_text);
+	XClearWindow(display, r->bar_window);
 	XSetForeground(display, bar_gc, r->s->bar_font_color);
-	XDrawString(display, r->bar_window, bar_gc, 4, bar_fs->ascent,
-	    r->s->bar_text, strlen(r->s->bar_text));
+	XDrawString(display, r->bar_window, bar_gc, 4, bar_fs->ascent, s,
+	    strlen(s));
 }
 
 void
@@ -426,7 +480,7 @@ bar_update(void)
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
 			snprintf(e, sizeof e, "%s     %d:%d",
 			    s, x++, r->ws->idx + 1);
-			bar_print(r, e, 1);
+			bar_print(r, e);
 		}
 	}
 	XSync(display, False);
@@ -443,28 +497,28 @@ void
 bar_toggle(struct swm_region *r, union arg *args)
 {
 	struct swm_region	*tmpr;
-	int			i, j;	
+	int			i, j, sc = ScreenCount(display);
 
 	DNPRINTF(SWM_D_MISC, "bar_toggle\n");
 
 	if (bar_enabled) {
-		for (i = 0; i < ScreenCount(display); i++)
+		for (i = 0; i < sc; i++)
 			TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
 				XUnmapWindow(display, tmpr->bar_window);
 	} else {
-		for (i = 0; i < ScreenCount(display); i++)
+		for (i = 0; i < sc; i++)
 			TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
 				XMapRaised(display, tmpr->bar_window);
 	}
 	bar_enabled = !bar_enabled;
 	XSync(display, False);
-	for (i = 0; i < ScreenCount(display); i++)
+	for (i = 0; i < sc; i++)
 		for (j = 0; j < SWM_WS_MAX; j++)
 			screens[i].ws[j].restack = 1;
 
 	stack();
 	/* must be after stack */
-	for (i = 0; i < ScreenCount(display); i++)
+	for (i = 0; i < sc; i++)
 		TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
 			bar_update();
 }
@@ -495,6 +549,23 @@ bar_setup(struct swm_region *r)
 
 	if (signal(SIGALRM, bar_signal) == SIG_ERR)
 		err(1, "could not install bar_signal");
+	bar_update();
+}
+
+void
+bar_refresh(void)
+{
+	XSetWindowAttributes	wa;
+	struct swm_region	*r;
+	int			i;
+
+	bzero(&wa, sizeof wa);
+	for (i = 0; i < ScreenCount(display); i++)
+		TAILQ_FOREACH(r, &screens[i].rl, entry) {
+			wa.border_pixel = screens[i].bar_border;
+			wa.background_pixel = screens[i].bar_color;
+			XChangeWindowAttributes(display, r->bar_window, CWBackPixel | CWBorderPixel, &wa);
+		}
 	bar_update();
 }
 
@@ -1852,6 +1923,8 @@ main(int argc, char *argv[])
 	if (pwd == NULL)
 		errx(1, "invalid user %d", getuid());
 
+	setup_screens();
+
 	snprintf(conf, sizeof conf, "%s/.%s", pwd->pw_dir, SWM_CONF_FILE);
 	if (stat(conf, &sb) != -1) {
 		if (S_ISREG(sb.st_mode))
@@ -1863,12 +1936,9 @@ main(int argc, char *argv[])
 			if (S_ISREG(sb.st_mode))
 				cfile = conf;
 	}
-
-	setup_screens();
-
 	if (cfile)
 		conf_load(cfile);
-
+	bar_refresh();
 
 	/* ws[0].focus = TAILQ_FIRST(&ws[0].winlist); */
 
