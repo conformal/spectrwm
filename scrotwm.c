@@ -960,7 +960,8 @@ vertical_stack(struct workspace *ws, struct swm_geometry *g) {
 			gg.w = g->w - (main_width + 2);
 			gg.h = hrh - 2;
 			j = 0;
-		} else if (j == colno - 1)
+		}
+		if (j == colno - 1)
 			gg.h = (hrh + (g->h - (colno * hrh)));
 		 
 		if (j == 0)
@@ -1063,7 +1064,8 @@ horizontal_stack(struct workspace *ws, struct swm_geometry *g) {
 			gg.h = g->h - (main_height + 2);
 			gg.w = hrw - 2;
 			j = 0;
-		} else if (j == rowno - 1)
+		}
+		if (j == rowno - 1)
 			gg.w = (hrw + (g->w - (rowno * hrw)));
 
 		if (j == 0)
