@@ -213,7 +213,6 @@ struct layout {
 #define SWM_H_SLICE		(32)
 #define SWM_V_SLICE		(32)
 
-
 /* define work spaces */
 struct workspace {
 	int			idx;		/* workspace index */
@@ -417,14 +416,14 @@ bar_update(void)
 	if (bar_enabled == 0)
 		return;
 
-	/* draw new text */
 	time(&tmt);
 	localtime_r(&tmt, &tm);
 	strftime(s, sizeof s, "%a %b %d %R %Z %Y", &tm);
 	for (i = 0; i < ScreenCount(display); i++) {
 		x = 1;
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
-			snprintf(e, sizeof e, "%s     %d", s, x++);
+			snprintf(e, sizeof e, "%s     %d:%d",
+			    s, x++, r->ws->idx + 1);
 			bar_print(r, e, 1);
 		}
 	}
@@ -708,6 +707,7 @@ switchws(struct swm_region *r, union arg *args)
 	if (new_ws->focus)
 		focus_win(new_ws->focus);
 	stack();
+	bar_update();
 }
 
 void
