@@ -410,8 +410,9 @@ bar_update(void)
 	time_t			tmt;
 	struct tm		tm;
 	struct swm_region	*r;
-	int			i;
+	int			i, x;
 	char			s[SWM_BAR_MAX];
+	char			e[SWM_BAR_MAX];
  
 	if (bar_enabled == 0)
 		return;
@@ -420,10 +421,13 @@ bar_update(void)
 	time(&tmt);
 	localtime_r(&tmt, &tm);
 	strftime(s, sizeof s, "%a %b %d %R %Z %Y", &tm);
-	for (i = 0; i < ScreenCount(display); i++)
-		TAILQ_FOREACH(r, &screens[i].rl, entry)
-			bar_print(r, s, 1);
-
+	for (i = 0; i < ScreenCount(display); i++) {
+		x = 1;
+		TAILQ_FOREACH(r, &screens[i].rl, entry) {
+			snprintf(e, sizeof e, "%s     %d", s, x++);
+			bar_print(r, e, 1);
+		}
+	}
 	XSync(display, False);
 	alarm(60);
 }
