@@ -89,6 +89,7 @@
 #endif
 #endif
 
+#define SWM_DEBUG
 /* #define SWM_DEBUG */
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while(0)
@@ -182,7 +183,7 @@ struct ws_win {
 	TAILQ_ENTRY(ws_win)	entry;
 	Window			id;
 	struct swm_geometry	g;
-	int			focus;
+	int			got_focus;
 	int			floating;
 	int			transient;
 	struct workspace	*ws;	/* always valid */
@@ -712,36 +713,43 @@ spawn(struct swm_region *r, union arg *args)
 }
 
 void
-unfocus_win(struct ws_win *win)
+unfocus_all(void)
 {
-	DNPRINTF(SWM_D_FOCUS, "unfocus_win: id: %lu\n", win->id);
-	if (win->ws->r && win->focus)
-		XSetWindowBorder(display, win->id,
-		    win->ws->r->s->color_unfocus);
-	win->focus = 0;
-	if (win->ws->focus == win)
-		win->ws->focus = NULL;
-	if (cur_focus == win)
-		cur_focus = NULL;
-}
+	struct ws_win		*win;
+	int			i, j;
 
+	DNPRINTF(SWM_D_FOCUS, "unfocus_all:\n");
+
+	for (i = 0; i < ScreenCount(display); i++)
+		for (j = 0; j < SWM_WS_MAX; j++)
+			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry) {
+				if (win->ws->r == NULL)
+					continue;
+				XSetWindowBorder(display, win->id,
+				    win->ws->r->s->color_unfocus);
+				win->got_focus = 0;
+				win->ws->focus = NULL;
+				cur_focus = NULL;
+			}
+}
 
 void
 focus_win(struct ws_win *win)
 {
-	DNPRINTF(SWM_D_FOCUS, "focus_win: id: %lu\n", win->id);
+	DNPRINTF(SWM_D_FOCUS, "focus_win: id: %lu\n", win ? win->id : 0);
+
+	if (win == NULL)
+		return;
 
 	rootclick = 0;
-
+	unfocus_all();
 	win->ws->focus = win;
 	if (win->ws->r != NULL) {
-		if (cur_focus && cur_focus != win)
-			unfocus_win(cur_focus);
 		cur_focus = win;
-		if (!win->focus)
+		if (!win->got_focus)
 			XSetWindowBorder(display, win->id,
 			    win->ws->r->s->color_focus);
-		win->focus = 1;
+		win->got_focus = 1;
 		XSetInputFocus(display, win->id,
 		    RevertToPointerRoot, CurrentTime);
 	}
@@ -1585,11 +1593,12 @@ destroynotify(XEvent *e)
 {
 	struct ws_win		*win;
 	XDestroyWindowEvent	*ev = &e->xdestroywindow;
+	struct workspace	*ws;
 
 	DNPRINTF(SWM_D_EVENT, "destroynotify: window %lu\n", ev->window);
 
 	if ((win = find_window(ev->window)) != NULL) {
-		struct workspace *ws = win->ws;
+		ws = win->ws;
 		/* find a window to focus */
 		if (ws->focus == win)
 			ws->focus = TAILQ_PREV(win, ws_win_list, entry);
@@ -1597,12 +1606,8 @@ destroynotify(XEvent *e)
 			ws->focus = TAILQ_FIRST(&ws->winlist);
 		if (ws->focus == win)
 			ws->focus = NULL;
-		if (cur_focus == win) {
-			if (ws->focus == NULL) 
-				unfocus_win(win); /* XXX focus another ws? */
-			else
-				focus_win(ws->focus);
-		}
+		if (cur_focus == win)
+			focus_win(ws->focus);
 
 		TAILQ_REMOVE(&ws->winlist, win, entry);
 		set_win_state(win, WithdrawnState);
