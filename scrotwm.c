@@ -220,7 +220,6 @@ struct workspace {
 	struct layout		*cur_layout;	/* current layout handlers */
 	struct ws_win		*focus;		/* may be NULL */
 	struct swm_region	*r;		/* may be NULL */
-	struct swm_region	*prev_r;	/* may be NULL */
 	struct ws_win_list	winlist;	/* list of windows in ws */
 
 	/* stacker state */
@@ -356,6 +355,7 @@ conf_load(char *filename)
 			continue;
 		}
 		if ((var = strsep(&cp, SWM_CONF_WS)) == NULL || cp == NULL)
+		if (cp == NULL || (var = strsep(&cp, SWM_CONF_WS)) == NULL)
 			break;
 		cp += (long)strspn(cp, SWM_CONF_WS);
 		if ((val = strsep(&cp, SWM_CONF_WS)) == NULL)
@@ -769,33 +769,26 @@ switchws(struct swm_region *r, union arg *args)
 
 	other_r = new_ws->r;
 	if (!other_r) {
-		/* 
-		 * If the other workspace is hidden and the workspace was
-	         * previously mapped here, just swap switch windows.
-		 * map new window first to prevent ugly blinking
-		 */
-		if (new_ws->restack == 0 && new_ws->prev_r == this_r) {
-			TAILQ_FOREACH(win, &new_ws->winlist, entry)
-				XMapRaised(display, win->id);
+		/* if the other workspace is hidden, switch windows */
+		/* map new window first to prevent ugly blinking */
+		TAILQ_FOREACH(win, &new_ws->winlist, entry)
+			XMapRaised(display, win->id);
 
-			TAILQ_FOREACH(win, &old_ws->winlist, entry)
-				XUnmapWindow(display, win->id);
-		}
-		old_ws->prev_r = old_ws->r;
+		TAILQ_FOREACH(win, &old_ws->winlist, entry)
+			XUnmapWindow(display, win->id);
+
 		old_ws->r = NULL;
+		old_ws->restack = 1;
 	} else {
 		other_r->ws = old_ws;
 		old_ws->r = other_r;
 	}
 	this_r->ws = new_ws;
-	new_ws->prev_r = new_ws->r;
 	new_ws->r = this_r;
 
 	ignore_enter = 1;
 	/* set focus */
-	if (!new_ws->focus)
-		new_ws->focus = TAILQ_FIRST(&new_ws->winlist);
-	if (new_ws->focus )
+	if (new_ws->focus)
 		focus_win(new_ws->focus);
 	stack();
 	bar_update();
@@ -1615,12 +1608,8 @@ destroynotify(XEvent *e)
 		TAILQ_REMOVE(&ws->winlist, win, entry);
 		set_win_state(win, WithdrawnState);
 		free(win);
-
-		if (ws->r == NULL)
-			ws->restack = 1;
-		else
-			stack();
 	}
+	stack();
 }
 
 void
