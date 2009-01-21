@@ -355,7 +355,6 @@ conf_load(char *filename)
 			continue;
 		}
 		if ((var = strsep(&cp, SWM_CONF_WS)) == NULL || cp == NULL)
-		if (cp == NULL || (var = strsep(&cp, SWM_CONF_WS)) == NULL)
 			break;
 		cp += (long)strspn(cp, SWM_CONF_WS);
 		if ((val = strsep(&cp, SWM_CONF_WS)) == NULL)
