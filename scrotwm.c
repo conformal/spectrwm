@@ -132,6 +132,9 @@ int			ignore_enter = 0;
 unsigned int		numlockmask = 0;
 Display			*display;
 
+int			cycle_empty = 0;
+int			cycle_visible = 0;
+
 /* dialog windows */
 double			dialog_ratio = .6;
 /* status bar */
@@ -265,6 +268,8 @@ union arg {
 #define SWM_ARG_ID_MASTERDEL	(9)
 #define SWM_ARG_ID_STACKRESET	(10)
 #define SWM_ARG_ID_STACKINIT	(11)
+#define SWM_ARG_ID_CYCLEWS_UP	(12)
+#define SWM_ARG_ID_CYCLEWS_DOWN	(13)
 	char			**argv;
 };
 
@@ -418,6 +423,10 @@ conf_load(char *filename)
 						    name_to_color(val);
 				else
 					goto badidx;
+			else if (!strncmp(var, "cycle_empty", strlen("cycle_empty")))
+				cycle_visible = atoi(val);
+			else if (!strncmp(var, "cycle_visible", strlen("cycle_visible")))
+				cycle_visible = atoi(val);
 			else
 				goto bad;
 			break;
@@ -782,6 +791,45 @@ switchws(struct swm_region *r, union arg *args)
 		focus_win(new_ws->focus);
 	stack();
 	bar_update();
+}
+
+void
+cyclews(struct swm_region *r, union arg *args)
+{
+	union			arg a;
+	struct swm_screen	*s = r->s;
+
+	DNPRINTF(SWM_D_WS, "cyclews id %d "
+	    "in screen %d region %dx%d+%d+%d ws %d\n", args->id,
+	    r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
+
+	a.id = r->ws->idx;
+
+	do {
+		switch (args->id) {
+		case SWM_ARG_ID_CYCLEWS_UP:
+			if (a.id < SWM_WS_MAX - 1)
+				a.id++;
+			else
+				a.id = 0;
+			break;
+		case SWM_ARG_ID_CYCLEWS_DOWN:
+			if (a.id > 0)
+				a.id--;
+			else
+				a.id = SWM_WS_MAX - 1;
+			break;
+		default:
+			return;
+		};
+
+		if (cycle_empty == 0 && TAILQ_EMPTY(&s->ws[a.id].winlist))
+			continue;
+		if (cycle_visible == 0 && s->ws[a.id].r != NULL)
+			continue;
+
+		switchws(r, &a);
+	} while (a.id != r->ws->idx);
 }
 
 void
@@ -1281,6 +1329,8 @@ struct key {
 	{ MODKEY,		XK_8,		switchws,	{.id = 7} },
 	{ MODKEY,		XK_9,		switchws,	{.id = 8} },
 	{ MODKEY,		XK_0,		switchws,	{.id = 9} },
+	{ MODKEY,		XK_Right,	cyclews,	{.id = SWM_ARG_ID_CYCLEWS_UP} }, 
+	{ MODKEY,		XK_Left,	cyclews,	{.id = SWM_ARG_ID_CYCLEWS_DOWN} }, 
 	{ MODKEY | ShiftMask,	XK_1,		send_to_ws,	{.id = 0} },
 	{ MODKEY | ShiftMask,	XK_2,		send_to_ws,	{.id = 1} },
 	{ MODKEY | ShiftMask,	XK_3,		send_to_ws,	{.id = 2} },
