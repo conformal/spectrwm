@@ -54,6 +54,7 @@
 #include <stdlib.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <locale.h>
 #include <unistd.h>
 #include <time.h>
@@ -141,10 +142,16 @@ int			cycle_visible = 0;
 double			dialog_ratio = .6;
 /* status bar */
 #define SWM_BAR_MAX	(128)
+char			*bar_argv[] = { NULL, NULL };
+int			bar_pipe[2];
+char			bar_ext[SWM_BAR_MAX];
 sig_atomic_t		bar_alarm = 0;
 int			bar_enabled = 1;
+int			bar_extra = 1;
+int			bar_extra_running = 0;
 int			bar_verbose = 1;
 int			bar_height = 0;
+pid_t			bar_pid;
 GC			bar_gc;
 XGCValues		bar_gcv;
 int			bar_fidx = 0;
@@ -155,12 +162,10 @@ char			*bar_fonts[] = {
 			    NULL
 };
 
-	
-
 /* terminal + args */
-char				*spawn_term[] = { "xterm", NULL };
-char				*spawn_menu[] = { "dmenu_run", "-fn", NULL,
-				    "-nb", NULL, "-nf", NULL, "-sb", NULL, "-sf", NULL, NULL };
+char			*spawn_term[] = { "xterm", NULL };
+char			*spawn_menu[] = { "dmenu_run", "-fn", NULL,
+			    "-nb", NULL, "-nf", NULL, "-sb", NULL, "-sf", NULL, NULL };
 
 #define SWM_MENU_FN	(2)
 #define SWM_MENU_NB	(4)
@@ -244,7 +249,6 @@ struct workspace {
 				int vertical_mwin;
 	} l_state;
 };
-
 
 enum	{ SWM_S_COLOR_BAR, SWM_S_COLOR_BAR_BORDER, SWM_S_COLOR_BAR_FONT,
 	  SWM_S_COLOR_FOCUS, SWM_S_COLOR_UNFOCUS, SWM_S_COLOR_MAX };
@@ -406,6 +410,8 @@ conf_load(char *filename)
 				setscreencolor(var, i, SWM_S_COLOR_BAR_FONT);
 			else if (!strncmp(var, "bar_font", strlen("bar_font")))
 				asprintf(&bar_fonts[0], "%s", val);
+			else if (!strncmp(var, "bar_action", strlen("bar_action")))
+				asprintf(&bar_argv[0], "%s", val);
 			else
 				goto bad;
 			break;
@@ -451,6 +457,18 @@ bad:
 }
 
 void
+socket_setnonblock(int fd)
+{
+	int			flags;
+
+	if ((flags = fcntl(fd, F_GETFL, 0)) == -1)
+		err(1, "fcntl F_GETFL");
+	flags |= O_NONBLOCK;
+	if ((flags = fcntl(fd, F_SETFL, flags)) == -1)
+		err(1, "fcntl F_SETFL");
+}
+
+void
 bar_print(struct swm_region *r, char *s)
 {
 	XClearWindow(display, r->bar_window);
@@ -460,17 +478,49 @@ bar_print(struct swm_region *r, char *s)
 }
 
 void
+bar_extra_stop(void)
+{
+	if (bar_pipe[0]) {
+		close(bar_pipe[0]);
+		bzero(bar_pipe, sizeof bar_pipe);
+	}
+	if (bar_pid) {
+		kill(bar_pid, SIGTERM);
+		bar_pid = 0;
+	}
+	strlcpy(bar_ext, "", sizeof bar_ext);
+	bar_extra = 0;
+}
+
+void
 bar_update(void)
 {
 	time_t			tmt;
 	struct tm		tm;
 	struct swm_region	*r;
 	int			i, x;
+	size_t			len;
 	char			s[SWM_BAR_MAX];
-	char			e[SWM_BAR_MAX];
- 
+	char			loc[SWM_BAR_MAX];
+	char			*b;
+
 	if (bar_enabled == 0)
 		return;
+
+	if (bar_extra && bar_extra_running) {
+		/* ignore short reads; it'll correct itself */
+		while ((b = fgetln(stdin, &len)) != NULL)
+			if (b && b[len - 1] == '\n') {
+				b[len - 1] = '\0';
+				strlcpy(bar_ext, b, sizeof bar_ext);
+			}
+		if (b == NULL && errno != EAGAIN) {
+			fprintf(stderr, "bar_extra failed: errno: %d %s\n",
+			    errno, strerror(errno));
+			bar_extra_stop();
+		}
+	} else
+		strlcpy(bar_ext, "", sizeof bar_ext);
 
 	time(&tmt);
 	localtime_r(&tmt, &tm);
@@ -478,12 +528,13 @@ bar_update(void)
 	for (i = 0; i < ScreenCount(display); i++) {
 		x = 1;
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
-			snprintf(e, sizeof e, "%s     %d:%d",
-			    s, x++, r->ws->idx + 1);
-			bar_print(r, e);
+			snprintf(loc, sizeof loc, "%s     %d:%d    %s",
+			    s, x++, r->ws->idx + 1, bar_ext);
+			bar_print(r, loc);
 		}
 	}
 	XSync(display, False);
+
 	alarm(60);
 }
 
@@ -524,6 +575,55 @@ bar_toggle(struct swm_region *r, union arg *args)
 }
 
 void
+bar_refresh(void)
+{
+	XSetWindowAttributes	wa;
+	struct swm_region	*r;
+	int			i;
+
+	/* do this here because the conf file is in memory */
+	if (bar_extra && bar_extra_running == 0 && bar_argv[0]) {
+		/* launch external status app */
+		bar_extra_running = 1;
+		if (pipe(bar_pipe) == -1)
+			err(1, "pipe error");
+		socket_setnonblock(bar_pipe[0]);
+		socket_setnonblock(bar_pipe[1]); /* XXX hmmm, really? */
+		if (dup2(bar_pipe[0], 0) == -1)
+			errx(1, "dup2");
+		if (dup2(bar_pipe[1], 1) == -1)
+			errx(1, "dup2");
+		if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
+			err(1, "could not disable SIGPIPE");
+		switch (bar_pid = fork()) {
+		case -1:
+			err(1, "cannot fork");
+			break;
+		case 0: /* child */
+			close(bar_pipe[0]);
+			execvp(bar_argv[0], bar_argv);
+			err(1, "%s external app failed", bar_argv[0]);
+			break;
+		default: /* parent */
+			close(bar_pipe[1]);
+			break;
+		}
+	}
+
+	bzero(&wa, sizeof wa);
+	for (i = 0; i < ScreenCount(display); i++)
+		TAILQ_FOREACH(r, &screens[i].rl, entry) {
+			wa.border_pixel =
+			    screens[i].c[SWM_S_COLOR_BAR_BORDER].color;
+			wa.background_pixel =
+			    screens[i].c[SWM_S_COLOR_BAR].color;
+			XChangeWindowAttributes(display, r->bar_window,
+			    CWBackPixel | CWBorderPixel, &wa);
+		}
+	bar_update();
+}
+
+void
 bar_setup(struct swm_region *r)
 {
 	int			i;
@@ -552,27 +652,7 @@ bar_setup(struct swm_region *r)
 
 	if (signal(SIGALRM, bar_signal) == SIG_ERR)
 		err(1, "could not install bar_signal");
-	bar_update();
-}
-
-void
-bar_refresh(void)
-{
-	XSetWindowAttributes	wa;
-	struct swm_region	*r;
-	int			i;
-
-	bzero(&wa, sizeof wa);
-	for (i = 0; i < ScreenCount(display); i++)
-		TAILQ_FOREACH(r, &screens[i].rl, entry) {
-			wa.border_pixel =
-			    screens[i].c[SWM_S_COLOR_BAR_BORDER].color;
-			wa.background_pixel =
-			    screens[i].c[SWM_S_COLOR_BAR].color;
-			XChangeWindowAttributes(display, r->bar_window,
-			    CWBackPixel | CWBorderPixel, &wa);
-		}
-	bar_update();
+	bar_refresh();
 }
 
 void
@@ -631,6 +711,8 @@ restart(struct swm_region *r, union arg *args)
 	if (signal(SIGALRM, SIG_IGN) == SIG_ERR)
 		errx(1, "can't disable alarm");
 
+	bar_extra_stop();
+	bar_extra = 1;
 	XCloseDisplay(display);
 	execvp(start_argv[0], start_argv);
 	fprintf(stderr, "execvp failed\n");
