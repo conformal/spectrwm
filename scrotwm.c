@@ -1394,6 +1394,14 @@ send_to_ws(struct swm_region *r, union arg *args)
 	stack();
 }
 
+void
+wkill(struct swm_region *r, union arg *args)
+{
+	DNPRINTF(SWM_D_MISC, "wkill\n");
+	if(r->ws->focus != NULL)
+		XKillClient(display, r->ws->focus->id);
+}
+
 /* key definitions */
 struct key {
 	unsigned int		mod;
@@ -1443,6 +1451,7 @@ struct key {
 	{ MODKEY,		XK_b,		bar_toggle,	{0} },
 	{ MODKEY,		XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
 	{ MODKEY | ShiftMask,	XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
+	{ MODKEY | ShiftMask,	XK_x,		wkill,		{0} },
 };
 
 void
