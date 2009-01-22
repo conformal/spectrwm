@@ -2022,6 +2022,7 @@ main(int argc, char *argv[])
 
 	xfd = ConnectionNumber(display);
 	while (running) {
+		FD_ZERO(&rd);
 		FD_SET(xfd, &rd);
 		if (select(xfd + 1, &rd, NULL, NULL, NULL) == -1)
 			if (errno != EINTR)
