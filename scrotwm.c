@@ -89,7 +89,6 @@
 #endif
 #endif
 
-#define SWM_DEBUG
 /* #define SWM_DEBUG */
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while(0)
@@ -1354,6 +1353,21 @@ struct key {
 	{ MODKEY | ShiftMask,	XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
 };
 
+#if 0
+/* mouse */
+enum { client_click, root_click };
+struct button {
+	unsigned int		click;
+	unsigned int		mask;
+	unsigned int		button;
+	void			(*func)(struct swm_region *r, union arg *);
+	union arg		args;
+} buttons[] = {
+	  /* action		key		mouse button	func		args */
+	{ client_click,		MODKEY,		Button2,	NULL, {0} },
+};
+#endif
+
 void
 updatenumlockmask(void)
 {
@@ -1621,27 +1635,17 @@ enternotify(XEvent *e)
 {
 	XCrossingEvent		*ev = &e->xcrossing;
 	struct ws_win		*win;
-	int			i, j;
 
 	DNPRINTF(SWM_D_EVENT, "enternotify: window: %lu\n", ev->window);
 
-	if ((ev->mode != NotifyNormal || ev->detail == NotifyInferior) &&
-	    ev->window != ev->root)
-		return;
 	if (ignore_enter) {
 		/* eat event(r) to prevent autofocus */
 		ignore_enter--;
 		return;
 	}
-	/* brute force for now */
-	for (i = 0; i < ScreenCount(display); i++) {
-		for (j = 0; j < SWM_WS_MAX; j++) {
-			TAILQ_FOREACH(win, &screens[i].ws[j].winlist , entry) {
-				if (win->id == ev->window)
-					focus_win(win);
-			}
-		}
-	}
+
+ 	if ((win = find_window(ev->window)) != NULL)
+		focus_win(win);
 }
 
 void
@@ -1843,7 +1847,7 @@ setup_screens(void)
 		screens[i].root = RootWindow(display, i);
 		XGetWindowAttributes(display, screens[i].root, &wa);
 		XSelectInput(display, screens[i].root,
-		    ButtonPressMask | wa.your_event_mask);
+		    EnterWindowMask | ButtonPressMask | wa.your_event_mask);
 
 		/* set default colors */
 		screens[i].color_focus = name_to_color("red");
