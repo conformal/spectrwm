@@ -2024,7 +2024,7 @@ setup_screens(void)
 		else 
 			ncrtc = sr->ncrtc;
 
-		for (c = 0; c < ncrtc; c++) {
+		for (c = 0, ci = NULL; c < ncrtc; c++) {
 			ci = XRRGetCrtcInfo(display, sr, sr->crtcs[c]);
 			if (ci->noutput == 0)
 				continue;
@@ -2038,7 +2038,8 @@ setup_screens(void)
 				    ci->x, ci->y, ci->width, ci->height);
 			w++;
 		}
-		XRRFreeCrtcInfo(ci);
+		if (ci)
+			XRRFreeCrtcInfo(ci);
 		XRRFreeScreenResources(sr);
 #else
 		new_region(&screens[i], &screens[i].ws[w], 0, 0,
