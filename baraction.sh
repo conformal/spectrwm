@@ -1,2 +1,2 @@
 #!/bin/sh
-while :; do echo "battery" `apm -l` "%"; sleep 1; done
+while :; do echo "battery" `apm -l` "%"; sleep 59; done
