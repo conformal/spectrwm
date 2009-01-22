@@ -321,7 +321,6 @@ name_to_color(char *colorname)
 void
 setscreencolor(char *val, int i, int c)
 {
-	fprintf(stderr, "val %s i %d c %d\n", val, i, c);
 	if (i > 0 && i <= ScreenCount(display)) {
 		screens[i - 1].c[c].color = name_to_color(val);
 		if ((screens[i - 1].c[c].name = strdup(val)) == NULL)
