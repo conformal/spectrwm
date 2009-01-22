@@ -194,7 +194,6 @@ struct swm_region {
 }; 
 TAILQ_HEAD(swm_region_list, swm_region);
 
-
 struct ws_win {
 	TAILQ_ENTRY(ws_win)	entry;
 	Window			id;
@@ -786,7 +785,6 @@ spawn(struct swm_region *r, union arg *args)
 	wait(0);
 }
 
-
 void
 spawnmenu(struct swm_region *r, union arg *args)
 {
@@ -1107,7 +1105,6 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 	XConfigureWindow(display, win->id, mask, &wc);
 }
 
-
 void
 vertical_config(struct workspace *ws, int id)
 {
@@ -1210,7 +1207,6 @@ vertical_stack(struct workspace *ws, struct swm_geometry *g) {
 	if (winfocus)
 		focus_win(winfocus); /* has to be done outside of the loop */
 }
-
 
 void
 horizontal_config(struct workspace *ws, int id)
