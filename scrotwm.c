@@ -249,7 +249,6 @@ struct swm_screen {
 };
 struct swm_screen	*screens;
 int			num_screens;
-Window rootclick = 0;
 
 struct ws_win		*cur_focus = NULL;
 
@@ -654,23 +653,20 @@ root_to_region(Window root)
 		if (screens[i].root == root)
 			break;
 
-	if (rootclick != root && /* if root was just clicked in, use cursor */
-	    cur_focus && cur_focus->ws->r && cur_focus->s == &screens[i])
-		r = cur_focus->ws->r;
-	else {
-		if (XQueryPointer(display, screens[i].root, 
-		    &rr, &cr, &x, &y, &wx, &wy, &mask) == False) {
-			r = TAILQ_FIRST(&screens[i].rl);
-		} else {
-			TAILQ_FOREACH(r, &screens[i].rl, entry) {
-				if (x > X(r) && x < X(r) + WIDTH(r) &&
-				    y > Y(r) && y < Y(r) + HEIGHT(r))
-					break;
-			}
-
-			if (r == NULL)
-				r = TAILQ_FIRST(&screens[i].rl);
+	if (XQueryPointer(display, screens[i].root, 
+	    &rr, &cr, &x, &y, &wx, &wy, &mask) == False) {
+		/* if we can't query the pointer, grab the first region */
+		r = TAILQ_FIRST(&screens[i].rl);
+	} else {
+		/* otherwise, choose a region based on pointer location */
+		TAILQ_FOREACH(r, &screens[i].rl, entry) {
+			if (x > X(r) && x < X(r) + WIDTH(r) &&
+			    y > Y(r) && y < Y(r) + HEIGHT(r))
+				break;
 		}
+
+		if (r == NULL)
+			r = TAILQ_FIRST(&screens[i].rl);
 	}
 	return (r);
 }
@@ -740,7 +736,6 @@ focus_win(struct ws_win *win)
 	if (win == NULL)
 		return;
 
-	rootclick = 0;
 	unfocus_all();
 	win->ws->focus = win;
 	if (win->ws->r != NULL) {
@@ -1447,10 +1442,8 @@ buttonpress(XEvent *e)
 
 	DNPRINTF(SWM_D_EVENT, "buttonpress: window: %lu\n", ev->window);
 
-	if (ev->window == ev->root) {
-		rootclick = ev->root;
+	if (ev->window == ev->root)
 		return;
-	}
 	if (ev->window == cur_focus->id)
 		return;
 #ifdef SWM_CLICKTOFOCUS
@@ -1845,9 +1838,6 @@ setup_screens(void)
 		screens[i].idx = i;
 		TAILQ_INIT(&screens[i].rl);
 		screens[i].root = RootWindow(display, i);
-		XGetWindowAttributes(display, screens[i].root, &wa);
-		XSelectInput(display, screens[i].root,
-		    EnterWindowMask | ButtonPressMask | wa.your_event_mask);
 
 		/* set default colors */
 		screens[i].color_focus = name_to_color("red");
