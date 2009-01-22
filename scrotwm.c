@@ -91,6 +91,7 @@
 #endif
 
 /* #define SWM_DEBUG */
+/* #define SWM_DEBUG */
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while(0)
 #define DNPRINTF(n,x...)	do { if (swm_debug & n) fprintf(stderr, x); } while(0)
@@ -1197,6 +1198,9 @@ vertical_stack(struct workspace *ws, struct swm_geometry *g) {
 			win->g.h = wc.height = gg.h;
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 			XConfigureWindow(display, win->id, mask, &wc);
+			/*
+			fprintf(stderr, "vertical_stack: win %d x %d y %d w %d h %d bw %d\n", win->id, win->g.x, win->g.y, win->g.w , win->g.h, wc.border_width);
+			*/
 		}
 
 		XMapRaised(display, win->id);
@@ -1642,7 +1646,9 @@ manage_window(Window id, struct workspace *ws)
 	win->g.h = win->wa.height;
 	win->g.x = win->wa.x;
 	win->g.y = win->wa.y;
-
+	/*
+	fprintf(stderr, "manage window: %d x %d y %d w %d h %d\n", win->id, win->g.x, win->g.y, win->g.w, win->g.h);
+	*/
 	/* XXX make this a table */
 	bzero(&ch, sizeof ch);
 	if (XGetClassHint(display, win->id, &ch)) {
@@ -1669,7 +1675,7 @@ configurerequest(XEvent *e)
 {
 	XConfigureRequestEvent	*ev = &e->xconfigurerequest;
 	struct ws_win		*win;
-	int			new = 1;
+	int			new = 0;
 	XWindowChanges		wc;
 
 	if ((win = find_window(ev->window)) == NULL)
@@ -1678,6 +1684,10 @@ configurerequest(XEvent *e)
 	if (new) {
 		DNPRINTF(SWM_D_EVENT, "configurerequest: new window: %lu\n",
 		    ev->window);
+		/*
+		fprintf(stderr, "configurerequest: new window: %lu x %d y %d w %d h %d bw %d s %d sm %d\n",
+		    ev->window, ev->x, ev->y, ev->width, ev->height, ev->border_width, ev->above, ev->detail);
+		*/
 		bzero(&wc, sizeof wc);
 		wc.x = ev->x;
 		wc.y = ev->y;
@@ -1688,6 +1698,10 @@ configurerequest(XEvent *e)
 		wc.stack_mode = ev->detail;
 		XConfigureWindow(display, ev->window, ev->value_mask, &wc);
 	} else {
+		/*
+		fprintf(stderr, "configurerequest: change window: %lu\n",
+		    ev->window);
+		*/
 		DNPRINTF(SWM_D_EVENT, "configurerequest: change window: %lu\n",
 		    ev->window);
 		if (win->floating) {
