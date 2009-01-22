@@ -99,6 +99,7 @@
 #define	SWM_D_FOCUS		0x0008
 #define	SWM_D_MOVE		0x0010
 #define	SWM_D_STACK		0x0020
+#define	SWM_D_MOUSE		0x0040
 
 u_int32_t		swm_debug = 0
 			    | SWM_D_MISC
@@ -113,9 +114,10 @@ u_int32_t		swm_debug = 0
 #define DNPRINTF(n,x...)
 #endif
 
-#define LENGTH(x)               (sizeof x / sizeof x[0])
+#define LENGTH(x)		(sizeof x / sizeof x[0])
 #define MODKEY			Mod1Mask
-#define CLEANMASK(mask)         (mask & ~(numlockmask | LockMask))
+#define CLEANMASK(mask)		(mask & ~(numlockmask | LockMask))
+#define BUTTONMASK		(ButtonPressMask|ButtonReleaseMask)
 
 #define X(r)		(r)->g.x	
 #define Y(r)		(r)->g.y
@@ -198,6 +200,8 @@ void	vertical_stack(struct workspace *, struct swm_geometry *);
 void	horizontal_config(struct workspace *, int);
 void	horizontal_stack(struct workspace *, struct swm_geometry *);
 void	max_stack(struct workspace *, struct swm_geometry *);
+
+void	grabbuttons(struct ws_win *, int);
 
 struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
@@ -720,6 +724,7 @@ unfocus_all(void)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry) {
 				if (win->ws->r == NULL)
 					continue;
+				grabbuttons(win, 0);
 				XSetWindowBorder(display, win->id,
 				    win->ws->r->s->color_unfocus);
 				win->got_focus = 0;
@@ -740,9 +745,11 @@ focus_win(struct ws_win *win)
 	win->ws->focus = win;
 	if (win->ws->r != NULL) {
 		cur_focus = win;
-		if (!win->got_focus)
+		if (!win->got_focus) {
 			XSetWindowBorder(display, win->id,
 			    win->ws->r->s->color_focus);
+			grabbuttons(win, 1);
+		}
 		win->got_focus = 1;
 		XSetInputFocus(display, win->id,
 		    RevertToPointerRoot, CurrentTime);
@@ -1348,20 +1355,35 @@ struct key {
 	{ MODKEY | ShiftMask,	XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
 };
 
-#if 0
+void
+click(struct swm_region *r, union arg *args)
+{
+	DNPRINTF(SWM_D_MOUSE, "click: button: %d\n", args->id);
+
+	switch (args->id) {
+	case Button1:
+		break;
+	case Button2:
+		break;
+	case Button3:
+		break;
+	default:
+		return;
+	}
+}
+
 /* mouse */
 enum { client_click, root_click };
 struct button {
-	unsigned int		click;
+	unsigned int		action;
 	unsigned int		mask;
 	unsigned int		button;
 	void			(*func)(struct swm_region *r, union arg *);
 	union arg		args;
 } buttons[] = {
 	  /* action		key		mouse button	func		args */
-	{ client_click,		MODKEY,		Button2,	NULL, {0} },
+	{ client_click,		MODKEY,		Button1,	click, {.id=Button1} },
 };
-#endif
 
 void
 updatenumlockmask(void)
@@ -1406,6 +1428,30 @@ grabkeys(void)
 		}
 	}
 }
+
+void
+grabbuttons(struct ws_win *win, int focused)
+{
+	unsigned int		i, j;
+	unsigned int		modifiers[] =
+	    { 0, LockMask, numlockmask, numlockmask|LockMask };
+
+	updatenumlockmask();
+	XUngrabButton(display, AnyButton, AnyModifier, win->id);
+	if(focused) {
+		for (i = 0; i < LENGTH(buttons); i++)
+			if (buttons[i].action == client_click)
+				for (j = 0; j < LENGTH(modifiers); j++)
+					XGrabButton(display, buttons[i].button,
+					    buttons[i].mask | modifiers[j],
+					    win->id, False, BUTTONMASK,
+					    GrabModeAsync, GrabModeSync, None,
+					    None);
+	} else
+		XGrabButton(display, AnyButton, AnyModifier, win->id, False,
+		    BUTTONMASK, GrabModeAsync, GrabModeSync, None, None);
+}
+
 void
 expose(XEvent *e)
 {
@@ -1434,33 +1480,26 @@ void
 buttonpress(XEvent *e)
 {
 	XButtonPressedEvent	*ev = &e->xbutton;
-#ifdef SWM_CLICKTOFOCUS
+
 	struct ws_win		*win;
-	struct workspace	*ws;
-	struct swm_region	*r;
-#endif
+	int			i, action;
 
 	DNPRINTF(SWM_D_EVENT, "buttonpress: window: %lu\n", ev->window);
 
-	if (ev->window == ev->root)
+	action = root_click;
+	if ((win = find_window(ev->window)) == NULL)
 		return;
-	if (ev->window == cur_focus->id)
-		return;
-#ifdef SWM_CLICKTOFOCUS
-	r = root_to_region(ev->root);
-	ws = r->ws;
-	TAILQ_FOREACH(win, &ws->winlist, entry)
-		if (win->id == ev->window) {
-			/* focus in the clicked window */
-			XSetWindowBorder(display, ev->window, 0xff0000);
-			XSetWindowBorder(display, ws->focus->id, 0x888888);
-			XSetInputFocus(display, ev->window, RevertToPointerRoot,
-			    CurrentTime);
-			ws->focus = win;
-			XSync(display, False);
-			break;
+	else {
+		focus_win(win);
+		action = client_click;
 	}
-#endif
+
+	for (i = 0; i < LENGTH(buttons); i++)
+		if (action == buttons[i].action && buttons[i].func &&
+		    buttons[i].button == ev->button &&
+		    CLEANMASK(buttons[i].mask) == CLEANMASK(ev->state))
+			buttons[i].func(root_to_region(ev->root),
+			&buttons[i].args);
 }
 
 void
@@ -1645,20 +1684,6 @@ void
 focusin(XEvent *e)
 {
 	DNPRINTF(SWM_D_EVENT, "focusin: window: %lu\n", e->xfocus.window);
-
-	/* XXX this probably needs better handling now.
-	if (ev->window == ev->root)
-		return;
-	*/
-	/*
-	 * kill grab for now so that we can cut and paste , this screws up
-	 * click to focus
-	 */
-	/*
-	DNPRINTF(SWM_D_EVENT, "focusin: window: %lu grabbing\n", ev->window);
-	XGrabButton(display, Button1, AnyModifier, ev->window, False,
-	    ButtonPress, GrabModeAsync, GrabModeSync, None, None);
-	*/
 }
 
 void
