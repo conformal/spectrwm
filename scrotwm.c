@@ -321,6 +321,7 @@ name_to_color(char *colorname)
 void
 setscreencolor(char *val, int i, int c)
 {
+	fprintf(stderr, "val %s i %d c %d\n", val, i, c);
 	if (i > 0 && i <= ScreenCount(display)) {
 		screens[i - 1].c[c].color = name_to_color(val);
 		if ((screens[i - 1].c[c].name = strdup(val)) == NULL)
@@ -403,11 +404,11 @@ conf_load(char *filename)
 			if (!strncmp(var, "bar_enabled", strlen("bar_enabled")))
 				bar_enabled = atoi(val);
 			else if (!varmatch(var, "bar_border", &i))
-				setscreencolor(var, i, SWM_S_COLOR_BAR_BORDER);
+				setscreencolor(val, i, SWM_S_COLOR_BAR_BORDER);
 			else if (!varmatch(var, "bar_color", &i))
-				setscreencolor(var, i, SWM_S_COLOR_BAR);
+				setscreencolor(val, i, SWM_S_COLOR_BAR);
 			else if (!varmatch(var, "bar_font_color", &i))
-				setscreencolor(var, i, SWM_S_COLOR_BAR_FONT);
+				setscreencolor(val, i, SWM_S_COLOR_BAR_FONT);
 			else if (!strncmp(var, "bar_font", strlen("bar_font")))
 				asprintf(&bar_fonts[0], "%s", val);
 			else if (!strncmp(var, "bar_action", strlen("bar_action")))
@@ -418,9 +419,9 @@ conf_load(char *filename)
 
 		case 'c':
 			if (!varmatch(var, "color_focus", &i))
-				setscreencolor(var, i, SWM_S_COLOR_FOCUS);
+				setscreencolor(val, i, SWM_S_COLOR_FOCUS);
 			else if (!varmatch(var, "color_unfocus", &i))
-				setscreencolor(var, i, SWM_S_COLOR_UNFOCUS);
+				setscreencolor(val, i, SWM_S_COLOR_UNFOCUS);
 			else if (!strncmp(var, "cycle_empty", strlen("cycle_empty")))
 				cycle_visible = atoi(val);
 			else if (!strncmp(var, "cycle_visible", strlen("cycle_visible")))
