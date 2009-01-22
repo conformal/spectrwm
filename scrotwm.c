@@ -147,6 +147,7 @@ int			bar_verbose = 1;
 int			bar_height = 0;
 GC			bar_gc;
 XGCValues		bar_gcv;
+int			bar_fidx = 0;
 XFontStruct		*bar_fs;
 char			*bar_fonts[] = {
 			    "-*-terminus-*-*-*-*-*-*-*-*-*-*-*-*",
@@ -154,9 +155,18 @@ char			*bar_fonts[] = {
 			    NULL
 };
 
+	
+
 /* terminal + args */
 char				*spawn_term[] = { "xterm", NULL };
-char				*spawn_menu[] = { "dmenu_run", NULL };
+char				*spawn_menu[] = { "dmenu_run", "-fn", NULL,
+				    "-nb", NULL, "-nf", NULL, "-sb", NULL, "-sf", NULL, NULL };
+
+#define SWM_MENU_FN	(2)
+#define SWM_MENU_NB	(4)
+#define SWM_MENU_NF	(6)
+#define SWM_MENU_SB	(8)
+#define SWM_MENU_SF	(10)
 
 /* layout manager data */
 struct swm_geometry {
@@ -235,6 +245,10 @@ struct workspace {
 	} l_state;
 };
 
+
+enum	{ SWM_S_COLOR_BAR, SWM_S_COLOR_BAR_BORDER, SWM_S_COLOR_BAR_FONT,
+	  SWM_S_COLOR_FOCUS, SWM_S_COLOR_UNFOCUS, SWM_S_COLOR_MAX };
+
 /* physical screen mapping */
 #define SWM_WS_MAX		(10)		/* XXX Too small? */
 struct swm_screen {
@@ -245,11 +259,10 @@ struct swm_screen {
 	struct workspace	ws[SWM_WS_MAX];
 
 	/* colors */
-	unsigned long		bar_border;
-	unsigned long		bar_color;
-	unsigned long		bar_font_color;
-	unsigned long		color_focus;		/* XXX should this be per ws? */
-	unsigned long		color_unfocus;
+	struct {
+		unsigned long	color;
+		char		*name;
+	} c[SWM_S_COLOR_MAX];
 };
 struct swm_screen	*screens;
 int			num_screens;
@@ -299,6 +312,23 @@ name_to_color(char *colorname)
 		fprintf(stderr, "color '%s' not found.\n", colorname);
 
 	return (result);
+}
+
+void
+setscreencolor(char *val, int i, int c)
+{
+	if (i > 0 && i <= ScreenCount(display)) {
+		screens[i - 1].c[c].color = name_to_color(val);
+		if ((screens[i - 1].c[c].name = strdup(val)) == NULL)
+			errx(1, "strdup");
+	} else if (i == -1) {
+		for (i = 0; i < ScreenCount(display); i++)
+			screens[i].c[c].color = name_to_color(val);
+			if ((screens[i - 1].c[c].name = strdup(val)) == NULL)
+				errx(1, "strdup");
+	} else
+		errx(1, "invalid screen index: %d out of bounds (maximum %d)\n",
+		    i, ScreenCount(display));
 }
 
 int
@@ -369,36 +399,11 @@ conf_load(char *filename)
 			if (!strncmp(var, "bar_enabled", strlen("bar_enabled")))
 				bar_enabled = atoi(val);
 			else if (!varmatch(var, "bar_border", &i))
-				if (i > 0 && i <= sc)
-					screens[i - 1].bar_border =
-					    name_to_color(val);
-				else if (i == -1)
-					for (i = 0; i < sc; i++)
-						screens[i].bar_border =
-						    name_to_color(val);
-				 else
-					goto badidx;
+				setscreencolor(var, i, SWM_S_COLOR_BAR_BORDER);
 			else if (!varmatch(var, "bar_color", &i))
-				if (i > 0 && i <= sc)
-					screens[i - 1].bar_color =
-					    name_to_color(val);
-				else if (i == -1)
-					for (i = 0; i < sc; i++)
-						screens[i].bar_color =
-						    name_to_color(val);
-				else
-					goto badidx;
+				setscreencolor(var, i, SWM_S_COLOR_BAR);
 			else if (!varmatch(var, "bar_font_color", &i))
-				if (i > 0 && i <= sc)
-					screens[i - 1].bar_font_color =
-						name_to_color(val);
-				else if (i == -1)
-					for (i = 0; i < sc; i++)
-						screens[i].bar_font_color =
-						    name_to_color(val);
-				else
-					goto badidx;
-
+				setscreencolor(var, i, SWM_S_COLOR_BAR_FONT);
 			else if (!strncmp(var, "bar_font", strlen("bar_font")))
 				asprintf(&bar_fonts[0], "%s", val);
 			else
@@ -407,25 +412,9 @@ conf_load(char *filename)
 
 		case 'c':
 			if (!varmatch(var, "color_focus", &i))
-				if (i > 0 && i <= sc)
-					screens[i - 1].color_focus =
-					    name_to_color(val);
-				else if (i == -1)
-					for (i = 0; i < sc; i++)
-						screens[i].color_focus =
-						    name_to_color(val);
-				else
-					goto badidx;
+				setscreencolor(var, i, SWM_S_COLOR_FOCUS);
 			else if (!varmatch(var, "color_unfocus", &i))
-				if (i > 0 && i <= sc)
-					screens[i - 1].color_unfocus =
-					    name_to_color(val);
-				else if (i == -1)
-					for (i = 0; i < sc; i++)
-						screens[i].color_unfocus =
-						    name_to_color(val);
-				else
-					goto badidx;
+				setscreencolor(var, i, SWM_S_COLOR_UNFOCUS);
 			else if (!strncmp(var, "cycle_empty", strlen("cycle_empty")))
 				cycle_visible = atoi(val);
 			else if (!strncmp(var, "cycle_visible", strlen("cycle_visible")))
@@ -456,17 +445,16 @@ conf_load(char *filename)
 
 	fclose(config);
 	return (0);
+
 bad:
 	errx(1, "invalid conf file entry: %s=%s", var, val);
-badidx:
-	errx(1, "invalid screen index: %s out of bounds", var);
 }
 
 void
 bar_print(struct swm_region *r, char *s)
 {
 	XClearWindow(display, r->bar_window);
-	XSetForeground(display, bar_gc, r->s->bar_font_color);
+	XSetForeground(display, bar_gc, r->s->c[SWM_S_COLOR_BAR_FONT].color);
 	XDrawString(display, r->bar_window, bar_gc, 4, bar_fs->ascent, s,
 	    strlen(s));
 }
@@ -542,8 +530,10 @@ bar_setup(struct swm_region *r)
 
 	for (i = 0; bar_fonts[i] != NULL; i++) {
 		bar_fs = XLoadQueryFont(display, bar_fonts[i]);
-		if (bar_fs)
+		if (bar_fs) {
+			bar_fidx = i;
 			break;
+		}
 	}
 	if (bar_fonts[i] == NULL)
 			errx(1, "couldn't load font");
@@ -551,7 +541,8 @@ bar_setup(struct swm_region *r)
 
 	r->bar_window = XCreateSimpleWindow(display, 
 	    r->s->root, X(r), Y(r), WIDTH(r) - 2, bar_height - 2,
-	    1, r->s->bar_border, r->s->bar_color);
+	    1, r->s->c[SWM_S_COLOR_BAR_BORDER].color,
+	    r->s->c[SWM_S_COLOR_BAR].color);
 	bar_gc = XCreateGC(display, r->bar_window, 0, &bar_gcv);
 	XSetFont(display, bar_gc, bar_fs->fid);
 	XSelectInput(display, r->bar_window, VisibilityChangeMask);
@@ -574,8 +565,10 @@ bar_refresh(void)
 	bzero(&wa, sizeof wa);
 	for (i = 0; i < ScreenCount(display); i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
-			wa.border_pixel = screens[i].bar_border;
-			wa.background_pixel = screens[i].bar_color;
+			wa.border_pixel =
+			    screens[i].c[SWM_S_COLOR_BAR_BORDER].color;
+			wa.background_pixel =
+			    screens[i].c[SWM_S_COLOR_BAR].color;
 			XChangeWindowAttributes(display, r->bar_window,
 			    CWBackPixel | CWBorderPixel, &wa);
 		}
@@ -711,6 +704,21 @@ spawn(struct swm_region *r, union arg *args)
 	wait(0);
 }
 
+
+void
+spawnmenu(struct swm_region *r, union arg *args)
+{
+	DNPRINTF(SWM_D_MISC, "spawnmenu\n");
+
+	spawn_menu[SWM_MENU_FN] = bar_fonts[bar_fidx];
+	spawn_menu[SWM_MENU_NB] = r->s->c[SWM_S_COLOR_BAR].name;
+	spawn_menu[SWM_MENU_NF] = r->s->c[SWM_S_COLOR_BAR_FONT].name;
+	spawn_menu[SWM_MENU_SB] = r->s->c[SWM_S_COLOR_BAR_BORDER].name;
+	spawn_menu[SWM_MENU_SF] = r->s->c[SWM_S_COLOR_BAR].name;
+
+	spawn(r, args);
+}
+
 void
 unfocus_all(void)
 {
@@ -726,7 +734,7 @@ unfocus_all(void)
 					continue;
 				grabbuttons(win, 0);
 				XSetWindowBorder(display, win->id,
-				    win->ws->r->s->color_unfocus);
+				    win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
 				win->got_focus = 0;
 				win->ws->focus = NULL;
 				cur_focus = NULL;
@@ -747,7 +755,7 @@ focus_win(struct ws_win *win)
 		cur_focus = win;
 		if (!win->got_focus) {
 			XSetWindowBorder(display, win->id,
-			    win->ws->r->s->color_focus);
+			    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
 			grabbuttons(win, 1);
 		}
 		win->got_focus = 1;
@@ -1324,7 +1332,7 @@ struct key {
 	{ MODKEY | ShiftMask,	XK_j,		swapwin,	{.id = SWM_ARG_ID_SWAPNEXT} },
 	{ MODKEY | ShiftMask,	XK_k,		swapwin,	{.id = SWM_ARG_ID_SWAPPREV} },
 	{ MODKEY | ShiftMask,	XK_Return,	spawn,		{.argv = spawn_term} },
-	{ MODKEY,		XK_p,		spawn,		{.argv = spawn_menu} },
+	{ MODKEY,		XK_p,		spawnmenu,	{.argv = spawn_menu} },
 	{ MODKEY | ShiftMask,	XK_q,		quit,		{0} },
 	{ MODKEY,		XK_q,		restart,	{0} },
 	{ MODKEY,		XK_m,		focus,		{.id = SWM_ARG_ID_FOCUSMAIN} },
@@ -1865,11 +1873,11 @@ setup_screens(void)
 		screens[i].root = RootWindow(display, i);
 
 		/* set default colors */
-		screens[i].color_focus = name_to_color("red");
-		screens[i].color_unfocus = name_to_color("rgb:88/88/88");
-		screens[i].bar_border = name_to_color("rgb:00/80/80");
-		screens[i].bar_color = name_to_color("black");
-		screens[i].bar_font_color = name_to_color("rgb:a0/a0/a0");
+		setscreencolor("red", i + 1, SWM_S_COLOR_FOCUS);
+		setscreencolor("rgb:88/88/88", i + 1, SWM_S_COLOR_UNFOCUS);
+		setscreencolor("rgb:00/80/80", i + 1, SWM_S_COLOR_BAR_BORDER);
+		setscreencolor("black", i + 1, SWM_S_COLOR_BAR);
+		setscreencolor("rgb:a0/a0/a0", i + 1, SWM_S_COLOR_BAR_FONT);
 
 		/* init all workspaces */
 		for (j = 0; j < SWM_WS_MAX; j++) {
