@@ -1,0 +1,122 @@
+.\"	$scrotwm$
+.\"
+.\" Copyright (c) 2009 Marco Peereboom <marco@peereboom.us>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate$
+.Dt SCROTWM 1
+.Os
+.Sh NAME
+.Nm scrotwm
+.Nd is a small dynamic tiling window manager for X11.
+.Sh SYNOPSIS
+.Nm scrotwm
+.Sh DESCRIPTION
+.Nm
+is a minimalistic window manager that tries to stay out of the way so that
+valuable screen real estate can be used for much more important stuff.
+It has sane defaults and does not require one to learn a language to do any
+configuration.
+It was written by hackers for hackers and it strives to be small, compact and
+fast. 
+.Pp
+The following notation is used throughout this page:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Ic M
+Meta
+.It Ic S
+Shift
+.It Ic [Name]
+Named key
+.El
+.Pp
+.Nm
+is very simple in its use.
+Most of the actions are initiated via keybindings.
+The current keybindings are described below:
+.Pp
+.Bl -tag -width "C-M-EscapeXXX" -offset indent -compact
+.It Ic M-S-[Return]
+Spawn a new terminal.
+.It Ic M-p
+Menu.
+.It Ic M-S-q
+Quit.
+.It Ic M-q
+Restart
+.Nm .
+.It Ic M-[Space]
+Cycle layout.
+.It Ic M-S-[Space]
+Reset layout.
+.It Ic M-h
+Shrink master area.
+.It Ic M-l
+Grow master area.
+.It Ic M-,
+Add windows to master area.
+.It Ic M-.
+Remove windows from master area.
+.It Ic M-[Return]
+Move current window to master area.
+.It Ic M-j
+Focus next window in workspace.
+.It Ic M-[Tab]
+Focus next window in workspace.
+.It Ic M-k
+Focus previous window in workspace.
+.It Ic M-S-[Tab]
+Focus previous window in workspace.
+.It Ic M-m
+Focus on main window in workspace.
+.It Ic M-S-j
+Swap with next window in workspace.
+.It Ic M-S-k
+Swap with previous window in workspace.
+.It Ic M-b
+Toggle status bar in all workspaces.
+.It Ic M-S-x
+Destroy current window in workspace.
+.It Ic M-[Number]
+Switch to workspace [Number].
+.It Ic M-S-[Number]
+Move current window to workspace [Number].
+.It Ic M-[RighArrow]
+Switch to next workspace with a window in it.
+.It Ic M-[LeftArrow]
+Switch to previous workspace with a window in it.
+.El
+.Pp
+.Pp
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa ~/.scrotwm.conf
+.It Pa /etc/scrotwm.conf
+.El
+.Sh AUTHORS
+.An -nosplit
+.Pp
+.Nm
+was written by
+.An Marco Peereboom Aq marco@peereboom.us
+and
+.An Ryan Thomas McBride Aq mcbride@countersiege.com .
+.Sh HISTORY
+.Nm
+was inspired by xmonad & dwm.
+.Pp
+.Nm
+first appeared in
+.Ox 4.5 .
