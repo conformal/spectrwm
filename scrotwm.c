@@ -147,6 +147,7 @@ char			*bar_argv[] = { NULL, NULL };
 int			bar_pipe[2];
 char			bar_ext[SWM_BAR_MAX];
 sig_atomic_t		bar_alarm = 0;
+int			bar_delay = 30;
 int			bar_enabled = 1;
 int			bar_extra = 1;
 int			bar_extra_running = 0;
@@ -412,6 +413,8 @@ conf_load(char *filename)
 				asprintf(&bar_fonts[0], "%s", val);
 			else if (!strncmp(var, "bar_action", strlen("bar_action")))
 				asprintf(&bar_argv[0], "%s", val);
+			else if (!strncmp(var, "bar_delay", strlen("bar_delay")))
+				bar_delay = atoi(val);
 			else
 				goto bad;
 			break;
@@ -534,8 +537,7 @@ bar_update(void)
 		}
 	}
 	XSync(display, False);
-
-	alarm(60);
+	alarm(bar_delay);
 }
 
 void
