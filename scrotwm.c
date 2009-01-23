@@ -1366,6 +1366,8 @@ send_to_ws(struct swm_region *r, union arg *args)
 	int			wsid = args->id;
 	struct ws_win		*win = cur_focus;
 	struct workspace	*ws, *nws;
+	Atom			ws_idx_atom = 0;
+	unsigned char		ws_idx_str[1];
 
 	DNPRINTF(SWM_D_MOVE, "send_to_ws: win: %lu\n", win->id);
 
@@ -1385,6 +1387,12 @@ send_to_ws(struct swm_region *r, union arg *args)
 
 	TAILQ_INSERT_TAIL(&nws->winlist, win, entry);
 	win->ws = nws;
+
+	/* Try to update the window's workspace property */
+	ws_idx_atom = XInternAtom(display, "_SWM_WS", False);
+	ws_idx_str[0] = (unsigned char)nws->idx;
+	XChangeProperty(display, win->id, ws_idx_atom, XA_STRING, 8,
+	    PropModeReplace, ws_idx_str, 1);
 
 	if (count_win(nws, 1) == 1)
 		nws->focus = win;
@@ -1613,23 +1621,40 @@ set_win_state(struct ws_win *win, long state)
 }
 
 struct ws_win *
-manage_window(Window id, struct workspace *ws)
+manage_window(Window id)
 {
 	Window			trans;
+	struct workspace	*ws;
 	struct ws_win		*win;
 	XClassHint		ch;
+	int			format;
+	unsigned long		nitems, bytes;
+	Atom			ws_idx_atom = 0, type;
+	unsigned char		ws_idx_str[1], *prop = NULL;
+	struct swm_region	*r;
 
-	TAILQ_FOREACH(win, &ws->winlist, entry) {
-		if (win->id == id)
+	if ((win = find_window(id)) != NULL)
 			return (win);	/* already being managed */
-	}
 
 	if ((win = calloc(1, sizeof(struct ws_win))) == NULL)
 		errx(1, "calloc: failed to allocate memory for new window");
 
+	ws_idx_atom = XInternAtom(display, "_SWM_WS", False);
+	if (ws_idx_atom)
+		XGetWindowProperty(display, id, ws_idx_atom, 0, 1, False, XA_STRING,
+		    &type, &format, &nitems, &bytes, &prop);
+
+	XGetWindowAttributes(display, id, &win->wa);
+	r = root_to_region(win->wa.root);
+	/* If the window was managed before, put it in the same workspace */
+	if (prop)
+		ws = &r->s->ws[prop[0]];
+	else
+		ws = r->ws;
+
 	win->id = id;
 	win->ws = ws;
-	win->s = ws->r->s;	/* this never changes */
+	win->s = r->s;	/* this never changes */
 	TAILQ_INSERT_TAIL(&ws->winlist, win, entry);
 
 	/* make new win focused */
@@ -1641,14 +1666,22 @@ manage_window(Window id, struct workspace *ws)
 		DNPRINTF(SWM_D_MISC, "manage_window: win %u transient %u\n",
 		    (unsigned)win->id, win->transient);
 	}
-	XGetWindowAttributes(display, id, &win->wa);
 	win->g.w = win->wa.width;
 	win->g.h = win->wa.height;
 	win->g.x = win->wa.x;
 	win->g.y = win->wa.y;
+
+	if (ws_idx_atom && prop == NULL) {
+		/* set the window's workspace property if it wasn't there */
+		ws_idx_str[0] = (unsigned char)ws->idx;
+		XChangeProperty(display, id, ws_idx_atom, XA_STRING, 1,
+		    PropModeReplace, ws_idx_str, 1);
+	}
+
 	/*
 	fprintf(stderr, "manage window: %d x %d y %d w %d h %d\n", win->id, win->g.x, win->g.y, win->g.w, win->g.h);
 	*/
+
 	/* XXX make this a table */
 	bzero(&ch, sizeof ch);
 	if (XGetClassHint(display, win->id, &ch)) {
@@ -1812,7 +1845,6 @@ maprequest(XEvent *e)
 {
 	XMapRequestEvent	*ev = &e->xmaprequest;
 	XWindowAttributes	wa;
-	struct swm_region	*r;
 
 	DNPRINTF(SWM_D_EVENT, "maprequest: window: %lu\n",
 	    e->xmaprequest.window);
@@ -1821,8 +1853,7 @@ maprequest(XEvent *e)
 		return;
 	if (wa.override_redirect)
 		return;
-	r = root_to_region(wa.root);
-	manage_window(e->xmaprequest.window, r->ws);
+	manage_window(e->xmaprequest.window);
 	stack();
 }
 
@@ -1961,10 +1992,15 @@ setup_screens(void)
 	int			ncrtc = 0, w = 0;
         int			i, j, k;
 	struct workspace	*ws;
+	int			ws_idx_atom;
+
 
 	if ((screens = calloc(ScreenCount(display),
 	     sizeof(struct swm_screen))) == NULL)
 		errx(1, "calloc: screens");
+
+	ws_idx_atom = XInternAtom(display, "_SWM_WS", False);
+	
 
 	/* map physical screens */
 	for (i = 0; i < ScreenCount(display); i++) {
@@ -2061,7 +2097,7 @@ setup_screens(void)
 
 			if (wa.map_state == IsViewable ||
 			    getstate(wins[i]) == NormalState)
-				manage_window(wins[i], r->ws);
+				manage_window(wins[i]);
 		}
 		/* transient windows */
 		for (i = 0; i < no; i++) {
@@ -2071,7 +2107,7 @@ setup_screens(void)
 			if (XGetTransientForHint(display, wins[i], &d1) &&
 			    (wa.map_state == IsViewable || getstate(wins[i]) ==
 			    NormalState))
-				manage_window(wins[i], r->ws);
+				manage_window(wins[i]);
                 }
                 if (wins) {
                         XFree(wins);
