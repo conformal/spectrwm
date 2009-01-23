@@ -1,13 +1,76 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <head>
-<title>/var/www/peereboom.us/scrotwm/scotwm.html</title>
-<meta name="Generator" content="Vim/7.1">
+<title>~/scrotwm.~.html</title>
+<meta name="Generator" content="Vim/7.2">
 <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
 </head>
-Not yet.
-<body bgcolor="#000000" text="#ffffff"><font face="monospace">
+<body text="#ffffff" bgcolor="#000000"><font face="monospace">
+<font color="#ff40ff">SCROTWM(1)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OpenBSD Reference Manual&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SCROTWM(1)</font><br>
+<br>
+<font color="#ffff00">NAME</font><br>
+&nbsp;&nbsp;&nbsp;&nbsp; scrotwm - is a small dynamic tiling window manager for X11.<br>
+<br>
+<font color="#ffff00">SYNOPSIS</font><br>
+&nbsp;&nbsp;&nbsp;&nbsp; scrotwm<br>
+<br>
+<font color="#ffff00">DESCRIPTION</font><br>
+&nbsp;&nbsp;&nbsp;&nbsp; scrotwm is a minimalistic window manager that tries to stay out of the<br>
+&nbsp;&nbsp;&nbsp;&nbsp; way so that valuable screen real estate can be used for much more impor-<br>
+&nbsp;&nbsp;&nbsp;&nbsp; tant stuff.&nbsp;&nbsp;It has sane defaults and does not require one to learn a<br>
+&nbsp;&nbsp;&nbsp;&nbsp; language to do any configuration.&nbsp;&nbsp;It was written by hackers for hackers<br>
+&nbsp;&nbsp;&nbsp;&nbsp; and it strives to be small, compact and fast.<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; The following notation is used throughout this page:<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Meta<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; S&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Shift<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [Name]&nbsp;&nbsp;Named key<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; scrotwm is very simple in its use.&nbsp;&nbsp;Most of the actions are initiated via<br>
+&nbsp;&nbsp;&nbsp;&nbsp; keybindings.&nbsp;&nbsp;The current keybindings are described below:<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-[Return]&nbsp;&nbsp; Spawn a new terminal.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-p&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Menu.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-q&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Quit.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-q&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Restart scrotwm.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-[Space]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Cycle layout.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-[Space]&nbsp;&nbsp;&nbsp;&nbsp;Reset layout.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-h&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Shrink master area.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-l&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Grow master area.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Add windows to master area.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Remove windows from master area.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-[Return]&nbsp;&nbsp;&nbsp;&nbsp; Move current window to master area.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-j&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Focus next window in workspace.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-[Tab]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Focus next window in workspace.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-k&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Focus previous window in workspace.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-[Tab]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Focus previous window in workspace.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-m&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Focus on main window in workspace.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-j&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Swap with next window in workspace.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-k&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Swap with previous window in workspace.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-b&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Toggle status bar in all workspaces.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-x&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Destroy current window in workspace.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-[Number]&nbsp;&nbsp;&nbsp;&nbsp; Switch to workspace [Number].<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-[Number]&nbsp;&nbsp; Move current window to workspace [Number].<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-[RighArrow]&nbsp;&nbsp;Switch to next workspace with a window in it.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-[LeftArrow]&nbsp;&nbsp;Switch to previous workspace with a window in it.<br>
+<br>
+<font color="#ffff00">FILES</font><br>
+&nbsp;&nbsp;&nbsp;&nbsp; ~/.scrotwm.conf<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; /etc/scrotwm.conf<br>
+<br>
+<font color="#ffff00">AUTHORS</font><br>
+&nbsp;&nbsp;&nbsp;&nbsp; scrotwm was written by Marco Peereboom &lt;marco@peereboom.us&gt; and Ryan<br>
+&nbsp;&nbsp;&nbsp;&nbsp; Thomas McBride &lt;mcbride@countersiege.com&gt;.<br>
+<br>
+<font color="#ffff00">HISTORY</font><br>
+&nbsp;&nbsp;&nbsp;&nbsp; scrotwm was inspired by xmonad &amp; dwm.<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; scrotwm first appeared in OpenBSD 4.5.<br>
+<br>
+OpenBSD 4.4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;January 23, 2009&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1<br>
+</font></body>
 </html>
-<p>
+<small>
 $scrotwm$
