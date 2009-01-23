@@ -40,6 +40,8 @@ Meta
 Shift
 .It Ic [Name]
 Named key
+.It Ic M1
+Mouse button 1
 .El
 .Pp
 .Nm
@@ -97,14 +99,60 @@ Move current window to workspace [Number].
 Switch to next workspace with a window in it.
 .It Ic M-[LeftArrow]
 Switch to previous workspace with a window in it.
+.It Ic M1
+Focus window.
 .El
 .Pp
 .Pp
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa ~/.scrotwm.conf
+This file contains user specific settings.
 .It Pa /etc/scrotwm.conf
+This file contains global settings.
 .El
+.Pp
+.Nm
+first tries to open the user specific file.
+If that file is unavailable it tries to open the global file next.
+.Pp
+The format of the file is <keyword> = <setting>.
+E.g. color_focus = red.
+.Pp
+The file supports the following keywords:
+.Bl -tag -width "C-M-EscapeXXX" -offset indent -compact
+.It Ic color_focus
+Border color of the currently focussed window.
+.It Ic color_unfocus
+Border color of unfocussed windows.
+.It Ic bar_enabled
+Enable or disable status bar.
+.It Ic bar_border[x]
+Color of the status bar border in screen x.
+.It Ic bar_color[x]
+Color of the status bar window in screen x.
+.It Ic bar_font_color[x]
+Color of the font in status bar in screen x.
+.It Ic bar_font
+Status bar font.
+.It Ic bar_action
+External script to populate additional information in the status bar such as
+battery life etc.
+.It Ic spawn_term
+External application that gets spawned when M-S-[Return] is used.
+.It Ic dialog_ratio
+Some applications have dialog windows that are too small to be useful.
+This ratio is the screen size as to what they will be resized.
+E.g 0.6 is 60% of the physical screen size.
+.El
+.Pp
+Colors need to be specified per the
+.Xr XQueryColor 4
+specification and fonts need to be specified per the
+.Xr XQueryFont 4
+specification.
+.Sh BUGS
+Currently the menu, invoked with M-p, depends on dmenu.
 .Sh AUTHORS
 .An -nosplit
 .Pp
