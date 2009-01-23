@@ -1,5 +1,9 @@
 #!/bin/sh
 
+print_cpu() {
+	echo -n "CPU: ${7}% User  ${8}% Nice  ${9}% Sys  ${10}% Int  ${11}% Idle     "
+}
+
 print_apm() {
 	BAT_STATUS=$1
 	BAT_LEVEL=$2
@@ -7,7 +11,7 @@ print_apm() {
 
 	if [ $AC_STATUS -ne 255 -o $BAT_STATUS -lt 4 ]; then
 		if [ $AC_STATUS -eq 0 ]; then
-			echo "on battery (${BAT_LEVEL}%)"
+			echo -n "on battery (${BAT_LEVEL}%)"
 		else
 			case $AC_STATUS in
 			1)
@@ -34,13 +38,16 @@ print_apm() {
 		
 			FULL="${AC_STRING}${BAT_STRING}"
 			if [ "$FULL" != "" ]; then
-				echo $FULL
+				echo -n "$FULL"
 			fi
 		fi
 	fi
 }
 
 while :; do
+	# you probably want to reduce the sleep below if you enable this
+	#print_cpu `/usr/sbin/iostat -C`
 	print_apm `/usr/sbin/apm -alb`
+	echo ""
 	sleep 59
 done
