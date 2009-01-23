@@ -26,6 +26,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Meta<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; S&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Shift<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [Name]&nbsp;&nbsp;Named key<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Mouse button 1<br>
 <br>
 &nbsp;&nbsp;&nbsp;&nbsp; scrotwm is very simple in its use.&nbsp;&nbsp;Most of the actions are initiated via<br>
 &nbsp;&nbsp;&nbsp;&nbsp; keybindings.&nbsp;&nbsp;The current keybindings are described below:<br>
@@ -54,11 +55,43 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-[Number]&nbsp;&nbsp; Move current window to workspace [Number].<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-[RighArrow]&nbsp;&nbsp;Switch to next workspace with a window in it.<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-[LeftArrow]&nbsp;&nbsp;Switch to previous workspace with a window in it.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Focus window.<br>
 <br>
 <font color="#ffff00">FILES</font><br>
 &nbsp;&nbsp;&nbsp;&nbsp; ~/.scrotwm.conf<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; This file contains user specific settings.<br>
 <br>
 &nbsp;&nbsp;&nbsp;&nbsp; /etc/scrotwm.conf<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; This file contains global settings.<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; scrotwm first tries to open the user specific file.&nbsp;&nbsp;If that file is un-<br>
+&nbsp;&nbsp;&nbsp;&nbsp; available it tries to open the global file next.<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; The format of the file is &lt;keyword&gt; = &lt;setting&gt;.&nbsp;&nbsp;E.g. color_focus = red.<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; The file supports the following keywords:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; color_focus&nbsp;&nbsp;&nbsp;&nbsp;Border color of the currently focussed window.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; color_unfocus&nbsp;&nbsp;Border color of unfocussed windows.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bar_enabled&nbsp;&nbsp;&nbsp;&nbsp;Enable or disable status bar.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bar_border[x]&nbsp;&nbsp;Color of the status bar border in screen x.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bar_color[x]&nbsp;&nbsp; Color of the status bar window in screen x.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bar_font_color[x]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Color of the font in status bar in screen x.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bar_font&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Status bar font.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bar_action&nbsp;&nbsp;&nbsp;&nbsp; External script to populate additional information<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;in the status bar such as battery life etc.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; spawn_term&nbsp;&nbsp;&nbsp;&nbsp; External application that gets spawned when M-S-[Re-<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;turn] is used.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; dialog_ratio&nbsp;&nbsp; Some applications have dialog windows that are too<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;small to be useful.&nbsp;&nbsp;This ratio is the screen size<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;as to what they will be resized.&nbsp;&nbsp;E.g 0.6 is 60% of<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the physical screen size.<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; Colors need to be specified per the <font color="#ff40ff">XQueryColor(4)</font>&nbsp;specification and<br>
+&nbsp;&nbsp;&nbsp;&nbsp; fonts need to be specified per the <font color="#ff40ff">XQueryFont(4)</font>&nbsp;specification.<br>
+<br>
+<font color="#ffff00">BUGS</font><br>
+&nbsp;&nbsp;&nbsp;&nbsp; Currently the menu, invoked with M-p, depends on dmenu.<br>
 <br>
 <font color="#ffff00">AUTHORS</font><br>
 &nbsp;&nbsp;&nbsp;&nbsp; scrotwm was written by Marco Peereboom &lt;marco@peereboom.us&gt; and Ryan<br>
@@ -69,8 +102,9 @@
 <br>
 &nbsp;&nbsp;&nbsp;&nbsp; scrotwm first appeared in OpenBSD 4.5.<br>
 <br>
-OpenBSD 4.4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;January 23, 2009&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1<br>
+OpenBSD 4.4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;January 23, 2009&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2<br>
 </font></body>
 </html>
+<p>
 <small>
 $scrotwm$
