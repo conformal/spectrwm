@@ -49,5 +49,5 @@ while :; do
 	#print_cpu `/usr/sbin/iostat -C`
 	print_apm `/usr/sbin/apm -alb`
 	echo ""
-	sleep 1
+	sleep 59
 done
