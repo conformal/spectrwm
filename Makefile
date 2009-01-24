@@ -1,6 +1,8 @@
 # $scrotwm$
 .include <bsd.xconf.mk>
 
+SUBDIR= lib
+
 PROG=scrotwm
 MAN=scrotwm.1
 

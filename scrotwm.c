@@ -101,6 +101,8 @@
 #define	SWM_D_MOVE		0x0010
 #define	SWM_D_STACK		0x0020
 #define	SWM_D_MOUSE		0x0040
+#define	SWM_D_PROP		0x0080
+
 
 u_int32_t		swm_debug = 0
 			    | SWM_D_MISC
@@ -109,6 +111,7 @@ u_int32_t		swm_debug = 0
 			    | SWM_D_FOCUS
 			    | SWM_D_MOVE
 			    | SWM_D_STACK
+			    | SWM_D_PROP
 			    ;
 #else
 #define DPRINTF(x...)
@@ -124,6 +127,12 @@ u_int32_t		swm_debug = 0
 #define Y(r)		(r)->g.y
 #define WIDTH(r)	(r)->g.w	
 #define HEIGHT(r)	(r)->g.h
+
+#ifndef SWM_LIB
+#define SWM_LIB		"/usr/X11R6/lib/swmhack.so"
+#endif
+
+#define SWM_PROPLEN	(16)
 
 char			**start_argv;
 Atom			astate;
@@ -740,8 +749,8 @@ root_to_region(Window root)
 	} else {
 		/* otherwise, choose a region based on pointer location */
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
-			if (x > X(r) && x < X(r) + WIDTH(r) &&
-			    y > Y(r) && y < Y(r) + HEIGHT(r))
+			if (x >= X(r) && x <= X(r) + WIDTH(r) &&
+			    y >= Y(r) && y <= Y(r) + HEIGHT(r))
 				break;
 		}
 
@@ -775,8 +784,14 @@ spawn(struct swm_region *r, union arg *args)
 	 */
 	if (fork() == 0) {
 		if (fork() == 0) {
+			char *ret;
 			if (display)
 				close(ConnectionNumber(display));
+      			setenv("LD_PRELOAD", SWM_LIB, 1);
+			if (asprintf(&ret, "%d", r->ws->idx))
+				setenv("_SWM_WS", ret, 1);
+			if (asprintf(&ret, "%d", getpid()))
+				setenv("_SWM_PID", ret, 1);
 			setsid();
 			execvp(args->argv[0], args->argv);
 			fprintf(stderr, "execvp failed\n");
@@ -1368,7 +1383,7 @@ send_to_ws(struct swm_region *r, union arg *args)
 	struct ws_win		*win = cur_focus;
 	struct workspace	*ws, *nws;
 	Atom			ws_idx_atom = 0;
-	unsigned char		ws_idx_str[1];
+	unsigned char		ws_idx_str[SWM_PROPLEN];
 
 	DNPRINTF(SWM_D_MOVE, "send_to_ws: win: %lu\n", win->id);
 
@@ -1391,9 +1406,13 @@ send_to_ws(struct swm_region *r, union arg *args)
 
 	/* Try to update the window's workspace property */
 	ws_idx_atom = XInternAtom(display, "_SWM_WS", False);
-	ws_idx_str[0] = (unsigned char)nws->idx;
-	XChangeProperty(display, win->id, ws_idx_atom, XA_STRING, 8,
-	    PropModeReplace, ws_idx_str, 1);
+	if (ws_idx_atom &&
+	    snprintf(ws_idx_str, SWM_PROPLEN, "%d", nws->idx) < SWM_PROPLEN) {
+		DNPRINTF(SWM_D_PROP, "setting property _SWM_WS to %s\n",
+		    ws_idx_str);
+		XChangeProperty(display, win->id, ws_idx_atom, XA_STRING, 8,
+		    PropModeReplace, ws_idx_str, SWM_PROPLEN);
+	}
 
 	if (count_win(nws, 1) == 1)
 		nws->focus = win;
@@ -1631,7 +1650,7 @@ manage_window(Window id)
 	int			format;
 	unsigned long		nitems, bytes;
 	Atom			ws_idx_atom = 0, type;
-	unsigned char		ws_idx_str[1], *prop = NULL;
+	unsigned char		ws_idx_str[SWM_PROPLEN], *prop = NULL;
 	struct swm_region	*r;
 
 	if ((win = find_window(id)) != NULL)
@@ -1642,15 +1661,23 @@ manage_window(Window id)
 
 	ws_idx_atom = XInternAtom(display, "_SWM_WS", False);
 	if (ws_idx_atom)
-		XGetWindowProperty(display, id, ws_idx_atom, 0, 1, False, XA_STRING,
-		    &type, &format, &nitems, &bytes, &prop);
+		XGetWindowProperty(display, id, ws_idx_atom, 0, SWM_PROPLEN,
+		    False, XA_STRING, &type, &format, &nitems, &bytes, &prop);
 
 	XGetWindowAttributes(display, id, &win->wa);
 	r = root_to_region(win->wa.root);
 	/* If the window was managed before, put it in the same workspace */
-	if (prop)
-		ws = &r->s->ws[prop[0]];
-	else
+	if (prop) {
+		int		ws_idx;
+		const char	*errstr;
+
+		DNPRINTF(SWM_D_PROP, "got property _SWM_WS=%s\n", prop);
+		ws_idx = strtonum(prop, 0, 9, &errstr);
+		if (errstr)
+			DNPRINTF(SWM_D_EVENT, "window idx is %s: %s",
+			    errstr, prop);
+		ws = &r->s->ws[ws_idx];
+	} else
 		ws = r->ws;
 
 	win->id = id;
@@ -1672,12 +1699,14 @@ manage_window(Window id)
 	win->g.x = win->wa.x;
 	win->g.y = win->wa.y;
 
-	if (ws_idx_atom && prop == NULL) {
-		/* set the window's workspace property if it wasn't there */
-		ws_idx_str[0] = (unsigned char)ws->idx;
-		XChangeProperty(display, id, ws_idx_atom, XA_STRING, 1,
-		    PropModeReplace, ws_idx_str, 1);
+	if (ws_idx_atom && prop == NULL &&
+	    snprintf(ws_idx_str, SWM_PROPLEN, "%d", ws->idx) < SWM_PROPLEN) {
+		DNPRINTF(SWM_D_PROP, "setting property _SWM_WS to %s\n",
+		    ws_idx_str);
+		XChangeProperty(display, win->id, ws_idx_atom, XA_STRING, 8,
+		    PropModeReplace, ws_idx_str, SWM_PROPLEN);
 	}
+	XFree(prop);
 
 	/*
 	fprintf(stderr, "manage window: %d x %d y %d w %d h %d\n", win->id, win->g.x, win->g.y, win->g.w, win->g.h);
