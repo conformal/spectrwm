@@ -139,6 +139,7 @@ Atom			astate;
 int			(*xerrorxlib)(Display *, XErrorEvent *);
 int			other_wm;
 int			running = 1;
+int			ss_enabled = 0;
 int			xrandr_eventbase;
 int			ignore_enter = 0;
 unsigned int		numlockmask = 0;
@@ -174,6 +175,7 @@ char			*bar_fonts[] = {
 
 /* terminal + args */
 char			*spawn_term[] = { "xterm", NULL };
+char			*spawn_screenshot[] = { "scrot", NULL, NULL }; /* XXX get from conf */
 char			*spawn_menu[] = { "dmenu_run", "-fn", NULL,
 			    "-nb", NULL, "-nf", NULL, "-sb", NULL, "-sf", NULL, NULL };
 
@@ -299,6 +301,8 @@ union arg {
 #define SWM_ARG_ID_STACKINIT	(11)
 #define SWM_ARG_ID_CYCLEWS_UP	(12)
 #define SWM_ARG_ID_CYCLEWS_DOWN	(13)
+#define SWM_ARG_ID_SS_ALL	(0)
+#define SWM_ARG_ID_SS_WINDOW	(1)
 	char			**argv;
 };
 
@@ -453,6 +457,9 @@ conf_load(char *filename)
 		case 's':
 			if (!strncmp(var, "spawn_term", strlen("spawn_term")))
 				asprintf(&spawn_term[0], "%s", val); /* XXX args? */
+			if (!strncmp(var, "screenshot_enabled",
+			    strlen("screenshot_enabled")))
+				ss_enabled = atoi(val);
 			break;
 		default:
 			goto bad;
@@ -1430,6 +1437,30 @@ wkill(struct swm_region *r, union arg *args)
 		XKillClient(display, r->ws->focus->id);
 }
 
+void
+screenshot(struct swm_region *r, union arg *args)
+{
+	union arg			a;
+
+	DNPRINTF(SWM_D_MISC, "screenshot\n");
+
+	if (ss_enabled == 0)
+		return;
+
+	switch (args->id) {
+	case SWM_ARG_ID_SS_ALL:
+		spawn_screenshot[1] = "-m";
+		break;
+	case SWM_ARG_ID_SS_WINDOW:
+		spawn_screenshot[1] = "-s"; /* XXX doesn't work with scrot */
+		break;
+	default:
+		return;
+	}
+	a.argv = spawn_screenshot;
+	spawn(r, &a);
+}
+
 /* key definitions */
 struct key {
 	unsigned int		mod;
@@ -1480,6 +1511,8 @@ struct key {
 	{ MODKEY,		XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
 	{ MODKEY | ShiftMask,	XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
 	{ MODKEY | ShiftMask,	XK_x,		wkill,		{0} },
+	{ MODKEY,		XK_s,		screenshot,	{.id = SWM_ARG_ID_SS_ALL} },
+	{ MODKEY | ShiftMask,	XK_s,		screenshot,	{.id = SWM_ARG_ID_SS_WINDOW} },
 };
 
 void
