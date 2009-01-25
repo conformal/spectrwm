@@ -99,6 +99,10 @@ Move current window to workspace [Number].
 Switch to next workspace with a window in it.
 .It Ic M-[LeftArrow]
 Switch to previous workspace with a window in it.
+.It Ic M-s
+Take screenshot of entire screen (if enabled).
+.It Ic M-S-s
+Take screenshot of selected window (if enabled).
 .It Ic M1
 Focus window.
 .El
@@ -146,6 +150,8 @@ External application that gets spawned when M-S-[Return] is used.
 Some applications have dialog windows that are too small to be useful.
 This ratio is the screen size as to what they will be resized.
 E.g 0.6 is 60% of the physical screen size.
+.It Ic screenshot_enabled
+Set to 1 to enable screen-shotting capability.
 .El
 .Pp
 Colors need to be specified per the
