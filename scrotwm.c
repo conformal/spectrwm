@@ -1170,6 +1170,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		colno = split;
 		msize = (r_g.w / SWM_V_SLICE) * mscale;
 		win_g.w = msize;
+		if (flip)
+			win_g.x += r_g.w - msize;
 	} else {
 		colno = winno;
 		split = 0;
@@ -1182,7 +1184,10 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		if (split && i == split) {
 			colno = winno - split;
 			hrh = (r_g.h / colno);
-			win_g.x += msize + 2;
+			if (flip)
+				win_g.x = r_g.x;
+			else
+				win_g.x += msize + 2;
 			win_g.w = r_g.w - (msize + 2);
 			win_g.h = hrh - 2;
 			j = 0;
