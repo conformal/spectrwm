@@ -1145,6 +1145,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	int			i, j, w_inc, h_inc, w_base, h_base;
 	int			hrh, extra, h_slice, last_h = 0;
 	int			split, colno, winno, mwin, msize, mscale;
+	int			remain, missing, v_slice;;
 	unsigned int		mask;
 
 	DNPRINTF(SWM_D_STACK, "stack_master: workspace: %d\n rot=%s flip=%s",
@@ -1174,7 +1175,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 
 	h_slice = r_g.h / SWM_H_SLICE;
 	if (mwin && winno > mwin) {
-		int v_slice = r_g.w / SWM_V_SLICE;
+		v_slice = r_g.w / SWM_V_SLICE;
 
 		split = mwin;
 		colno = split;
@@ -1182,8 +1183,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 
 		if (w_inc > 1 && w_inc < v_slice) {
 			/* adjust for window's requested size increment */
-			int remain = (win_g.w - w_base) % w_inc;
-			int missing = w_inc - remain;
+			remain = (win_g.w - w_base) % w_inc;
+			missing = w_inc - remain;
 
 			if (missing <= extra || j == 0) {
 				extra -= missing;
@@ -1230,8 +1231,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			win_g.h = hrh + extra;
 		} else if (h_inc > 1 && h_inc < h_slice) {
 			/* adjust for window's requested size increment */
-			int remain = (win_g.h - h_base) % h_inc;
-			int missing = h_inc - remain;
+			remain = (win_g.h - h_base) % h_inc;
+			missing = h_inc - remain;
 
 			if (missing <= extra || j == 0) {
 				extra -= missing;
