@@ -1130,6 +1130,104 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 	XConfigureWindow(display, win->id, mask, &wc);
 }
 
+#define SWAPXY(g)	do {				\
+	int tmp;					\
+	tmp = (g)->y; (g)->y = (g)->x; (g)->x = tmp;	\
+	tmp = (g)->h; (g)->h = (g)->w; (g)->w = tmp;	\
+} while (0);
+void
+stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
+{
+	XWindowChanges		wc;
+	struct swm_geometry	win_g, r_g = *g;
+	struct ws_win		*win, *winfocus;
+	int			i, j;
+	int			split, colno, hrh, winno, mwin, msize, mscale;
+	unsigned int		mask;
+
+	DNPRINTF(SWM_D_STACK, "stack_master: workspace: %d\n rot=%s flip=%s",
+	    ws->idx, rot ? "yes" : "no", flip ? "yes" : "no");
+
+	if ((winno = count_win(ws, 0)) == 0)
+		return;
+
+	if (ws->focus == NULL)
+		ws->focus = TAILQ_FIRST(&ws->winlist);
+	winfocus = cur_focus ? cur_focus : ws->focus;
+
+	if (rot) {
+		mwin = ws->l_state.horizontal_mwin;
+		mscale = ws->l_state.horizontal_msize;
+		SWAPXY(&r_g);
+	} else {
+		mwin = ws->l_state.vertical_mwin;
+		mscale = ws->l_state.vertical_msize;
+	}
+	win_g = r_g;
+
+	if (mwin && winno > mwin) {
+		split = mwin;
+		colno = split;
+		msize = (r_g.w / SWM_V_SLICE) * mscale;
+		win_g.w = msize;
+	} else {
+		colno = winno;
+		split = 0;
+	}
+	hrh = r_g.h / colno;
+	win_g.h = hrh - 2;
+
+	i = j = 0;
+	TAILQ_FOREACH(win, &ws->winlist, entry) {
+		if (split && i == split) {
+			colno = winno - split;
+			hrh = (r_g.h / colno);
+			win_g.x += msize + 2;
+			win_g.w = r_g.w - (msize + 2);
+			win_g.h = hrh - 2;
+			j = 0;
+		}
+		if (j == colno - 1)
+			win_g.h = (hrh + (r_g.h - (colno * hrh)));
+		 
+		if (j == 0)
+			win_g.y = r_g.y;
+		else
+			win_g.y += hrh;
+
+
+		if (win->transient != 0 || win->floating != 0)
+			stack_floater(win, ws->r);
+		else {
+			bzero(&wc, sizeof wc);
+			wc.border_width = 1;
+			if (rot) {
+				win->g.x = wc.x = win_g.y;
+				win->g.y = wc.y = win_g.x;
+				win->g.w = wc.width = win_g.h;
+				win->g.h = wc.height = win_g.w;
+			} else {
+				win->g.x = wc.x = win_g.x;
+				win->g.y = wc.y = win_g.y;
+				win->g.w = wc.width = win_g.w;
+				win->g.h = wc.height = win_g.h;
+			}
+			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
+			XConfigureWindow(display, win->id, mask, &wc);
+			/*
+			fprintf(stderr, "vertical_stack: win %d x %d y %d w %d h %d bw %d\n", win->id, win->g.x, win->g.y, win->g.w , win->g.h, wc.border_width);
+			*/
+		}
+
+		XMapRaised(display, win->id);
+		i++;
+		j++;
+	}
+
+	if (winfocus)
+		focus_win(winfocus); /* has to be done outside of the loop */
+}
+
 void
 vertical_config(struct workspace *ws, int id)
 {
@@ -1162,78 +1260,11 @@ vertical_config(struct workspace *ws, int id)
 }
 
 void
-vertical_stack(struct workspace *ws, struct swm_geometry *g) {
-	XWindowChanges		wc;
-	struct swm_geometry	gg = *g;
-	struct ws_win		*win, *winfocus;
-	int			i, j, split, colno, hrh, winno, main_width;
-	unsigned int		mask;
-
+vertical_stack(struct workspace *ws, struct swm_geometry *g)
+{
 	DNPRINTF(SWM_D_STACK, "vertical_stack: workspace: %d\n", ws->idx);
 
-	if ((winno = count_win(ws, 0)) == 0)
-		return;
-
-	if (ws->focus == NULL)
-		ws->focus = TAILQ_FIRST(&ws->winlist);
-	winfocus = cur_focus ? cur_focus : ws->focus;
-
-	if (ws->l_state.vertical_mwin &&
-	    winno > ws->l_state.vertical_mwin) {
-		split = ws->l_state.vertical_mwin;
-		colno = split;
-		main_width = (g->w / SWM_V_SLICE) *
-		   ws->l_state.vertical_msize;
-		gg.w = main_width;
-	} else {
-		colno = winno;
-		split = 0;
-	}
-	hrh = g->h / colno;
-	gg.h = hrh - 2;
-
-	i = j = 0;
-	TAILQ_FOREACH(win, &ws->winlist, entry) {
-		if (split && i == split) {
-			colno = winno - split;
-			hrh = (g->h / colno);
-			gg.x += main_width + 2;
-			gg.w = g->w - (main_width + 2);
-			gg.h = hrh - 2;
-			j = 0;
-		}
-		if (j == colno - 1)
-			gg.h = (hrh + (g->h - (colno * hrh)));
-		 
-		if (j == 0)
-			gg.y = g->y;
-		else
-			gg.y += hrh;
-
-
-		if (win->transient != 0 || win->floating != 0)
-			stack_floater(win, ws->r);
-		else {
-			bzero(&wc, sizeof wc);
-			wc.border_width = 1;
-			win->g.x = wc.x = gg.x;
-			win->g.y = wc.y = gg.y;
-			win->g.w = wc.width = gg.w;
-			win->g.h = wc.height = gg.h;
-			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
-			XConfigureWindow(display, win->id, mask, &wc);
-			/*
-			fprintf(stderr, "vertical_stack: win %d x %d y %d w %d h %d bw %d\n", win->id, win->g.x, win->g.y, win->g.w , win->g.h, wc.border_width);
-			*/
-		}
-
-		XMapRaised(display, win->id);
-		i++;
-		j++;
-	}
-
-	if (winfocus)
-		focus_win(winfocus); /* has to be done outside of the loop */
+	stack_master(ws, g, 0, 0);
 }
 
 void
@@ -1268,74 +1299,11 @@ horizontal_config(struct workspace *ws, int id)
 }
 
 void
-horizontal_stack(struct workspace *ws, struct swm_geometry *g) {
-	XWindowChanges		wc;
-	struct swm_geometry	gg = *g;
-	struct ws_win		*win, *winfocus;
-	int			i, j, split, rowno, hrw, winno, main_height;
-	unsigned int		mask;
+horizontal_stack(struct workspace *ws, struct swm_geometry *g)
+{
+	DNPRINTF(SWM_D_STACK, "vertical_stack: workspace: %d\n", ws->idx);
 
-	DNPRINTF(SWM_D_STACK, "horizontal_stack: workspace: %d\n", ws->idx);
-
-	if ((winno = count_win(ws, 0)) == 0)
-		return;
-
-	if (ws->focus == NULL)
-		ws->focus = TAILQ_FIRST(&ws->winlist);
-	winfocus = cur_focus ? cur_focus : ws->focus;
-
-	if (ws->l_state.horizontal_mwin &&
-	    winno > ws->l_state.horizontal_mwin) {
-		split = ws->l_state.horizontal_mwin;
-		rowno = split;
-		main_height = (g->h / SWM_V_SLICE) *
-		   ws->l_state.horizontal_msize;
-		gg.h = main_height;
-	} else {
-		rowno = winno;
-		split = 0;
-	}
-	hrw = g->w / rowno;
-	gg.w = hrw - 2;
-
-	i = j = 0;
-	TAILQ_FOREACH(win, &ws->winlist, entry) {
-		if (split && i == split) {
-			rowno = winno - split;
-			hrw = (g->w / rowno);
-			gg.y += main_height + 2;
-			gg.h = g->h - (main_height + 2);
-			gg.w = hrw - 2;
-			j = 0;
-		}
-		if (j == rowno - 1)
-			gg.w = (hrw + (g->w - (rowno * hrw)));
-
-		if (j == 0)
-			gg.x = g->x;
-		else
-			gg.x += hrw;
-
-		if (win->transient != 0 || win->floating != 0)
-			stack_floater(win, ws->r);
-		else {
-			bzero(&wc, sizeof wc);
-			wc.border_width = 1;
-			win->g.x = wc.x = gg.x;
-			win->g.y = wc.y = gg.y;
-			win->g.w = wc.width = gg.w;
-			win->g.h = wc.height = gg.h;
-			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
-			XConfigureWindow(display, win->id, mask, &wc);
-		}
-
-		XMapRaised(display, win->id);
-		j++;
-		i++;
-	}
-
-	if (winfocus)
-		focus_win(winfocus); /* this has to be done outside of the loop */
+	stack_master(ws, g, 1, 0);
 }
 
 /* fullscreen view */
