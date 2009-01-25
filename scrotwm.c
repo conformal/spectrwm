@@ -216,6 +216,7 @@ struct ws_win {
 	struct workspace	*ws;	/* always valid */
 	struct swm_screen	*s;	/* always valid, never changes */
 	XWindowAttributes	wa;
+	XSizeHints		sh;
 };
 TAILQ_HEAD(ws_win_list, ws_win);
 
@@ -1134,15 +1135,16 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 	int tmp;					\
 	tmp = (g)->y; (g)->y = (g)->x; (g)->x = tmp;	\
 	tmp = (g)->h; (g)->h = (g)->w; (g)->w = tmp;	\
-} while (0);
+} while (0)
 void
 stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 {
 	XWindowChanges		wc;
 	struct swm_geometry	win_g, r_g = *g;
 	struct ws_win		*win, *winfocus;
-	int			i, j;
-	int			split, colno, hrh, winno, mwin, msize, mscale;
+	int			i, j, w_inc, h_inc, w_base, h_base;
+	int			hrh, extra, h_slice, last_h = 0;
+	int			split, colno, winno, mwin, msize, mscale;
 	unsigned int		mask;
 
 	DNPRINTF(SWM_D_STACK, "stack_master: workspace: %d\n rot=%s flip=%s",
@@ -1155,28 +1157,52 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		ws->focus = TAILQ_FIRST(&ws->winlist);
 	winfocus = cur_focus ? cur_focus : ws->focus;
 
+	win = TAILQ_FIRST(&ws->winlist);
 	if (rot) {
+		w_inc = win->sh.width_inc;
+		w_base = win->sh.base_width;
 		mwin = ws->l_state.horizontal_mwin;
 		mscale = ws->l_state.horizontal_msize;
 		SWAPXY(&r_g);
 	} else {
+		w_inc = win->sh.height_inc;
+		w_base = win->sh.base_height;
 		mwin = ws->l_state.vertical_mwin;
 		mscale = ws->l_state.vertical_msize;
 	}
 	win_g = r_g;
 
+	h_slice = r_g.h / SWM_H_SLICE;
 	if (mwin && winno > mwin) {
+		int v_slice = r_g.w / SWM_V_SLICE;
+
 		split = mwin;
 		colno = split;
-		msize = (r_g.w / SWM_V_SLICE) * mscale;
+		msize = v_slice * mscale;
+
+		if (w_inc > 1 && w_inc < v_slice) {
+			/* adjust for window's requested size increment */
+			int remain = (win_g.w - w_base) % w_inc;
+			int missing = w_inc - remain;
+
+			if (missing <= extra || j == 0) {
+				extra -= missing;
+				win_g.w += missing;
+			} else {
+				win_g.w -= remain;
+				extra += remain;
+			}
+		}
+
 		win_g.w = msize;
-		if (flip)
+		if (flip) 
 			win_g.x += r_g.w - msize;
 	} else {
 		colno = winno;
 		split = 0;
 	}
 	hrh = r_g.h / colno;
+	extra = r_g.h - (colno * hrh);
 	win_g.h = hrh - 2;
 
 	i = j = 0;
@@ -1184,22 +1210,42 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		if (split && i == split) {
 			colno = winno - split;
 			hrh = (r_g.h / colno);
+			extra = r_g.h - (colno * hrh);
 			if (flip)
 				win_g.x = r_g.x;
 			else
 				win_g.x += msize + 2;
 			win_g.w = r_g.w - (msize + 2);
-			win_g.h = hrh - 2;
 			j = 0;
 		}
-		if (j == colno - 1)
-			win_g.h = (hrh + (r_g.h - (colno * hrh)));
+		win_g.h = hrh - 2;
+		if (rot) {
+			h_inc = win->sh.width_inc;
+			h_base = win->sh.base_width;
+		} else {
+		   	h_inc =	win->sh.height_inc;	
+			h_base = win->sh.base_height;
+		}
+		if (j == colno - 1) {
+			win_g.h = hrh + extra;
+		} else if (h_inc > 1 && h_inc < h_slice) {
+			/* adjust for window's requested size increment */
+			int remain = (win_g.h - h_base) % h_inc;
+			int missing = h_inc - remain;
+
+			if (missing <= extra || j == 0) {
+				extra -= missing;
+				win_g.h += missing;
+			} else {
+				win_g.h -= remain;
+				extra += remain;
+			}
+		}
 		 
 		if (j == 0)
 			win_g.y = r_g.y;
 		else
-			win_g.y += hrh;
-
+			win_g.y += last_h + 2;
 
 		if (win->transient != 0 || win->floating != 0)
 			stack_floater(win, ws->r);
@@ -1225,6 +1271,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		}
 
 		XMapRaised(display, win->id);
+		last_h = win_g.h;
 		i++;
 		j++;
 	}
@@ -1659,6 +1706,7 @@ manage_window(Window id)
 	Atom			ws_idx_atom = 0, type;
 	unsigned char		ws_idx_str[SWM_PROPLEN], *prop = NULL;
 	struct swm_region	*r;
+	long			mask;
 
 	if ((win = find_window(id)) != NULL)
 			return (win);	/* already being managed */
@@ -1705,6 +1753,8 @@ manage_window(Window id)
 	win->g.h = win->wa.height;
 	win->g.x = win->wa.x;
 	win->g.y = win->wa.y;
+
+	XGetWMNormalHints(display, win->id, &win->sh, &mask);
 
 	if (ws_idx_atom && prop == NULL &&
 	    snprintf(ws_idx_str, SWM_PROPLEN, "%d", ws->idx) < SWM_PROPLEN) {
