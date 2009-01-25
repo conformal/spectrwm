@@ -1041,6 +1041,7 @@ focus(struct swm_region *r, union arg *args)
 	if (winfocus == winlostfocus)
 		return;
 
+	XMapRaised(display, winfocus->id);
 	focus_win(winfocus);
 	XSync(display, False);
 }
