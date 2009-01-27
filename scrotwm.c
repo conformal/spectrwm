@@ -302,6 +302,8 @@ union arg {
 #define SWM_ARG_ID_STACKINIT	(11)
 #define SWM_ARG_ID_CYCLEWS_UP	(12)
 #define SWM_ARG_ID_CYCLEWS_DOWN	(13)
+#define SWM_ARG_ID_CYCLESC_UP	(14)
+#define SWM_ARG_ID_CYCLESC_DOWN	(15)
 #define SWM_ARG_ID_SS_ALL	(0)
 #define SWM_ARG_ID_SS_WINDOW	(1)
 	char			**argv;
@@ -723,6 +725,18 @@ quit(struct swm_region *r, union arg *args)
 }
 
 void
+unmap_all(void)
+{
+	struct ws_win		*win;
+	int			i, j;
+
+	for (i = 0; i < ScreenCount(display); i++)
+		for (j = 0; j < SWM_WS_MAX; j++)
+			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
+				XUnmapWindow(display, win->id);
+}
+
+void
 restart(struct swm_region *r, union arg *args)
 {
 	DNPRINTF(SWM_D_MISC, "restart: %s\n", start_argv[0]);
@@ -734,6 +748,7 @@ restart(struct swm_region *r, union arg *args)
 
 	bar_extra_stop();
 	bar_extra = 1;
+	unmap_all();
 	XCloseDisplay(display);
 	execvp(start_argv[0], start_argv);
 	fprintf(stderr, "execvp failed\n");
@@ -905,7 +920,6 @@ switchws(struct swm_region *r, union arg *args)
 
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
 			XUnmapWindow(display, win->id);
-
 		old_ws->r = NULL;
 		old_ws->restack = 1;
 	} else {
@@ -934,7 +948,6 @@ cyclews(struct swm_region *r, union arg *args)
 	    r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
 
 	a.id = r->ws->idx;
-
 	do {
 		switch (args->id) {
 		case SWM_ARG_ID_CYCLEWS_UP:
@@ -960,6 +973,33 @@ cyclews(struct swm_region *r, union arg *args)
 
 		switchws(r, &a);
 	} while (a.id != r->ws->idx);
+}
+
+void
+cyclescr(struct swm_region *r, union arg *args)
+{
+	struct swm_region	*rr;
+	int			i;
+
+	i = r->s->idx;
+	switch (args->id) {
+	case SWM_ARG_ID_CYCLESC_UP:
+		rr = TAILQ_NEXT(r, entry);
+		if (rr == NULL)
+			rr = TAILQ_FIRST(&screens[i].rl);
+		break;
+	case SWM_ARG_ID_CYCLESC_DOWN:
+		rr = TAILQ_PREV(r, swm_region_list, entry);
+		if (rr == NULL)
+			rr = TAILQ_LAST(&screens[i].rl, swm_region_list);
+		break;
+	default:
+		return;
+	};
+	unfocus_all();
+	XSetInputFocus(display, PointerRoot, RevertToPointerRoot, CurrentTime);
+	XWarpPointer(display, None, rr->s[i].root, 0, 0, 0, 0, rr->g.x,
+	    rr->g.y + bar_enabled ? bar_height : 0);
 }
 
 void
@@ -1047,7 +1087,7 @@ focus(struct swm_region *r, union arg *args)
 		return;
 	}
 
-	if (winfocus == winlostfocus)
+	if (winfocus == winlostfocus || winfocus == NULL)
 		return;
 
 	XMapRaised(display, winfocus->id);
@@ -1527,6 +1567,8 @@ struct key {
 	{ MODKEY,		XK_0,		switchws,	{.id = 9} },
 	{ MODKEY,		XK_Right,	cyclews,	{.id = SWM_ARG_ID_CYCLEWS_UP} }, 
 	{ MODKEY,		XK_Left,	cyclews,	{.id = SWM_ARG_ID_CYCLEWS_DOWN} }, 
+	{ MODKEY | ShiftMask,	XK_Right,	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_UP} }, 
+	{ MODKEY | ShiftMask,	XK_Left,	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_DOWN} }, 
 	{ MODKEY | ShiftMask,	XK_1,		send_to_ws,	{.id = 0} },
 	{ MODKEY | ShiftMask,	XK_2,		send_to_ws,	{.id = 1} },
 	{ MODKEY | ShiftMask,	XK_3,		send_to_ws,	{.id = 2} },
