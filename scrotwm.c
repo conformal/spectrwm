@@ -785,6 +785,8 @@ find_window(Window id)
 void
 spawn(struct swm_region *r, union arg *args)
 {
+	char			*ret;
+
 	DNPRINTF(SWM_D_MISC, "spawn: %s\n", args->argv[0]);
 	/*
 	 * The double-fork construct avoids zombie processes and keeps the code
@@ -792,14 +794,17 @@ spawn(struct swm_region *r, union arg *args)
 	 */
 	if (fork() == 0) {
 		if (fork() == 0) {
-			char *ret;
 			if (display)
 				close(ConnectionNumber(display));
       			setenv("LD_PRELOAD", SWM_LIB, 1);
-			if (asprintf(&ret, "%d", r->ws->idx))
+			if (asprintf(&ret, "%d", r->ws->idx)) {
 				setenv("_SWM_WS", ret, 1);
-			if (asprintf(&ret, "%d", getpid()))
+				free(ret);
+			}
+			if (asprintf(&ret, "%d", getpid())) {
 				setenv("_SWM_PID", ret, 1);
+				free(ret);
+			}
 			setsid();
 			execvp(args->argv[0], args->argv);
 			fprintf(stderr, "execvp failed\n");
