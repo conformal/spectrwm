@@ -123,6 +123,8 @@ If that file is unavailable it tries to open the global file next.
 The format of the file is <keyword> = <setting>.
 E.g. color_focus = red.
 .Pp
+Enabling or disabling an option is done by using 1 or 0 respectively.
+.Pp
 The file supports the following keywords:
 .Bl -tag -width "C-M-EscapeXXX" -offset indent -compact
 .It Ic color_focus
@@ -140,10 +142,10 @@ Color of the font in status bar in screen x.
 .It Ic bar_font
 Status bar font.
 .It Ic bar_action
-External script to populate additional information in the status bar such as
+External script that populates additional information in the status bar such as
 battery life etc.
 .It Ic bar_delay
-Update frequency of external script on the status bar.
+Update frequency, in seconds, of external script that populates the status bar.
 .It Ic spawn_term
 External application that gets spawned when M-S-[Return] is used.
 .It Ic dialog_ratio
@@ -151,7 +153,12 @@ Some applications have dialog windows that are too small to be useful.
 This ratio is the screen size as to what they will be resized.
 E.g 0.6 is 60% of the physical screen size.
 .It Ic screenshot_enabled
-Set to 1 to enable screen-shotting capability.
+Enable or disable screenshot capability.
+.It Ic screenshot_app
+Set to the script that will take screenshots.
+It will be called with "full" or "window" as parameter 1 to indicate what
+screenshot action is expected.
+The script shall handle those cases accordingly.
 .El
 .Pp
 Colors need to be specified per the
@@ -172,7 +179,3 @@ and
 .Sh HISTORY
 .Nm
 was inspired by xmonad & dwm.
-.Pp
-.Nm
-first appeared in
-.Ox 4.5 .

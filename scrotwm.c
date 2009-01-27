@@ -175,7 +175,7 @@ char			*bar_fonts[] = {
 
 /* terminal + args */
 char			*spawn_term[] = { "xterm", NULL };
-char			*spawn_screenshot[] = { "screenshot.sh", NULL, NULL }; /* XXX get from conf */
+char			*spawn_screenshot[] = { "screenshot.sh", NULL, NULL };
 char			*spawn_menu[] = { "dmenu_run", "-fn", NULL,
 			    "-nb", NULL, "-nf", NULL, "-sb", NULL, "-sf", NULL, NULL };
 
@@ -457,10 +457,13 @@ conf_load(char *filename)
 
 		case 's':
 			if (!strncmp(var, "spawn_term", strlen("spawn_term")))
-				asprintf(&spawn_term[0], "%s", val); /* XXX args? */
+				asprintf(&spawn_term[0], "%s", val);
 			if (!strncmp(var, "screenshot_enabled",
 			    strlen("screenshot_enabled")))
 				ss_enabled = atoi(val);
+			if (!strncmp(var, "screenshot_app",
+			    strlen("screenshot_app")))
+				asprintf(&spawn_screenshot[0], "%s", val);
 			break;
 		default:
 			goto bad;
