@@ -1,4 +1,6 @@
 #!/bin/sh
+# $scrotwm$
+#
 screenshot() {
 	case $1 in
 	full)

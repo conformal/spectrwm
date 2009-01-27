@@ -1,5 +1,5 @@
 #!/bin/sh
-
+# $scrotwm$
 print_cpu() {
 	echo -n "CPU: ${7}% User  ${8}% Nice  ${9}% Sys  ${10}% Int  ${11}% Idle     "
 }
