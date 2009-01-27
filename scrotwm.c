@@ -175,7 +175,7 @@ char			*bar_fonts[] = {
 
 /* terminal + args */
 char			*spawn_term[] = { "xterm", NULL };
-char			*spawn_screenshot[] = { "scrot", NULL, NULL }; /* XXX get from conf */
+char			*spawn_screenshot[] = { "screenshot.sh", NULL, NULL }; /* XXX get from conf */
 char			*spawn_menu[] = { "dmenu_run", "-fn", NULL,
 			    "-nb", NULL, "-nf", NULL, "-sb", NULL, "-sf", NULL, NULL };
 
@@ -1476,10 +1476,10 @@ screenshot(struct swm_region *r, union arg *args)
 
 	switch (args->id) {
 	case SWM_ARG_ID_SS_ALL:
-		spawn_screenshot[1] = "-m";
+		spawn_screenshot[1] = "full";
 		break;
 	case SWM_ARG_ID_SS_WINDOW:
-		spawn_screenshot[1] = "-s"; /* XXX doesn't work with scrot */
+		spawn_screenshot[1] = "window";
 		break;
 	default:
 		return;
