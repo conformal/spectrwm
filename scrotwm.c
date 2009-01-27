@@ -1106,7 +1106,6 @@ cycle_layout(struct swm_region *r, union arg *args)
 	if (ws->cur_layout->l_stack == NULL)
 		ws->cur_layout = &layouts[0];
 	ignore_enter = 1;
-
 	stack();
 }
 
@@ -1930,16 +1929,16 @@ destroynotify(XEvent *e)
 			ws->focus = TAILQ_PREV(win, ws_win_list, entry);
 		if (ws->focus == NULL)
 			ws->focus = TAILQ_FIRST(&ws->winlist);
-		if (ws->focus == win)
+		if (ws->focus == NULL || ws->focus == win) {
 			ws->focus = NULL;
-		if (cur_focus == win)
+			unfocus_all();
+		} else
 			focus_win(ws->focus);
-
 		TAILQ_REMOVE(&ws->winlist, win, entry);
 		set_win_state(win, WithdrawnState);
 		free(win);
+		stack();
 	}
-	stack();
 }
 
 void
