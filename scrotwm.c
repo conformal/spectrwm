@@ -1892,15 +1892,16 @@ configurerequest(XEvent *e)
 				win->g.h = ev->height;
 			if (win->ws->r != NULL) {
 				/* this seems to be full screen */
-				if (win->g.w > WIDTH(win->ws->r)) {
-					/* kill border */
-					win->g.x -= 1;
-					win->g.w += 1;
+				if (win->g.w >= WIDTH(win->ws->r)) {
+					win->g.x = -1;
+					win->g.w = WIDTH(win->ws->r);
+					ev->value_mask |= CWX | CWWidth;
 				}
-				if (win->g.h > HEIGHT(win->ws->r)) {
+				if (win->g.h >= HEIGHT(win->ws->r)) {
 					/* kill border */
-					win->g.y -= 1;
-					win->g.h += 1;
+					win->g.y = -1;
+					win->g.h = HEIGHT(win->ws->r);
+					ev->value_mask |= CWY | CWHeight;
 				}
 			}
 			if ((ev->value_mask & (CWX|CWY)) &&
