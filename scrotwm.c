@@ -176,8 +176,8 @@ char			*bar_fonts[] = {
 /* terminal + args */
 char			*spawn_term[] = { "xterm", NULL };
 char			*spawn_screenshot[] = { "screenshot.sh", NULL, NULL };
-char			*spawn_menu[] = { "dmenu_run", "-fn", NULL,
-			    "-nb", NULL, "-nf", NULL, "-sb", NULL, "-sf", NULL, NULL };
+char			*spawn_menu[] = { "dmenu_run", "-fn", NULL, "-nb", NULL,
+			    "-nf", NULL, "-sb", NULL, "-sf", NULL, NULL };
 
 #define SWM_MENU_FN	(2)
 #define SWM_MENU_NB	(4)
@@ -804,6 +804,7 @@ void
 spawn(struct swm_region *r, union arg *args)
 {
 	char			*ret;
+	int			si;
 
 	DNPRINTF(SWM_D_MISC, "spawn: %s\n", args->argv[0]);
 	/*
@@ -824,6 +825,12 @@ spawn(struct swm_region *r, union arg *args)
 				free(ret);
 			}
 			setsid();
+			/* kill stdin, mplayer, ssh-add etc. need that */
+			si = open("/dev/null", O_RDONLY, 0);
+			if (si == -1)
+				err(1, "open /dev/null");
+			if (dup2(si, 0) == -1)
+				err(1, "dup2 /dev/null");
 			execvp(args->argv[0], args->argv);
 			fprintf(stderr, "execvp failed\n");
 			perror(" failed");
@@ -1789,9 +1796,6 @@ manage_window(Window id)
 	win->s = r->s;	/* this never changes */
 	TAILQ_INSERT_TAIL(&ws->winlist, win, entry);
 
-	/* make new win focused */
-	focus_win(win);
-
 	XGetTransientForHint(display, win->id, &trans);
 	if (trans) {
 		win->transient = trans;
@@ -1835,6 +1839,10 @@ manage_window(Window id)
 	    PropertyChangeMask | StructureNotifyMask);
 
 	set_win_state(win, NormalState);
+
+	/* make new win focused */
+	focus_win(win);
+
 
 	return (win);
 }
