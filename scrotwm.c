@@ -1757,6 +1757,8 @@ manage_window(Window id)
 	unsigned char		ws_idx_str[SWM_PROPLEN], *prop = NULL;
 	struct swm_region	*r;
 	long			mask;
+	int			ws_idx;
+	const char		*errstr;
 
 	if ((win = find_window(id)) != NULL)
 			return (win);	/* already being managed */
@@ -1773,9 +1775,6 @@ manage_window(Window id)
 	r = root_to_region(win->wa.root);
 	/* If the window was managed before, put it in the same workspace */
 	if (prop) {
-		int		ws_idx;
-		const char	*errstr;
-
 		DNPRINTF(SWM_D_PROP, "got property _SWM_WS=%s\n", prop);
 		ws_idx = strtonum(prop, 0, 9, &errstr);
 		if (errstr)
