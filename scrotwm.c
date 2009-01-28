@@ -48,6 +48,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+static const char	*cvstag = "$scrotwm$";
+
 #define	SWM_VERSION	"0.6"
 
 #include <stdio.h>
@@ -103,7 +105,6 @@
 #define	SWM_D_MOUSE		0x0040
 #define	SWM_D_PROP		0x0080
 
-
 u_int32_t		swm_debug = 0
 			    | SWM_D_MISC
 			    | SWM_D_EVENT
@@ -111,6 +112,7 @@ u_int32_t		swm_debug = 0
 			    | SWM_D_FOCUS
 			    | SWM_D_MOVE
 			    | SWM_D_STACK
+			    | SWM_D_MOUSE
 			    | SWM_D_PROP
 			    ;
 #else
@@ -122,17 +124,15 @@ u_int32_t		swm_debug = 0
 #define MODKEY			Mod1Mask
 #define CLEANMASK(mask)		(mask & ~(numlockmask | LockMask))
 #define BUTTONMASK		(ButtonPressMask|ButtonReleaseMask)
-
-#define X(r)		(r)->g.x	
-#define Y(r)		(r)->g.y
-#define WIDTH(r)	(r)->g.w	
-#define HEIGHT(r)	(r)->g.h
+#define SWM_PROPLEN		(16)
+#define X(r)			(r)->g.x	
+#define Y(r)			(r)->g.y
+#define WIDTH(r)		(r)->g.w	
+#define HEIGHT(r)		(r)->g.h
 
 #ifndef SWM_LIB
-#define SWM_LIB		"/usr/X11R6/lib/swmhack.so"
+#define SWM_LIB			"/usr/X11R6/lib/swmhack.so"
 #endif
-
-#define SWM_PROPLEN	(16)
 
 char			**start_argv;
 Atom			astate;
@@ -2271,7 +2271,8 @@ main(int argc, char *argv[])
 	fd_set			rd;
 
 	start_argv = argv;
-	fprintf(stderr, "Welcome to scrotwm V%s\n", SWM_VERSION);
+	fprintf(stderr, "Welcome to scrotwm V%s cvs tag: %s\n",
+	    SWM_VERSION, cvstag);
 	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
 		warnx("no locale support");
 
