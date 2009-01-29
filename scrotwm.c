@@ -1696,6 +1696,8 @@ resize(struct ws_win *win)
 			break;
 		}
 	} while (ev.type != ButtonRelease);
+	XWarpPointer(display, None, win->id, 0, 0, 0, 0, win->g.w - 1,
+	    win->g.h - 1);
 	XUngrabPointer(display, CurrentTime);
 
 	/* drain events */
