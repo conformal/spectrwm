@@ -104,6 +104,7 @@ static const char	*cvstag = "$scrotwm$";
 #define	SWM_D_STACK		0x0020
 #define	SWM_D_MOUSE		0x0040
 #define	SWM_D_PROP		0x0080
+#define	SWM_D_CLASS		0x0100
 
 u_int32_t		swm_debug = 0
 			    | SWM_D_MISC
@@ -114,6 +115,7 @@ u_int32_t		swm_debug = 0
 			    | SWM_D_STACK
 			    | SWM_D_MOUSE
 			    | SWM_D_PROP
+			    | SWM_D_CLASS
 			    ;
 #else
 #define DPRINTF(x...)
@@ -307,6 +309,17 @@ union arg {
 #define SWM_ARG_ID_SS_ALL	(0)
 #define SWM_ARG_ID_SS_WINDOW	(1)
 	char			**argv;
+};
+
+struct quirk {
+	char			*class;
+	char			*name;
+	unsigned long		quirk;
+#define SWM_Q_FLOAT		(1<<0)
+} quirks[] = {
+	{ "MPlayer",		"xv",		SWM_Q_FLOAT },
+	{ "OpenOffice.org 2.4",	"VCLSalFrame",	SWM_Q_FLOAT },
+	{ NULL,		NULL,		0},
 };
 
 unsigned long
@@ -1758,13 +1771,12 @@ manage_window(Window id)
 	struct workspace	*ws;
 	struct ws_win		*win;
 	XClassHint		ch;
-	int			format;
+	int			format, i, ws_idx;
 	unsigned long		nitems, bytes;
 	Atom			ws_idx_atom = 0, type;
 	unsigned char		ws_idx_str[SWM_PROPLEN], *prop = NULL;
 	struct swm_region	*r;
 	long			mask;
-	int			ws_idx;
 	const char		*errstr;
 
 	if ((win = find_window(id)) != NULL)
@@ -1807,7 +1819,7 @@ manage_window(Window id)
 	win->g.x = win->wa.x;
 	win->g.y = win->wa.y;
 
-	XGetWMNormalHints(display, win->id, &win->sh, &mask);
+	XGetWMNormalHints(display, win->id, &win->sh, &mask); /* XXX function? */
 
 	if (ws_idx_atom && prop == NULL &&
 	    snprintf(ws_idx_str, SWM_PROPLEN, "%d", ws->idx) < SWM_PROPLEN) {
@@ -1822,17 +1834,27 @@ manage_window(Window id)
 	fprintf(stderr, "manage window: %d x %d y %d w %d h %d\n", win->id, win->g.x, win->g.y, win->g.w, win->g.h);
 	*/
 
-	/* XXX make this a table */
 	bzero(&ch, sizeof ch);
 	if (XGetClassHint(display, win->id, &ch)) {
-		/*fprintf(stderr, "class: %s name: %s\n", ch.res_class, ch.res_name); */
-		if (!strcmp(ch.res_class, "MPlayer") && !strcmp(ch.res_name, "xv")) {
-			win->floating = 1;
-		}
+		DNPRINTF(SWM_D_CLASS, "class: %s name: %s\n",
+		    ch.res_class, ch.res_name);
+		for (i = 0; quirks[i].class != NULL && quirks[i].name != NULL &&
+		    quirks[i].quirk != 0; i++){
+			if (!strcmp(ch.res_class, quirks[i].class) &&
+			    !strcmp(ch.res_name, quirks[i].name)) {
+				DNPRINTF(SWM_D_CLASS, "found: %s name: %s\n",
+				    ch.res_class, ch.res_name);
+				if (quirks[i].quirk & SWM_Q_FLOAT)
+					win->floating = 1;
+			}
+#if 0
+		/* XXX logic says to do this but get a double free */
 		if (ch.res_class)
 			XFree(ch.res_class);
 		if (ch.res_name)
 			XFree(ch.res_name);
+#endif
+		}
 	}
 
 	XSelectInput(display, id, EnterWindowMask | FocusChangeMask |
@@ -1842,7 +1864,6 @@ manage_window(Window id)
 
 	/* make new win focused */
 	focus_win(win);
-
 
 	return (win);
 }
@@ -2005,8 +2026,36 @@ maprequest(XEvent *e)
 void
 propertynotify(XEvent *e)
 {
+	struct ws_win		*win;
+	XPropertyEvent		*ev = &e->xproperty;
+
 	DNPRINTF(SWM_D_EVENT, "propertynotify: window: %lu\n",
-	    e->xproperty.window);
+	    ev->window);
+
+	if (ev->state == PropertyDelete)
+		return; /* ignore */
+	win = find_window(ev->window);
+	if (win == NULL)
+		return;
+
+	switch (ev->atom) {
+	case XA_WM_NORMAL_HINTS:
+#if 0
+		long		mask;
+		XGetWMNormalHints(display, win->id, &win->sh, &mask);
+		fprintf(stderr, "normal hints: flag 0x%x\n", win->sh.flags);
+		if (win->sh.flags & PMinSize) {
+			win->g.w = win->sh.min_width;
+			win->g.h = win->sh.min_height;
+			fprintf(stderr, "min %d %d\n", win->g.w, win->g.h);
+		}
+		XMoveResizeWindow(display, win->id,
+		    win->g.x, win->g.y, win->g.w, win->g.h);
+#endif
+		break;
+	default:
+		break;
+	}
 }
 
 void
