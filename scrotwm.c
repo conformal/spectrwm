@@ -126,6 +126,7 @@ u_int32_t		swm_debug = 0
 #define MODKEY			Mod1Mask
 #define CLEANMASK(mask)		(mask & ~(numlockmask | LockMask))
 #define BUTTONMASK		(ButtonPressMask|ButtonReleaseMask)
+#define MOUSEMASK		(BUTTONMASK|PointerMotionMask)
 #define SWM_PROPLEN		(16)
 #define X(r)			(r)->g.x	
 #define Y(r)			(r)->g.y
@@ -312,6 +313,7 @@ union arg {
 	char			**argv;
 };
 
+/* quirks */
 struct quirk {
 	char			*class;
 	char			*name;
@@ -321,6 +323,37 @@ struct quirk {
 	{ "MPlayer",		"xv",		SWM_Q_FLOAT },
 	{ "OpenOffice.org 2.4",	"VCLSalFrame",	SWM_Q_FLOAT },
 	{ NULL,		NULL,		0},
+};
+
+/* events */
+void			expose(XEvent *);
+void			keypress(XEvent *);
+void			buttonpress(XEvent *);
+void			configurerequest(XEvent *);
+void			configurenotify(XEvent *);
+void			destroynotify(XEvent *);
+void			enternotify(XEvent *);
+void			focusin(XEvent *);
+void			mappingnotify(XEvent *);
+void			maprequest(XEvent *);
+void			propertynotify(XEvent *);
+void			unmapnotify(XEvent *);
+void			visibilitynotify(XEvent *);
+
+void			(*handler[LASTEvent])(XEvent *) = {
+				[Expose] = expose,
+				[KeyPress] = keypress,
+				[ButtonPress] = buttonpress,
+				[ConfigureRequest] = configurerequest,
+				[ConfigureNotify] = configurenotify,
+				[DestroyNotify] = destroynotify,
+				[EnterNotify] = enternotify,
+				[FocusIn] = focusin,
+				[MappingNotify] = mappingnotify,
+				[MapRequest] = maprequest,
+				[PropertyNotify] = propertynotify,
+				[UnmapNotify] = unmapnotify,
+				[VisibilityNotify] = visibilitynotify,
 };
 
 unsigned long
@@ -1608,7 +1641,69 @@ struct key {
 };
 
 void
-click(struct swm_region *r, union arg *args)
+resize_window(struct ws_win *win)
+{
+	unsigned int		mask;
+	XWindowChanges		wc;
+	struct swm_region	*r;
+
+	r = root_to_region(win->wa.root);
+	bzero(&wc, sizeof wc);
+	mask = CWX | CWY | CWBorderWidth | CWWidth | CWHeight;
+	wc.border_width = 1;
+	wc.width = win->g.w;
+	wc.height = win->g.h;
+	wc.x = (WIDTH(r) - win->g.w) / 2;
+	wc.y = (HEIGHT(r) - win->g.h) / 2;
+
+	DNPRINTF(SWM_D_STACK, "resize_window: win %lu x %d y %d w %d h %d\n",
+	    win->id, wc.x, wc.y, wc.width, wc.height);
+
+	XConfigureWindow(display, win->id, mask, &wc);
+	config_win(win);
+}
+
+void
+resize(struct ws_win *win)
+{
+	XEvent			ev;
+	int			nw, nh;
+
+	DNPRINTF(SWM_D_MOUSE, "resize: win %d floating %d trans %d\n",
+	    win->id, win->floating, win->transient);
+
+	if (!(win->transient != 0 || win->floating != 0))
+		return;
+
+	if (XGrabPointer(display, win->id, False, MOUSEMASK, GrabModeAsync,
+	    GrabModeAsync, None, None /* cursor */, CurrentTime) != GrabSuccess)
+		return;
+	XWarpPointer(display, None, win->id, 0, 0, 0, 0, win->g.w, win->g.h);
+	do {
+		XMaskEvent(display, MOUSEMASK | ExposureMask |
+		    SubstructureRedirectMask, &ev);
+		switch(ev.type) {
+		case ConfigureRequest:
+		case Expose:
+		case MapRequest:
+			handler[ev.type](&ev);
+			break;
+		case MotionNotify:
+			XSync(display, False);
+			win->g.w = nw = ev.xmotion.x;
+			win->g.h = nh = ev.xmotion.y;
+			resize_window(win);
+			break;
+		}
+	} while (ev.type != ButtonRelease);
+	XUngrabPointer(display, CurrentTime);
+
+	/* drain events */
+	while (XCheckMaskEvent(display, EnterWindowMask, &ev));
+}
+
+void
+click(struct ws_win *win, union arg *args)
 {
 	DNPRINTF(SWM_D_MOUSE, "click: button: %d\n", args->id);
 
@@ -1618,6 +1713,7 @@ click(struct swm_region *r, union arg *args)
 	case Button2:
 		break;
 	case Button3:
+		resize(win);
 		break;
 	default:
 		return;
@@ -1630,11 +1726,11 @@ struct button {
 	unsigned int		action;
 	unsigned int		mask;
 	unsigned int		button;
-	void			(*func)(struct swm_region *r, union arg *);
+	void			(*func)(struct ws_win *, union arg *);
 	union arg		args;
 } buttons[] = {
 	  /* action		key		mouse button	func		args */
-	{ client_click,		MODKEY,		Button1,	click, {.id=Button1} },
+	{ client_click,		MODKEY,		Button3,	click, {.id=Button3} },
 };
 
 void
@@ -1750,8 +1846,7 @@ buttonpress(XEvent *e)
 		if (action == buttons[i].action && buttons[i].func &&
 		    buttons[i].button == ev->button &&
 		    CLEANMASK(buttons[i].mask) == CLEANMASK(ev->state))
-			buttons[i].func(root_to_region(ev->root),
-			&buttons[i].args);
+			buttons[i].func(win, &buttons[i].args);
 }
 
 void
@@ -2074,22 +2169,6 @@ visibilitynotify(XEvent *e)
 				if (e->xvisibility.window == r->bar_window)
 					bar_update();
 }
-
-void			(*handler[LASTEvent])(XEvent *) = {
-				[Expose] = expose,
-				[KeyPress] = keypress,
-				[ButtonPress] = buttonpress,
-				[ConfigureRequest] = configurerequest,
-				[ConfigureNotify] = configurenotify,
-				[DestroyNotify] = destroynotify,
-				[EnterNotify] = enternotify,
-				[FocusIn] = focusin,
-				[MappingNotify] = mappingnotify,
-				[MapRequest] = maprequest,
-				[PropertyNotify] = propertynotify,
-				[UnmapNotify] = unmapnotify,
-				[VisibilityNotify] = visibilitynotify,
-};
 
 int
 xerror_start(Display *d, XErrorEvent *ee)
