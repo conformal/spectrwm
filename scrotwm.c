@@ -219,6 +219,7 @@ struct ws_win {
 	struct swm_screen	*s;	/* always valid, never changes */
 	XWindowAttributes	wa;
 	XSizeHints		sh;
+	XClassHint		ch;
 };
 TAILQ_HEAD(ws_win_list, ws_win);
 
@@ -1770,7 +1771,6 @@ manage_window(Window id)
 	Window			trans;
 	struct workspace	*ws;
 	struct ws_win		*win;
-	XClassHint		ch;
 	int			format, i, ws_idx;
 	unsigned long		nitems, bytes;
 	Atom			ws_idx_atom = 0, type;
@@ -1834,26 +1834,18 @@ manage_window(Window id)
 	fprintf(stderr, "manage window: %d x %d y %d w %d h %d\n", win->id, win->g.x, win->g.y, win->g.w, win->g.h);
 	*/
 
-	bzero(&ch, sizeof ch);
-	if (XGetClassHint(display, win->id, &ch)) {
+	if (XGetClassHint(display, win->id, &win->ch)) {
 		DNPRINTF(SWM_D_CLASS, "class: %s name: %s\n",
-		    ch.res_class, ch.res_name);
+		    win->ch.res_class, win->ch.res_name);
 		for (i = 0; quirks[i].class != NULL && quirks[i].name != NULL &&
 		    quirks[i].quirk != 0; i++){
-			if (!strcmp(ch.res_class, quirks[i].class) &&
-			    !strcmp(ch.res_name, quirks[i].name)) {
+			if (!strcmp(win->ch.res_class, quirks[i].class) &&
+			    !strcmp(win->ch.res_name, quirks[i].name)) {
 				DNPRINTF(SWM_D_CLASS, "found: %s name: %s\n",
-				    ch.res_class, ch.res_name);
+				    win->ch.res_class, win->ch.res_name);
 				if (quirks[i].quirk & SWM_Q_FLOAT)
 					win->floating = 1;
 			}
-#if 0
-		/* XXX logic says to do this but get a double free */
-		if (ch.res_class)
-			XFree(ch.res_class);
-		if (ch.res_name)
-			XFree(ch.res_name);
-#endif
 		}
 	}
 
@@ -1965,6 +1957,10 @@ destroynotify(XEvent *e)
 			focus_win(ws->focus);
 		TAILQ_REMOVE(&ws->winlist, win, entry);
 		set_win_state(win, WithdrawnState);
+		if (win->ch.res_class)
+			XFree(win->ch.res_class);
+		if (win->ch.res_name)
+			XFree(win->ch.res_name);
 		free(win);
 		stack();
 	}
