@@ -1689,6 +1689,10 @@ resize(struct ws_win *win, union arg *args)
 			break;
 		case MotionNotify:
 			XSync(display, False);
+			if (ev.xmotion.x < 0)
+				ev.xmotion.x = 0;
+			if (ev.xmotion.y < 0)
+				ev.xmotion.y = 0;
 			win->g.w = ev.xmotion.x;
 			win->g.h = ev.xmotion.y;
 			resize_window(win);
