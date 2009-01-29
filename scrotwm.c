@@ -1664,10 +1664,9 @@ resize_window(struct ws_win *win)
 }
 
 void
-resize(struct ws_win *win)
+resize(struct ws_win *win, union arg *args)
 {
 	XEvent			ev;
-	int			nw, nh;
 
 	DNPRINTF(SWM_D_MOUSE, "resize: win %d floating %d trans %d\n",
 	    win->id, win->floating, win->transient);
@@ -1690,8 +1689,8 @@ resize(struct ws_win *win)
 			break;
 		case MotionNotify:
 			XSync(display, False);
-			win->g.w = nw = ev.xmotion.x;
-			win->g.h = nh = ev.xmotion.y;
+			win->g.w = ev.xmotion.x;
+			win->g.h = ev.xmotion.y;
 			resize_window(win);
 			break;
 		}
@@ -1705,21 +1704,62 @@ resize(struct ws_win *win)
 }
 
 void
-click(struct ws_win *win, union arg *args)
+move_window(struct ws_win *win)
 {
-	DNPRINTF(SWM_D_MOUSE, "click: button: %d\n", args->id);
+	unsigned int		mask;
+	XWindowChanges		wc;
+	struct swm_region	*r;
 
-	switch (args->id) {
-	case Button1:
-		break;
-	case Button2:
-		break;
-	case Button3:
-		resize(win);
-		break;
-	default:
+	r = root_to_region(win->wa.root);
+	bzero(&wc, sizeof wc);
+	mask = CWX | CWY;
+	wc.x = win->g.x;
+	wc.y = win->g.y;
+
+	DNPRINTF(SWM_D_STACK, "move_window: win %lu x %d y %d w %d h %d\n",
+	    win->id, wc.x, wc.y, wc.width, wc.height);
+
+	XConfigureWindow(display, win->id, mask, &wc);
+	config_win(win);
+}
+
+void
+move(struct ws_win *win, union arg *args)
+{
+	XEvent			ev;
+
+	DNPRINTF(SWM_D_MOUSE, "move: win %d floating %d trans %d\n",
+	    win->id, win->floating, win->transient);
+
+	if (!(win->transient != 0 || win->floating != 0))
 		return;
-	}
+
+	if (XGrabPointer(display, win->id, False, MOUSEMASK, GrabModeAsync,
+	    GrabModeAsync, None, None /* cursor */, CurrentTime) != GrabSuccess)
+		return;
+	XWarpPointer(display, None, win->id, 0, 0, 0, 0, 0, 0);
+	do {
+		XMaskEvent(display, MOUSEMASK | ExposureMask |
+		    SubstructureRedirectMask, &ev);
+		switch(ev.type) {
+		case ConfigureRequest:
+		case Expose:
+		case MapRequest:
+			handler[ev.type](&ev);
+			break;
+		case MotionNotify:
+			XSync(display, False);
+			win->g.x = ev.xmotion.x_root;
+			win->g.y = ev.xmotion.y_root;
+			move_window(win);
+			break;
+		}
+	} while (ev.type != ButtonRelease);
+	XWarpPointer(display, None, win->id, 0, 0, 0, 0, 0, 0);
+	XUngrabPointer(display, CurrentTime);
+
+	/* drain events */
+	while (XCheckMaskEvent(display, EnterWindowMask, &ev));
 }
 
 /* mouse */
@@ -1732,7 +1772,8 @@ struct button {
 	union arg		args;
 } buttons[] = {
 	  /* action		key		mouse button	func		args */
-	{ client_click,		MODKEY,		Button3,	click, {.id=Button3} },
+	{ client_click,		MODKEY,		Button3,	resize, 	{0} },
+	{ client_click,		MODKEY,		Button1,	move, 		{0} },
 };
 
 void
