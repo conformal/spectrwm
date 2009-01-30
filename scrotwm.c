@@ -312,6 +312,8 @@ union arg {
 #define SWM_ARG_ID_CYCLESC_DOWN	(15)
 #define SWM_ARG_ID_SS_ALL	(0)
 #define SWM_ARG_ID_SS_WINDOW	(1)
+#define SWM_ARG_ID_DONTCENTER	(0)
+#define SWM_ARG_ID_CENTER	(1)
 	char			**argv;
 };
 
@@ -1658,7 +1660,7 @@ struct key {
 };
 
 void
-resize_window(struct ws_win *win)
+resize_window(struct ws_win *win, int center)
 {
 	unsigned int		mask;
 	XWindowChanges		wc;
@@ -1666,12 +1668,15 @@ resize_window(struct ws_win *win)
 
 	r = root_to_region(win->wa.root);
 	bzero(&wc, sizeof wc);
-	mask = CWX | CWY | CWBorderWidth | CWWidth | CWHeight;
+	mask = CWBorderWidth | CWWidth | CWHeight;
 	wc.border_width = 1;
 	wc.width = win->g.w;
 	wc.height = win->g.h;
-	wc.x = (WIDTH(r) - win->g.w) / 2;
-	wc.y = (HEIGHT(r) - win->g.h) / 2;
+	if (center == SWM_ARG_ID_CENTER) {
+		wc.x = (WIDTH(r) - win->g.w) / 2;
+		wc.y = (HEIGHT(r) - win->g.h) / 2;
+		mask |= CWX | CWY;
+	}
 
 	DNPRINTF(SWM_D_STACK, "resize_window: win %lu x %d y %d w %d h %d\n",
 	    win->id, wc.x, wc.y, wc.width, wc.height);
@@ -1712,7 +1717,7 @@ resize(struct ws_win *win, union arg *args)
 				ev.xmotion.y = 0;
 			win->g.w = ev.xmotion.x;
 			win->g.h = ev.xmotion.y;
-			resize_window(win);
+			resize_window(win, args->id);
 			break;
 		}
 	} while (ev.type != ButtonRelease);
@@ -1793,7 +1798,8 @@ struct button {
 	union arg		args;
 } buttons[] = {
 	  /* action		key		mouse button	func		args */
-	{ client_click,		MODKEY,		Button3,	resize, 	{0} },
+	{ client_click,		MODKEY,		Button3,	resize, 	{.id = SWM_ARG_ID_DONTCENTER} },
+	{ client_click,		MODKEY | ShiftMask, Button3,	resize, 	{.id = SWM_ARG_ID_CENTER} },
 	{ client_click,		MODKEY,		Button1,	move, 		{0} },
 };
 
