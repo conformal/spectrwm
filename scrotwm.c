@@ -158,6 +158,8 @@ double			dialog_ratio = .6;
 char			*bar_argv[] = { NULL, NULL };
 int			bar_pipe[2];
 char			bar_ext[SWM_BAR_MAX];
+char			bar_vertext[SWM_BAR_MAX];
+int			bar_version = 0;
 sig_atomic_t		bar_alarm = 0;
 int			bar_delay = 30;
 int			bar_enabled = 1;
@@ -599,8 +601,8 @@ bar_update(void)
 	for (i = 0; i < ScreenCount(display); i++) {
 		x = 1;
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
-			snprintf(loc, sizeof loc, "%s     %d:%d    %s",
-			    s, x++, r->ws->idx + 1, bar_ext);
+			snprintf(loc, sizeof loc, "%s     %d:%d    %s    %s",
+			    s, x++, r->ws->idx + 1, bar_ext, bar_vertext);
 			bar_print(r, loc);
 		}
 	}
@@ -723,6 +725,17 @@ bar_setup(struct swm_region *r)
 	if (signal(SIGALRM, bar_signal) == SIG_ERR)
 		err(1, "could not install bar_signal");
 	bar_refresh();
+}
+
+void
+version(struct swm_region *r, union arg *args)
+{
+	bar_version = !bar_version;
+	if (bar_version)
+		strlcpy(bar_vertext, cvstag, sizeof bar_vertext);
+	else
+		strlcpy(bar_vertext, "", sizeof bar_vertext);
+	bar_update();
 }
 
 void
@@ -1641,6 +1654,7 @@ struct key {
 	{ MODKEY | ShiftMask,	XK_x,		wkill,		{0} },
 	{ MODKEY,		XK_s,		screenshot,	{.id = SWM_ARG_ID_SS_ALL} },
 	{ MODKEY | ShiftMask,	XK_s,		screenshot,	{.id = SWM_ARG_ID_SS_WINDOW} },
+	{ MODKEY | ShiftMask,	XK_v,		version,	{0} },
 };
 
 void
