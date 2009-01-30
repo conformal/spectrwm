@@ -1515,6 +1515,9 @@ send_to_ws(struct swm_region *r, union arg *args)
 	Atom			ws_idx_atom = 0;
 	unsigned char		ws_idx_str[SWM_PROPLEN];
 
+	if (win == NULL)
+		return;
+
 	DNPRINTF(SWM_D_MOVE, "send_to_ws: win: %lu\n", win->id);
 
 	ws = win->ws;
