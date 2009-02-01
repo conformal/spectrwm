@@ -2006,15 +2006,27 @@ manage_window(Window id)
 	if ((win = calloc(1, sizeof(struct ws_win))) == NULL)
 		errx(1, "calloc: failed to allocate memory for new window");
 
+	/* Get all the window data in one shot */
 	ws_idx_atom = XInternAtom(display, "_SWM_WS", False);
 	if (ws_idx_atom)
 		XGetWindowProperty(display, id, ws_idx_atom, 0, SWM_PROPLEN,
 		    False, XA_STRING, &type, &format, &nitems, &bytes, &prop);
-
 	XGetWindowAttributes(display, id, &win->wa);
+	XGetTransientForHint(display, id, &trans);
+	XGetWMNormalHints(display, id, &win->sh, &mask); /* XXX function? */
+	if (trans) {
+		win->transient = trans;
+		DNPRINTF(SWM_D_MISC, "manage_window: win %u transient %u\n",
+		    (unsigned)win->id, win->transient);
+	}
+	
+	/*
+	 * Figure out where to put the window. If it was previously assigned to
+	 * a workspace (either by spawn() or manually moving), and isn't
+	 * transient, * put it in the same workspace
+	 */
 	r = root_to_region(win->wa.root);
-	/* If the window was managed before, put it in the same workspace */
-	if (prop) {
+	if (prop && win->transient == 0) {
 		DNPRINTF(SWM_D_PROP, "got property _SWM_WS=%s\n", prop);
 		ws_idx = strtonum(prop, 0, 9, &errstr);
 		if (errstr)
@@ -2024,24 +2036,18 @@ manage_window(Window id)
 	} else
 		ws = r->ws;
 
+	/* set up the window layout */
 	win->id = id;
 	win->ws = ws;
 	win->s = r->s;	/* this never changes */
 	TAILQ_INSERT_TAIL(&ws->winlist, win, entry);
 
-	XGetTransientForHint(display, win->id, &trans);
-	if (trans) {
-		win->transient = trans;
-		DNPRINTF(SWM_D_MISC, "manage_window: win %u transient %u\n",
-		    (unsigned)win->id, win->transient);
-	}
 	win->g.w = win->wa.width;
 	win->g.h = win->wa.height;
 	win->g.x = win->wa.x;
 	win->g.y = win->wa.y;
 
-	XGetWMNormalHints(display, win->id, &win->sh, &mask); /* XXX function? */
-
+	/* Set window properties so we can remember this after reincarnation */
 	if (ws_idx_atom && prop == NULL &&
 	    snprintf(ws_idx_str, SWM_PROPLEN, "%d", ws->idx) < SWM_PROPLEN) {
 		DNPRINTF(SWM_D_PROP, "setting property _SWM_WS to %s\n",
