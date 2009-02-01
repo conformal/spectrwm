@@ -1723,7 +1723,7 @@ resize(struct ws_win *win, union arg *args)
 	XEvent			ev;
 	Time			time = 0;
 
-	DNPRINTF(SWM_D_MOUSE, "resize: win %d floating %d trans %d\n",
+	DNPRINTF(SWM_D_MOUSE, "resize: win %lu floating %d trans %d\n",
 	    win->id, win->floating, win->transient);
 
 	if (!(win->transient != 0 || win->floating != 0))
@@ -1798,7 +1798,7 @@ move(struct ws_win *win, union arg *args)
 	Time			time = 0;
 	int			restack = 0;
 
-	DNPRINTF(SWM_D_MOUSE, "move: win %d floating %d trans %d\n",
+	DNPRINTF(SWM_D_MOUSE, "move: win %lu floating %d trans %d\n",
 	    win->id, win->floating, win->transient);
 
 	if (win->floating == 0) {
