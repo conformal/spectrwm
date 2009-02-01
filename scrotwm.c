@@ -206,9 +206,9 @@ struct workspace;
 struct swm_region {
 	TAILQ_ENTRY(swm_region)	entry;
 	struct swm_geometry	g;
-	Window			bar_window;
 	struct workspace 	*ws;	/* current workspace on this region */
 	struct swm_screen	*s;	/* screen idx */
+	Window			bar_window;
 }; 
 TAILQ_HEAD(swm_region_list, swm_region);
 
@@ -404,6 +404,36 @@ setscreencolor(char *val, int i, int c)
 		    i, ScreenCount(display));
 }
 
+void		new_region(struct swm_screen *, struct workspace *,
+			    int, int, int, int);
+
+void
+custom_region(char *val)
+{
+	unsigned int			sidx, x, y, w, h;
+
+	if (sscanf(val, "screen[%u]:%ux%u+%u+%u", &sidx, &w, &h, &x, &y) != 5)
+		errx(1, "invalid custom region, "
+		    "should be 'screen[<n>]:<n>x<n>+<n>+<n>\n");
+	if (sidx < 1 || sidx > ScreenCount(display))
+		errx(1, "invalid screen index: %d out of bounds (maximum %d)\n",
+		    sidx, ScreenCount(display));
+	sidx--;
+
+	if (w < 1 || h < 1)
+		errx(1, "region %ux%u+%u+%u too small\n", w, h, x, y);
+
+	if (x  < 0 || x > DisplayWidth(display, sidx) ||
+	    y < 0 || y > DisplayHeight(display, sidx) ||
+	    w + x > DisplayWidth(display, sidx) ||
+	    h + y > DisplayHeight(display, sidx))
+		errx(1, "region %ux%u+%u+%u not within screen boundaries "
+		    "(%ux%u)\n", w, h, x, y,
+		    DisplayWidth(display, sidx), DisplayHeight(display, sidx));
+	    
+	new_region(&screens[sidx], NULL, x, y, w, h);
+}
+
 int
 varmatch(char *var, char *name, int *index)
 {
@@ -507,6 +537,13 @@ conf_load(char *filename)
 				if (dialog_ratio > 1.0 || dialog_ratio <= .3)
 					dialog_ratio = .6;
 			} else
+				goto bad;
+			break;
+
+		case 'r':
+			if (!strncmp(var, "region", strlen("region")))
+				custom_region(val);
+			else
 				goto bad;
 			break;
 
@@ -975,7 +1012,7 @@ switchws(struct swm_region *r, union arg *args)
 	old_ws = this_r->ws;
 	new_ws = &this_r->s->ws[wsid];
 
-	DNPRINTF(SWM_D_WS, "switchws screen %d region %dx%d+%d+%d: "
+	DNPRINTF(SWM_D_WS, "switchws screen[%d]:%dx%d+%d+%d: "
 	    "%d -> %d\n", r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r),
 	    old_ws->idx, wsid);
 
@@ -1015,7 +1052,7 @@ cyclews(struct swm_region *r, union arg *args)
 	struct swm_screen	*s = r->s;
 
 	DNPRINTF(SWM_D_WS, "cyclews id %d "
-	    "in screen %d region %dx%d+%d+%d ws %d\n", args->id,
+	    "in screen[%d]:%dx%d+%d+%d ws %d\n", args->id,
 	    r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
 
 	a.id = r->ws->idx;
@@ -2358,13 +2395,59 @@ getstate(Window w)
 }
 
 void
+remove_region(struct swm_region *r) 
+{
+	struct swm_screen	*s = r->s;
+	struct ws_win		*win;
+
+	DNPRINTF(SWM_D_MISC, "removing region: screen[%d]:%dx%d+%d+%d\n",
+	     s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r));
+
+	TAILQ_FOREACH(win, &r->ws->winlist, entry)
+		XUnmapWindow(display, win->id);
+	r->ws->r = NULL;
+
+	XDestroyWindow(display, r->bar_window);
+	TAILQ_REMOVE(&s->rl, r, entry);
+	free(r);
+}
+
+void
 new_region(struct swm_screen *s, struct workspace *ws,
     int x, int y, int w, int h)
 {
-	struct swm_region	*r;
+	struct swm_region	*r, *n;
+	int			i;
 
-	DNPRINTF(SWM_D_MISC, "new region on screen %d: %dx%d (%d, %d)\n",
-	     s->idx, x, y, w, h);
+	DNPRINTF(SWM_D_MISC, "new region: screen[%d]:%dx%d+%d+%d\n",
+	     s->idx, w, h, x, y);
+
+	/* remove any conflicting regions */
+	n = TAILQ_FIRST(&s->rl);
+	while (n) {
+		r = n;
+		n = TAILQ_NEXT(r, entry);
+		if (X(r) < (x + w) &&
+		    (X(r) + WIDTH(r)) > x &&
+		    Y(r) < (y + h) &&
+		    (Y(r) + HEIGHT(r)) > y) {
+			if (ws == NULL)
+				ws = r->ws;
+			remove_region(r);
+		}
+	}
+
+	/* pick an appropriate workspace */
+	if (ws == NULL) {
+		for (i = 0; i < SWM_WS_MAX; i++)
+			if (s->ws[i].r == NULL) {
+				ws = &s->ws[i];
+				break;
+			}
+
+		if (ws == NULL)
+			errx(1, "no free regions\n");
+	}
 
 	if ((r = calloc(1, sizeof(struct swm_region))) == NULL)
 		errx(1, "calloc: failed to allocate memory for screen");

@@ -184,6 +184,10 @@ is used.
 Some applications have dialogue windows that are too small to be useful.
 This ratio is the screen size to what they will be resized.
 For example, 0.6 is 60% of the physical screen size.
+.It Cm region
+Allocates a custom region, removing any autodetected regions which occupy the same
+space on the screen.
+Defined in the format screen[<idx>]:WIDTHxHEIGHT+X+Y, e.g. screen[1]:800x1200+0+0.
 .It Cm screenshot_enabled
 Enable or disable screenshot capability.
 .It Cm screenshot_app
