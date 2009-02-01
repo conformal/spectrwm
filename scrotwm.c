@@ -181,6 +181,7 @@ char			*bar_fonts[] = {
 /* terminal + args */
 char			*spawn_term[] = { "xterm", NULL };
 char			*spawn_screenshot[] = { "screenshot.sh", NULL, NULL };
+char			*spawn_lock[] = { "xlock", NULL };
 char			*spawn_menu[] = { "dmenu_run", "-fn", NULL, "-nb", NULL,
 			    "-nf", NULL, "-sb", NULL, "-sf", NULL, NULL };
 
@@ -1687,6 +1688,7 @@ struct key {
 	{ MODKEY | ShiftMask,	XK_s,		screenshot,	{.id = SWM_ARG_ID_SS_WINDOW} },
 	{ MODKEY,		XK_t,		floating_toggle,{0} },
 	{ MODKEY | ShiftMask,	XK_v,		version,	{0} },
+	{ MODKEY | ShiftMask,	XK_Delete,	spawn,		{.argv = spawn_lock} },
 };
 
 void
