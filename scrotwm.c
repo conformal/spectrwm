@@ -218,6 +218,7 @@ struct ws_win {
 	int			got_focus;
 	int			floating;
 	int			transient;
+	int			manual;
 	struct workspace	*ws;	/* always valid */
 	struct swm_screen	*s;	/* always valid, never changes */
 	XWindowAttributes	wa;
@@ -1238,8 +1239,13 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 	}
 	wc.width = win->g.w;
 	wc.height = win->g.h;
-	wc.x = (WIDTH(r) - win->g.w) / 2;
-	wc.y = (HEIGHT(r) - win->g.h) / 2;
+	if (win->manual) {
+		wc.x = win->g.x;
+		wc.y = win->g.y;
+	} else {
+		wc.x = (WIDTH(r) - win->g.w) / 2;
+		wc.y = (HEIGHT(r) - win->g.h) / 2;
+	}
 
 	DNPRINTF(SWM_D_STACK, "stack_floater: win %lu x %d y %d w %d h %d\n",
 	    win->id, wc.x, wc.y, wc.width, wc.height);
@@ -1322,8 +1328,12 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	extra = r_g.h - (colno * hrh);
 	win_g.h = hrh - 2;
 
+	/*  stack all the tiled windows */
 	i = j = 0;
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
+		if (win->transient != 0 || win->floating != 0)
+			continue;
+
 		if (split && i == split) {
 			colno = winno - split;
 			hrh = (r_g.h / colno);
@@ -1364,33 +1374,38 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		else
 			win_g.y += last_h + 2;
 
-		if (win->transient != 0 || win->floating != 0)
-			stack_floater(win, ws->r);
-		else {
-			bzero(&wc, sizeof wc);
-			wc.border_width = 1;
-			if (rot) {
-				win->g.x = wc.x = win_g.y;
-				win->g.y = wc.y = win_g.x;
-				win->g.w = wc.width = win_g.h;
-				win->g.h = wc.height = win_g.w;
-			} else {
-				win->g.x = wc.x = win_g.x;
-				win->g.y = wc.y = win_g.y;
-				win->g.w = wc.width = win_g.w;
-				win->g.h = wc.height = win_g.h;
-			}
-			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
-			XConfigureWindow(display, win->id, mask, &wc);
-			/*
-			fprintf(stderr, "vertical_stack: win %d x %d y %d w %d h %d bw %d\n", win->id, win->g.x, win->g.y, win->g.w , win->g.h, wc.border_width);
-			*/
+		bzero(&wc, sizeof wc);
+		wc.border_width = 1;
+		if (rot) {
+			win->g.x = wc.x = win_g.y;
+			win->g.y = wc.y = win_g.x;
+			win->g.w = wc.width = win_g.h;
+			win->g.h = wc.height = win_g.w;
+		} else {
+			win->g.x = wc.x = win_g.x;
+			win->g.y = wc.y = win_g.y;
+			win->g.w = wc.width = win_g.w;
+			win->g.h = wc.height = win_g.h;
 		}
-
+		mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
+		XConfigureWindow(display, win->id, mask, &wc);
 		XMapRaised(display, win->id);
+		/*
+		fprintf(stderr, "vertical_stack: win %d x %d y %d w %d h %d bw %d\n", win->id, win->g.x, win->g.y, win->g.w , win->g.h, wc.border_width);
+		*/
+
 		last_h = win_g.h;
 		i++;
 		j++;
+	}
+
+	/* now, stack all the floaters and transients */
+	TAILQ_FOREACH(win, &ws->winlist, entry) {
+		if (win->transient == 0 && win->floating == 0)
+			continue;
+
+		stack_floater(win, ws->r);
+		XMapRaised(display, win->id);
 	}
 
 	if (winfocus)
@@ -1602,6 +1617,20 @@ screenshot(struct swm_region *r, union arg *args)
 	spawn(r, &a);
 }
 
+void
+floating_toggle(struct swm_region *r, union arg *args)
+{
+	struct ws_win	*win = cur_focus;
+
+	if (win == NULL)
+		return;
+
+	win->floating = !win->floating;
+	win->manual = 0;
+	stack();
+	focus_win(win);
+}
+
 /* key definitions */
 struct key {
 	unsigned int		mod;
@@ -1656,6 +1685,7 @@ struct key {
 	{ MODKEY | ShiftMask,	XK_x,		wkill,		{0} },
 	{ MODKEY,		XK_s,		screenshot,	{.id = SWM_ARG_ID_SS_ALL} },
 	{ MODKEY | ShiftMask,	XK_s,		screenshot,	{.id = SWM_ARG_ID_SS_WINDOW} },
+	{ MODKEY,		XK_t,		floating_toggle,{0} },
 	{ MODKEY | ShiftMask,	XK_v,		version,	{0} },
 };
 
@@ -1689,6 +1719,7 @@ void
 resize(struct ws_win *win, union arg *args)
 {
 	XEvent			ev;
+	Time			time = 0;
 
 	DNPRINTF(SWM_D_MOUSE, "resize: win %d floating %d trans %d\n",
 	    win->id, win->floating, win->transient);
@@ -1710,17 +1741,26 @@ resize(struct ws_win *win, union arg *args)
 			handler[ev.type](&ev);
 			break;
 		case MotionNotify:
-			XSync(display, False);
 			if (ev.xmotion.x < 0)
 				ev.xmotion.x = 0;
 			if (ev.xmotion.y < 0)
 				ev.xmotion.y = 0;
 			win->g.w = ev.xmotion.x;
 			win->g.h = ev.xmotion.y;
-			resize_window(win, args->id);
+
+			/* not free, don't sync more than 60 times / second */
+			if ((ev.xmotion.time - time) > (1000 / 60) ) {
+				time = ev.xmotion.time;
+				XSync(display, False);
+				resize_window(win, args->id);
+			}
 			break;
 		}
 	} while (ev.type != ButtonRelease);
+	if (time) {
+		XSync(display, False);
+		resize_window(win, args->id);
+	}
 	XWarpPointer(display, None, win->id, 0, 0, 0, 0, win->g.w - 1,
 	    win->g.h - 1);
 	XUngrabPointer(display, CurrentTime);
@@ -1753,12 +1793,17 @@ void
 move(struct ws_win *win, union arg *args)
 {
 	XEvent			ev;
+	Time			time = 0;
+	int			restack = 0;
 
 	DNPRINTF(SWM_D_MOUSE, "move: win %d floating %d trans %d\n",
 	    win->id, win->floating, win->transient);
 
-	if (!(win->transient != 0 || win->floating != 0))
-		return;
+	if (win->floating == 0) {
+		win->floating = 1;
+		win->manual = 1;
+		restack = 1;
+	}
 
 	if (XGrabPointer(display, win->id, False, MOUSEMASK, GrabModeAsync,
 	    GrabModeAsync, None, None /* cursor */, CurrentTime) != GrabSuccess)
@@ -1774,15 +1819,26 @@ move(struct ws_win *win, union arg *args)
 			handler[ev.type](&ev);
 			break;
 		case MotionNotify:
-			XSync(display, False);
 			win->g.x = ev.xmotion.x_root;
 			win->g.y = ev.xmotion.y_root;
-			move_window(win);
+
+			/* not free, don't sync more than 60 times / second */
+			if ((ev.xmotion.time - time) > (1000 / 60) ) {
+				time = ev.xmotion.time;
+				XSync(display, False);
+				move_window(win);
+			}
 			break;
 		}
 	} while (ev.type != ButtonRelease);
+	if (time) {
+		XSync(display, False);
+		move_window(win);
+	}
 	XWarpPointer(display, None, win->id, 0, 0, 0, 0, 0, 0);
 	XUngrabPointer(display, CurrentTime);
+	if (restack)
+		stack();
 
 	/* drain events */
 	while (XCheckMaskEvent(display, EnterWindowMask, &ev));
