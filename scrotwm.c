@@ -50,7 +50,7 @@
 
 static const char	*cvstag = "$scrotwm$";
 
-#define	SWM_VERSION	"0.6"
+#define	SWM_VERSION	"0.7"
 
 #include <stdio.h>
 #include <stdlib.h>
