@@ -2029,9 +2029,10 @@ manage_window(Window id)
 	if (prop && win->transient == 0) {
 		DNPRINTF(SWM_D_PROP, "got property _SWM_WS=%s\n", prop);
 		ws_idx = strtonum(prop, 0, 9, &errstr);
-		if (errstr)
+		if (errstr) {
 			DNPRINTF(SWM_D_EVENT, "window idx is %s: %s",
 			    errstr, prop);
+		}
 		ws = &r->s->ws[ws_idx];
 	} else
 		ws = r->ws;
