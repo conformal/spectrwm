@@ -2179,8 +2179,8 @@ manage_window(Window id)
 
 	set_win_state(win, NormalState);
 
-	/* floaters need this */
-	if (win->floating)
+	/* floaters need to be mapped if they are in the current workspace */
+	if (win->floating && (ws->idx == r->ws->idx))
 		XMapRaised(display, win->id);
 
 	/* make new win focused */
