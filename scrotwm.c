@@ -1027,13 +1027,14 @@ switchws(struct swm_region *r, union arg *args)
 	if (!other_r) {
 		/* if the other workspace is hidden, switch windows */
 		/* map new window first to prevent ugly blinking */
+		old_ws->r = NULL;
+		old_ws->restack = 1;
+
 		TAILQ_FOREACH(win, &new_ws->winlist, entry)
 			XMapRaised(display, win->id);
 
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
 			XUnmapWindow(display, win->id);
-		old_ws->r = NULL;
-		old_ws->restack = 1;
 	} else {
 		other_r->ws = old_ws;
 		old_ws->r = other_r;
@@ -2136,6 +2137,9 @@ unmanage_window(struct ws_win *win)
 	DNPRINTF(SWM_D_MISC, "unmanage_window:  %lu\n", win->id);
 
 	ws = win->ws;
+	if (ws->restack)
+		return;
+
 	/* find a window to focus */
 	if (ws->focus == win)
 		ws->focus = TAILQ_PREV(win, ws_win_list, entry);
