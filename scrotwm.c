@@ -333,13 +333,15 @@ struct quirk {
 	char			*class;
 	char			*name;
 	unsigned long		quirk;
-#define SWM_Q_FLOAT		(1<<0)
-#define SWM_Q_TRANSSZ		(1<<1)
+#define SWM_Q_FLOAT		(1<<0)	/* float this window */
+#define SWM_Q_TRANSSZ		(1<<1)	/* transiend window size too small */
+#define SWM_Q_ANYWHERE		(1<<2)	/* don't position this window */
 } quirks[] = {
 	{ "MPlayer",		"xv",		SWM_Q_FLOAT },
 	{ "OpenOffice.org 2.4",	"VCLSalFrame",	SWM_Q_FLOAT },
 	{ "OpenOffice.org 3.0",	"VCLSalFrame",	SWM_Q_FLOAT },
 	{ "Firefox-bin",	"firefox-bin",	SWM_Q_TRANSSZ},
+	{ "Gimp",		"gimp",		SWM_Q_FLOAT | SWM_Q_ANYWHERE},
 	{ NULL,			NULL,		0},
 };
 
@@ -2078,6 +2080,7 @@ manage_window(Window id)
 	struct swm_region	*r;
 	long			mask;
 	const char		*errstr;
+	XWindowChanges		wc;
 
 	if ((win = find_window(id)) != NULL)
 			return (win);	/* already being managed */
@@ -2153,10 +2156,32 @@ manage_window(Window id)
 		}
 	}
 
+	/* alter window position if quirky */
+	if (win->quirks & SWM_Q_ANYWHERE) {
+		win->manual = 1; /* don't center the quirky windows */
+		bzero(&wc, sizeof wc);
+		mask = 0;
+		if (win->g.y < bar_height) {
+			win->g.y = wc.y = bar_height;
+			mask |= CWY;
+		}
+		if (win->g.w + win->g.x > WIDTH(r)) {
+			win->g.x = wc.x = WIDTH(win->ws->r) - win->g.w - 2;
+			mask |= CWX;
+		}
+		wc.border_width = 1;
+		mask |= CWBorderWidth;
+		XConfigureWindow(display, win->id, mask, &wc);
+	}
+
 	XSelectInput(display, id, EnterWindowMask | FocusChangeMask |
 	    PropertyChangeMask | StructureNotifyMask);
 
 	set_win_state(win, NormalState);
+
+	/* floaters need this */
+	if (win->floating)
+		XMapRaised(display, win->id);
 
 	/* make new win focused */
 	focus_win(win);
@@ -2248,8 +2273,8 @@ configurerequest(XEvent *e)
 					ev->value_mask |= CWY | CWHeight;
 				}
 			}
-			if ((ev->value_mask & (CWX|CWY)) &&
-			    !(ev->value_mask & (CWWidth|CWHeight)))
+			if ((ev->value_mask & (CWX | CWY)) &&
+			    !(ev->value_mask & (CWWidth | CWHeight)))
 				config_win(win);
 			XMoveResizeWindow(display, win->id,
 			    win->g.x, win->g.y, win->g.w, win->g.h);
@@ -2329,6 +2354,7 @@ maprequest(XEvent *e)
 	if (wa.override_redirect)
 		return;
 	manage_window(e->xmaprequest.window);
+
 	stack();
 }
 
@@ -2769,7 +2795,8 @@ main(int argc, char *argv[])
 					handler[e.type](&e);
 				else
 					DNPRINTF(SWM_D_EVENT,
-					    "unkown event: %d\n", e.type);
+					    "win: %lu unknown event: %d\n",
+					    e.xany.window, e.type);
 			} else {
 				switch (e.type - xrandr_eventbase) {
 				case RRScreenChangeNotify:
@@ -2777,7 +2804,8 @@ main(int argc, char *argv[])
 					break;
 				default:
 					DNPRINTF(SWM_D_EVENT,
-					    "unkown event: %d\n", e.type);
+					    "win: %lu unknown xrandr event: "
+					    "%d\n", e.xany.window, e.type);
 					break;
 				}
 			}
