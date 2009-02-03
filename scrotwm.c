@@ -220,6 +220,7 @@ struct ws_win {
 	int			floating;
 	int			transient;
 	int			manual;
+	unsigned long		quirks;
 	struct workspace	*ws;	/* always valid */
 	struct swm_screen	*s;	/* always valid, never changes */
 	XWindowAttributes	wa;
@@ -325,9 +326,12 @@ struct quirk {
 	char			*name;
 	unsigned long		quirk;
 #define SWM_Q_FLOAT		(1<<0)
+#define SWM_Q_TRANSSZ		(1<<1)
 } quirks[] = {
 	{ "MPlayer",		"xv",		SWM_Q_FLOAT },
 	{ "OpenOffice.org 2.4",	"VCLSalFrame",	SWM_Q_FLOAT },
+	{ "OpenOffice.org 3.0",	"VCLSalFrame",	SWM_Q_FLOAT },
+	{ "Firefox-bin",	"firefox-bin",	SWM_Q_TRANSSZ},
 	{ NULL,		NULL,		0},
 };
 
@@ -1271,7 +1275,7 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 	bzero(&wc, sizeof wc);
 	mask = CWX | CWY | CWBorderWidth | CWWidth | CWHeight;
 	wc.border_width = 1;
-	if (win->transient) {
+	if (win->transient && (win->quirks & SWM_Q_TRANSSZ)) {
 		win->g.w = (double)WIDTH(r) * dialog_ratio;
 		win->g.h = (double)HEIGHT(r) * dialog_ratio;
 	}
@@ -1428,9 +1432,6 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 		XConfigureWindow(display, win->id, mask, &wc);
 		XMapRaised(display, win->id);
-		/*
-		fprintf(stderr, "vertical_stack: win %d x %d y %d w %d h %d bw %d\n", win->id, win->g.x, win->g.y, win->g.w , win->g.h, wc.border_width);
-		*/
 
 		last_h = win_g.h;
 		i++;
@@ -2097,10 +2098,6 @@ manage_window(Window id)
 	}
 	XFree(prop);
 
-	/*
-	fprintf(stderr, "manage window: %d x %d y %d w %d h %d\n", win->id, win->g.x, win->g.y, win->g.w, win->g.h);
-	*/
-
 	if (XGetClassHint(display, win->id, &win->ch)) {
 		DNPRINTF(SWM_D_CLASS, "class: %s name: %s\n",
 		    win->ch.res_class, win->ch.res_name);
@@ -2112,6 +2109,7 @@ manage_window(Window id)
 				    win->ch.res_class, win->ch.res_name);
 				if (quirks[i].quirk & SWM_Q_FLOAT)
 					win->floating = 1;
+				win->quirks = quirks[i].quirk;
 			}
 		}
 	}
@@ -2128,6 +2126,23 @@ manage_window(Window id)
 }
 
 void
+unmanage_window(struct ws_win *win)
+{
+	if (win == NULL)
+		return;
+
+	DNPRINTF(SWM_D_MISC, "unmanage_window:  %lu\n", win->id);
+
+	TAILQ_REMOVE(&win->ws->winlist, win, entry);
+	set_win_state(win, WithdrawnState);
+	if (win->ch.res_class)
+		XFree(win->ch.res_class);
+	if (win->ch.res_name)
+		XFree(win->ch.res_name);
+	free(win);
+}
+
+void
 configurerequest(XEvent *e)
 {
 	XConfigureRequestEvent	*ev = &e->xconfigurerequest;
@@ -2141,10 +2156,6 @@ configurerequest(XEvent *e)
 	if (new) {
 		DNPRINTF(SWM_D_EVENT, "configurerequest: new window: %lu\n",
 		    ev->window);
-		/*
-		fprintf(stderr, "configurerequest: new window: %lu x %d y %d w %d h %d bw %d s %d sm %d\n",
-		    ev->window, ev->x, ev->y, ev->width, ev->height, ev->border_width, ev->above, ev->detail);
-		*/
 		bzero(&wc, sizeof wc);
 		wc.x = ev->x;
 		wc.y = ev->y;
@@ -2155,10 +2166,6 @@ configurerequest(XEvent *e)
 		wc.stack_mode = ev->detail;
 		XConfigureWindow(display, ev->window, ev->value_mask, &wc);
 	} else {
-		/*
-		fprintf(stderr, "configurerequest: change window: %lu\n",
-		    ev->window);
-		*/
 		DNPRINTF(SWM_D_EVENT, "configurerequest: change window: %lu\n",
 		    ev->window);
 		if (win->floating) {
@@ -2222,13 +2229,7 @@ destroynotify(XEvent *e)
 			unfocus_all();
 		} else
 			focus_win(ws->focus);
-		TAILQ_REMOVE(&ws->winlist, win, entry);
-		set_win_state(win, WithdrawnState);
-		if (win->ch.res_class)
-			XFree(win->ch.res_class);
-		if (win->ch.res_name)
-			XFree(win->ch.res_name);
-		free(win);
+		unmanage_window(win);
 		stack();
 	}
 }
@@ -2324,7 +2325,14 @@ propertynotify(XEvent *e)
 void
 unmapnotify(XEvent *e)
 {
+	XDestroyWindowEvent	*ev = &e->xdestroywindow;
+	struct ws_win		*win;
+
 	DNPRINTF(SWM_D_EVENT, "unmapnotify: window: %lu\n", e->xunmap.window);
+
+	if ((win = find_window(ev->window)) != NULL)
+		if (win->transient)
+			unmanage_window(win);
 }
 
 void
