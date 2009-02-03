@@ -2136,6 +2136,7 @@ unmanage_window(struct ws_win *win)
 
 	DNPRINTF(SWM_D_MISC, "unmanage_window:  %lu\n", win->id);
 
+	/* don't unmanage if we are switching workspaces */
 	ws = win->ws;
 	if (ws->restack)
 		return;
@@ -2412,7 +2413,7 @@ void
 new_region(struct swm_screen *s, int x, int y, int w, int h)
 {
 	struct swm_region	*r, *n;
-	struct workspace	*ws;
+	struct workspace	*ws = NULL;
 	int			i;
 
 	DNPRINTF(SWM_D_MISC, "new region: screen[%d]:%dx%d+%d+%d\n",
@@ -2427,7 +2428,6 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 		    (X(r) + WIDTH(r)) > x &&
 		    Y(r) < (y + h) &&
 		    (Y(r) + HEIGHT(r)) > y) {
-			r->ws->r = NULL;
 			XDestroyWindow(display, r->bar_window);
 			TAILQ_REMOVE(&s->rl, r, entry);
 			TAILQ_INSERT_TAIL(&s->orl, r, entry);
@@ -2489,8 +2489,11 @@ scan_xrandr(int i)
 	struct swm_region	*r;
 	int			ncrtc = 0;
 
-	/* remove any old regions */
 
+	if (i >= ScreenCount(display))
+		errx(1, "invalid screen");
+
+	/* remove any old regions */
 	while ((r = TAILQ_FIRST(&screens[i].rl)) != NULL) {
 		r->ws->r = NULL;
 		XDestroyWindow(display, r->bar_window);
@@ -2725,7 +2728,7 @@ main(int argc, char *argv[])
 			bar_alarm = 0;
 			bar_update();
 		}
-		while(XPending(display)) {
+		while (XPending(display)) {
 			XNextEvent(display, &e);
 			if (e.type < LASTEvent) {
 				if (handler[e.type])
