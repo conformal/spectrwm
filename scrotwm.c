@@ -864,7 +864,7 @@ restart(struct swm_region *r, union arg *args)
 struct swm_region *
 root_to_region(Window root)
 {
-	struct swm_region	*r;
+	struct swm_region	*r = NULL;
 	Window			rr, cr;
 	int			i, x, y, wx, wy;
 	unsigned int		mask;
@@ -874,20 +874,17 @@ root_to_region(Window root)
 			break;
 
 	if (XQueryPointer(display, screens[i].root, 
-	    &rr, &cr, &x, &y, &wx, &wy, &mask) == False) {
-		/* if we can't query the pointer, grab the first region */
-		r = TAILQ_FIRST(&screens[i].rl);
-	} else {
-		/* otherwise, choose a region based on pointer location */
-		TAILQ_FOREACH(r, &screens[i].rl, entry) {
+	    &rr, &cr, &x, &y, &wx, &wy, &mask) != False) {
+		/* choose a region based on pointer location */
+		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			if (x >= X(r) && x <= X(r) + WIDTH(r) &&
 			    y >= Y(r) && y <= Y(r) + HEIGHT(r))
 				break;
-		}
-
-		if (r == NULL)
-			r = TAILQ_FIRST(&screens[i].rl);
 	}
+
+	if (r == NULL)
+		r = TAILQ_FIRST(&screens[i].rl);
+
 	return (r);
 }
 
@@ -2463,9 +2460,10 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 				ws = &s->ws[i];
 				break;
 			}
-		if (ws == NULL)
-			errx(1, "no free workspaces\n");
 	}
+
+	if (ws == NULL)
+		errx(1, "no free workspaces\n");
 
 	X(r) = x;
 	Y(r) = y;
@@ -2485,9 +2483,9 @@ scan_xrandr(int i)
 	XRRCrtcInfo		*ci;
 	XRRScreenResources	*sr;
 	int			c;
+	int			ncrtc = 0;
 #endif /* SWM_XRR_HAS_CRTC */
 	struct swm_region	*r;
-	int			ncrtc = 0;
 
 
 	if (i >= ScreenCount(display))
@@ -2537,14 +2535,13 @@ scan_xrandr(int i)
 }
 
 void
-screenchange(XEvent *e)
-{
+screenchange(XEvent *e) {
 	XRRScreenChangeNotifyEvent	*xe = (XRRScreenChangeNotifyEvent *)e;
 	struct swm_region		*r;
 	struct ws_win			*win;
 	int				i;
 
-	DNPRINTF(SWM_D_EVENT, "screenchange: %d\n", xe->root);
+	DNPRINTF(SWM_D_EVENT, "screenchange: %lu\n", xe->root);
 
 	if (!XRRUpdateConfiguration(e))
 		return;
@@ -2571,7 +2568,6 @@ setup_screens(void)
 {
 	Window			d1, d2, *wins = NULL;
 	XWindowAttributes	wa;
-	struct swm_region	*r;
 	unsigned int		no;
         int			i, j, k;
 	int			errorbase, major, minor;
@@ -2627,37 +2623,34 @@ setup_screens(void)
 		if (!XQueryTree(display, screens[i].root, &d1, &d2, &wins, &no))
 			continue;
 
+		scan_xrandr(i);
+
 		if (xrandr_support)
 			XRRSelectInput(display, screens[i].root,
 			    RRScreenChangeNotifyMask);
 
-		scan_xrandr(i);
-
 		/* attach windows to a region */
 		/* normal windows */
-		if ((r = TAILQ_FIRST(&screens[i].rl)) == NULL)
-			errx(1, "no regions on screen %d", i);
-
-		for (i = 0; i < no; i++) {
-                        XGetWindowAttributes(display, wins[i], &wa);
-			if (!XGetWindowAttributes(display, wins[i], &wa) ||
+		for (j = 0; j < no; j++) {
+                        XGetWindowAttributes(display, wins[j], &wa);
+			if (!XGetWindowAttributes(display, wins[j], &wa) ||
 			    wa.override_redirect ||
-			    XGetTransientForHint(display, wins[i], &d1))
+			    XGetTransientForHint(display, wins[j], &d1))
 				continue;
 
 			if (wa.map_state == IsViewable ||
-			    getstate(wins[i]) == NormalState)
-				manage_window(wins[i]);
+			    getstate(wins[j]) == NormalState)
+				manage_window(wins[j]);
 		}
 		/* transient windows */
-		for (i = 0; i < no; i++) {
-			if (!XGetWindowAttributes(display, wins[i], &wa))
+		for (j = 0; j < no; j++) {
+			if (!XGetWindowAttributes(display, wins[j], &wa))
 				continue;
 
-			if (XGetTransientForHint(display, wins[i], &d1) &&
-			    (wa.map_state == IsViewable || getstate(wins[i]) ==
+			if (XGetTransientForHint(display, wins[j], &d1) &&
+			    (wa.map_state == IsViewable || getstate(wins[j]) ==
 			    NormalState))
-				manage_window(wins[i]);
+				manage_window(wins[j]);
                 }
                 if (wins) {
                         XFree(wins);
@@ -2738,7 +2731,6 @@ main(int argc, char *argv[])
 					    "unkown event: %d\n", e.type);
 			} else {
 				switch (e.type - xrandr_eventbase) {
-				case RRNotify:
 				case RRScreenChangeNotify:
 					screenchange(&e);
 					break;
