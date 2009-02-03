@@ -183,6 +183,7 @@ char			*bar_fonts[] = {
 char			*spawn_term[] = { "xterm", NULL };
 char			*spawn_screenshot[] = { "screenshot.sh", NULL, NULL };
 char			*spawn_lock[] = { "xlock", NULL };
+char			*spawn_initscr[] = { "initscreen.sh", NULL };
 char			*spawn_menu[] = { "dmenu_run", "-fn", NULL, "-nb", NULL,
 			    "-nf", NULL, "-sb", NULL, "-sf", NULL, NULL };
 
@@ -339,7 +340,7 @@ struct quirk {
 	{ "OpenOffice.org 2.4",	"VCLSalFrame",	SWM_Q_FLOAT },
 	{ "OpenOffice.org 3.0",	"VCLSalFrame",	SWM_Q_FLOAT },
 	{ "Firefox-bin",	"firefox-bin",	SWM_Q_TRANSSZ},
-	{ NULL,		NULL,		0},
+	{ NULL,			NULL,		0},
 };
 
 /* events */
@@ -1764,6 +1765,7 @@ struct key {
 	{ MODKEY,		XK_t,		floating_toggle,{0} },
 	{ MODKEY | ShiftMask,	XK_v,		version,	{0} },
 	{ MODKEY | ShiftMask,	XK_Delete,	spawn,		{.argv = spawn_lock} },
+	{ MODKEY | ShiftMask,	XK_i,		spawn,		{.argv = spawn_initscr} },
 };
 
 void
