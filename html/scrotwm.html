@@ -63,7 +63,7 @@ Mplayer, resized and moved.
 </small>
 <body bgcolor="#101010" text="#ffffff"> <font face="monospace">
 Major features:<br>
-- xrandr support (multi screen)<br>
+- dynamic xrandr & xinerama support (multi screen)<br>
 - Navigation anywhere on all screens with either the keyboard or mouse<br>
 - Customizable status bar<br>
 - Human readable configuration file<br>
@@ -76,10 +76,9 @@ Major features:<br>
 - Resizable master area<br>
 - Move/resize floating windows<br>
 - drag-to-float<br>
+- User definable regions<br>
 <br>
 To-do:<br>
-- Dynamic xrandr support<br>
-- User definable regions<br>
 - add search for window function<br>
 - add identify window function<br>
 - make alt-shift-arrows do nothing in single screen mode<br>
@@ -88,6 +87,7 @@ Known bugs:<br>
 - upon create sometimes new window does not gain focus<br>
 - upon destroy in multiscreen a window on the other screen gains focus<br>
 - switching between empty workspaces followed by alt-shift-arrows might lead to window with focus but not properly colored border<br>
+- Floating only apps might need a workspace switch to show up<br>
 </font></body>
 <p>
 <small>
