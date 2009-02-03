@@ -2128,10 +2128,24 @@ manage_window(Window id)
 void
 unmanage_window(struct ws_win *win)
 {
+	struct workspace	*ws;
+
 	if (win == NULL)
 		return;
 
 	DNPRINTF(SWM_D_MISC, "unmanage_window:  %lu\n", win->id);
+
+	ws = win->ws;
+	/* find a window to focus */
+	if (ws->focus == win)
+		ws->focus = TAILQ_PREV(win, ws_win_list, entry);
+	if (ws->focus == NULL)
+		ws->focus = TAILQ_FIRST(&ws->winlist);
+	if (ws->focus == NULL || ws->focus == win) {
+		ws->focus = NULL;
+		unfocus_all();
+	} else
+		focus_win(ws->focus);
 
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
 	set_win_state(win, WithdrawnState);
@@ -2213,22 +2227,10 @@ destroynotify(XEvent *e)
 {
 	struct ws_win		*win;
 	XDestroyWindowEvent	*ev = &e->xdestroywindow;
-	struct workspace	*ws;
 
 	DNPRINTF(SWM_D_EVENT, "destroynotify: window %lu\n", ev->window);
 
 	if ((win = find_window(ev->window)) != NULL) {
-		ws = win->ws;
-		/* find a window to focus */
-		if (ws->focus == win)
-			ws->focus = TAILQ_PREV(win, ws_win_list, entry);
-		if (ws->focus == NULL)
-			ws->focus = TAILQ_FIRST(&ws->winlist);
-		if (ws->focus == NULL || ws->focus == win) {
-			ws->focus = NULL;
-			unfocus_all();
-		} else
-			focus_win(ws->focus);
 		unmanage_window(win);
 		stack();
 	}
