@@ -267,8 +267,10 @@ struct workspace {
 	struct {
 				int horizontal_msize;
 				int horizontal_mwin;
+				int horizontal_stacks;
 				int vertical_msize;
 				int vertical_mwin;
+				int vertical_stacks;
 	} l_state;
 };
 
@@ -314,6 +316,10 @@ union arg {
 #define SWM_ARG_ID_CYCLEWS_DOWN	(13)
 #define SWM_ARG_ID_CYCLESC_UP	(14)
 #define SWM_ARG_ID_CYCLESC_DOWN	(15)
+#define SWM_ARG_ID_COLINC	(16)
+#define SWM_ARG_ID_COLDEC	(17)
+#define SWM_ARG_ID_ROWINC	(16)
+#define SWM_ARG_ID_ROWDEL	(17)
 #define SWM_ARG_ID_SS_ALL	(0)
 #define SWM_ARG_ID_SS_WINDOW	(1)
 #define SWM_ARG_ID_DONTCENTER	(0)
@@ -1304,7 +1310,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	XWindowChanges		wc;
 	struct swm_geometry	win_g, r_g = *g;
 	struct ws_win		*win, *winfocus;
-	int			i, j, w_inc, h_inc, w_base, h_base;
+	int			i, j, s, w_inc, h_inc, w_base, h_base, stacks; 
 	int			hrh, extra, h_slice, last_h = 0;
 	int			split, colno, winno, mwin, msize, mscale;
 	int			remain, missing, v_slice;;
@@ -1326,14 +1332,19 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		w_base = win->sh.base_width;
 		mwin = ws->l_state.horizontal_mwin;
 		mscale = ws->l_state.horizontal_msize;
+		stacks = ws->l_state.horizontal_stacks;
 		SWAPXY(&r_g);
 	} else {
 		w_inc = win->sh.height_inc;
 		w_base = win->sh.base_height;
 		mwin = ws->l_state.vertical_mwin;
 		mscale = ws->l_state.vertical_msize;
+		stacks = ws->l_state.vertical_stacks;
 	}
 	win_g = r_g;
+
+	if (stacks > winno - mwin)
+		stacks = winno - mwin;
 
 	h_slice = r_g.h / SWM_H_SLICE;
 	if (mwin && winno > mwin) {
@@ -1341,7 +1352,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 
 		split = mwin;
 		colno = split;
-		msize = v_slice * mscale;
+		win_g.w = v_slice * mscale;
 
 		if (w_inc > 1 && w_inc < v_slice) {
 			/* adjust for window's requested size increment */
@@ -1357,32 +1368,40 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			}
 		}
 
-		win_g.w = msize;
+		msize = win_g.w;
 		if (flip) 
 			win_g.x += r_g.w - msize;
 	} else {
-		colno = winno;
-		split = 0;
+		if (stacks > 1) {
+			colno = split = (winno - mwin) / stacks;
+		} else {
+			split = 0;
+			colno = winno;
+		}
 	}
 	hrh = r_g.h / colno;
 	extra = r_g.h - (colno * hrh);
 	win_g.h = hrh - 2;
 
 	/*  stack all the tiled windows */
-	i = j = 0;
+	i = j = 0, s = stacks;
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
 		if (win->transient != 0 || win->floating != 0)
 			continue;
 
 		if (split && i == split) {
-			colno = winno - split;
+			colno = (winno - split) / s;
+			if (stacks == 1)
+				colno += (winno - split) % s;
+			split = split + colno;
 			hrh = (r_g.h / colno);
 			extra = r_g.h - (colno * hrh);
 			if (flip)
 				win_g.x = r_g.x;
 			else
-				win_g.x += msize + 2;
-			win_g.w = r_g.w - (msize + 2);
+				win_g.x += win_g.w + 2;
+			win_g.w = (r_g.w - (msize + 2) - (stacks * 2)) / stacks;
+			s--;
 			j = 0;
 		}
 		win_g.h = hrh - 2;
@@ -1459,6 +1478,7 @@ vertical_config(struct workspace *ws, int id)
 	case SWM_ARG_ID_STACKINIT:
 		ws->l_state.vertical_msize = SWM_V_SLICE / 2;
 		ws->l_state.vertical_mwin = 1;
+		ws->l_state.vertical_stacks = 1;
 		break;
 	case SWM_ARG_ID_MASTERSHRINK:
 		if (ws->l_state.vertical_msize > 1)
@@ -1474,6 +1494,12 @@ vertical_config(struct workspace *ws, int id)
 	case SWM_ARG_ID_MASTERDEL:
 		if (ws->l_state.vertical_mwin > 0)
 			ws->l_state.vertical_mwin--;
+	case SWM_ARG_ID_COLINC:
+		ws->l_state.vertical_stacks++;
+		break;
+	case SWM_ARG_ID_COLDEC:
+		if (ws->l_state.vertical_stacks > 1)
+			ws->l_state.vertical_stacks--;
 		break;
 	default:
 		return;
@@ -1498,6 +1524,7 @@ horizontal_config(struct workspace *ws, int id)
 	case SWM_ARG_ID_STACKINIT:
 		ws->l_state.horizontal_mwin = 1;
 		ws->l_state.horizontal_msize = SWM_H_SLICE / 2;
+		ws->l_state.horizontal_stacks = 1;
 		break;
 	case SWM_ARG_ID_MASTERSHRINK:
 		if (ws->l_state.horizontal_msize > 1)
@@ -1514,6 +1541,12 @@ horizontal_config(struct workspace *ws, int id)
 		if (ws->l_state.horizontal_mwin > 0)
 			ws->l_state.horizontal_mwin--;
 		break;
+	case SWM_ARG_ID_COLINC:
+		ws->l_state.horizontal_stacks++;
+		break;
+	case SWM_ARG_ID_COLDEC:
+		if (ws->l_state.horizontal_stacks > 1)
+			ws->l_state.horizontal_stacks--;
 	default:
 		return;
 	}
@@ -1682,6 +1715,8 @@ struct key {
 	{ MODKEY,		XK_l,		stack_config,	{.id = SWM_ARG_ID_MASTERGROW} },
 	{ MODKEY,		XK_comma,	stack_config,	{.id = SWM_ARG_ID_MASTERADD} },
 	{ MODKEY,		XK_period,	stack_config,	{.id = SWM_ARG_ID_MASTERDEL} },
+	{ MODKEY | ShiftMask,	XK_comma,	stack_config,	{.id = SWM_ARG_ID_COLINC} },
+	{ MODKEY | ShiftMask,	XK_period,	stack_config,	{.id = SWM_ARG_ID_COLDEC} },
 	{ MODKEY,		XK_Return,	swapwin,	{.id = SWM_ARG_ID_SWAPMAIN} },
 	{ MODKEY,		XK_j,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
 	{ MODKEY,		XK_k,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
