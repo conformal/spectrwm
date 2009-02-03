@@ -128,9 +128,9 @@ u_int32_t		swm_debug = 0
 #define BUTTONMASK		(ButtonPressMask|ButtonReleaseMask)
 #define MOUSEMASK		(BUTTONMASK|PointerMotionMask)
 #define SWM_PROPLEN		(16)
-#define X(r)			(r)->g.x	
+#define X(r)			(r)->g.x
 #define Y(r)			(r)->g.y
-#define WIDTH(r)		(r)->g.w	
+#define WIDTH(r)		(r)->g.w
 #define HEIGHT(r)		(r)->g.h
 
 #ifndef SWM_LIB
@@ -143,6 +143,7 @@ int			(*xerrorxlib)(Display *, XErrorEvent *);
 int			other_wm;
 int			running = 1;
 int			ss_enabled = 0;
+int			xrandr_support;
 int			xrandr_eventbase;
 int			ignore_enter = 0;
 unsigned int		numlockmask = 0;
@@ -279,8 +280,8 @@ enum	{ SWM_S_COLOR_BAR, SWM_S_COLOR_BAR_BORDER, SWM_S_COLOR_BAR_FONT,
 struct swm_screen {
 	int			idx;		/* screen index */
 	struct swm_region_list	rl;	/* list of regions on this screen */
+	struct swm_region_list	orl;	/* list of old regions */
 	Window			root;
-	int			xrandr_support;
 	struct workspace	ws[SWM_WS_MAX];
 
 	/* colors */
@@ -408,8 +409,7 @@ setscreencolor(char *val, int i, int c)
 		    i, ScreenCount(display));
 }
 
-void		new_region(struct swm_screen *, struct workspace *,
-			    int, int, int, int);
+void		new_region(struct swm_screen *, int, int, int, int);
 
 void
 custom_region(char *val)
@@ -435,7 +435,7 @@ custom_region(char *val)
 		    "(%ux%u)\n", w, h, x, y,
 		    DisplayWidth(display, sidx), DisplayHeight(display, sidx));
 	    
-	new_region(&screens[sidx], NULL, x, y, w, h);
+	new_region(&screens[sidx], x, y, w, h);
 }
 
 int
@@ -1393,7 +1393,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			h_inc = win->sh.width_inc;
 			h_base = win->sh.base_width;
 		} else {
-		   	h_inc =	win->sh.height_inc;	
+		   	h_inc =	win->sh.height_inc;
 			h_base = win->sh.base_height;
 		}
 		if (j == colno - 1) {
@@ -2060,7 +2060,7 @@ manage_window(Window id)
 		DNPRINTF(SWM_D_MISC, "manage_window: win %u transient %u\n",
 		    (unsigned)win->id, win->transient);
 	}
-	
+
 	/*
 	 * Figure out where to put the window. If it was previously assigned to
 	 * a workspace (either by spawn() or manually moving), and isn't
@@ -2409,28 +2409,10 @@ getstate(Window w)
 }
 
 void
-remove_region(struct swm_region *r) 
-{
-	struct swm_screen	*s = r->s;
-	struct ws_win		*win;
-
-	DNPRINTF(SWM_D_MISC, "removing region: screen[%d]:%dx%d+%d+%d\n",
-	     s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r));
-
-	TAILQ_FOREACH(win, &r->ws->winlist, entry)
-		XUnmapWindow(display, win->id);
-	r->ws->r = NULL;
-
-	XDestroyWindow(display, r->bar_window);
-	TAILQ_REMOVE(&s->rl, r, entry);
-	free(r);
-}
-
-void
-new_region(struct swm_screen *s, struct workspace *ws,
-    int x, int y, int w, int h)
+new_region(struct swm_screen *s, int x, int y, int w, int h)
 {
 	struct swm_region	*r, *n;
+	struct workspace	*ws;
 	int			i;
 
 	DNPRINTF(SWM_D_MISC, "new region: screen[%d]:%dx%d+%d+%d\n",
@@ -2445,26 +2427,45 @@ new_region(struct swm_screen *s, struct workspace *ws,
 		    (X(r) + WIDTH(r)) > x &&
 		    Y(r) < (y + h) &&
 		    (Y(r) + HEIGHT(r)) > y) {
-			if (ws == NULL)
-				ws = r->ws;
-			remove_region(r);
+			r->ws->r = NULL;
+			XDestroyWindow(display, r->bar_window);
+			TAILQ_REMOVE(&s->rl, r, entry);
+			TAILQ_INSERT_TAIL(&s->orl, r, entry);
 		}
 	}
 
-	/* pick an appropriate workspace */
+	/* search old regions for one to reuse */
+
+	/* size + location match */
+	TAILQ_FOREACH(r, &s->orl, entry)
+		if (X(r) == x && Y(r) == y &&
+		    HEIGHT(r) == h && WIDTH(r) == w)
+			break;
+
+	/* size match */
+	TAILQ_FOREACH(r, &s->orl, entry)
+		if (HEIGHT(r) == h && WIDTH(r) == w)
+			break;
+
+	if (r != NULL) {
+		TAILQ_REMOVE(&s->orl, r, entry);
+		/* try to use old region's workspace */
+		if (r->ws->r == NULL)
+			ws = r->ws;
+	} else
+		if ((r = calloc(1, sizeof(struct swm_region))) == NULL)
+			errx(1, "calloc: failed to allocate memory for screen");
+
+	/* if we don't have a workspace already, find one */
 	if (ws == NULL) {
 		for (i = 0; i < SWM_WS_MAX; i++)
 			if (s->ws[i].r == NULL) {
 				ws = &s->ws[i];
 				break;
 			}
-
 		if (ws == NULL)
-			errx(1, "no free regions\n");
+			errx(1, "no free workspaces\n");
 	}
-
-	if ((r = calloc(1, sizeof(struct swm_region))) == NULL)
-		errx(1, "calloc: failed to allocate memory for screen");
 
 	X(r) = x;
 	Y(r) = y;
@@ -2478,20 +2479,99 @@ new_region(struct swm_screen *s, struct workspace *ws,
 }
 
 void
-setup_screens(void)
+scan_xrandr(int i)
 {
 #ifdef SWM_XRR_HAS_CRTC
 	XRRCrtcInfo		*ci;
 	XRRScreenResources	*sr;
 	int			c;
 #endif /* SWM_XRR_HAS_CRTC */
+	struct swm_region	*r;
+	int			ncrtc = 0;
+
+	/* remove any old regions */
+
+	while ((r = TAILQ_FIRST(&screens[i].rl)) != NULL) {
+		r->ws->r = NULL;
+		XDestroyWindow(display, r->bar_window);
+		TAILQ_REMOVE(&screens[i].rl, r, entry);
+		TAILQ_INSERT_TAIL(&screens[i].orl, r, entry);
+	}
+
+	/* map virtual screens onto physical screens */
+#ifdef SWM_XRR_HAS_CRTC
+	if (xrandr_support) {
+		sr = XRRGetScreenResources(display, screens[i].root);
+		if (sr == NULL)
+			new_region(&screens[i], 0, 0,
+			    DisplayWidth(display, i),
+			    DisplayHeight(display, i)); 
+		else 
+			ncrtc = sr->ncrtc;
+
+		for (c = 0, ci = NULL; c < ncrtc; c++) {
+			ci = XRRGetCrtcInfo(display, sr, sr->crtcs[c]);
+			if (ci->noutput == 0)
+				continue;
+
+			if (ci != NULL && ci->mode == None)
+				new_region(&screens[i], 0, 0,
+				    DisplayWidth(display, i),
+				    DisplayHeight(display, i)); 
+			else
+				new_region(&screens[i],
+				    ci->x, ci->y, ci->width, ci->height);
+		}
+		if (ci)
+			XRRFreeCrtcInfo(ci);
+		XRRFreeScreenResources(sr);
+	} else
+#endif /* SWM_XRR_HAS_CRTC */
+	{
+		new_region(&screens[i], 0, 0, DisplayWidth(display, i),
+		    DisplayHeight(display, i)); 
+	}
+}
+
+void
+screenchange(XEvent *e)
+{
+	XRRScreenChangeNotifyEvent	*xe = (XRRScreenChangeNotifyEvent *)e;
+	struct swm_region		*r;
+	struct ws_win			*win;
+	int				i;
+
+	DNPRINTF(SWM_D_EVENT, "screenchange: %d\n", xe->root);
+
+	if (!XRRUpdateConfiguration(e))
+		return;
+
+	/* silly event doesn't include the screen index */
+	for (i = 0; i < ScreenCount(display); i++)
+		if (screens[i].root == xe->root)
+			break;
+	if (i >= ScreenCount(display))
+		errx(1, "screenchange: screen not found\n");
+
+	/* brute force for now, just re-enumerate the regions */
+	scan_xrandr(i);
+
+	/* hide any windows that went away */
+	TAILQ_FOREACH(r, &screens[i].rl, entry)
+		TAILQ_FOREACH(win, &r->ws->winlist, entry)
+			XUnmapWindow(display, win->id);
+	stack();
+}
+
+void
+setup_screens(void)
+{
 	Window			d1, d2, *wins = NULL;
 	XWindowAttributes	wa;
 	struct swm_region	*r;
 	unsigned int		no;
-	int			errorbase, major, minor;
-	int			ncrtc = 0, w = 0;
         int			i, j, k;
+	int			errorbase, major, minor;
 	struct workspace	*ws;
 	int			ws_idx_atom;
 
@@ -2501,13 +2581,20 @@ setup_screens(void)
 		errx(1, "calloc: screens");
 
 	ws_idx_atom = XInternAtom(display, "_SWM_WS", False);
-	
+
+	/* initial Xrandr setup */
+	xrandr_support = XRRQueryExtension(display,
+	    &xrandr_eventbase, &errorbase);
+	if (xrandr_support)
+		if (XRRQueryVersion(display, &major, &minor) && major < 1)
+       	               	xrandr_support = 0;
 
 	/* map physical screens */
 	for (i = 0; i < ScreenCount(display); i++) {
 		DNPRINTF(SWM_D_WS, "setup_screens: init screen %d\n", i);
 		screens[i].idx = i;
 		TAILQ_INIT(&screens[i].rl);
+		TAILQ_INIT(&screens[i].orl);
 		screens[i].root = RootWindow(display, i);
 
 		/* set default colors */
@@ -2518,6 +2605,7 @@ setup_screens(void)
 		setscreencolor("rgb:a0/a0/a0", i + 1, SWM_S_COLOR_BAR_FONT);
 
 		/* init all workspaces */
+		/* XXX these should be dynamically allocated too */
 		for (j = 0; j < SWM_WS_MAX; j++) {
 			ws = &screens[i].ws[j];
 			ws->idx = j;
@@ -2532,57 +2620,15 @@ setup_screens(void)
 					    SWM_ARG_ID_STACKINIT);
 			ws->cur_layout = &layouts[0];
 		}
-
-		/* map virtual screens onto physical screens */
-		screens[i].xrandr_support = XRRQueryExtension(display,
-		    &xrandr_eventbase, &errorbase);
-		if (screens[i].xrandr_support)
-			if (XRRQueryVersion(display, &major, &minor) &&
-			    major < 1)
-                        	screens[i].xrandr_support = 0;
-
-#if 0	/* not ready for dynamic screen changes */
-		if (screens[i].xrandr_support)
-			XRRSelectInput(display,
-			    screens[r->s].root,
-			    RRScreenChangeNotifyMask);
-#endif
-
 		/* grab existing windows (before we build the bars)*/
 		if (!XQueryTree(display, screens[i].root, &d1, &d2, &wins, &no))
 			continue;
 
-#ifdef SWM_XRR_HAS_CRTC
-		sr = XRRGetScreenResources(display, screens[i].root);
-		if (sr == NULL)
-			new_region(&screens[i], &screens[i].ws[w],
-			    0, 0, DisplayWidth(display, i),
-			    DisplayHeight(display, i)); 
-		else 
-			ncrtc = sr->ncrtc;
+		if (xrandr_support)
+			XRRSelectInput(display, screens[i].root,
+			    RRScreenChangeNotifyMask);
 
-		for (c = 0, ci = NULL; c < ncrtc; c++) {
-			ci = XRRGetCrtcInfo(display, sr, sr->crtcs[c]);
-			if (ci->noutput == 0)
-				continue;
-
-			if (ci != NULL && ci->mode == None)
-				new_region(&screens[i], &screens[i].ws[w], 0, 0,
-				    DisplayWidth(display, i),
-				    DisplayHeight(display, i)); 
-			else
-				new_region(&screens[i], &screens[i].ws[w],
-				    ci->x, ci->y, ci->width, ci->height);
-			w++;
-		}
-		if (ci)
-			XRRFreeCrtcInfo(ci);
-		XRRFreeScreenResources(sr);
-#else
-		new_region(&screens[i], &screens[i].ws[w], 0, 0,
-		    DisplayWidth(display, i),
-		    DisplayHeight(display, i)); 
-#endif /* SWM_XRR_HAS_CRTC */
+		scan_xrandr(i);
 
 		/* attach windows to a region */
 		/* normal windows */
@@ -2681,8 +2727,24 @@ main(int argc, char *argv[])
 		}
 		while(XPending(display)) {
 			XNextEvent(display, &e);
-			if (handler[e.type])
-				handler[e.type](&e);
+			if (e.type < LASTEvent) {
+				if (handler[e.type])
+					handler[e.type](&e);
+				else
+					DNPRINTF(SWM_D_EVENT,
+					    "unkown event: %d\n", e.type);
+			} else {
+				switch (e.type - xrandr_eventbase) {
+				case RRNotify:
+				case RRScreenChangeNotify:
+					screenchange(&e);
+					break;
+				default:
+					DNPRINTF(SWM_D_EVENT,
+					    "unkown event: %d\n", e.type);
+					break;
+				}
+			}
 		}
 	}
 
