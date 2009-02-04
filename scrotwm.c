@@ -317,10 +317,8 @@ union arg {
 #define SWM_ARG_ID_CYCLEWS_DOWN	(13)
 #define SWM_ARG_ID_CYCLESC_UP	(14)
 #define SWM_ARG_ID_CYCLESC_DOWN	(15)
-#define SWM_ARG_ID_COLINC	(16)
-#define SWM_ARG_ID_COLDEC	(17)
-#define SWM_ARG_ID_ROWINC	(16)
-#define SWM_ARG_ID_ROWDEL	(17)
+#define SWM_ARG_ID_STACKINC	(16)
+#define SWM_ARG_ID_STACKDEC	(17)
 #define SWM_ARG_ID_SS_ALL	(0)
 #define SWM_ARG_ID_SS_WINDOW	(1)
 #define SWM_ARG_ID_DONTCENTER	(0)
@@ -1348,6 +1346,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 
 	if (stacks > winno - mwin)
 		stacks = winno - mwin;
+	if (stacks < 1)
+		stacks = 1;
 
 	h_slice = r_g.h / SWM_H_SLICE;
 	if (mwin && winno > mwin) {
@@ -1375,12 +1375,9 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		if (flip) 
 			win_g.x += r_g.w - msize;
 	} else {
-		if (stacks > 1) {
-			colno = split = (winno - mwin) / stacks;
-		} else {
-			split = 0;
-			colno = winno;
-		}
+		msize = -2;
+		colno = split = winno / stacks;
+		win_g.w = ((r_g.w - (stacks * 2) + 2) / stacks);
 	}
 	hrh = r_g.h / colno;
 	extra = r_g.h - (colno * hrh);
@@ -1403,11 +1400,10 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 				win_g.x = r_g.x;
 			else
 				win_g.x += win_g.w + 2;
-			win_g.w = (((r_g.w - (msize + 2)) -
-			    ((stacks - 1) * 2)) / stacks);
+			win_g.w = (r_g.w - msize - (stacks * 2)) / stacks;
 			if (s == 1)
-				win_g.w += (((r_g.w - (msize + 2)) -
-				    ((stacks - 1) * 2)) % stacks);
+				win_g.w += (r_g.w - msize - (stacks * 2)) %
+				    stacks;
 			s--;
 			j = 0;
 		}
@@ -1501,10 +1497,11 @@ vertical_config(struct workspace *ws, int id)
 	case SWM_ARG_ID_MASTERDEL:
 		if (ws->l_state.vertical_mwin > 0)
 			ws->l_state.vertical_mwin--;
-	case SWM_ARG_ID_COLINC:
+		break;
+	case SWM_ARG_ID_STACKINC:
 		ws->l_state.vertical_stacks++;
 		break;
-	case SWM_ARG_ID_COLDEC:
+	case SWM_ARG_ID_STACKDEC:
 		if (ws->l_state.vertical_stacks > 1)
 			ws->l_state.vertical_stacks--;
 		break;
@@ -1548,12 +1545,13 @@ horizontal_config(struct workspace *ws, int id)
 		if (ws->l_state.horizontal_mwin > 0)
 			ws->l_state.horizontal_mwin--;
 		break;
-	case SWM_ARG_ID_COLINC:
+	case SWM_ARG_ID_STACKINC:
 		ws->l_state.horizontal_stacks++;
 		break;
-	case SWM_ARG_ID_COLDEC:
+	case SWM_ARG_ID_STACKDEC:
 		if (ws->l_state.horizontal_stacks > 1)
 			ws->l_state.horizontal_stacks--;
+		break;
 	default:
 		return;
 	}
@@ -1722,8 +1720,8 @@ struct key {
 	{ MODKEY,		XK_l,		stack_config,	{.id = SWM_ARG_ID_MASTERGROW} },
 	{ MODKEY,		XK_comma,	stack_config,	{.id = SWM_ARG_ID_MASTERADD} },
 	{ MODKEY,		XK_period,	stack_config,	{.id = SWM_ARG_ID_MASTERDEL} },
-	{ MODKEY | ShiftMask,	XK_comma,	stack_config,	{.id = SWM_ARG_ID_COLINC} },
-	{ MODKEY | ShiftMask,	XK_period,	stack_config,	{.id = SWM_ARG_ID_COLDEC} },
+	{ MODKEY | ShiftMask,	XK_comma,	stack_config,	{.id = SWM_ARG_ID_STACKINC} },
+	{ MODKEY | ShiftMask,	XK_period,	stack_config,	{.id = SWM_ARG_ID_STACKDEC} },
 	{ MODKEY,		XK_Return,	swapwin,	{.id = SWM_ARG_ID_SWAPMAIN} },
 	{ MODKEY,		XK_j,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
 	{ MODKEY,		XK_k,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
