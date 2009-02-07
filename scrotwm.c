@@ -132,6 +132,7 @@ u_int32_t		swm_debug = 0
 #define Y(r)			(r)->g.y
 #define WIDTH(r)		(r)->g.w
 #define HEIGHT(r)		(r)->g.h
+#define SWM_MAX_FONT_STEPS	(3)
 
 #ifndef SWM_LIB
 #define SWM_LIB			"/usr/X11R6/lib/swmhack.so"
@@ -151,6 +152,8 @@ Display			*display;
 
 int			cycle_empty = 0;
 int			cycle_visible = 0;
+int			term_width = 0;
+int			font_adjusted = 0;
 
 /* dialog windows */
 double			dialog_ratio = .6;
@@ -222,6 +225,9 @@ struct ws_win {
 	int			floating;
 	int			transient;
 	int			manual;
+	int			font_size_boundary[SWM_MAX_FONT_STEPS];
+	int			font_steps;
+	int			last_inc;
 	unsigned long		quirks;
 	struct workspace	*ws;	/* always valid */
 	struct swm_screen	*s;	/* always valid, never changes */
@@ -335,12 +341,14 @@ struct quirk {
 #define SWM_Q_FLOAT		(1<<0)	/* float this window */
 #define SWM_Q_TRANSSZ		(1<<1)	/* transiend window size too small */
 #define SWM_Q_ANYWHERE		(1<<2)	/* don't position this window */
+#define SWM_Q_XTERM_FONTADJ	(1<<3)	/* adjust xterm fonts when resizing */
 } quirks[] = {
 	{ "MPlayer",		"xv",		SWM_Q_FLOAT },
 	{ "OpenOffice.org 2.4",	"VCLSalFrame",	SWM_Q_FLOAT },
 	{ "OpenOffice.org 3.0",	"VCLSalFrame",	SWM_Q_FLOAT },
 	{ "Firefox-bin",	"firefox-bin",	SWM_Q_TRANSSZ},
 	{ "Gimp",		"gimp",		SWM_Q_FLOAT | SWM_Q_ANYWHERE},
+	{ "XTerm",		"xterm",	SWM_Q_XTERM_FONTADJ},
 	{ NULL,			NULL,		0},
 };
 
@@ -562,13 +570,23 @@ conf_load(char *filename)
 		case 's':
 			if (!strncmp(var, "spawn_term", strlen("spawn_term")))
 				asprintf(&spawn_term[0], "%s", val);
-			if (!strncmp(var, "screenshot_enabled",
+			else if (!strncmp(var, "screenshot_enabled",
 			    strlen("screenshot_enabled")))
 				ss_enabled = atoi(val);
-			if (!strncmp(var, "screenshot_app",
+			else if (!strncmp(var, "screenshot_app",
 			    strlen("screenshot_app")))
 				asprintf(&spawn_screenshot[0], "%s", val);
+			else
+				goto bad;
 			break;
+
+		case 't':
+			if (!strncmp(var, "term_width", strlen("term_width")))
+				term_width = atoi(val);
+			else
+				goto bad;
+			break;
+
 		default:
 			goto bad;
 		}
@@ -850,6 +868,34 @@ unmap_all(void)
 }
 
 void
+fake_keypress(struct ws_win *win, int keysym, int modifiers)
+{
+	XKeyEvent event;
+
+	event.display = display;	/* Ignored, but what the hell */
+	event.window = win->id;
+	event.root = win->s->root;
+	event.subwindow = None;
+	event.time = CurrentTime;
+	event.x = win->g.x;
+	event.y = win->g.y;
+	event.x_root = 1;
+	event.y_root = 1;
+	event.same_screen = True;
+	event.keycode = XKeysymToKeycode(display, keysym);
+	event.state = modifiers;
+
+	event.type = KeyPress;
+	XSendEvent(event.display, event.window, True,
+	    KeyPressMask, (XEvent *)&event);
+
+	event.type = KeyRelease;
+	XSendEvent(event.display, event.window, True,
+	    KeyPressMask, (XEvent *)&event);
+
+}
+
+void
 restart(struct swm_region *r, union arg *args)
 {
 	DNPRINTF(SWM_D_MISC, "restart: %s\n", start_argv[0]);
@@ -948,6 +994,16 @@ spawn(struct swm_region *r, union arg *args)
 		exit(0);
 	}
 	wait(0);
+}
+
+void
+spawnterm(struct swm_region *r, union arg *args)
+{
+	DNPRINTF(SWM_D_MISC, "spawnterm\n");
+
+	if (term_width)
+		setenv("_SWM_XTERM_FONTADJ", "", 1);
+	spawn(r, args);
 }
 
 void
@@ -1280,6 +1336,8 @@ stack(void) {
 			r->ws->cur_layout->l_stack(r->ws, &g);
 		}
 	}
+	if (font_adjusted)
+		font_adjusted--;
 	XSync(display, False);
 }
 
@@ -1310,6 +1368,35 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 	    win->id, wc.x, wc.y, wc.width, wc.height);
 
 	XConfigureWindow(display, win->id, mask, &wc);
+}
+
+/*
+ * Send keystrokes to terminal to decrease/increase the font size as the
+ * window size changes.
+ */
+void
+adjust_font(struct ws_win *win)
+{
+	if (!(win->quirks & SWM_Q_XTERM_FONTADJ) ||
+	    win->floating || win->transient)
+		return;
+	
+	if (win->sh.width_inc && win->last_inc != win->sh.width_inc &&
+	    win->g.w / win->sh.width_inc < term_width &&
+	    win->font_steps < SWM_MAX_FONT_STEPS) {
+		win->font_size_boundary[win->font_steps] =
+		    (win->sh.width_inc * term_width) + win->sh.base_width;
+		win->font_steps++;
+		font_adjusted++;
+		win->last_inc = win->sh.width_inc;
+		fake_keypress(win, XK_KP_Subtract, ShiftMask);
+	} else if (win->font_steps && win->last_inc != win->sh.width_inc &&
+	    win->g.w > win->font_size_boundary[win->font_steps - 1]) {
+		win->font_steps--;
+		font_adjusted++;
+		win->last_inc = win->sh.width_inc;
+		fake_keypress(win, XK_KP_Add, ShiftMask);
+	}
 }
 
 #define SWAPXY(g)	do {				\
@@ -1461,6 +1548,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			win->g.w = wc.width = win_g.w;
 			win->g.h = wc.height = win_g.h;
 		}
+		adjust_font(win);
 		mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 		XConfigureWindow(display, win->id, mask, &wc);
 		XMapRaised(display, win->id);
@@ -1739,7 +1827,7 @@ struct key {
 	{ MODKEY,		XK_k,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
 	{ MODKEY | ShiftMask,	XK_j,		swapwin,	{.id = SWM_ARG_ID_SWAPNEXT} },
 	{ MODKEY | ShiftMask,	XK_k,		swapwin,	{.id = SWM_ARG_ID_SWAPPREV} },
-	{ MODKEY | ShiftMask,	XK_Return,	spawn,		{.argv = spawn_term} },
+	{ MODKEY | ShiftMask,	XK_Return,	spawnterm,	{.argv = spawn_term} },
 	{ MODKEY,		XK_p,		spawnmenu,	{.argv = spawn_menu} },
 	{ MODKEY | ShiftMask,	XK_q,		quit,		{0} },
 	{ MODKEY,		XK_q,		restart,	{0} },
@@ -2298,8 +2386,19 @@ configurerequest(XEvent *e)
 void
 configurenotify(XEvent *e)
 {
+	struct ws_win		*win;
+	long			mask;
+
 	DNPRINTF(SWM_D_EVENT, "configurenotify: window: %lu\n",
 	    e->xconfigure.window);
+
+	win = find_window(e->xconfigure.window);
+	XMapWindow(display, win->id);
+	XGetWMNormalHints(display, win->id, &win->sh, &mask);
+	adjust_font(win);
+	XMapWindow(display, win->id);
+	if (font_adjusted)
+		stack();
 }
 
 void

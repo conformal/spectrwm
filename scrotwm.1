@@ -201,6 +201,21 @@ Set to the script that will take screenshots.
 It will be called with "full" or "window" as parameter 1 to indicate what
 screenshot action is expected.
 The script shall handle those cases accordingly.
+.It Cm term_width
+Set a preferred minimum width for the terminal
+If this value is greater than 0,
+.Nm
+will attempt to adjust the font sizes in the terminal to keep the terminal
+width above this number as the window is resized.
+Only 
+.Xr xterm 1
+is currently supported.
+The
+.Xr xterm 1
+binary must not be setuid or setgid, which it is by default on most systems.
+Users may need to set spawn term to use an alternate copy of the
+.Xr xterm 1
+binary without the setgid bit set.
 .El
 .Pp
 Colors need to be specified per the
