@@ -261,6 +261,7 @@ struct workspace {
 	int			restack;	/* restack on switch */
 	struct layout		*cur_layout;	/* current layout handlers */
 	struct ws_win		*focus;		/* may be NULL */
+	struct ws_win		*focus_prev;	/* may be NULL */
 	struct swm_region	*r;		/* may be NULL */
 	struct ws_win_list	winlist;	/* list of windows in ws */
 
@@ -993,6 +994,9 @@ focus_win(struct ws_win *win)
 	if (win == NULL)
 		return;
 
+	if (win->ws->focus != win && win->ws->focus != NULL)
+		win->ws->focus_prev = win->ws->focus;
+
 	unfocus_all();
 	win->ws->focus = win;
 	if (win->ws->r != NULL) {
@@ -1122,7 +1126,7 @@ cyclescr(struct swm_region *r, union arg *args)
 void
 swapwin(struct swm_region *r, union arg *args)
 {
-	struct ws_win		*target;
+	struct ws_win		*target, *source;
 	struct ws_win_list	*wl;
 
 
@@ -1132,40 +1136,48 @@ swapwin(struct swm_region *r, union arg *args)
 	if (cur_focus == NULL)
 		return;
 
-	wl = &cur_focus->ws->winlist;
+	source = cur_focus;
+	wl = &source->ws->winlist;
 
 	switch (args->id) {
 	case SWM_ARG_ID_SWAPPREV:
-		target = TAILQ_PREV(cur_focus, ws_win_list, entry);
+		target = TAILQ_PREV(source, ws_win_list, entry);
 		TAILQ_REMOVE(wl, cur_focus, entry);
 		if (target == NULL)
-			TAILQ_INSERT_TAIL(wl, cur_focus, entry);
+			TAILQ_INSERT_TAIL(wl, source, entry);
 		else
-			TAILQ_INSERT_BEFORE(target, cur_focus, entry);
+			TAILQ_INSERT_BEFORE(target, source, entry);
 		break;
 	case SWM_ARG_ID_SWAPNEXT: 
-		target = TAILQ_NEXT(cur_focus, entry);
-		TAILQ_REMOVE(wl, cur_focus, entry);
+		target = TAILQ_NEXT(source, entry);
+		TAILQ_REMOVE(wl, source, entry);
 		if (target == NULL)
-			TAILQ_INSERT_HEAD(wl, cur_focus, entry);
+			TAILQ_INSERT_HEAD(wl, source, entry);
 		else
-			TAILQ_INSERT_AFTER(wl, target, cur_focus, entry);
+			TAILQ_INSERT_AFTER(wl, target, source, entry);
 		break;
 	case SWM_ARG_ID_SWAPMAIN:
 		target = TAILQ_FIRST(wl);
-		if (target == cur_focus)
-			return;
+		if (target == source) {
+			if (source->ws->focus_prev != NULL &&
+			    source->ws->focus_prev != target)  
+                                
+				source = source->ws->focus_prev;
+			else
+				return;
+                }
+		source->ws->focus_prev = target;
 		TAILQ_REMOVE(wl, target, entry);
-		TAILQ_INSERT_BEFORE(cur_focus, target, entry);
-		TAILQ_REMOVE(wl, cur_focus, entry);
-		TAILQ_INSERT_HEAD(wl, cur_focus, entry);
+		TAILQ_INSERT_BEFORE(source, target, entry);
+		TAILQ_REMOVE(wl, source, entry);
+		TAILQ_INSERT_HEAD(wl, source, entry);
 		break;
 	default:
 		DNPRINTF(SWM_D_MOVE, "invalid id: %d\n", args->id);
 		return;
 	}
 
-	ignore_enter = 2;
+	ignore_enter = 1;
 	stack();
 }
 
@@ -2212,6 +2224,8 @@ unmanage_window(struct ws_win *win)
 		unfocus_all();
 	} else
 		focus_win(ws->focus);
+	if (ws->focus_prev == win)
+		ws->focus_prev = NULL;
 
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
 	set_win_state(win, WithdrawnState);
