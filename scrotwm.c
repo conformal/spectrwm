@@ -1410,7 +1410,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	XWindowChanges		wc;
 	struct swm_geometry	win_g, r_g = *g;
 	struct ws_win		*win, *winfocus;
-	int			i, j, s, w_inc, h_inc, w_base, h_base, stacks; 
+	int			i, j, s, stacks; 
+	int			w_inc = 1, h_inc, w_base = 1, h_base;
 	int			hrh, extra, h_slice, last_h = 0;
 	int			split, colno, winno, mwin, msize, mscale;
 	int			remain, missing, v_slice;;
@@ -1426,7 +1427,13 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		ws->focus = TAILQ_FIRST(&ws->winlist);
 	winfocus = cur_focus ? cur_focus : ws->focus;
 
-	win = TAILQ_FIRST(&ws->winlist);
+	TAILQ_FOREACH(win, &ws->winlist, entry)
+		if (win->transient == 0 && win->floating == 0)
+			break;
+
+	if (win == NULL)
+		goto notiles;
+
 	if (rot) {
 		w_inc = win->sh.width_inc;
 		w_base = win->sh.base_width;
@@ -1461,7 +1468,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			remain = (win_g.w - w_base) % w_inc;
 			missing = w_inc - remain;
 
-			if (missing <= extra || j == 0) {
+			if (missing <= extra) {
 				extra -= missing;
 				win_g.w += missing;
 			} else {
@@ -1558,6 +1565,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		j++;
 	}
 
+ notiles:
 	/* now, stack all the floaters and transients */
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
 		if (win->transient == 0 && win->floating == 0)
