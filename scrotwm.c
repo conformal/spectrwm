@@ -1412,7 +1412,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	struct ws_win		*win, *winfocus;
 	int			i, j, s, stacks; 
 	int			w_inc = 1, h_inc, w_base = 1, h_base;
-	int			hrh, extra, h_slice, last_h = 0;
+	int			hrh, extra = 0, h_slice, last_h = 0;
 	int			split, colno, winno, mwin, msize, mscale;
 	int			remain, missing, v_slice;;
 	unsigned int		mask;
@@ -1467,14 +1467,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			/* adjust for window's requested size increment */
 			remain = (win_g.w - w_base) % w_inc;
 			missing = w_inc - remain;
-
-			if (missing <= extra) {
-				extra -= missing;
-				win_g.w += missing;
-			} else {
-				win_g.w -= remain;
-				extra += remain;
-			}
+			win_g.w -= remain;
+			extra += remain;
 		}
 
 		msize = win_g.w;
