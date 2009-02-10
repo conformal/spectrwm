@@ -140,6 +140,8 @@ u_int32_t		swm_debug = 0
 
 char			**start_argv;
 Atom			astate;
+Atom			aprot;
+Atom			adelete;
 int			(*xerrorxlib)(Display *, XErrorEvent *);
 int			other_wm;
 int			running = 1;
@@ -228,6 +230,7 @@ struct ws_win {
 	int			font_size_boundary[SWM_MAX_FONT_STEPS];
 	int			font_steps;
 	int			last_inc;
+	int			can_delete;
 	unsigned long		quirks;
 	struct workspace	*ws;	/* always valid */
 	struct swm_screen	*s;	/* always valid, never changes */
@@ -330,6 +333,8 @@ union arg {
 #define SWM_ARG_ID_SS_WINDOW	(1)
 #define SWM_ARG_ID_DONTCENTER	(0)
 #define SWM_ARG_ID_CENTER	(1)
+#define SWM_ARG_ID_KILLWINDOW	(0)
+#define SWM_ARG_ID_DELETEWINDOW	(1)
 	char			**argv;
 };
 
@@ -803,6 +808,21 @@ version(struct swm_region *r, union arg *args)
 	else
 		strlcpy(bar_vertext, "", sizeof bar_vertext);
 	bar_update();
+}
+
+void
+client_msg(struct ws_win *win, Atom a)
+{
+	XClientMessageEvent	cm;
+
+	bzero(&cm, sizeof cm);
+	cm.type = ClientMessage;
+	cm.window = win->id;
+	cm.message_type = aprot;
+	cm.format = 32;
+	cm.data.l[0] = a;
+	cm.data.l[1] = CurrentTime;
+	XSendEvent(display, win->id, False, 0L, (XEvent *)&cm);
 }
 
 void
@@ -1761,9 +1781,16 @@ send_to_ws(struct swm_region *r, union arg *args)
 void
 wkill(struct swm_region *r, union arg *args)
 {
-	DNPRINTF(SWM_D_MISC, "wkill\n");
-	if(r->ws->focus != NULL)
+	DNPRINTF(SWM_D_MISC, "wkill %d\n", args->id);
+
+	if(r->ws->focus == NULL)
+		return;
+
+	if (args->id == SWM_ARG_ID_KILLWINDOW)
 		XKillClient(display, r->ws->focus->id);
+	else
+		if (r->ws->focus->can_delete)
+			client_msg(r->ws->focus, adelete);
 }
 
 void
@@ -1857,7 +1884,8 @@ struct key {
 	{ MODKEY,		XK_b,		bar_toggle,	{0} },
 	{ MODKEY,		XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
 	{ MODKEY | ShiftMask,	XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
-	{ MODKEY | ShiftMask,	XK_x,		wkill,		{0} },
+	{ MODKEY | ShiftMask,	XK_x,		wkill,		{.id = SWM_ARG_ID_KILLWINDOW} },
+	{ MODKEY,		XK_x,		wkill,		{.id = SWM_ARG_ID_DELETEWINDOW} },
 	{ MODKEY,		XK_s,		screenshot,	{.id = SWM_ARG_ID_SS_ALL} },
 	{ MODKEY | ShiftMask,	XK_s,		screenshot,	{.id = SWM_ARG_ID_SS_WINDOW} },
 	{ MODKEY,		XK_t,		floating_toggle,{0} },
@@ -2169,9 +2197,10 @@ manage_window(Window id)
 	Window			trans;
 	struct workspace	*ws;
 	struct ws_win		*win;
-	int			format, i, ws_idx;
+	int			format, i, ws_idx, n;
 	unsigned long		nitems, bytes;
 	Atom			ws_idx_atom = 0, type;
+	Atom			*prot = NULL, *pp;
 	unsigned char		ws_idx_str[SWM_PROPLEN], *prop = NULL;
 	struct swm_region	*r;
 	long			mask;
@@ -2196,6 +2225,14 @@ manage_window(Window id)
 		win->transient = trans;
 		DNPRINTF(SWM_D_MISC, "manage_window: win %u transient %u\n",
 		    (unsigned)win->id, win->transient);
+	}
+	/* get supported protocols */
+	if (XGetWMProtocols(display, id, &prot, &n)) {
+		for (i = 0, pp = prot; i < n; i++, pp++)
+			if (*pp == adelete)
+				win->can_delete = 1;
+		if (prot)
+			XFree(prot);
 	}
 
 	/*
@@ -2858,6 +2895,8 @@ main(int argc, char *argv[])
 		errx(1, "other wm running");
 
 	astate = XInternAtom(display, "WM_STATE", False);
+	aprot = XInternAtom(display, "WM_PROTOCOLS", False);
+	adelete = XInternAtom(display, "WM_DELETE_WINDOW", False);
 
 	/* look for local and global conf file */
 	pwd = getpwuid(getuid());
