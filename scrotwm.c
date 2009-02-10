@@ -650,7 +650,6 @@ bar_update(void)
 
 	if (bar_enabled == 0)
 		return;
-
 	if (bar_extra && bar_extra_running) {
 		/* ignore short reads; it'll correct itself */
 		while ((b = fgetln(stdin, &len)) != NULL)
@@ -705,16 +704,13 @@ bar_toggle(struct swm_region *r, union arg *args)
 				XMapRaised(display, tmpr->bar_window);
 	}
 	bar_enabled = !bar_enabled;
-	XSync(display, False);
 	for (i = 0; i < sc; i++)
 		for (j = 0; j < SWM_WS_MAX; j++)
 			screens[i].ws[j].restack = 1;
 
 	stack();
 	/* must be after stack */
-	for (i = 0; i < sc; i++)
-		TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
-			bar_update();
+	bar_update();
 }
 
 void
@@ -2653,7 +2649,6 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 	r->ws = ws;
 	ws->r = r;
 	TAILQ_INSERT_TAIL(&s->rl, r, entry);
-	bar_setup(r);
 }
 
 void
@@ -2843,10 +2838,11 @@ int
 main(int argc, char *argv[])
 {
 	struct passwd		*pwd;
+	struct swm_region	*r;
 	char			conf[PATH_MAX], *cfile = NULL;
 	struct stat		sb;
 	XEvent			e;
-	int			xfd;
+	int			xfd, i;
 	fd_set			rd;
 
 	start_argv = argv;
@@ -2883,7 +2879,11 @@ main(int argc, char *argv[])
 	}
 	if (cfile)
 		conf_load(cfile);
-	bar_refresh();
+
+	/* setup all bars */
+	for (i = 0; i < ScreenCount(display); i++)
+		TAILQ_FOREACH(r, &screens[i].rl, entry)
+			bar_setup(r);
 
 	/* ws[0].focus = TAILQ_FIRST(&ws[0].winlist); */
 
