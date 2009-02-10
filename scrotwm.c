@@ -1918,10 +1918,10 @@ resize(struct ws_win *win, union arg *args)
 			handler[ev.type](&ev);
 			break;
 		case MotionNotify:
-			if (ev.xmotion.x < 0)
-				ev.xmotion.x = 0;
-			if (ev.xmotion.y < 0)
-				ev.xmotion.y = 0;
+			if (ev.xmotion.x <= 1)
+				ev.xmotion.x = 1;
+			if (ev.xmotion.y <= 1)
+				ev.xmotion.y = 1;
 			win->g.w = ev.xmotion.x;
 			win->g.h = ev.xmotion.y;
 
