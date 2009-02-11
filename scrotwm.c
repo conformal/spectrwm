@@ -347,13 +347,19 @@ struct quirk {
 #define SWM_Q_TRANSSZ		(1<<1)	/* transiend window size too small */
 #define SWM_Q_ANYWHERE		(1<<2)	/* don't position this window */
 #define SWM_Q_XTERM_FONTADJ	(1<<3)	/* adjust xterm fonts when resizing */
+#define SWM_Q_FULLSCREEN	(1<<4)	/* remove border */
 } quirks[] = {
-	{ "MPlayer",		"xv",		SWM_Q_FLOAT },
+	{ "MPlayer",		"xv",		SWM_Q_FLOAT | SWM_Q_FULLSCREEN },
 	{ "OpenOffice.org 2.4",	"VCLSalFrame",	SWM_Q_FLOAT },
 	{ "OpenOffice.org 3.0",	"VCLSalFrame",	SWM_Q_FLOAT },
-	{ "Firefox-bin",	"firefox-bin",	SWM_Q_TRANSSZ},
-	{ "Gimp",		"gimp",		SWM_Q_FLOAT | SWM_Q_ANYWHERE},
-	{ "XTerm",		"xterm",	SWM_Q_XTERM_FONTADJ},
+	{ "Firefox-bin",	"firefox-bin",	SWM_Q_TRANSSZ },
+	{ "Gimp",		"gimp",		SWM_Q_FLOAT | SWM_Q_ANYWHERE },
+	{ "XTerm",		"xterm",	SWM_Q_XTERM_FONTADJ },
+	{ "xine",		"Xine Window",	SWM_Q_FLOAT | SWM_Q_ANYWHERE },
+	{ "Xitk",		"Xitk Combo",	SWM_Q_FLOAT | SWM_Q_ANYWHERE },
+	{ "xine",		"xine Panel",	SWM_Q_FLOAT | SWM_Q_ANYWHERE },
+	{ "Xitk",		"Xine Window",	SWM_Q_FLOAT | SWM_Q_ANYWHERE },
+	{ "xine",		"xine Video Fullscreen Window",	SWM_Q_FULLSCREEN | SWM_Q_FLOAT },
 	{ NULL,			NULL,		0},
 };
 
@@ -1365,7 +1371,11 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 
 	bzero(&wc, sizeof wc);
 	mask = CWX | CWY | CWBorderWidth | CWWidth | CWHeight;
-	wc.border_width = 1;
+	if ((win->quirks & SWM_Q_FULLSCREEN) && (win->g.w == WIDTH(r)) &&
+	    (win->g.h == HEIGHT(r)))
+		wc.border_width = 0;
+	else
+		wc.border_width = 1;
 	if (win->transient && (win->quirks & SWM_Q_TRANSSZ)) {
 		win->g.w = (double)WIDTH(r) * dialog_ratio;
 		win->g.h = (double)HEIGHT(r) * dialog_ratio;
@@ -2397,13 +2407,13 @@ configurerequest(XEvent *e)
 			if (win->ws->r != NULL) {
 				/* this seems to be full screen */
 				if (win->g.w >= WIDTH(win->ws->r)) {
-					win->g.x = -1;
+					win->g.x = 0;
 					win->g.w = WIDTH(win->ws->r);
 					ev->value_mask |= CWX | CWWidth;
 				}
 				if (win->g.h >= HEIGHT(win->ws->r)) {
 					/* kill border */
-					win->g.y = -1;
+					win->g.y = 0;
 					win->g.h = HEIGHT(win->ws->r);
 					ev->value_mask |= CWY | CWHeight;
 				}
