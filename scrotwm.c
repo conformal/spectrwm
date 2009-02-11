@@ -2317,6 +2317,14 @@ manage_window(Window id)
 		XConfigureWindow(display, win->id, mask, &wc);
 	}
 
+	/* Reset font sizes (the bruteforce way; no default keybinding). */
+	if (win->quirks & SWM_Q_XTERM_FONTADJ) {
+		for (i = 0; i < SWM_MAX_FONT_STEPS; i++)
+			fake_keypress(win, XK_KP_Subtract, ShiftMask);
+		for (i = 0; i < SWM_MAX_FONT_STEPS; i++)
+			fake_keypress(win, XK_KP_Add, ShiftMask);
+	}
+
 	XSelectInput(display, id, EnterWindowMask | FocusChangeMask |
 	    PropertyChangeMask | StructureNotifyMask);
 
