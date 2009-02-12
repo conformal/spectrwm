@@ -249,6 +249,7 @@ void	horizontal_stack(struct workspace *, struct swm_geometry *);
 void	max_stack(struct workspace *, struct swm_geometry *);
 
 void	grabbuttons(struct ws_win *, int);
+void	new_region(struct swm_screen *, int, int, int, int);
 
 struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
@@ -436,8 +437,6 @@ setscreencolor(char *val, int i, int c)
 		errx(1, "invalid screen index: %d out of bounds (maximum %d)\n",
 		    i, ScreenCount(display));
 }
-
-void		new_region(struct swm_screen *, int, int, int, int);
 
 void
 custom_region(char *val)
@@ -2790,6 +2789,11 @@ screenchange(XEvent *e) {
 	TAILQ_FOREACH(r, &screens[i].rl, entry)
 		TAILQ_FOREACH(win, &r->ws->winlist, entry)
 			XUnmapWindow(display, win->id);
+
+	/* add bars to all regions */
+	for (i = 0; i < ScreenCount(display); i++)
+		TAILQ_FOREACH(r, &screens[i].rl, entry)
+			bar_setup(r);
 	stack();
 }
 
