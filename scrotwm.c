@@ -160,7 +160,7 @@ int			font_adjusted = 0;
 /* dialog windows */
 double			dialog_ratio = .6;
 /* status bar */
-#define SWM_BAR_MAX	(128)
+#define SWM_BAR_MAX	(256)
 char			*bar_argv[] = { NULL, NULL };
 int			bar_pipe[2];
 char			bar_ext[SWM_BAR_MAX];
