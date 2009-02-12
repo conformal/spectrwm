@@ -706,15 +706,15 @@ bar_toggle(struct swm_region *r, union arg *args)
 
 	DNPRINTF(SWM_D_MISC, "bar_toggle\n");
 
-	if (bar_enabled) {
+	if (bar_enabled)
 		for (i = 0; i < sc; i++)
 			TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
 				XUnmapWindow(display, tmpr->bar_window);
-	} else {
+	else
 		for (i = 0; i < sc; i++)
 			TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
 				XMapRaised(display, tmpr->bar_window);
-	}
+
 	bar_enabled = !bar_enabled;
 	for (i = 0; i < sc; i++)
 		for (j = 0; j < SWM_WS_MAX; j++)
