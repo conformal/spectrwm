@@ -2627,13 +2627,12 @@ getstate(Window w)
 	unsigned long		n, extra;
 	Atom			real;
 
-	astate = XInternAtom(display, "WM_STATE", False);
 	status = XGetWindowProperty(display, w, astate, 0L, 2L, False, astate,
 	    &real, &format, &n, &extra, (unsigned char **)&p);
 	if (status != Success)
 		return (-1);
 	if (n != 0)
-		result = *p;
+		result = *((long *)p);
 	XFree(p);
 	return (result);
 }
