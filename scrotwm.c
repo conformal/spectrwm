@@ -360,6 +360,7 @@ struct quirk {
 	{ "xine",		"xine Panel",	SWM_Q_FLOAT | SWM_Q_ANYWHERE },
 	{ "Xitk",		"Xine Window",	SWM_Q_FLOAT | SWM_Q_ANYWHERE },
 	{ "xine",		"xine Video Fullscreen Window",	SWM_Q_FULLSCREEN | SWM_Q_FLOAT },
+	{ "pcb",		"pcb",		SWM_Q_FLOAT },
 	{ NULL,			NULL,		0},
 };
 
