@@ -1288,6 +1288,10 @@ focus(struct swm_region *r, union arg *args)
 
 	case SWM_ARG_ID_FOCUSMAIN:
 		winfocus = TAILQ_FIRST(wl);
+		if (winfocus == cur_focus)
+			winfocus = cur_focus->ws->focus_prev;
+		if (winfocus == NULL)
+			return;
 		break;
 
 	default:
