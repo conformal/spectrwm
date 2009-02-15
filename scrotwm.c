@@ -2898,6 +2898,26 @@ setup_screens(void)
 	}
 }
 
+void
+workaround(void)
+{
+	int			i;
+	Atom			netwmcheck, netwmname, utf8_string;
+	Window			root;
+
+	/* work around sun jdk bugs, code from wmname */
+	netwmcheck = XInternAtom(display, "_NET_SUPPORTING_WM_CHECK", False);
+	netwmname = XInternAtom(display, "_NET_WM_NAME", False);
+	utf8_string = XInternAtom(display, "UTF8_STRING", False);
+	for (i = 0; i < ScreenCount(display); i++) {
+		root = screens[i].root;
+		XChangeProperty(display, root, netwmcheck, XA_WINDOW, 32,
+		    PropModeReplace, (unsigned char *)&root, 1);
+		XChangeProperty(display, root, netwmname, utf8_string, 8,
+		    PropModeReplace, "LG3D", strlen("LG3D"));
+	}
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -2951,7 +2971,8 @@ main(int argc, char *argv[])
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			bar_setup(r);
 
-	/* ws[0].focus = TAILQ_FIRST(&ws[0].winlist); */
+	/* set some values to work around bad programs */
+	workaround();
 
 	grabkeys();
 	stack();
