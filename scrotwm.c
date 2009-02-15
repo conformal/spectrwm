@@ -354,6 +354,7 @@ struct quirk {
 	{ "OpenOffice.org 2.4",	"VCLSalFrame",	SWM_Q_FLOAT },
 	{ "OpenOffice.org 3.0",	"VCLSalFrame",	SWM_Q_FLOAT },
 	{ "Firefox-bin",	"firefox-bin",	SWM_Q_TRANSSZ },
+	{ "Firefox",		"Dialog",	SWM_Q_FLOAT },
 	{ "Gimp",		"gimp",		SWM_Q_FLOAT | SWM_Q_ANYWHERE },
 	{ "XTerm",		"xterm",	SWM_Q_XTERM_FONTADJ },
 	{ "xine",		"Xine Window",	SWM_Q_FLOAT | SWM_Q_ANYWHERE },
