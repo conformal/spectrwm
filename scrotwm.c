@@ -250,6 +250,7 @@ void	max_stack(struct workspace *, struct swm_geometry *);
 
 void	grabbuttons(struct ws_win *, int);
 void	new_region(struct swm_screen *, int, int, int, int);
+void	update_modkey(unsigned int);
 
 struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
@@ -502,6 +503,7 @@ conf_load(char *filename)
 	char			*line, *cp, *var, *val;
 	size_t			len, lineno = 0;
 	int			i, sc;
+	unsigned int 		modkey;
 
 	DNPRINTF(SWM_D_MISC, "conf_load: filename %s\n", filename);
 
@@ -568,6 +570,22 @@ conf_load(char *filename)
 				dialog_ratio = atof(val);
 				if (dialog_ratio > 1.0 || dialog_ratio <= .3)
 					dialog_ratio = .6;
+			} else
+				goto bad;
+			break;
+
+		case 'm':
+			if (!strncmp(var, "modkey", strlen("modkey"))) {
+				modkey = MODKEY;
+				if (!strncmp(val, "Mod2", strlen("Mod2")))
+					modkey = Mod2Mask;
+				else if (!strncmp(val, "Mod3", strlen("Mod3")))
+					modkey = Mod3Mask;
+				else if (!strncmp(val, "Mod4", strlen("Mod4")))
+					modkey = Mod4Mask;
+				else
+					modkey = Mod1Mask;
+				update_modkey(modkey);
 			} else
 				goto bad;
 			break;
@@ -2078,6 +2096,24 @@ struct button {
 	{ client_click,		MODKEY | ShiftMask, Button3,	resize, 	{.id = SWM_ARG_ID_CENTER} },
 	{ client_click,		MODKEY,		Button1,	move, 		{0} },
 };
+
+void
+update_modkey(unsigned int mod)
+{
+	int			i;
+
+	for (i = 0; i < LENGTH(keys); i++)
+		if (keys[i].mod & ShiftMask)
+			keys[i].mod = mod | ShiftMask;
+		else
+			keys[i].mod = mod;
+
+	for (i = 0; i < LENGTH(buttons); i++)
+		if (buttons[i].mask & ShiftMask)
+			buttons[i].mask = mod | ShiftMask;
+		else
+			buttons[i].mask = mod;
+}
 
 void
 updatenumlockmask(void)
