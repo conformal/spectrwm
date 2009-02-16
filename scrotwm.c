@@ -2486,13 +2486,15 @@ configurenotify(XEvent *e)
 	DNPRINTF(SWM_D_EVENT, "configurenotify: window: %lu\n",
 	    e->xconfigure.window);
 
+	XMapWindow(display, e->xconfigure.window);
 	win = find_window(e->xconfigure.window);
-	XMapWindow(display, win->id);
-	XGetWMNormalHints(display, win->id, &win->sh, &mask);
-	adjust_font(win);
-	XMapWindow(display, win->id);
-	if (font_adjusted)
-		stack();
+	if (win) {
+		XGetWMNormalHints(display, win->id, &win->sh, &mask);
+		adjust_font(win);
+		XMapWindow(display, win->id);
+		if (font_adjusted)
+			stack();
+	}
 }
 
 void
