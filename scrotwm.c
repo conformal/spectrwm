@@ -179,7 +179,7 @@ XGCValues		bar_gcv;
 int			bar_fidx = 0;
 XFontStruct		*bar_fs;
 char			*bar_fonts[] = {
-			    "-*-terminus-*-*-*-*-*-*-*-*-*-*-*-*",
+			    "-*-terminus-medium-*-*-*-*-*-*-*-*-*-*-*",
 			    "-*-times-medium-r-*-*-*-*-*-*-*-*-*-*",
 			    NULL
 };
