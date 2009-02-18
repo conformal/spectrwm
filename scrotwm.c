@@ -173,6 +173,7 @@ int			bar_extra = 1;
 int			bar_extra_running = 0;
 int			bar_verbose = 1;
 int			bar_height = 0;
+int			clock_enabled = 1;
 pid_t			bar_pid;
 GC			bar_gc;
 XGCValues		bar_gcv;
@@ -552,7 +553,9 @@ conf_load(char *filename)
 			break;
 
 		case 'c':
-			if (!varmatch(var, "color_focus", &i))
+			if (!strncmp(var, "clock_enabled", strlen("clock_enabled")))
+				clock_enabled = atoi(val);
+			else if (!varmatch(var, "color_focus", &i))
 				setscreencolor(val, i, SWM_S_COLOR_FOCUS);
 			else if (!varmatch(var, "color_unfocus", &i))
 				setscreencolor(val, i, SWM_S_COLOR_UNFOCUS);
@@ -695,14 +698,18 @@ bar_update(void)
 	} else
 		strlcpy(bar_ext, "", sizeof bar_ext);
 
-	time(&tmt);
-	localtime_r(&tmt, &tm);
-	strftime(s, sizeof s, "%a %b %d %R %Z %Y", &tm);
+	if (clock_enabled == 0)
+		strlcpy(s, "", sizeof s);
+	else {
+		time(&tmt);
+		localtime_r(&tmt, &tm);
+		strftime(s, sizeof s, "%a %b %d %R %Z %Y    ", &tm);
+	}
 	for (i = 0; i < ScreenCount(display); i++) {
 		x = 1;
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
-			snprintf(loc, sizeof loc, "%s     %d:%d    %s    %s",
-			    s, x++, r->ws->idx + 1, bar_ext, bar_vertext);
+			snprintf(loc, sizeof loc, "%d:%d    %s%s    %s",
+			    x++, r->ws->idx + 1, s, bar_ext, bar_vertext);
 			bar_print(r, loc);
 		}
 	}

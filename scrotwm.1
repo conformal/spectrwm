@@ -132,7 +132,7 @@ Toggle version in status bar
 .It Cm M-t
 Toggle focused window between tiled and floating
 .It Cm M-S Aq Cm Delete
-Lock scren
+Lock screen
 .It Cm M-S-i
 Reinitialize physical screens
 .It Cm M1
@@ -184,6 +184,9 @@ External script that populates additional information in the status bar,
 such as battery life.
 .It Cm bar_delay
 Update frequency, in seconds, of external script that populates the status bar.
+.It Cm clock_enabled
+Enable or disable displaying the clock in the status bar.  Disable by
+setting to 0 so a custom clock could be used in the bar_action script.
 .It Cm spawn_term
 External application that gets spawned when
 .Cm M-S- Ns Aq Cm Return
