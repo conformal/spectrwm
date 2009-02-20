@@ -76,7 +76,7 @@ while :; do
 	APM_DATA=""
 	I=0
 	while read -p; do
-		if [ $(( ${I} % 59 )) -eq 0 ]; then
+		if [ $(( ${I} % 1 )) -eq 0 ]; then
 			APM_DATA=`/usr/sbin/apm -alb`
 		fi
 		if [ $I -gt 2 ]; then
