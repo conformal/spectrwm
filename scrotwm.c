@@ -377,6 +377,7 @@ void			configurenotify(XEvent *);
 void			destroynotify(XEvent *);
 void			enternotify(XEvent *);
 void			focusin(XEvent *);
+void			focusout(XEvent *);
 void			mappingnotify(XEvent *);
 void			maprequest(XEvent *);
 void			propertynotify(XEvent *);
@@ -392,6 +393,7 @@ void			(*handler[LASTEvent])(XEvent *) = {
 				[DestroyNotify] = destroynotify,
 				[EnterNotify] = enternotify,
 				[FocusIn] = focusin,
+				[FocusOut] = focusout,
 				[MappingNotify] = mappingnotify,
 				[MapRequest] = maprequest,
 				[PropertyNotify] = propertynotify,
@@ -1069,6 +1071,28 @@ spawnmenu(struct swm_region *r, union arg *args)
 }
 
 void
+unfocus_win(struct ws_win *win)
+{
+	if (win == NULL)
+		return;
+
+	if (win->ws->focus != win && win->ws->focus != NULL)
+		win->ws->focus_prev = win->ws->focus;
+
+	if (win->ws->r == NULL)
+		return;
+
+	grabbuttons(win, 0);
+	XSetWindowBorder(display, win->id,
+	    win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
+	win->got_focus = 0;
+	if (win->ws->focus == win)
+		win->ws->focus = NULL;
+	if (cur_focus == win)
+		cur_focus = NULL;
+}
+
+void
 unfocus_all(void)
 {
 	struct ws_win		*win;
@@ -1078,16 +1102,8 @@ unfocus_all(void)
 
 	for (i = 0; i < ScreenCount(display); i++)
 		for (j = 0; j < SWM_WS_MAX; j++)
-			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry) {
-				if (win->ws->r == NULL)
-					continue;
-				grabbuttons(win, 0);
-				XSetWindowBorder(display, win->id,
-				    win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
-				win->got_focus = 0;
-				win->ws->focus = NULL;
-				cur_focus = NULL;
-			}
+			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
+				unfocus_win(win);
 }
 
 void
@@ -1098,10 +1114,14 @@ focus_win(struct ws_win *win)
 	if (win == NULL)
 		return;
 
-	if (win->ws->focus != win && win->ws->focus != NULL)
-		win->ws->focus_prev = win->ws->focus;
-
-	unfocus_all();
+	if (cur_focus)
+		unfocus_win(cur_focus);
+	if (win->ws->focus) {
+		/* probably shouldn't happen due to the previous unfocus_win */
+		DNPRINTF(SWM_D_FOCUS, "unfocusing win->ws->focus: %lu\n",
+		    win->ws->focus->id);
+		unfocus_win(win->ws->focus);
+	}
 	win->ws->focus = win;
 	if (win->ws->r != NULL) {
 		cur_focus = win;
@@ -1156,6 +1176,8 @@ switchws(struct swm_region *r, union arg *args)
 
 	ignore_enter = 1;
 	/* set focus */
+	if (new_ws->focus == NULL)
+		new_ws->focus = TAILQ_FIRST(&new_ws->winlist);
 	if (new_ws->focus)
 		focus_win(new_ws->focus);
 	stack();
@@ -2410,7 +2432,7 @@ unmanage_window(struct ws_win *win)
 		ws->focus = TAILQ_FIRST(&ws->winlist);
 	if (ws->focus == NULL || ws->focus == win) {
 		ws->focus = NULL;
-		unfocus_all();
+		unfocus_win(win);
 	} else
 		focus_win(ws->focus);
 	if (ws->focus_prev == win)
@@ -2540,6 +2562,29 @@ void
 focusin(XEvent *e)
 {
 	DNPRINTF(SWM_D_EVENT, "focusin: window: %lu\n", e->xfocus.window);
+}
+
+void
+focusout(XEvent *e)
+{
+	DNPRINTF(SWM_D_EVENT, "focusout: window: %lu\n", e->xfocus.window);
+
+	if (cur_focus && cur_focus->ws->r &&
+	    cur_focus->id == e->xfocus.window) {
+		struct swm_screen	*s = cur_focus->ws->r->s;
+		Window			rr, cr;
+		int			x, y, wx, wy;
+		unsigned int		mask;
+
+		/* Try to detect synergy hiding the cursor.  */
+		if (XQueryPointer(display, cur_focus->id, 
+		    &rr, &cr, &x, &y, &wx, &wy, &mask) != False &&
+		    cr == 0 && !mask &&
+		    x == DisplayWidth(display, s->idx)/2 &&
+		    y == DisplayHeight(display, s->idx)/2) {
+			unfocus_win(cur_focus);
+		}
+	}
 }
 
 void
