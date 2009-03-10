@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2009 Marco Peereboom <marco@peereboom.us>
  * Copyright (c) 2009 Ryan McBride <mcbride@countersiege.com>
+ * Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -105,6 +106,7 @@ static const char	*cvstag = "$scrotwm$";
 #define	SWM_D_MOUSE		0x0040
 #define	SWM_D_PROP		0x0080
 #define	SWM_D_CLASS		0x0100
+#define SWM_D_KEY		0x0200
 
 u_int32_t		swm_debug = 0
 			    | SWM_D_MISC
@@ -116,6 +118,7 @@ u_int32_t		swm_debug = 0
 			    | SWM_D_MOUSE
 			    | SWM_D_PROP
 			    | SWM_D_CLASS
+			    | SWM_D_KEY
 			    ;
 #else
 #define DPRINTF(x...)
@@ -128,6 +131,8 @@ u_int32_t		swm_debug = 0
 #define BUTTONMASK		(ButtonPressMask|ButtonReleaseMask)
 #define MOUSEMASK		(BUTTONMASK|PointerMotionMask)
 #define SWM_PROPLEN		(16)
+#define SWM_FUNCNAME_LEN	(32)
+#define SWM_KEYS_LEN		(255)
 #define X(r)			(r)->g.x
 #define Y(r)			(r)->g.y
 #define WIDTH(r)		(r)->g.w
@@ -241,6 +246,62 @@ struct ws_win {
 };
 TAILQ_HEAD(ws_win_list, ws_win);
 
+/* user/key callable function IDs */
+enum keyfuncid {
+	kf_cycle_layout,
+	kf_stack_reset,
+	kf_master_shrink,
+	kf_master_grow,
+	kf_master_add,
+	kf_master_del,
+	kf_stack_inc,
+	kf_stack_dec,
+	kf_swap_main,
+	kf_focus_next,
+	kf_focus_prev,
+	kf_swap_next,
+	kf_swap_prev,
+	kf_spawn_term,
+	kf_spawn_menu,
+	kf_quit,
+	kf_restart,
+	kf_focus_main,
+	kf_ws_1,
+	kf_ws_2,
+	kf_ws_3,
+	kf_ws_4,
+	kf_ws_5,
+	kf_ws_6,
+	kf_ws_7,
+	kf_ws_8,
+	kf_ws_9,
+	kf_ws_10,
+	kf_ws_next,
+	kf_ws_prev,
+	kf_screen_next,
+	kf_screen_prev,
+	kf_mvws_1,
+	kf_mvws_2,
+	kf_mvws_3,
+	kf_mvws_4,
+	kf_mvws_5,
+	kf_mvws_6,
+	kf_mvws_7,
+	kf_mvws_8,
+	kf_mvws_9,
+	kf_mvws_10,
+	kf_bar_toggle,
+	kf_wind_kill,
+	kf_wind_del,
+	kf_screenshot_all,
+	kf_screenshot_wind,
+	kf_float_toggle,
+	kf_version,
+	kf_spawn_lock,
+	kf_spawn_initscr,
+	kf_invalid
+};
+
 /* layout handlers */
 void	stack(void);
 void	vertical_config(struct workspace *, int);
@@ -252,6 +313,10 @@ void	max_stack(struct workspace *, struct swm_geometry *);
 void	grabbuttons(struct ws_win *, int);
 void	new_region(struct swm_screen *, int, int, int, int);
 void	update_modkey(unsigned int);
+/* user functions / key binding */
+int	bindmatch(const char *var, const char *name, unsigned int currmod, char *keystr,
+    enum keyfuncid *kfid, unsigned int *mod, KeySym *ks);
+void	setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid);
 
 struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
@@ -506,7 +571,9 @@ conf_load(char *filename)
 	char			*line, *cp, *var, *val;
 	size_t			len, lineno = 0;
 	int			i, sc;
-	unsigned int 		modkey;
+	unsigned int 		modkey = MODKEY, modmask;
+	KeySym			ks;
+	enum keyfuncid		kfid;
 
 	DNPRINTF(SWM_D_MISC, "conf_load: filename %s\n", filename);
 
@@ -550,6 +617,9 @@ conf_load(char *filename)
 				asprintf(&bar_argv[0], "%s", val);
 			else if (!strncmp(var, "bar_delay", strlen("bar_delay")))
 				bar_delay = atoi(val);
+			else if (!bindmatch(var, "bind", modkey, val,
+			    &kfid, &modmask, &ks))
+				setkeybinding(modmask, ks, kfid);
 			else
 				goto bad;
 			break;
@@ -1893,69 +1963,6 @@ floating_toggle(struct swm_region *r, union arg *args)
 	focus_win(win);
 }
 
-/* key definitions */
-struct key {
-	unsigned int		mod;
-	KeySym			keysym;
-	void			(*func)(struct swm_region *r, union arg *);
-	union arg		args;
-} keys[] = {
-	/* modifier		key	function		argument */
-	{ MODKEY,		XK_space,	cycle_layout,	{0} }, 
-	{ MODKEY | ShiftMask,	XK_space,	stack_config,	{.id = SWM_ARG_ID_STACKRESET} }, 
-	{ MODKEY,		XK_h,		stack_config,	{.id = SWM_ARG_ID_MASTERSHRINK} },
-	{ MODKEY,		XK_l,		stack_config,	{.id = SWM_ARG_ID_MASTERGROW} },
-	{ MODKEY,		XK_comma,	stack_config,	{.id = SWM_ARG_ID_MASTERADD} },
-	{ MODKEY,		XK_period,	stack_config,	{.id = SWM_ARG_ID_MASTERDEL} },
-	{ MODKEY | ShiftMask,	XK_comma,	stack_config,	{.id = SWM_ARG_ID_STACKINC} },
-	{ MODKEY | ShiftMask,	XK_period,	stack_config,	{.id = SWM_ARG_ID_STACKDEC} },
-	{ MODKEY,		XK_Return,	swapwin,	{.id = SWM_ARG_ID_SWAPMAIN} },
-	{ MODKEY,		XK_j,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
-	{ MODKEY,		XK_k,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
-	{ MODKEY | ShiftMask,	XK_j,		swapwin,	{.id = SWM_ARG_ID_SWAPNEXT} },
-	{ MODKEY | ShiftMask,	XK_k,		swapwin,	{.id = SWM_ARG_ID_SWAPPREV} },
-	{ MODKEY | ShiftMask,	XK_Return,	spawnterm,	{.argv = spawn_term} },
-	{ MODKEY,		XK_p,		spawnmenu,	{.argv = spawn_menu} },
-	{ MODKEY | ShiftMask,	XK_q,		quit,		{0} },
-	{ MODKEY,		XK_q,		restart,	{0} },
-	{ MODKEY,		XK_m,		focus,		{.id = SWM_ARG_ID_FOCUSMAIN} },
-	{ MODKEY,		XK_1,		switchws,	{.id = 0} },
-	{ MODKEY,		XK_2,		switchws,	{.id = 1} },
-	{ MODKEY,		XK_3,		switchws,	{.id = 2} },
-	{ MODKEY,		XK_4,		switchws,	{.id = 3} },
-	{ MODKEY,		XK_5,		switchws,	{.id = 4} },
-	{ MODKEY,		XK_6,		switchws,	{.id = 5} },
-	{ MODKEY,		XK_7,		switchws,	{.id = 6} },
-	{ MODKEY,		XK_8,		switchws,	{.id = 7} },
-	{ MODKEY,		XK_9,		switchws,	{.id = 8} },
-	{ MODKEY,		XK_0,		switchws,	{.id = 9} },
-	{ MODKEY,		XK_Right,	cyclews,	{.id = SWM_ARG_ID_CYCLEWS_UP} }, 
-	{ MODKEY,		XK_Left,	cyclews,	{.id = SWM_ARG_ID_CYCLEWS_DOWN} }, 
-	{ MODKEY | ShiftMask,	XK_Right,	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_UP} }, 
-	{ MODKEY | ShiftMask,	XK_Left,	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_DOWN} }, 
-	{ MODKEY | ShiftMask,	XK_1,		send_to_ws,	{.id = 0} },
-	{ MODKEY | ShiftMask,	XK_2,		send_to_ws,	{.id = 1} },
-	{ MODKEY | ShiftMask,	XK_3,		send_to_ws,	{.id = 2} },
-	{ MODKEY | ShiftMask,	XK_4,		send_to_ws,	{.id = 3} },
-	{ MODKEY | ShiftMask,	XK_5,		send_to_ws,	{.id = 4} },
-	{ MODKEY | ShiftMask,	XK_6,		send_to_ws,	{.id = 5} },
-	{ MODKEY | ShiftMask,	XK_7,		send_to_ws,	{.id = 6} },
-	{ MODKEY | ShiftMask,	XK_8,		send_to_ws,	{.id = 7} },
-	{ MODKEY | ShiftMask,	XK_9,		send_to_ws,	{.id = 8} },
-	{ MODKEY | ShiftMask,	XK_0,		send_to_ws,	{.id = 9} },
-	{ MODKEY,		XK_b,		bar_toggle,	{0} },
-	{ MODKEY,		XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
-	{ MODKEY | ShiftMask,	XK_Tab,		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
-	{ MODKEY | ShiftMask,	XK_x,		wkill,		{.id = SWM_ARG_ID_KILLWINDOW} },
-	{ MODKEY,		XK_x,		wkill,		{.id = SWM_ARG_ID_DELETEWINDOW} },
-	{ MODKEY,		XK_s,		screenshot,	{.id = SWM_ARG_ID_SS_ALL} },
-	{ MODKEY | ShiftMask,	XK_s,		screenshot,	{.id = SWM_ARG_ID_SS_WINDOW} },
-	{ MODKEY,		XK_t,		floating_toggle,{0} },
-	{ MODKEY | ShiftMask,	XK_v,		version,	{0} },
-	{ MODKEY | ShiftMask,	XK_Delete,	spawn,		{.argv = spawn_lock} },
-	{ MODKEY | ShiftMask,	XK_i,		spawn,		{.argv = spawn_initscr} },
-};
-
 void
 resize_window(struct ws_win *win, int center)
 {
@@ -2111,6 +2118,73 @@ move(struct ws_win *win, union arg *args)
 	while (XCheckMaskEvent(display, EnterWindowMask, &ev));
 }
 
+/* key definitions */
+struct keyfunc {
+	char			name[SWM_FUNCNAME_LEN];
+	void			(*func)(struct swm_region *r, union arg *);
+	union arg		args;
+} keyfuncs[kf_invalid] = {
+	/* name			function	argument */
+	{ "cycle_layout",	cycle_layout,	{0} }, 
+	{ "stack_reset",	stack_config,	{.id = SWM_ARG_ID_STACKRESET} }, 
+	{ "master_shrink",	stack_config,	{.id = SWM_ARG_ID_MASTERSHRINK} },
+	{ "master_grow",	stack_config,	{.id = SWM_ARG_ID_MASTERGROW} },
+	{ "master_add",		stack_config,	{.id = SWM_ARG_ID_MASTERADD} },
+	{ "master_del",		stack_config,	{.id = SWM_ARG_ID_MASTERDEL} },
+	{ "stack_inc",		stack_config,	{.id = SWM_ARG_ID_STACKINC} },
+	{ "stack_dec",		stack_config,	{.id = SWM_ARG_ID_STACKDEC} },
+	{ "swap_main",		swapwin,	{.id = SWM_ARG_ID_SWAPMAIN} },
+	{ "focus_next",		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
+	{ "focus_prev",		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
+	{ "swap_next",		swapwin,	{.id = SWM_ARG_ID_SWAPNEXT} },
+	{ "swap_prev",		swapwin,	{.id = SWM_ARG_ID_SWAPPREV} },
+	{ "spawn_term",		spawnterm,	{.argv = spawn_term} },
+	{ "spawn_menu",		spawnmenu,	{.argv = spawn_menu} },
+	{ "quit",		quit,		{0} },
+	{ "restart",		restart,	{0} },
+	{ "focus_main",		focus,		{.id = SWM_ARG_ID_FOCUSMAIN} },
+	{ "ws_1",		switchws,	{.id = 0} },
+	{ "ws_2",		switchws,	{.id = 1} },
+	{ "ws_3",		switchws,	{.id = 2} },
+	{ "ws_4",		switchws,	{.id = 3} },
+	{ "ws_5",		switchws,	{.id = 4} },
+	{ "ws_6",		switchws,	{.id = 5} },
+	{ "ws_7",		switchws,	{.id = 6} },
+	{ "ws_8",		switchws,	{.id = 7} },
+	{ "ws_9",		switchws,	{.id = 8} },
+	{ "ws_10",		switchws,	{.id = 9} },
+	{ "ws_next",		cyclews,	{.id = SWM_ARG_ID_CYCLEWS_UP} }, 
+	{ "ws_prev",		cyclews,	{.id = SWM_ARG_ID_CYCLEWS_DOWN} }, 
+	{ "screen_next",	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_UP} }, 
+	{ "screen_prev",	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_DOWN} }, 
+	{ "mvws_1",		send_to_ws,	{.id = 0} },
+	{ "mvws_2",		send_to_ws,	{.id = 1} },
+	{ "mvws_3",		send_to_ws,	{.id = 2} },
+	{ "mvws_4",		send_to_ws,	{.id = 3} },
+	{ "mvws_5",		send_to_ws,	{.id = 4} },
+	{ "mvws_6",		send_to_ws,	{.id = 5} },
+	{ "mvws_7",		send_to_ws,	{.id = 6} },
+	{ "mvws_8",		send_to_ws,	{.id = 7} },
+	{ "mvws_9",		send_to_ws,	{.id = 8} },
+	{ "mvws_10",		send_to_ws,	{.id = 9} },
+	{ "bar_toggle",		bar_toggle,	{0} },
+	{ "wind_kill",		wkill,		{.id = SWM_ARG_ID_KILLWINDOW} },
+	{ "wind_del",		wkill,		{.id = SWM_ARG_ID_DELETEWINDOW} },
+	{ "screenshot_all",	screenshot,	{.id = SWM_ARG_ID_SS_ALL} },
+	{ "screenshot_wind",	screenshot,	{.id = SWM_ARG_ID_SS_WINDOW} },
+	{ "float_toggle",	floating_toggle,{0} },
+	{ "version",		version,	{0} },
+	{ "spawn_lock",		spawn,		{.argv = spawn_lock} },
+	{ "spawn_initscr",	spawn,		{.argv = spawn_initscr} },
+};
+struct key {
+	unsigned int		mod;
+	KeySym			keysym;
+	enum keyfuncid		funcid;
+};
+int				keys_size = 0, keys_length = 0;
+struct key			*keys = NULL;
+
 /* mouse */
 enum { client_click, root_click };
 struct button {
@@ -2131,7 +2205,7 @@ update_modkey(unsigned int mod)
 {
 	int			i;
 
-	for (i = 0; i < LENGTH(keys); i++)
+	for (i = 0; i < keys_length; i++)
 		if (keys[i].mod & ShiftMask)
 			keys[i].mod = mod | ShiftMask;
 		else
@@ -2144,6 +2218,205 @@ update_modkey(unsigned int mod)
 			buttons[i].mask = mod;
 }
 
+#define SWM_MODNAME_SIZE	32
+#define	SWM_KEY_WS		"\n+ \t"
+int
+parsekeys(char *keystr, unsigned int currmod, unsigned int *mod, KeySym *ks)
+{
+	char			*cp, *name;
+	KeySym			uks;
+	if (mod == NULL || ks == NULL)
+		return (0);
+	cp = keystr;
+	*mod = 0;
+	while ((name = strsep(&cp, SWM_KEY_WS)) != NULL) {
+		if (cp)
+			cp += (long)strspn(cp, SWM_KEY_WS);
+		if (strncasecmp(name, "MOD", SWM_MODNAME_SIZE) == 0)
+			*mod |= currmod;
+		else if (!strncasecmp(name, "Mod1", SWM_MODNAME_SIZE))
+			*mod |= Mod1Mask;
+		else if (!strncasecmp(name, "Mod2", SWM_MODNAME_SIZE))
+			*mod += Mod2Mask;
+		else if (!strncmp(name, "Mod3", SWM_MODNAME_SIZE))
+			*mod |= Mod3Mask;
+		else if (!strncmp(name, "Mod4", SWM_MODNAME_SIZE))
+			*mod |= Mod4Mask;
+		else if (strncasecmp(name, "SHIFT", SWM_MODNAME_SIZE) == 0)
+			*mod |= ShiftMask;
+		else {
+			*ks = XStringToKeysym(name);
+			XConvertCase(*ks, ks, &uks);
+			if (ks == NoSymbol) {
+				DNPRINTF(SWM_D_KEY,
+				    "parsekeys: invalid key %s\n",
+				    name);
+				return (0);
+			}
+		}
+	}
+	return (1);
+}
+int
+bindmatch(const char *var, const char *name, unsigned int currmod, char *keystr,
+    enum keyfuncid *kfid, unsigned int *mod, KeySym *ks)
+{
+	char			*p;
+	int 			i;
+	char			funcname[SWM_FUNCNAME_LEN];
+	i = strncmp(var, name, 255);
+	if (kfid == NULL || mod == NULL || ks == NULL)
+		return (i);
+	*kfid = kf_invalid;
+	*mod = 0;
+	*ks = NoSymbol;
+	bzero(funcname, LENGTH(funcname));
+	if (i <= 0)
+		return (i);
+	p = (char *)var + strlen(name);
+	if (*p++ != '[')
+		return (i);
+	i = 0;
+	while (isgraph(*p) && *p != ']' && i < LENGTH(funcname))
+		funcname[i++] = *p++;
+	if (i >= LENGTH(funcname) || *p != ']')
+		return (1);
+	if (i == 0)
+		return (!parsekeys(keystr, currmod, mod, ks));
+	for (*kfid = 0; *kfid < kf_invalid; (*kfid)++) {
+		if (strncasecmp(funcname, keyfuncs[*kfid].name,
+		    SWM_FUNCNAME_LEN) == 0) {
+			return (!parsekeys(keystr, currmod, mod, ks));
+		}
+
+	}
+	return (1);
+}
+void
+setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid)
+{
+	int			i, j;
+	/* find existing */
+	for (i = 0; i < keys_length; i++) {
+		if (keys[i].mod == mod && keys[i].keysym == ks) {
+			if (kfid == kf_invalid) {
+				/* found: delete */
+				DNPRINTF(SWM_D_KEY,
+				    "setkeybinding: delete #%d %s\n",
+				    i, keyfuncs[keys[i].funcid].name);
+				j = keys_length - 1;
+				if (i < j)
+					keys[i] = keys[j];
+				keys_length--;
+				return;
+			} else {
+				/* found: replace */
+				DNPRINTF(SWM_D_KEY,
+				    "setkeybinding: replace #%d %s\n",
+				    i, keyfuncs[keys[i].funcid].name);
+				keys[i].mod = mod;
+				keys[i].keysym = ks;
+				keys[i].funcid = kfid;
+				return;
+			}
+		}
+	}
+	if (kfid == kf_invalid) {
+		fprintf(stderr,
+		    "error: setkeybinding: cannot find mod/key combination");
+		return;
+	}
+	/* not found: add */
+	if (keys_size == 0 || keys == NULL) {
+		keys_size = 4;
+		DNPRINTF(SWM_D_KEY, "setkeybinding: init list %d\n", keys_size);
+		keys = malloc((size_t)keys_size * sizeof(struct key));
+		if (!keys) {
+			fprintf(stderr, "malloc failed\n");
+			perror(" failed");
+			quit(NULL, NULL);
+		}
+	} else if (keys_length == keys_size) {
+		keys_size *= 2;
+		DNPRINTF(SWM_D_KEY, "setkeybinding: grow list %d\n", keys_size);
+		keys = realloc(keys, (size_t)keys_size * sizeof(struct key));
+		if (!keys) {
+			fprintf(stderr, "realloc failed\n");
+			perror(" failed");
+			quit(NULL, NULL);
+		}
+	}
+	if (keys_length < keys_size) {
+		DNPRINTF(SWM_D_KEY, "setkeybinding: add %d\n", keys_length);
+		j = keys_length++;
+		keys[j].mod = mod;
+		keys[j].keysym = ks;
+		keys[j].funcid = kfid;
+	} else {
+		fprintf(stderr, "keys array problem?\n");
+		if (!keys) {
+			fprintf(stderr, "keys array problem\n");
+			quit(NULL, NULL);
+		}
+	}
+}
+void
+setup_keys(void)
+{
+	setkeybinding(MODKEY,		XK_space,	kf_cycle_layout); 
+	setkeybinding(MODKEY|ShiftMask,	XK_space,	kf_stack_reset);
+	setkeybinding(MODKEY,		XK_h,		kf_master_shrink);
+	setkeybinding(MODKEY,		XK_l,		kf_master_grow);
+	setkeybinding(MODKEY,		XK_comma,	kf_master_add);
+	setkeybinding(MODKEY,		XK_period,	kf_master_del);
+	setkeybinding(MODKEY|ShiftMask,	XK_comma,	kf_stack_inc);
+	setkeybinding(MODKEY|ShiftMask,	XK_period,	kf_stack_dec);
+	setkeybinding(MODKEY,		XK_Return,	kf_swap_main);
+	setkeybinding(MODKEY,		XK_j,		kf_focus_next);
+	setkeybinding(MODKEY,		XK_k,		kf_focus_prev);
+	setkeybinding(MODKEY|ShiftMask,	XK_j,		kf_swap_next);
+	setkeybinding(MODKEY|ShiftMask,	XK_k,		kf_swap_next);
+	setkeybinding(MODKEY|ShiftMask,	XK_Return,	kf_spawn_term);
+	setkeybinding(MODKEY,		XK_p,		kf_spawn_menu);
+	setkeybinding(MODKEY|ShiftMask,	XK_q,		kf_quit);
+	setkeybinding(MODKEY,		XK_q,		kf_restart);
+	setkeybinding(MODKEY,		XK_m,		kf_focus_main);
+	setkeybinding(MODKEY,		XK_1,		kf_ws_1);
+	setkeybinding(MODKEY,		XK_2,		kf_ws_2);
+	setkeybinding(MODKEY,		XK_3,		kf_ws_3);
+	setkeybinding(MODKEY,		XK_4,		kf_ws_4);
+	setkeybinding(MODKEY,		XK_5,		kf_ws_5);
+	setkeybinding(MODKEY,		XK_6,		kf_ws_6);
+	setkeybinding(MODKEY,		XK_7,		kf_ws_7);
+	setkeybinding(MODKEY,		XK_8,		kf_ws_8);
+	setkeybinding(MODKEY,		XK_9,		kf_ws_9);
+	setkeybinding(MODKEY,		XK_0,		kf_ws_10);
+	setkeybinding(MODKEY,		XK_Right,	kf_ws_next);
+	setkeybinding(MODKEY,		XK_Left,	kf_ws_prev);
+	setkeybinding(MODKEY|ShiftMask,	XK_Right,	kf_screen_next);
+	setkeybinding(MODKEY|ShiftMask,	XK_Left,	kf_screen_prev);
+	setkeybinding(MODKEY|ShiftMask,	XK_1,		kf_mvws_1);
+	setkeybinding(MODKEY|ShiftMask,	XK_2,		kf_mvws_2);
+	setkeybinding(MODKEY|ShiftMask,	XK_3,		kf_mvws_3);
+	setkeybinding(MODKEY|ShiftMask,	XK_4,		kf_mvws_4);
+	setkeybinding(MODKEY|ShiftMask,	XK_5,		kf_mvws_5);
+	setkeybinding(MODKEY|ShiftMask,	XK_6,		kf_mvws_6);
+	setkeybinding(MODKEY|ShiftMask,	XK_7,		kf_mvws_7);
+	setkeybinding(MODKEY|ShiftMask,	XK_8,		kf_mvws_8);
+	setkeybinding(MODKEY|ShiftMask,	XK_9,		kf_mvws_9);
+	setkeybinding(MODKEY|ShiftMask,	XK_0,		kf_mvws_10);
+	setkeybinding(MODKEY,		XK_b,		kf_bar_toggle);
+	setkeybinding(MODKEY,		XK_Tab,		kf_focus_next);
+	setkeybinding(MODKEY|ShiftMask,	XK_Tab,		kf_focus_prev);
+	setkeybinding(MODKEY|ShiftMask,	XK_x,		kf_wind_kill);
+	setkeybinding(MODKEY,		XK_x,		kf_wind_del);
+	setkeybinding(MODKEY,		XK_s,		kf_screenshot_all);
+	setkeybinding(MODKEY|ShiftMask,	XK_s,		kf_screenshot_wind);
+	setkeybinding(MODKEY,		XK_t,		kf_float_toggle);
+	setkeybinding(MODKEY|ShiftMask,	XK_v,		kf_version);
+	setkeybinding(MODKEY|ShiftMask,	XK_Delete,	kf_spawn_lock);
+	setkeybinding(MODKEY|ShiftMask,	XK_i,		kf_spawn_initscr);
+}
 void
 updatenumlockmask(void)
 {
@@ -2177,7 +2450,7 @@ grabkeys(void)
 		if (TAILQ_EMPTY(&screens[k].rl))
 			continue;
 		XUngrabKey(display, AnyKey, AnyModifier, screens[k].root);
-		for (i = 0; i < LENGTH(keys); i++) {
+		for (i = 0; i < keys_length; i++) {
 			if ((code = XKeysymToKeycode(display, keys[i].keysym)))
 				for (j = 0; j < LENGTH(modifiers); j++)
 					XGrabKey(display, code,
@@ -2227,12 +2500,14 @@ keypress(XEvent *e)
 	DNPRINTF(SWM_D_EVENT, "keypress: window: %lu\n", ev->window);
 
 	keysym = XKeycodeToKeysym(display, (KeyCode)ev->keycode, 0);
-	for (i = 0; i < LENGTH(keys); i++)
+	for (i = 0; i < keys_length; i++)
 		if (keysym == keys[i].keysym
 		   && CLEANMASK(keys[i].mod) == CLEANMASK(ev->state)
-		   && keys[i].func)
-			keys[i].func(root_to_region(ev->root),
-			    &(keys[i].args));
+		   && keyfuncs[keys[i].funcid].func)
+			keyfuncs[keys[i].funcid].func(
+			    root_to_region(ev->root),
+			    &(keyfuncs[keys[i].funcid].args)
+			    );
 }
 
 void
@@ -3041,6 +3316,7 @@ main(int argc, char *argv[])
 		errx(1, "invalid user %d", getuid());
 
 	setup_screens();
+	setup_keys();
 
 	snprintf(conf, sizeof conf, "%s/.%s", pwd->pw_dir, SWM_CONF_FILE);
 	if (stat(conf, &sb) != -1) {

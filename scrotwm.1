@@ -56,94 +56,10 @@ Mouse button 3
 .Pp
 .Nm
 is very simple in its use.
-Most of the actions are initiated via keybindings.
-The current keybindings are described below:
-.Pp
-.Bl -tag -width "M-j, M-<TAB>XXX" -offset indent -compact
-.It Cm M-S- Ns Aq Cm Return
-Spawn a new terminal
-.It Cm M-p
-Menu
-.It Cm M-S-q
-Quit
-.It Cm M-q
-Restart
-.Nm
-.It Cm M- Ns Aq Cm Space
-Cycle layout
-.It Cm M-S- Ns Aq Cm Space
-Reset layout
-.It Cm M-h
-Shrink master area
-.It Cm M-l
-Grow master area
-.It Cm M-,
-Add windows to master area
-.It Cm M-.
-Remove windows from master area
-.It Cm M-S-,
-Add columns/rows to stacking area
-.It Cm M-S-.
-Remove columns/rows from stacking area
-.It Cm M- Ns Aq Cm Return
-Move current window to master area
-.It Xo
-.Cm M-j ,
-.Cm M- Ns Aq Cm TAB
-.Xc
-Focus next window in workspace
-.It Xo
-.Cm M-k ,
-.Cm M-S- Ns Aq Cm TAB
-.Xc
-Focus previous window in workspace
-.It Cm M-m
-Focus on main window in workspace
-.It Cm M-S-j
-Swap with next window in workspace
-.It Cm M-S-k
-Swap with previous window in workspace
-.It Cm M-b
-Toggle status bar in all workspaces
-.It Cm M-x
-Delete current window in workspace
-.It Cm M-S-x
-Destroy current window in workspace
-.It Cm M- Ns Aq Ar n
-Switch to workspace
-.Ar n
-.It Cm M-S- Ns Aq Ar n
-Move current window to workspace
-.Ar n
-.It Cm M- Ns Aq Cm Right
-Switch to next workspace with a window in it
-.It Cm M- Ns Aq Cm Left
-Switch to previous workspace with a window in it
-.It Cm M-S- Ns Aq Cm Right
-Move pointer to next region
-.It Cm M-S- Ns Aq Cm Left
-Move pointer to previous region
-.It Cm M-s
-Take screenshot of entire screen (if enabled)
-.It Cm M-S-s
-Take screenshot of selected window (if enabled)
-.It Cm M-S-v
-Toggle version in status bar
-.It Cm M-t
-Toggle focused window between tiled and floating
-.It Cm M-S Aq Cm Delete
-Lock screen
-.It Cm M-S-i
-Reinitialize physical screens
-.It Cm M1
-Focus window
-.It Cm M-M1
-Move window
-.It Cm M-M3
-Resize window
-.It Cm M-S-M3
-Resize window while maintaining it centered
-.El
+Most of the actions are initiated via key or mouse bindings.
+See the
+.Sx BINDINGS
+section below for defaults and customizations.
 .Sh CONFIGURATION FILES
 .Nm
 first tries to open the user specific file,
@@ -224,6 +140,12 @@ binary without the setgid bit set.
 .It Cm modkey
 Change mod key.
 Mod1 is generally the ALT key and Mod4 is the windows key on a PC.
+.It Cm bind Ns Bq Ar x
+Bind key combo to action
+.Ar x .
+See the
+.Sx BINDINGS
+section below.
 .El
 .Pp
 Colors need to be specified per the
@@ -231,6 +153,198 @@ Colors need to be specified per the
 specification and fonts need to be specified per the
 .Xr XQueryFont 3
 specification.
+.Sh BINDINGS
+.Nm
+provides many functions (or actions) accessed via key or mouse bindings.
+.Pp
+The current mouse bindings are described below:
+.Pp
+.Bl -tag -width "M-j, M-<TAB>XXX" -offset indent -compact
+.It Cm M1
+Focus window
+.It Cm M-M1
+Move window
+.It Cm M-M3
+Resize window
+.It Cm M-S-M3
+Resize window while maintaining it centered
+.El
+.Pp
+The default key bindings are described below:
+.Pp
+.Bl -tag -width "M-j, M-<TAB>XXX" -offset indent -compact
+.It Cm M-S- Ns Aq Cm Return
+spawn_term
+.It Cm M-p
+spawn_menu
+.It Cm M-S-q
+quit
+.It Cm M-q
+restart
+.Nm
+.It Cm M- Ns Aq Cm Space
+cycle_layout
+.It Cm M-S- Ns Aq Cm Space
+reset_layout
+.It Cm M-h
+master_shrink
+.It Cm M-l
+master_grow
+.It Cm M-,
+master_add
+.It Cm M-.
+master_del
+.It Cm M-S-,
+stack_inc
+.It Cm M-S-.
+stack_del
+.It Cm M- Ns Aq Cm Return
+swap_main
+.It Xo
+.Cm M-j ,
+.Cm M- Ns Aq Cm TAB
+.Xc
+focus_next
+.It Xo
+.Cm M-k ,
+.Cm M-S- Ns Aq Cm TAB
+.Xc
+focus_prev
+.It Cm M-m
+focus_main
+.It Cm M-S-j
+swap_next
+.It Cm M-S-k
+swap_prev
+.It Cm M-b
+bar_toggle
+.It Cm M-x
+wind_del
+.It Cm M-S-x
+wind_kill
+.It Cm M- Ns Aq Ar n
+.Ns ws_ Ns Ar n
+.It Cm M-S- Ns Aq Ar n
+.Ns mvws_ Ns Ar n
+.It Cm M- Ns Aq Cm Right
+ws_next
+.It Cm M- Ns Aq Cm Left
+ws_prev
+.It Cm M-S- Ns Aq Cm Right
+screen_next
+.It Cm M-S- Ns Aq Cm Left
+screen_prev
+.It Cm M-s
+screenshot_all
+.It Cm M-S-s
+screenshot_wind
+.It Cm M-S-v
+version
+.It Cm M-t
+float_toggle
+.It Cm M-S Aq Cm Delete
+spawn_lock
+.It Cm M-S-i
+spawn_initscr
+.El
+.Pp
+The action names and descriptions are listed below:
+.Pp
+.Bl -tag -width "M-j, M-<TAB>XXX" -offset indent -compact
+.It Cm spawn_term
+Spawn a new terminal
+.It Cm spawn_menu
+Menu
+.It Cm quit
+Quit
+.Nm
+.It Cm restart
+Restart
+.Nm
+.It Cm cycle_layout
+Cycle layout
+.It Cm reset_layout
+Reset layout
+.It Cm master_shrink
+Shrink master area
+.It Cm master_grow
+Grow master area
+.It Cm master_add
+Add windows to master area
+.It Cm master_del
+Remove windows from master area
+.It Cm stack_inc
+Add columns/rows to stacking area
+.It Cm stack_del
+Remove columns/rows from stacking area
+.It Cm swap_main
+Move current window to master area
+.It Cm focus_next
+Focus next window in workspace
+.It Cm focus_prev
+Focus previous window in workspace
+.It Cm focus_main
+Focus on main window in workspace
+.It Cm swap_next
+Swap with next window in workspace
+.It Cm swap_prev
+Swap with previous window in workspace
+.It Cm bar_toggle
+Toggle status bar in all workspaces
+.It Cm wind_del
+Delete current window in workspace
+.It Cm wind_kill
+Destroy current window in workspace
+.It Cm ws_ Ns Ar n
+Switch to workspace
+.Ar n ,
+where
+.Ar n
+is 1 through 10
+.It Cm mvws_ Ns Ar n
+Move current window to workspace
+.Ar n ,
+where
+.Ar n
+is 1 through 10
+.It Cm ws_next
+Switch to next workspace with a window in it
+.It Cm ws_prev
+Switch to previous workspace with a window in it
+.It Cm screen_next
+Move pointer to next region
+.It Cm screen_prev
+Move pointer to previous region
+.It Cm screenshot_all
+Take screenshot of entire screen (if enabled)
+.It Cm screenshot_wind
+Take screenshot of selected window (if enabled)
+.It Cm version
+Toggle version in status bar
+.It Cm float_toggle
+Toggle focused window between tiled and floating
+.It Cm spawn_lock
+Lock screen
+.It Cm spawn_initscr
+Reinitialize physical screens
+.El
+.Pp
+Custom bindings in the configuration file are specified as follows:
+.Pp
+.Dl bind[<action>] = <keys>
+.Pp
+.Aq action
+is one of the actions listed above (or empty) and
+.Aq keys
+is in the form of zero or more modifier keys
+(MOD, Mod1, Shift, etc.) and one or more normal keys
+(b, space, etc.), separated by "+". For example:
+.Bd -literal -offset indent
+bind[reset] = Mod4+q # bind Windows-key + q to reset
+bind[] = Mod1+q # unbind Alt + q
+.Ed
+.Pp
+Multiple key combinations may be bound to the same action.
 .Sh FILES
 .Bl -tag -width "/etc/scrotwm.confXXX" -compact
 .It Pa ~/.scrotwm.conf
@@ -248,9 +362,10 @@ was inspired by xmonad & dwm.
 .Pp
 .Nm
 was written by
-.An Marco Peereboom Aq marco@peereboom.us
+.An Marco Peereboom Aq marco@peereboom.us ,
+.An Ryan Thomas McBride Aq mcbride@countersiege.com
 and
-.An Ryan Thomas McBride Aq mcbride@countersiege.com .
+.An Darrin Chandler Aq dwchandler@stilyagin.com .
 .Sh BUGS
 Currently the menu, invoked with
 .Cm M-p ,
