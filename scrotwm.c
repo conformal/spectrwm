@@ -2375,7 +2375,7 @@ setup_keys(void)
 	setkeybinding(MODKEY,		XK_j,		kf_focus_next);
 	setkeybinding(MODKEY,		XK_k,		kf_focus_prev);
 	setkeybinding(MODKEY|ShiftMask,	XK_j,		kf_swap_next);
-	setkeybinding(MODKEY|ShiftMask,	XK_k,		kf_swap_next);
+	setkeybinding(MODKEY|ShiftMask,	XK_k,		kf_swap_prev);
 	setkeybinding(MODKEY|ShiftMask,	XK_Return,	kf_spawn_term);
 	setkeybinding(MODKEY,		XK_p,		kf_spawn_menu);
 	setkeybinding(MODKEY|ShiftMask,	XK_q,		kf_quit);
