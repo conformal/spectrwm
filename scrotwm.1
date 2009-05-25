@@ -101,8 +101,9 @@ such as battery life.
 .It Cm bar_delay
 Update frequency, in seconds, of external script that populates the status bar.
 .It Cm clock_enabled
-Enable or disable displaying the clock in the status bar.  Disable by
-setting to 0 so a custom clock could be used in the bar_action script.
+Enable or disable displaying the clock in the status bar.
+Disable by setting to 0
+so a custom clock could be used in the bar_action script.
 .It Cm spawn_term
 External application that gets spawned when
 .Cm M-S- Ns Aq Cm Return
@@ -114,7 +115,8 @@ For example, 0.6 is 60% of the physical screen size.
 .It Cm region
 Allocates a custom region, removing any autodetected regions which occupy the same
 space on the screen.
-Defined in the format screen[<idx>]:WIDTHxHEIGHT+X+Y, e.g. screen[1]:800x1200+0+0.
+Defined in the format screen[<idx>]:WIDTHxHEIGHT+X+Y,
+e.g.\& screen[1]:800x1200+0+0.
 .It Cm screenshot_enabled
 Enable or disable screenshot capability.
 .It Cm screenshot_app
@@ -128,7 +130,7 @@ If this value is greater than 0,
 .Nm
 will attempt to adjust the font sizes in the terminal to keep the terminal
 width above this number as the window is resized.
-Only 
+Only
 .Xr xterm 1
 is currently supported.
 The
@@ -145,6 +147,14 @@ Bind key combo to action
 .Ar x .
 See the
 .Sx BINDINGS
+section below.
+.It Cm quirk Ns Bq Ar c:n
+Add "quirk" for windows with class
+.Ar c
+and name
+.Ar n .
+See the
+.Sx QUIRKS
 section below.
 .El
 .Pp
@@ -338,13 +348,103 @@ is one of the actions listed above (or empty) and
 .Aq keys
 is in the form of zero or more modifier keys
 (MOD, Mod1, Shift, etc.) and one or more normal keys
-(b, space, etc.), separated by "+". For example:
+(b, space, etc.), separated by "+".
+For example:
 .Bd -literal -offset indent
 bind[reset] = Mod4+q # bind Windows-key + q to reset
 bind[] = Mod1+q # unbind Alt + q
 .Ed
 .Pp
 Multiple key combinations may be bound to the same action.
+.Sh QUIRKS
+.Nm
+provides "quirks" which handle windows that must be treated specially
+in a tiling window manager, such as some dialogs and fullscreen apps.
+.Pp
+The default quirks are described below:
+.Pp
+.Bl -tag -width "OpenOffice.org N.M:VCLSalFrame<TAB>XXX" -offset indent -compact
+.It Firefox-bin:firefox-bin
+TRANSSZ
+.It Firefox:Dialog
+FLOAT
+.It Gimp:gimp
+FLOAT | ANYWHERE
+.It MPlayer:xv
+FLOAT | FULLSCREEN
+.It OpenOffice.org 2.4:VCLSalFrame
+FLOAT
+.It OpenOffice.org 3.1:VCLSalFrame
+FLOAT
+.It pcb:pcb
+FLOAT
+.It xine:Xine Window
+FLOAT | ANYWHERE
+.It xine:xine Panel
+FLOAT | ANYWHERE
+.It xine:xine Video Fullscreen Window
+FULLSCREEN | FLOAT
+.It Xitk:Xitk Combo
+FLOAT | ANYWHERE
+.It Xitk:Xine Window
+FLOAT | ANYWHERE
+.It XTerm:xterm
+XTERM_FONTADJ
+.El
+.Pp
+The quirks themselves are described below:
+.Pp
+.Bl -tag -width "XTERM_FONTADJ<TAB>XXX" -offset indent -compact
+.It FLOAT
+This window should not be tiled, but allowed to float freely.
+.It TRANSSZ
+Adjusts size on transient windows that are too small using dialog_ratio
+(see
+.Sx CONFIGURATION FILES ) .
+.It ANYWHERE
+Allow window to position itself, uncentered.
+.It XTERM_FONTADJ
+Adjust xterm fonts when resizing.
+.It FULLSCREEN
+Remove border to allow window to use full screen size.
+.El
+.Pp
+Custom quirks in the configuration file are specified as follows:
+.Pp
+.Dl quirk[<class>:<name>] = <quirk> [ | <quirk> ... ]
+.Pp
+.Aq class
+and
+.Aq name
+specify the window to which the quirk(s) apply, and
+.Aq quirk
+is one of the quirks from the list above.
+For example:
+.Bd -literal -offset indent
+quirk[MPlayer:xv] = FLOAT | FULLSCREEN # let mplayer play
+quirk[pcb:pcb] = NONE  # remove existing quirk
+.Ed
+.Pp
+Note that spaces in
+.Aq class
+or
+.Aq name
+must be replaced by an underscore in the configuration.
+The config entry for "xine:Xine Panel" would be:
+.Bd -literal -offset indent
+quirk[xine:Xine_Panel] = FLOAT
+.Ed
+.Pp
+You can obtain
+.Aq class
+and
+.Aq name
+by running xprop(1) and then clicking on the desired window.
+In the following example the main window of Firefox was clicked:
+.Bd -literal -offset indent
+$ xprop | grep WM_CLASS
+WM_CLASS(STRING) = "Navigator", "Firefox"
+.Ed
 .Sh FILES
 .Bl -tag -width "/etc/scrotwm.confXXX" -compact
 .It Pa ~/.scrotwm.conf

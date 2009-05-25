@@ -107,6 +107,7 @@ static const char	*cvstag = "$scrotwm$";
 #define	SWM_D_PROP		0x0080
 #define	SWM_D_CLASS		0x0100
 #define SWM_D_KEY		0x0200
+#define SWM_D_QUIRK		0x0400
 
 u_int32_t		swm_debug = 0
 			    | SWM_D_MISC
@@ -119,6 +120,7 @@ u_int32_t		swm_debug = 0
 			    | SWM_D_PROP
 			    | SWM_D_CLASS
 			    | SWM_D_KEY
+			    | SWM_D_QUIRK
 			    ;
 #else
 #define DPRINTF(x...)
@@ -133,6 +135,7 @@ u_int32_t		swm_debug = 0
 #define SWM_PROPLEN		(16)
 #define SWM_FUNCNAME_LEN	(32)
 #define SWM_KEYS_LEN		(255)
+#define SWM_QUIRK_LEN		(32)
 #define X(r)			(r)->g.x
 #define Y(r)			(r)->g.y
 #define WIDTH(r)		(r)->g.w
@@ -317,6 +320,10 @@ void	update_modkey(unsigned int);
 int	bindmatch(const char *var, const char *name, unsigned int currmod, char *keystr,
     enum keyfuncid *kfid, unsigned int *mod, KeySym *ks);
 void	setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid);
+/* quirks */
+int	quirkmatch(const char *var, const char *name, char *qstr,
+    char *qclass, char *qname, unsigned long *qquirk);
+void	setquirk(const char *class, const char *name, const int quirk);
 
 struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
@@ -408,30 +415,17 @@ union arg {
 
 /* quirks */
 struct quirk {
-	char			*class;
-	char			*name;
+	char			class[SWM_QUIRK_LEN];
+	char			name[SWM_QUIRK_LEN];
 	unsigned long		quirk;
 #define SWM_Q_FLOAT		(1<<0)	/* float this window */
 #define SWM_Q_TRANSSZ		(1<<1)	/* transiend window size too small */
 #define SWM_Q_ANYWHERE		(1<<2)	/* don't position this window */
 #define SWM_Q_XTERM_FONTADJ	(1<<3)	/* adjust xterm fonts when resizing */
 #define SWM_Q_FULLSCREEN	(1<<4)	/* remove border */
-} quirks[] = {
-	{ "MPlayer",		"xv",		SWM_Q_FLOAT | SWM_Q_FULLSCREEN },
-	{ "OpenOffice.org 2.4",	"VCLSalFrame",	SWM_Q_FLOAT },
-	{ "OpenOffice.org 3.0",	"VCLSalFrame",	SWM_Q_FLOAT },
-	{ "Firefox-bin",	"firefox-bin",	SWM_Q_TRANSSZ },
-	{ "Firefox",		"Dialog",	SWM_Q_FLOAT },
-	{ "Gimp",		"gimp",		SWM_Q_FLOAT | SWM_Q_ANYWHERE },
-	{ "XTerm",		"xterm",	SWM_Q_XTERM_FONTADJ },
-	{ "xine",		"Xine Window",	SWM_Q_FLOAT | SWM_Q_ANYWHERE },
-	{ "Xitk",		"Xitk Combo",	SWM_Q_FLOAT | SWM_Q_ANYWHERE },
-	{ "xine",		"xine Panel",	SWM_Q_FLOAT | SWM_Q_ANYWHERE },
-	{ "Xitk",		"Xine Window",	SWM_Q_FLOAT | SWM_Q_ANYWHERE },
-	{ "xine",		"xine Video Fullscreen Window",	SWM_Q_FULLSCREEN | SWM_Q_FLOAT },
-	{ "pcb",		"pcb",		SWM_Q_FLOAT },
-	{ NULL,			NULL,		0},
 };
+int				quirks_size = 0, quirks_length = 0;
+struct quirk			*quirks = NULL;
 
 /* events */
 void			expose(XEvent *);
@@ -574,6 +568,9 @@ conf_load(char *filename)
 	unsigned int 		modkey = MODKEY, modmask;
 	KeySym			ks;
 	enum keyfuncid		kfid;
+	char			class[SWM_QUIRK_LEN];
+	char			name[SWM_QUIRK_LEN];
+	unsigned long		quirk;
 
 	DNPRINTF(SWM_D_MISC, "conf_load: filename %s\n", filename);
 
@@ -662,6 +659,13 @@ conf_load(char *filename)
 					modkey = Mod1Mask;
 				update_modkey(modkey);
 			} else
+				goto bad;
+			break;
+
+		case 'q':
+			if (!quirkmatch(var, "quirk", val, class, name, &quirk))
+				setquirk(class, name, quirk);
+			else
 				goto bad;
 			break;
 
@@ -2546,6 +2550,176 @@ set_win_state(struct ws_win *win, long state)
 	    (unsigned char *)data, 2);
 }
 
+const char *quirkname[] = {
+	"NONE",		/* config string for "no value" */
+	"FLOAT",
+	"TRANSSZ",
+	"ANYWHERE",
+	"XTERM_FONTADJ",
+	"FULLSCREEN",
+};
+
+#define	SWM_Q_WS		"\n| \t"
+int
+parsequirks(char *qstr, unsigned long *quirk)
+{
+	char			*cp, *name;
+	int			i;
+	if (quirk == NULL)
+		return (0);
+	cp = qstr;
+	*quirk = 0;
+	while ((name = strsep(&cp, SWM_Q_WS)) != NULL) {
+		if (cp)
+			cp += (long)strspn(cp, SWM_Q_WS);
+		for (i = 0; i < LENGTH(quirkname); i++) {
+			if (!strncasecmp(name, quirkname[i], SWM_QUIRK_LEN)) {
+				DNPRINTF(SWM_D_QUIRK, "parsequirks: %s\n", name);
+				if (i == 0) {
+					*quirk = 0;
+					return (1);
+				}
+				*quirk |= 1 << (i-1);
+				break;
+			}
+		}
+		if (i >= LENGTH(quirkname)) {
+			DNPRINTF(SWM_D_QUIRK,
+			    "parsequirks: invalid quirk [%s]\n", name);
+			return (0);
+		}
+	}
+	return (1);
+}
+int
+quirkmatch(const char *var, const char *name, char *qstr, char *qclass,
+    char *qname, unsigned long *qquirk)
+{
+	char			*p;
+	int 			i;
+	char			classname[SWM_QUIRK_LEN*2+1];
+	DNPRINTF(SWM_D_QUIRK, "quirkmatch: in [%s]\n", var);
+	i = strncmp(var, name, 255);
+	if (qclass == NULL || qname == NULL || qquirk == NULL)
+		return (i);
+	*qquirk = 0;
+	*qclass = '\0';
+	*qname  = '\0';
+	bzero(classname, LENGTH(classname));
+	if (i <= 0)
+		return (i);
+	p = (char *)var + strlen(name);
+	if (*p++ != '[')
+		return (i);
+	i = 0;
+	while (isgraph(*p) && *p != ']' && i < LENGTH(classname))
+		classname[i++] = *p++;
+	if (i >= LENGTH(classname) || *p != ']')
+		return (1);
+	if ((p = strchr(classname, ':')) == NULL || p-classname >= SWM_QUIRK_LEN)
+		return (1);
+	strlcpy(qclass, classname, p-classname+1);
+	strlcpy(qname, ++p, SWM_QUIRK_LEN);
+	for (p = qclass; *p && p-qclass < SWM_QUIRK_LEN; p++)
+		if (*p == '_')
+			*p = ' ';
+	for (p = qname; *p && p-qname < SWM_QUIRK_LEN; p++)
+		if (*p == '_')
+			*p = ' ';
+	i = (!parsequirks(qstr, qquirk));
+	DNPRINTF(SWM_D_QUIRK, "quirkmatch: [%s][%s] %d\n", qclass, qname, i);
+	return (i);
+}
+void
+setquirk(const char *class, const char *name, const int quirk)
+{
+	int			i, j;
+	/* find existing */
+	for (i = 0; i < quirks_length; i++) {
+		if (!strcmp(quirks[i].class, class) &&
+		    !strcmp(quirks[i].name, name)) {
+			if (!quirk) {
+				/* found: delete */
+				DNPRINTF(SWM_D_QUIRK,
+				    "setquirk: delete #%d %s:%s\n",
+				    i, quirks[i].class, quirks[i].name);
+				j = quirks_length - 1;
+				if (i < j)
+					quirks[i] = quirks[j];
+				quirks_length--;
+				return;
+			} else {
+				/* found: replace */
+				DNPRINTF(SWM_D_QUIRK,
+				    "setquirk: replace #%d %s:%s\n",
+				    i, quirks[i].class, quirks[i].name);
+				strlcpy(quirks[i].class, class,
+				    sizeof quirks->class);
+				strlcpy(quirks[i].name, name,
+				    sizeof quirks->name);
+				quirks[i].quirk = quirk;
+				return;
+			}
+		}
+	}
+	if (!quirk) {
+		fprintf(stderr,
+		    "error: setquirk: cannot find class/name combination");
+		return;
+	}
+	/* not found: add */
+	if (quirks_size == 0 || quirks == NULL) {
+		quirks_size = 4;
+		DNPRINTF(SWM_D_QUIRK, "setquirk: init list %d\n", quirks_size);
+		quirks = malloc((size_t)quirks_size * sizeof(struct quirk));
+		if (!quirks) {
+			fprintf(stderr, "setquirk: malloc failed\n");
+			perror(" failed");
+			quit(NULL, NULL);
+		}
+	} else if (quirks_length == quirks_size) {
+		quirks_size *= 2;
+		DNPRINTF(SWM_D_QUIRK, "setquirk: grow list %d\n", quirks_size);
+		quirks = realloc(quirks, (size_t)quirks_size * sizeof(struct quirk));
+		if (!quirks) {
+			fprintf(stderr, "setquirk: realloc failed\n");
+			perror(" failed");
+			quit(NULL, NULL);
+		}
+	}
+	if (quirks_length < quirks_size) {
+		DNPRINTF(SWM_D_QUIRK, "setquirk: add %d\n", quirks_length);
+		j = quirks_length++;
+		strlcpy(quirks[j].class, class, sizeof quirks->class);
+		strlcpy(quirks[j].name, name, sizeof quirks->name);
+		quirks[j].quirk = quirk;
+	} else {
+		fprintf(stderr, "quirks array problem?\n");
+		if (!quirks) {
+			fprintf(stderr, "quirks array problem!\n");
+			quit(NULL, NULL);
+		}
+	}
+}
+
+void
+setup_quirks(void)
+{
+	setquirk("MPlayer",		"xv",		SWM_Q_FLOAT | SWM_Q_FULLSCREEN);
+	setquirk("OpenOffice.org 2.4",	"VCLSalFrame",	SWM_Q_FLOAT);
+	setquirk("OpenOffice.org 3.0",	"VCLSalFrame",	SWM_Q_FLOAT);
+	setquirk("Firefox-bin",		"firefox-bin",	SWM_Q_TRANSSZ);
+	setquirk("Firefox",		"Dialog",	SWM_Q_FLOAT);
+	setquirk("Gimp",		"gimp",		SWM_Q_FLOAT | SWM_Q_ANYWHERE);
+	setquirk("XTerm",		"xterm",	SWM_Q_XTERM_FONTADJ);
+	setquirk("xine",		"Xine Window",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
+	setquirk("Xitk",		"Xitk Combo",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
+	setquirk("xine",		"xine Panel",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
+	setquirk("Xitk",		"Xine Window",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
+	setquirk("xine",		"xine Video Fullscreen Window",	SWM_Q_FULLSCREEN | SWM_Q_FLOAT);
+	setquirk("pcb",			"pcb",		SWM_Q_FLOAT);
+}
+
 struct ws_win *
 manage_window(Window id)
 {
@@ -2631,8 +2805,7 @@ manage_window(Window id)
 	if (XGetClassHint(display, win->id, &win->ch)) {
 		DNPRINTF(SWM_D_CLASS, "class: %s name: %s\n",
 		    win->ch.res_class, win->ch.res_name);
-		for (i = 0; quirks[i].class != NULL && quirks[i].name != NULL &&
-		    quirks[i].quirk != 0; i++){
+		for (i = 0; i < quirks_length; i++){
 			if (!strcmp(win->ch.res_class, quirks[i].class) &&
 			    !strcmp(win->ch.res_name, quirks[i].name)) {
 				DNPRINTF(SWM_D_CLASS, "found: %s name: %s\n",
@@ -3317,6 +3490,7 @@ main(int argc, char *argv[])
 
 	setup_screens();
 	setup_keys();
+	setup_quirks();
 
 	snprintf(conf, sizeof conf, "%s/.%s", pwd->pw_dir, SWM_CONF_FILE);
 	if (stat(conf, &sb) != -1) {
