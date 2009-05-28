@@ -1567,7 +1567,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	int			w_inc = 1, h_inc, w_base = 1, h_base;
 	int			hrh, extra = 0, h_slice, last_h = 0;
 	int			split, colno, winno, mwin, msize, mscale;
-	int			remain, missing, v_slice;;
+	int			remain, missing, v_slice;
 	unsigned int		mask;
 
 	DNPRINTF(SWM_D_STACK, "stack_master: workspace: %d\n rot=%s flip=%s",
