@@ -2249,6 +2249,8 @@ parsekeys(char *keystr, unsigned int currmod, unsigned int *mod, KeySym *ks)
 			*mod |= Mod4Mask;
 		else if (strncasecmp(name, "SHIFT", SWM_MODNAME_SIZE) == 0)
 			*mod |= ShiftMask;
+		else if (strncasecmp(name, "CONTROL", SWM_MODNAME_SIZE) == 0)
+			*mod |= ControlMask;
 		else {
 			*ks = XStringToKeysym(name);
 			XConvertCase(*ks, ks, &uks);
