@@ -912,7 +912,8 @@ version(struct swm_region *r, union arg *args)
 {
 	bar_version = !bar_version;
 	if (bar_version)
-		strlcpy(bar_vertext, cvstag, sizeof bar_vertext);
+		snprintf(bar_vertext, sizeof bar_vertext, "Version: %s CVS: %s",
+		    SWM_VERSION, cvstag);
 	else
 		strlcpy(bar_vertext, "", sizeof bar_vertext);
 	bar_update();
