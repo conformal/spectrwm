@@ -182,6 +182,8 @@ int			bar_extra_running = 0;
 int			bar_verbose = 1;
 int			bar_height = 0;
 int			clock_enabled = 1;
+int			title_name_enabled = 0;
+int			title_class_enabled = 0;
 pid_t			bar_pid;
 GC			bar_gc;
 XGCValues		bar_gcv;
@@ -692,6 +694,12 @@ conf_load(char *filename)
 		case 't':
 			if (!strncmp(var, "term_width", strlen("term_width")))
 				term_width = atoi(val);
+			else if (!strncmp(var, "title_class_enabled",
+			    strlen("title_class_enabled")))
+				title_class_enabled = atoi(val);
+			else if (!strncmp(var, "title_name_enabled",
+			    strlen("title_name_enabled")))
+				title_name_enabled = atoi(val);
 			else
 				goto bad;
 			break;
@@ -756,6 +764,8 @@ bar_update(void)
 	char			s[SWM_BAR_MAX];
 	char			loc[SWM_BAR_MAX];
 	char			*b;
+	XClassHint		*xch;
+	Status			 status;
 
 	if (bar_enabled == 0)
 		return;
@@ -781,6 +791,24 @@ bar_update(void)
 		localtime_r(&tmt, &tm);
 		strftime(s, sizeof s, "%a %b %d %R %Z %Y    ", &tm);
 	}
+	xch = NULL;
+	if ((title_name_enabled == 1 || title_class_enabled == 1) &&
+	    cur_focus != NULL) {
+		if ((xch = XAllocClassHint()) == NULL)
+			goto out;
+		status = XGetClassHint(display, cur_focus->id, xch);
+		if (status == BadWindow || status == BadAlloc)
+			goto out;
+		if (title_name_enabled)
+			strlcat(s, xch->res_name, sizeof s);
+		if (title_name_enabled && title_class_enabled)
+			strlcat(s, " ", sizeof s);
+		if (title_class_enabled)
+			strlcat(s, xch->res_class, sizeof s);
+	}
+out:
+	if (xch)
+		XFree(xch);
 	for (i = 0; i < ScreenCount(display); i++) {
 		x = 1;
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
