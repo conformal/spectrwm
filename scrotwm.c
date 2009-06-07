@@ -800,12 +800,12 @@ bar_update(void)
 		status = XGetClassHint(display, cur_focus->id, xch);
 		if (status == BadWindow || status == BadAlloc)
 			goto out;
-		if (title_name_enabled)
-			strlcat(s, xch->res_name, sizeof s);
-		if (title_name_enabled && title_class_enabled)
-			strlcat(s, " ", sizeof s);
 		if (title_class_enabled)
 			strlcat(s, xch->res_class, sizeof s);
+		if (title_name_enabled && title_class_enabled)
+			strlcat(s, ":", sizeof s);
+		if (title_name_enabled)
+			strlcat(s, xch->res_name, sizeof s);
 	}
 out:
 	if (xch)
