@@ -813,7 +813,7 @@ out:
 	for (i = 0; i < ScreenCount(display); i++) {
 		x = 1;
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
-			snprintf(loc, sizeof loc, "%d:%d    %s%s    %s",
+			snprintf(loc, sizeof loc, "%d:%d    %s %s    %s",
 			    x++, r->ws->idx + 1, s, bar_ext, bar_vertext);
 			bar_print(r, loc);
 		}
