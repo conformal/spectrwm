@@ -136,7 +136,7 @@ u_int32_t		swm_debug = 0
 #define SWM_PROPLEN		(16)
 #define SWM_FUNCNAME_LEN	(32)
 #define SWM_KEYS_LEN		(255)
-#define SWM_QUIRK_LEN		(32)
+#define SWM_QUIRK_LEN		(64)
 #define X(r)			(r)->g.x
 #define Y(r)			(r)->g.y
 #define WIDTH(r)		(r)->g.w
