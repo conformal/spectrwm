@@ -165,6 +165,7 @@ int			cycle_empty = 0;
 int			cycle_visible = 0;
 int			term_width = 0;
 int			font_adjusted = 0;
+unsigned int		mod_key = MODKEY;
 
 /* dialog windows */
 double			dialog_ratio = .6;
@@ -318,15 +319,6 @@ void	max_stack(struct workspace *, struct swm_geometry *);
 
 void	grabbuttons(struct ws_win *, int);
 void	new_region(struct swm_screen *, int, int, int, int);
-void	update_modkey(unsigned int);
-/* user functions / key binding */
-int	bindmatch(const char *var, const char *name, unsigned int currmod, char *keystr,
-    enum keyfuncid *kfid, unsigned int *mod, KeySym *ks);
-void	setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid);
-/* quirks */
-int	quirkmatch(const char *var, const char *name, char *qstr,
-    char *qclass, char *qname, unsigned long *qquirk);
-void	setquirk(const char *class, const char *name, const int quirk);
 
 struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
@@ -418,8 +410,8 @@ union arg {
 
 /* quirks */
 struct quirk {
-	char			class[SWM_QUIRK_LEN];
-	char			name[SWM_QUIRK_LEN];
+	char			*class;
+	char			*name;
 	unsigned long		quirk;
 #define SWM_Q_FLOAT		(1<<0)	/* float this window */
 #define SWM_Q_TRANSSZ		(1<<1)	/* transiend window size too small */
@@ -530,192 +522,6 @@ custom_region(char *val)
 		    DisplayWidth(display, sidx), DisplayHeight(display, sidx));
 	    
 	new_region(&screens[sidx], x, y, w, h);
-}
-
-int
-varmatch(char *var, char *name, int *index)
-{
-	char			*p, buf[5];
-	int 			i;
-
-	i = strncmp(var, name, 255);
-	if (index == NULL)
-		return (i);
-
-	*index = -1;
-	if (i <= 0)
-		return (i);
-	p = var + strlen(name);
-	if (*p++ != '[')
-		return (i);
-	bzero(buf, sizeof buf);
-	i = 0;
-	while (isdigit(*p) && i < sizeof buf)
-		buf[i++] = *p++;
-	if (i == 0 || i >= sizeof buf || *p != ']')
-		return (1);
-	*index = strtonum(buf, 0, 99, NULL);
-	return (0);
-}
-
-/* conf file stuff */
-#define	SWM_CONF_WS	"\n= \t"
-#define SWM_CONF_FILE	"scrotwm.conf"
-int
-conf_load(char *filename)
-{
-	FILE			*config;
-	char			*line, *cp, *var, *val;
-	size_t			len, lineno = 0;
-	int			i, sc;
-	unsigned int 		modkey = MODKEY, modmask;
-	KeySym			ks;
-	enum keyfuncid		kfid;
-	char			class[SWM_QUIRK_LEN];
-	char			name[SWM_QUIRK_LEN];
-	unsigned long		quirk;
-
-	DNPRINTF(SWM_D_MISC, "conf_load: filename %s\n", filename);
-
-	if (filename == NULL)
-		return (1);
-
-	if ((config = fopen(filename, "r")) == NULL)
-		return (1);
-
-	for (sc = ScreenCount(display);;) {
-		if ((line = fparseln(config, &len, &lineno, NULL, 0)) == NULL)
-			if (feof(config))
-				break;
-		cp = line;
-		cp += (long)strspn(cp, SWM_CONF_WS);
-		if (cp[0] == '\0') {
-			/* empty line */
-			free(line);
-			continue;
-		}
-		if ((var = strsep(&cp, SWM_CONF_WS)) == NULL || cp == NULL)
-			break;
-		cp += (long)strspn(cp, SWM_CONF_WS);
-		if ((val = strsep(&cp, SWM_CONF_WS)) == NULL)
-			break;
-
-		DNPRINTF(SWM_D_MISC, "conf_load: %s=%s\n",var ,val);
-		switch (var[0]) {
-		case 'b':
-			if (!strncmp(var, "bar_enabled", strlen("bar_enabled")))
-				bar_enabled = atoi(val);
-			else if (!varmatch(var, "bar_border", &i))
-				setscreencolor(val, i, SWM_S_COLOR_BAR_BORDER);
-			else if (!varmatch(var, "bar_color", &i))
-				setscreencolor(val, i, SWM_S_COLOR_BAR);
-			else if (!varmatch(var, "bar_font_color", &i))
-				setscreencolor(val, i, SWM_S_COLOR_BAR_FONT);
-			else if (!strncmp(var, "bar_font", strlen("bar_font")))
-				asprintf(&bar_fonts[0], "%s", val);
-			else if (!strncmp(var, "bar_action", strlen("bar_action")))
-				asprintf(&bar_argv[0], "%s", val);
-			else if (!strncmp(var, "bar_delay", strlen("bar_delay")))
-				bar_delay = atoi(val);
-			else if (!bindmatch(var, "bind", modkey, val,
-			    &kfid, &modmask, &ks))
-				setkeybinding(modmask, ks, kfid);
-			else
-				goto bad;
-			break;
-
-		case 'c':
-			if (!strncmp(var, "clock_enabled", strlen("clock_enabled")))
-				clock_enabled = atoi(val);
-			else if (!varmatch(var, "color_focus", &i))
-				setscreencolor(val, i, SWM_S_COLOR_FOCUS);
-			else if (!varmatch(var, "color_unfocus", &i))
-				setscreencolor(val, i, SWM_S_COLOR_UNFOCUS);
-			else if (!strncmp(var, "cycle_empty", strlen("cycle_empty")))
-				cycle_visible = atoi(val);
-			else if (!strncmp(var, "cycle_visible", strlen("cycle_visible")))
-				cycle_visible = atoi(val);
-			else
-				goto bad;
-			break;
-
-		case 'd':
-			if (!strncmp(var, "dialog_ratio",
-			    strlen("dialog_ratio"))) {
-				dialog_ratio = atof(val);
-				if (dialog_ratio > 1.0 || dialog_ratio <= .3)
-					dialog_ratio = .6;
-			} else
-				goto bad;
-			break;
-
-		case 'm':
-			if (!strncmp(var, "modkey", strlen("modkey"))) {
-				modkey = MODKEY;
-				if (!strncmp(val, "Mod2", strlen("Mod2")))
-					modkey = Mod2Mask;
-				else if (!strncmp(val, "Mod3", strlen("Mod3")))
-					modkey = Mod3Mask;
-				else if (!strncmp(val, "Mod4", strlen("Mod4")))
-					modkey = Mod4Mask;
-				else
-					modkey = Mod1Mask;
-				update_modkey(modkey);
-			} else
-				goto bad;
-			break;
-
-		case 'q':
-			if (!quirkmatch(var, "quirk", val, class, name, &quirk))
-				setquirk(class, name, quirk);
-			else
-				goto bad;
-			break;
-
-		case 'r':
-			if (!strncmp(var, "region", strlen("region")))
-				custom_region(val);
-			else
-				goto bad;
-			break;
-
-		case 's':
-			if (!strncmp(var, "spawn_term", strlen("spawn_term")))
-				asprintf(&spawn_term[0], "%s", val);
-			else if (!strncmp(var, "screenshot_enabled",
-			    strlen("screenshot_enabled")))
-				ss_enabled = atoi(val);
-			else if (!strncmp(var, "screenshot_app",
-			    strlen("screenshot_app")))
-				asprintf(&spawn_screenshot[0], "%s", val);
-			else
-				goto bad;
-			break;
-
-		case 't':
-			if (!strncmp(var, "term_width", strlen("term_width")))
-				term_width = atoi(val);
-			else if (!strncmp(var, "title_class_enabled",
-			    strlen("title_class_enabled")))
-				title_class_enabled = atoi(val);
-			else if (!strncmp(var, "title_name_enabled",
-			    strlen("title_name_enabled")))
-				title_name_enabled = atoi(val);
-			else
-				goto bad;
-			break;
-
-		default:
-			goto bad;
-		}
-		free(line);
-	}
-
-	fclose(config);
-	return (0);
-
-bad:
-	errx(1, "invalid conf file entry: %s=%s", var, val);
 }
 
 void
@@ -2239,6 +2045,7 @@ update_modkey(unsigned int mod)
 {
 	int			i;
 
+	mod_key = mod;
 	for (i = 0; i < keys_length; i++)
 		if (keys[i].mod & ShiftMask)
 			keys[i].mod = mod | ShiftMask;
@@ -2290,41 +2097,6 @@ parsekeys(char *keystr, unsigned int currmod, unsigned int *mod, KeySym *ks)
 				return (0);
 			}
 		}
-	}
-	return (1);
-}
-int
-bindmatch(const char *var, const char *name, unsigned int currmod, char *keystr,
-    enum keyfuncid *kfid, unsigned int *mod, KeySym *ks)
-{
-	char			*p;
-	int 			i;
-	char			funcname[SWM_FUNCNAME_LEN];
-	i = strncmp(var, name, 255);
-	if (kfid == NULL || mod == NULL || ks == NULL)
-		return (i);
-	*kfid = kf_invalid;
-	*mod = 0;
-	*ks = NoSymbol;
-	bzero(funcname, LENGTH(funcname));
-	if (i <= 0)
-		return (i);
-	p = (char *)var + strlen(name);
-	if (*p++ != '[')
-		return (i);
-	i = 0;
-	while (isgraph(*p) && *p != ']' && i < LENGTH(funcname))
-		funcname[i++] = *p++;
-	if (i >= LENGTH(funcname) || *p != ']')
-		return (1);
-	if (i == 0)
-		return (!parsekeys(keystr, currmod, mod, ks));
-	for (*kfid = 0; *kfid < kf_invalid; (*kfid)++) {
-		if (strncasecmp(funcname, keyfuncs[*kfid].name,
-		    SWM_FUNCNAME_LEN) == 0) {
-			return (!parsekeys(keystr, currmod, mod, ks));
-		}
-
 	}
 	return (1);
 }
@@ -2395,6 +2167,24 @@ setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid)
 			quit(NULL, NULL);
 		}
 	}
+}
+int
+setconfbinding(char *selector, char *value, int flags)
+{
+	enum keyfuncid		kfid;
+	unsigned int		mod;
+	KeySym			ks;
+	for (kfid = 0; kfid < kf_invalid; (kfid)++) {
+		if (strncasecmp(selector, keyfuncs[kfid].name,
+		    SWM_FUNCNAME_LEN) == 0) {
+			if (parsekeys(value, mod_key, &mod, &ks))
+				setkeybinding(mod, ks, kfid);
+			else
+				return (0);
+		}
+
+	}
+	return (1);
 }
 void
 setup_keys(void)
@@ -2623,45 +2413,6 @@ parsequirks(char *qstr, unsigned long *quirk)
 	}
 	return (1);
 }
-int
-quirkmatch(const char *var, const char *name, char *qstr, char *qclass,
-    char *qname, unsigned long *qquirk)
-{
-	char			*p;
-	int 			i;
-	char			classname[SWM_QUIRK_LEN*2+1];
-	DNPRINTF(SWM_D_QUIRK, "quirkmatch: in [%s]\n", var);
-	i = strncmp(var, name, 255);
-	if (qclass == NULL || qname == NULL || qquirk == NULL)
-		return (i);
-	*qquirk = 0;
-	*qclass = '\0';
-	*qname  = '\0';
-	bzero(classname, LENGTH(classname));
-	if (i <= 0)
-		return (i);
-	p = (char *)var + strlen(name);
-	if (*p++ != '[')
-		return (i);
-	i = 0;
-	while (isgraph(*p) && *p != ']' && i < LENGTH(classname))
-		classname[i++] = *p++;
-	if (i >= LENGTH(classname) || *p != ']')
-		return (1);
-	if ((p = strchr(classname, ':')) == NULL || p-classname >= SWM_QUIRK_LEN)
-		return (1);
-	strlcpy(qclass, classname, p-classname+1);
-	strlcpy(qname, ++p, SWM_QUIRK_LEN);
-	for (p = qclass; *p && p-qclass < SWM_QUIRK_LEN; p++)
-		if (*p == '_')
-			*p = ' ';
-	for (p = qname; *p && p-qname < SWM_QUIRK_LEN; p++)
-		if (*p == '_')
-			*p = ' ';
-	i = (!parsequirks(qstr, qquirk));
-	DNPRINTF(SWM_D_QUIRK, "quirkmatch: [%s][%s] %d\n", qclass, qname, i);
-	return (i);
-}
 void
 setquirk(const char *class, const char *name, const int quirk)
 {
@@ -2675,6 +2426,8 @@ setquirk(const char *class, const char *name, const int quirk)
 				DNPRINTF(SWM_D_QUIRK,
 				    "setquirk: delete #%d %s:%s\n",
 				    i, quirks[i].class, quirks[i].name);
+				free(quirks[i].class);
+				free(quirks[i].name);
 				j = quirks_length - 1;
 				if (i < j)
 					quirks[i] = quirks[j];
@@ -2685,10 +2438,10 @@ setquirk(const char *class, const char *name, const int quirk)
 				DNPRINTF(SWM_D_QUIRK,
 				    "setquirk: replace #%d %s:%s\n",
 				    i, quirks[i].class, quirks[i].name);
-				strlcpy(quirks[i].class, class,
-				    sizeof quirks->class);
-				strlcpy(quirks[i].name, name,
-				    sizeof quirks->name);
+				free(quirks[i].class);
+				free(quirks[i].name);
+				quirks[i].class = strdup(class);
+				quirks[i].name = strdup(name);
 				quirks[i].quirk = quirk;
 				return;
 			}
@@ -2722,8 +2475,8 @@ setquirk(const char *class, const char *name, const int quirk)
 	if (quirks_length < quirks_size) {
 		DNPRINTF(SWM_D_QUIRK, "setquirk: add %d\n", quirks_length);
 		j = quirks_length++;
-		strlcpy(quirks[j].class, class, sizeof quirks->class);
-		strlcpy(quirks[j].name, name, sizeof quirks->name);
+		quirks[j].class = strdup(class);
+		quirks[j].name = strdup(name);
 		quirks[j].quirk = quirk;
 	} else {
 		fprintf(stderr, "quirks array problem?\n");
@@ -2732,6 +2485,23 @@ setquirk(const char *class, const char *name, const int quirk)
 			quit(NULL, NULL);
 		}
 	}
+}
+int
+setconfquirk(char *selector, char *value, int flags)
+{
+	char			*cp, *class, *name;
+	int			retval;
+	unsigned long		quirks;
+	if (selector == NULL)
+		return (0);
+	if ((cp = strchr(selector, ':')) == NULL)
+		return (0);
+	*cp = '\0';
+	class = selector;
+	name = cp + 1;
+	if ((retval = parsequirks(value, &quirks)))
+		setquirk(class, name, quirks);
+	return (retval);
 }
 
 void
@@ -2750,6 +2520,211 @@ setup_quirks(void)
 	setquirk("Xitk",		"Xine Window",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
 	setquirk("xine",		"xine Video Fullscreen Window",	SWM_Q_FULLSCREEN | SWM_Q_FLOAT);
 	setquirk("pcb",			"pcb",		SWM_Q_FLOAT);
+}
+
+/* conf file stuff */
+#define SWM_CONF_FILE	"scrotwm.conf"
+
+enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_CLOCK_ENABLED,
+	  SWM_S_CYCLE_EMPTY, SWM_S_CYCLE_VISIBLE, SWM_S_SS_ENABLED,
+	  SWM_S_TERM_WIDTH, SWM_S_TITLE_CLASS_ENABLED, SWM_S_TITLE_NAME_ENABLED,
+	  SWM_S_BAR_FONT, SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM, SWM_S_SS_APP,
+	  SWM_S_DIALOG_RATIO };
+
+int
+setconfvalue(char *selector, char *value, int flags)
+{
+	switch (flags) {
+	case SWM_S_BAR_DELAY:
+		bar_delay = atoi(value);
+		break;
+	case SWM_S_BAR_ENABLED:
+		bar_enabled = atoi(value);
+		break;
+	case SWM_S_CLOCK_ENABLED:
+		clock_enabled = atoi(value);
+		break;
+	case SWM_S_CYCLE_EMPTY:
+		cycle_empty = atoi(value);
+		break;
+	case SWM_S_CYCLE_VISIBLE:
+		cycle_visible = atoi(value);
+		break;
+	case SWM_S_SS_ENABLED:
+		ss_enabled = atoi(value);
+		break;
+	case SWM_S_TERM_WIDTH:
+		term_width = atoi(value);
+		break;
+	case SWM_S_TITLE_CLASS_ENABLED:
+		title_class_enabled = atoi(value);
+		break;
+	case SWM_S_TITLE_NAME_ENABLED:
+		title_name_enabled = atoi(value);
+		break;
+	case SWM_S_BAR_FONT:
+		bar_fonts[0] = strdup(value);
+		break;
+	case SWM_S_BAR_ACTION:
+		bar_argv[0] = strdup(value);
+		break;
+	case SWM_S_SPAWN_TERM:
+		spawn_term[0] = strdup(value);
+		break;
+	case SWM_S_SS_APP:
+		spawn_screenshot[0] = strdup(value);
+		break;
+	case SWM_S_DIALOG_RATIO:
+		dialog_ratio = atof(value);
+		if (dialog_ratio > 1.0 || dialog_ratio <= .3)
+			dialog_ratio = .6;
+		break;
+	default:
+		return (0);
+	}
+	return (1);
+}
+
+int
+setconfmodkey(char *selector, char *value, int flags)
+{
+	if (!strncasecmp(value, "Mod1", strlen("Mod1")))
+		update_modkey(Mod1Mask);
+	else if (!strncasecmp(value, "Mod2", strlen("Mod2")))
+		update_modkey(Mod2Mask);
+	else if (!strncasecmp(value, "Mod3", strlen("Mod3")))
+		update_modkey(Mod3Mask);
+	else if (!strncasecmp(value, "Mod4", strlen("Mod4")))
+		update_modkey(Mod4Mask);
+	else
+		return (0);
+	return (1);
+}
+
+int
+setconfcolor(char *selector, char *value, int flags)
+{
+	setscreencolor(value, ((selector == NULL)?-1:atoi(selector)), flags);
+	return (1);
+}
+
+int
+setconfregion(char *selector, char *value, int flags)
+{
+	custom_region(value);
+	return (1);
+}
+
+/* config options */
+struct config_option {
+	char			*optname;
+	int (*func)(char*, char*, int);
+	int funcflags;
+};
+struct config_option configopt[] = {
+	{ "bar_enabled",		setconfvalue,	SWM_S_BAR_ENABLED },
+	{ "bar_border",			setconfcolor,	SWM_S_COLOR_BAR_BORDER },
+	{ "bar_color",			setconfcolor,	SWM_S_COLOR_BAR },
+	{ "bar_font_color",		setconfcolor,	SWM_S_COLOR_BAR_FONT },
+	{ "bar_font",			setconfvalue,	SWM_S_BAR_FONT },
+	{ "bar_action",			setconfvalue,	SWM_S_BAR_ACTION },
+	{ "bar_delay",			setconfvalue,	SWM_S_BAR_DELAY },
+	{ "bind",			setconfbinding,	0 },
+	{ "clock_enabled",		setconfvalue,	SWM_S_CLOCK_ENABLED },
+	{ "color_focus",		setconfcolor,	SWM_S_COLOR_FOCUS },
+	{ "color_unfocus",		setconfcolor,	SWM_S_COLOR_UNFOCUS },
+	{ "cycle_empty",		setconfvalue,	SWM_S_CYCLE_EMPTY },
+	{ "cycle_visible",		setconfvalue,	SWM_S_CYCLE_VISIBLE },
+	{ "dialog_ratio",		setconfvalue,	SWM_S_DIALOG_RATIO },
+	{ "modkey",			setconfmodkey,	0 },
+	{ "quirk",			setconfquirk,	0 },
+	{ "region",			setconfregion,	0 },
+	{ "spawn_term",			setconfvalue,	SWM_S_SPAWN_TERM },
+	{ "screenshot_enabled",		setconfvalue,	SWM_S_SS_ENABLED },
+	{ "screenshot_app",		setconfvalue,	SWM_S_SS_APP },
+	{ "term_width",			setconfvalue,	SWM_S_TERM_WIDTH },
+	{ "title_class_enabled",	setconfvalue,	SWM_S_TITLE_CLASS_ENABLED },
+	{ "title_name_enabled",		setconfvalue,	SWM_S_TITLE_NAME_ENABLED }
+};
+
+
+int
+conf_load(char *filename)
+{
+	FILE			*config;
+	char			*line, *cp, *optsub, *optval;
+	size_t			linelen, lineno = 0;
+	int			wordlen, i, optind;
+	struct config_option	*opt;
+	if (filename == NULL)
+		return (0);
+	if ((config = fopen(filename, "r")) == NULL)
+		return (0);
+	while (!feof(config)) {
+		if ((line = fparseln(config, &linelen, &lineno, NULL, 0))
+		    == NULL) {
+			if (ferror(config))
+				err(1, "%s", filename);
+			else
+				continue;
+		}
+		cp = line;
+		cp += strspn(cp, " \t\n"); /* eat whitespace */
+		if (cp[0] == '\0') {
+			/* empty line */
+			free(line);
+			continue;
+		}
+		/* get config option */
+		wordlen = strcspn(cp, "=[ \t\n");
+		if (!wordlen) {
+			warnx("%s: line %zd: no option found",
+			    filename, lineno);
+			return (0);
+		}
+		optind = -1;
+		for (i = 0; i < LENGTH(configopt); i++) {
+			opt = &configopt[i];
+			if (!strncasecmp(cp, opt->optname, wordlen) &&
+			    strlen(opt->optname) == wordlen) {
+				optind = i;
+				break;
+			}
+		}
+		if (optind == -1) {
+			warnx("%s: line %zd: unknown option %.*s",
+			    filename, lineno, wordlen, cp);
+			return (0);
+		}
+		cp += wordlen;
+		cp += strspn(cp, " \t\n"); /* eat whitespace */
+		/* get [selector] if any */
+		optsub = NULL;
+		if (*cp == '[') {
+			cp++;
+			wordlen = strcspn(cp, "]");
+			if (!wordlen) {
+				warnx("%s: line %zd: syntax error",
+				    filename, lineno);
+				return (0);
+			}
+			asprintf(&optsub, "%.*s", wordlen, cp);
+			cp += wordlen;
+			cp += strspn(cp, "] \t\n"); /* eat trailing */
+		}
+		cp += strspn(cp, "= \t\n"); /* eat trailing */
+		/* get RHS value */
+		optval = strdup(cp);
+		/* call function to deal with it all */
+		if (!configopt[optind].func(optsub, optval,
+		    configopt[optind].funcflags))
+			errx(1, "%s: line %zd: invalid data for %s",
+			    filename, lineno, configopt[optind].optname);
+		free(optval);
+		free(optsub);
+		free(line);
+	}
+	return (1);
 }
 
 struct ws_win *
