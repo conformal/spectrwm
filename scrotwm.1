@@ -376,9 +376,9 @@ TRANSSZ
 .It Firefox:Dialog
 FLOAT
 .It Gimp:gimp
-FLOAT | ANYWHERE
+FLOAT + ANYWHERE
 .It MPlayer:xv
-FLOAT | FULLSCREEN
+FLOAT + FULLSCREEN
 .It OpenOffice.org 2.4:VCLSalFrame
 FLOAT
 .It OpenOffice.org 3.1:VCLSalFrame
@@ -386,15 +386,15 @@ FLOAT
 .It pcb:pcb
 FLOAT
 .It xine:Xine Window
-FLOAT | ANYWHERE
+FLOAT + ANYWHERE
 .It xine:xine Panel
-FLOAT | ANYWHERE
+FLOAT + ANYWHERE
 .It xine:xine Video Fullscreen Window
-FULLSCREEN | FLOAT
+FULLSCREEN + FLOAT
 .It Xitk:Xitk Combo
-FLOAT | ANYWHERE
+FLOAT + ANYWHERE
 .It Xitk:Xine Window
-FLOAT | ANYWHERE
+FLOAT + ANYWHERE
 .It XTerm:xterm
 XTERM_FONTADJ
 .El
@@ -418,7 +418,7 @@ Remove border to allow window to use full screen size.
 .Pp
 Custom quirks in the configuration file are specified as follows:
 .Pp
-.Dl quirk[<class>:<name>] = <quirk> [ | <quirk> ... ]
+.Dl quirk[<class>:<name>] = <quirk> [ + <quirk> ... ]
 .Pp
 .Aq class
 and
@@ -428,18 +428,8 @@ specify the window to which the quirk(s) apply, and
 is one of the quirks from the list above.
 For example:
 .Bd -literal -offset indent
-quirk[MPlayer:xv] = FLOAT | FULLSCREEN # let mplayer play
+quirk[MPlayer:xv] = FLOAT + FULLSCREEN # let mplayer play
 quirk[pcb:pcb] = NONE  # remove existing quirk
-.Ed
-.Pp
-Note that spaces in
-.Aq class
-or
-.Aq name
-must be replaced by an underscore in the configuration.
-The config entry for "xine:Xine Panel" would be:
-.Bd -literal -offset indent
-quirk[xine:Xine_Panel] = FLOAT
 .Ed
 .Pp
 You can obtain

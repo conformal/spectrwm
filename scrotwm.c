@@ -2381,7 +2381,8 @@ const char *quirkname[] = {
 	"FULLSCREEN",
 };
 
-#define	SWM_Q_WS		"\n| \t"
+/* SWM_Q_WS: retain '|' for back compat for now (2009-08-11) */
+#define	SWM_Q_WS		"\n|+ \t"
 int
 parsequirks(char *qstr, unsigned long *quirk)
 {
