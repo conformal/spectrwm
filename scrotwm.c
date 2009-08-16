@@ -566,7 +566,7 @@ bar_update(void)
 	time_t			tmt;
 	struct tm		tm;
 	struct swm_region	*r;
-	int			i, x;
+	int			i, x, do_class, do_name;
 	size_t			len;
 	char			s[SWM_BAR_MAX];
 	char			loc[SWM_BAR_MAX];
@@ -606,11 +606,13 @@ bar_update(void)
 		status = XGetClassHint(display, cur_focus->id, xch);
 		if (status == BadWindow || status == BadAlloc)
 			goto out;
-		if (title_class_enabled)
+		do_class = (title_class_enabled && xch->res_class != NULL);
+		do_name = (title_name_enabled && xch->res_name != NULL);
+		if (do_class)
 			strlcat(s, xch->res_class, sizeof s);
-		if (title_name_enabled && title_class_enabled)
+		if (do_class && do_name)
 			strlcat(s, ":", sizeof s);
-		if (title_name_enabled)
+		if (do_name)
 			strlcat(s, xch->res_name, sizeof s);
 	}
 out:
