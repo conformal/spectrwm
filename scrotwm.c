@@ -20,7 +20,7 @@
 /*
  * Much code and ideas taken from dwm under the following license:
  * MIT/X Consortium License
- * 
+ *
  * 2006-2008 Anselm R Garbe <garbeam at gmail dot com>
  * 2006-2007 Sander van Dijk <a dot h dot vandijk at gmail dot com>
  * 2006-2007 Jukka Salmi <jukka at salmi dot ch>
@@ -30,17 +30,17 @@
  * 2007-2008 Enno Gottox Boland <gottox at s01 dot de>
  * 2007-2008 Peter Hartlich <sgkkr at hartlich dot com>
  * 2008 Martin Hurton <martin dot hurton at gmail dot com>
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
  * to deal in the Software without restriction, including without limitation
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
@@ -226,10 +226,10 @@ struct workspace;
 struct swm_region {
 	TAILQ_ENTRY(swm_region)	entry;
 	struct swm_geometry	g;
-	struct workspace 	*ws;	/* current workspace on this region */
+	struct workspace	*ws;	/* current workspace on this region */
 	struct swm_screen	*s;	/* screen idx */
 	Window			bar_window;
-}; 
+};
 TAILQ_HEAD(swm_region_list, swm_region);
 
 struct ws_win {
@@ -520,7 +520,7 @@ custom_region(char *val)
 		errx(1, "region %ux%u+%u+%u not within screen boundaries "
 		    "(%ux%u)\n", w, h, x, y,
 		    DisplayWidth(display, sidx), DisplayHeight(display, sidx));
-	    
+
 	new_region(&screens[sidx], x, y, w, h);
 }
 
@@ -728,7 +728,7 @@ bar_setup(struct swm_region *r)
 			errx(1, "couldn't load font");
 	bar_height = bar_fs->ascent + bar_fs->descent + 3;
 
-	r->bar_window = XCreateSimpleWindow(display, 
+	r->bar_window = XCreateSimpleWindow(display,
 	    r->s->root, X(r), Y(r), WIDTH(r) - 2, bar_height - 2,
 	    1, r->s->c[SWM_S_COLOR_BAR_BORDER].color,
 	    r->s->c[SWM_S_COLOR_BAR].color);
@@ -889,7 +889,7 @@ root_to_region(Window root)
 		if (screens[i].root == root)
 			break;
 
-	if (XQueryPointer(display, screens[i].root, 
+	if (XQueryPointer(display, screens[i].root,
 	    &rr, &cr, &x, &y, &wx, &wy, &mask) != False) {
 		/* choose a region based on pointer location */
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
@@ -933,7 +933,7 @@ spawn(struct swm_region *r, union arg *args)
 		if (fork() == 0) {
 			if (display)
 				close(ConnectionNumber(display));
-      			setenv("LD_PRELOAD", SWM_LIB, 1);
+			setenv("LD_PRELOAD", SWM_LIB, 1);
 			if (asprintf(&ret, "%d", r->ws->idx)) {
 				setenv("_SWM_WS", ret, 1);
 				free(ret);
@@ -1186,7 +1186,7 @@ swapwin(struct swm_region *r, union arg *args)
 		else
 			TAILQ_INSERT_BEFORE(target, source, entry);
 		break;
-	case SWM_ARG_ID_SWAPNEXT: 
+	case SWM_ARG_ID_SWAPNEXT:
 		target = TAILQ_NEXT(source, entry);
 		TAILQ_REMOVE(wl, source, entry);
 		if (target == NULL)
@@ -1198,8 +1198,8 @@ swapwin(struct swm_region *r, union arg *args)
 		target = TAILQ_FIRST(wl);
 		if (target == source) {
 			if (source->ws->focus_prev != NULL &&
-			    source->ws->focus_prev != target)  
-                                
+			    source->ws->focus_prev != target)
+
 				source = source->ws->focus_prev;
 			else
 				return;
@@ -1316,7 +1316,7 @@ stack(void) {
 			if (bar_enabled) {
 				g.y += bar_height;
 				g.h -= bar_height;
-			} 
+			}
 
 			r->ws->restack = 0;
 			r->ws->cur_layout->l_stack(r->ws, &g);
@@ -1370,7 +1370,7 @@ adjust_font(struct ws_win *win)
 	if (!(win->quirks & SWM_Q_XTERM_FONTADJ) ||
 	    win->floating || win->transient)
 		return;
-	
+
 	if (win->sh.width_inc && win->last_inc != win->sh.width_inc &&
 	    win->g.w / win->sh.width_inc < term_width &&
 	    win->font_steps < SWM_MAX_FONT_STEPS) {
@@ -1400,7 +1400,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	XWindowChanges		wc;
 	struct swm_geometry	win_g, r_g = *g;
 	struct ws_win		*win, *winfocus;
-	int			i, j, s, stacks; 
+	int			i, j, s, stacks;
 	int			w_inc = 1, h_inc, w_base = 1, h_base;
 	int			hrh, extra = 0, h_slice, last_h = 0;
 	int			split, colno, winno, mwin, msize, mscale;
@@ -1462,7 +1462,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		}
 
 		msize = win_g.w;
-		if (flip) 
+		if (flip)
 			win_g.x += r_g.w - msize;
 	} else {
 		msize = -2;
@@ -1502,7 +1502,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			h_inc = win->sh.width_inc;
 			h_base = win->sh.base_width;
 		} else {
-		   	h_inc =	win->sh.height_inc;
+			h_inc =	win->sh.height_inc;
 			h_base = win->sh.base_height;
 		}
 		if (j == colno - 1) {
@@ -1520,7 +1520,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 				extra += remain;
 			}
 		}
-		 
+
 		if (j == 0)
 			win_g.y = r_g.y;
 		else
@@ -1967,8 +1967,8 @@ struct keyfunc {
 	union arg		args;
 } keyfuncs[kf_invalid] = {
 	/* name			function	argument */
-	{ "cycle_layout",	cycle_layout,	{0} }, 
-	{ "stack_reset",	stack_config,	{.id = SWM_ARG_ID_STACKRESET} }, 
+	{ "cycle_layout",	cycle_layout,	{0} },
+	{ "stack_reset",	stack_config,	{.id = SWM_ARG_ID_STACKRESET} },
 	{ "master_shrink",	stack_config,	{.id = SWM_ARG_ID_MASTERSHRINK} },
 	{ "master_grow",	stack_config,	{.id = SWM_ARG_ID_MASTERGROW} },
 	{ "master_add",		stack_config,	{.id = SWM_ARG_ID_MASTERADD} },
@@ -1995,10 +1995,10 @@ struct keyfunc {
 	{ "ws_8",		switchws,	{.id = 7} },
 	{ "ws_9",		switchws,	{.id = 8} },
 	{ "ws_10",		switchws,	{.id = 9} },
-	{ "ws_next",		cyclews,	{.id = SWM_ARG_ID_CYCLEWS_UP} }, 
-	{ "ws_prev",		cyclews,	{.id = SWM_ARG_ID_CYCLEWS_DOWN} }, 
-	{ "screen_next",	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_UP} }, 
-	{ "screen_prev",	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_DOWN} }, 
+	{ "ws_next",		cyclews,	{.id = SWM_ARG_ID_CYCLEWS_UP} },
+	{ "ws_prev",		cyclews,	{.id = SWM_ARG_ID_CYCLEWS_DOWN} },
+	{ "screen_next",	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_UP} },
+	{ "screen_prev",	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_DOWN} },
 	{ "mvws_1",		send_to_ws,	{.id = 0} },
 	{ "mvws_2",		send_to_ws,	{.id = 1} },
 	{ "mvws_3",		send_to_ws,	{.id = 2} },
@@ -2036,10 +2036,10 @@ struct button {
 	void			(*func)(struct ws_win *, union arg *);
 	union arg		args;
 } buttons[] = {
-	  /* action		key		mouse button	func		args */
-	{ client_click,		MODKEY,		Button3,	resize, 	{.id = SWM_ARG_ID_DONTCENTER} },
-	{ client_click,		MODKEY | ShiftMask, Button3,	resize, 	{.id = SWM_ARG_ID_CENTER} },
-	{ client_click,		MODKEY,		Button1,	move, 		{0} },
+	  /* action	key		mouse button	func	args */
+	{ client_click,	MODKEY,		Button3,	resize,	{.id = SWM_ARG_ID_DONTCENTER} },
+	{ client_click,	MODKEY | ShiftMask, Button3,	resize,	{.id = SWM_ARG_ID_CENTER} },
+	{ client_click,	MODKEY,		Button1,	move,	{0} },
 };
 
 void
@@ -2191,7 +2191,7 @@ setconfbinding(char *selector, char *value, int flags)
 void
 setup_keys(void)
 {
-	setkeybinding(MODKEY,		XK_space,	kf_cycle_layout); 
+	setkeybinding(MODKEY,		XK_space,	kf_cycle_layout);
 	setkeybinding(MODKEY|ShiftMask,	XK_space,	kf_stack_reset);
 	setkeybinding(MODKEY,		XK_h,		kf_master_shrink);
 	setkeybinding(MODKEY,		XK_l,		kf_master_grow);
@@ -3012,7 +3012,7 @@ enternotify(XEvent *e)
 		return;
 	}
 
- 	if ((win = find_window(ev->window)) != NULL)
+	if ((win = find_window(ev->window)) != NULL)
 		focus_win(win);
 }
 
@@ -3035,7 +3035,7 @@ focusout(XEvent *e)
 		unsigned int		mask;
 
 		/* Try to detect synergy hiding the cursor.  */
-		if (XQueryPointer(display, cur_focus->id, 
+		if (XQueryPointer(display, cur_focus->id,
 		    &rr, &cr, &x, &y, &wx, &wy, &mask) != False &&
 		    cr == 0 && !mask &&
 		    x == DisplayWidth(display, s->idx)/2 &&
@@ -3132,7 +3132,7 @@ visibilitynotify(XEvent *e)
 	DNPRINTF(SWM_D_EVENT, "visibilitynotify: window: %lu\n",
 	    e->xvisibility.window);
 	if (e->xvisibility.state == VisibilityUnobscured)
-		for (i = 0; i < ScreenCount(display); i++) 
+		for (i = 0; i < ScreenCount(display); i++)
 			TAILQ_FOREACH(r, &screens[i].rl, entry)
 				if (e->xvisibility.window == r->bar_window)
 					bar_update();
@@ -3288,8 +3288,8 @@ scan_xrandr(int i)
 		if (sr == NULL)
 			new_region(&screens[i], 0, 0,
 			    DisplayWidth(display, i),
-			    DisplayHeight(display, i)); 
-		else 
+			    DisplayHeight(display, i));
+		else
 			ncrtc = sr->ncrtc;
 
 		for (c = 0, ci = NULL; c < ncrtc; c++) {
@@ -3300,7 +3300,7 @@ scan_xrandr(int i)
 			if (ci != NULL && ci->mode == None)
 				new_region(&screens[i], 0, 0,
 				    DisplayWidth(display, i),
-				    DisplayHeight(display, i)); 
+				    DisplayHeight(display, i));
 			else
 				new_region(&screens[i],
 				    ci->x, ci->y, ci->width, ci->height);
@@ -3312,7 +3312,7 @@ scan_xrandr(int i)
 #endif /* SWM_XRR_HAS_CRTC */
 	{
 		new_region(&screens[i], 0, 0, DisplayWidth(display, i),
-		    DisplayHeight(display, i)); 
+		    DisplayHeight(display, i));
 	}
 }
 
@@ -3373,7 +3373,7 @@ setup_screens(void)
 	    &xrandr_eventbase, &errorbase);
 	if (xrandr_support)
 		if (XRRQueryVersion(display, &major, &minor) && major < 1)
-       	               	xrandr_support = 0;
+			xrandr_support = 0;
 
 	/* map physical screens */
 	for (i = 0; i < ScreenCount(display); i++) {
