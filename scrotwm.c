@@ -3808,16 +3808,6 @@ main(int argc, char *argv[])
 	}
 	if (cfile)
 		conf_load(cfile);
-	/*
-	if (cfile) {
-		do {
-			if (conf_load(cfile) != 0) {
-				fprintf(stderr, "bah!\n");
-				exit(1);
-			}
-		} while (1);
-	}
-	*/
 
 	/* setup all bars */
 	for (i = 0; i < ScreenCount(display); i++)
