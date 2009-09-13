@@ -1,4 +1,6 @@
 #!/bin/sh
+#
+# $scrotwm$
 
 print_date() {
 	# The date is printed to the status bar by default.
