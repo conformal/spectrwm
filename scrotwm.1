@@ -78,7 +78,7 @@ Enabling or disabling an option is done by using 1 or 0 respectively.
 .Pp
 The file supports the following keywords:
 .Pp
-.Bl -tag -width "screenshot_enabledXXX" -offset indent -compact
+.Bl -tag -width "title_class_enabledXXX" -offset indent -compact
 .It Cm color_focus
 Border color of the currently focussed window.
 .It Cm color_unfocus
@@ -105,10 +105,6 @@ Update frequency, in seconds, of external script that populates the status bar.
 Enable or disable displaying the clock in the status bar.
 Disable by setting to 0
 so a custom clock could be used in the bar_action script.
-.It Cm spawn_term
-External application that gets spawned when
-.Cm M-S- Ns Aq Cm Return
-is used.
 .It Cm dialog_ratio
 Some applications have dialogue windows that are too small to be useful.
 This ratio is the screen size to what they will be resized.
@@ -118,13 +114,6 @@ Allocates a custom region, removing any autodetected regions which occupy the sa
 space on the screen.
 Defined in the format screen[<idx>]:WIDTHxHEIGHT+X+Y,
 e.g.\& screen[1]:800x1200+0+0.
-.It Cm screenshot_enabled
-Enable or disable screenshot capability.
-.It Cm screenshot_app
-Set to the script that will take screenshots.
-It will be called with "full" or "window" as parameter 1 to indicate what
-screenshot action is expected.
-The script shall handle those cases accordingly.
 .It Cm term_width
 Set a preferred minimum width for the terminal
 If this value is greater than 0,
@@ -137,7 +126,9 @@ is currently supported.
 The
 .Xr xterm 1
 binary must not be setuid or setgid, which it is by default on most systems.
-Users may need to set spawn term to use an alternate copy of the
+Users may need to set program[term] (see the
+.Sx PROGRAMS
+section) to use an alternate copy of the
 .Xr xterm 1
 binary without the setgid bit set.
 .It Cm title_class_enabled
@@ -149,6 +140,12 @@ Enable by setting to 1
 .It Cm modkey
 Change mod key.
 Mod1 is generally the ALT key and Mod4 is the windows key on a PC.
+.It Cm program Ns Bq Ar p
+Define new action to spawn a program
+.Ar p .
+See the
+.Sx PROGRAMS
+section below.
 .It Cm bind Ns Bq Ar x
 Bind key combo to action
 .Ar x .
@@ -170,6 +167,72 @@ Colors need to be specified per the
 specification and fonts need to be specified per the
 .Xr XQueryFont 3
 specification.
+.Sh PROGRAMS
+.Nm
+allows you to define custom actions to launch programs of your choice and then
+bind them the same as with built-in actions.
+See the
+.Sx BINDINGS
+section below.
+.Pp
+The default programs are described below:
+.Pp
+.Bl -tag -width "screenshot_wind" -offset indent -compact
+.It Cm term
+xterm
+.It Cm screenshot_all
+screenshot.sh full
+.It Cm screenshot_wind
+screenshot.sh window
+.It Cm lock
+xlock
+.It Cm initscr
+initscreen.sh
+.It Cm menu
+dmenu_run -fn $bar_font -nb $bar_color -nf $bar_font_color -sb $bar_border -sf $bar_color
+.El
+.Pp
+Custom programs in the configuration file are specified as follows:
+.Pp
+.Dl program[<name>] = <progpath> [<arg> [... <arg>]]
+.Pp
+.Aq name
+is any identifier that does not conflict with a built-in action or keyword,
+.Aq progpath
+is the desired program, and
+.Aq arg
+is zero or more arguments to the program.
+.Pp
+The following variables represent settable values in
+.Nm
+(see the
+.Sx CONFIGURATION FILES
+section above),
+and may be used in the
+.Aq arg
+fields and will be substituted for values at the time the program is spawned:
+.Pp
+.Bl -tag -width "$bar_font_color" -offset indent -compact
+.It Cm $bar_border
+.It Cm $bar_color
+.It Cm $bar_font
+.It Cm $bar_font_color
+.It Cm $color_focus
+.It Cm $color_unfocus
+.El
+.Pp
+Example:
+.Bd -literal -offset indent
+program[ff] = /usr/local/bin/firefox http://scrotwm.org/
+bind[ff] = Mod+f # Now Mod+F launched firefox
+.Ed
+.Pp
+To undo the previous:
+.Bd -literal -offset indent
+bind[] = Mod+f
+program[ff] =
+.Ed
+.Pp
 .Sh BINDINGS
 .Nm
 provides many functions (or actions) accessed via key or mouse bindings.
@@ -191,9 +254,9 @@ The default key bindings are described below:
 .Pp
 .Bl -tag -width "M-j, M-<TAB>XXX" -offset indent -compact
 .It Cm M-S- Ns Aq Cm Return
-spawn_term
+term
 .It Cm M-p
-spawn_menu
+menu
 .It Cm M-S-q
 quit
 .It Cm M-q
@@ -260,18 +323,24 @@ version
 .It Cm M-t
 float_toggle
 .It Cm M-S Aq Cm Delete
-spawn_lock
+lock
 .It Cm M-S-i
-spawn_initscr
+initscr
 .El
 .Pp
 The action names and descriptions are listed below:
 .Pp
 .Bl -tag -width "M-j, M-<TAB>XXX" -offset indent -compact
-.It Cm spawn_term
+.It Cm term
 Spawn a new terminal
-.It Cm spawn_menu
+(see
+.Sx PROGRAMS
+above)
+.It Cm menu
 Menu
+(see
+.Sx PROGRAMS
+above)
 .It Cm quit
 Quit
 .Nm
@@ -334,16 +403,28 @@ Move pointer to next region
 Move pointer to previous region
 .It Cm screenshot_all
 Take screenshot of entire screen (if enabled)
+(see
+.Sx PROGRAMS
+above)
 .It Cm screenshot_wind
 Take screenshot of selected window (if enabled)
+(see
+.Sx PROGRAMS
+above)
 .It Cm version
 Toggle version in status bar
 .It Cm float_toggle
 Toggle focused window between tiled and floating
-.It Cm spawn_lock
+.It Cm lock
 Lock screen
-.It Cm spawn_initscr
+(see
+.Sx PROGRAMS
+above)
+.It Cm initscr
 Reinitialize physical screens
+(see
+.Sx PROGRAMS
+above)
 .El
 .Pp
 Custom bindings in the configuration file are specified as follows:
