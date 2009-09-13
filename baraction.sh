@@ -9,6 +9,11 @@ print_date() {
 	echo -n "${DATE}     "
 }
 
+print_mem() {
+	MEM=`/usr/bin/top | grep Free: | awk {'print $6'}`
+	echo -n "Free mem: $MEM  "
+}
+
 _print_cpu() {
 	typeset -R4 _1=${1} _2=${2} _3=${3} _4=${4} _5=${5}
 	echo -n "CPU:${_1}% User${_2}% Nice${_3}% Sys${_4}% Int${_5}% Idle     "
@@ -81,6 +86,7 @@ while :; do
 		fi
 		if [ $I -gt 2 ]; then
 			# print_date
+			# print_mem $MEM
 			print_cpu $REPLY
 			print_apm $APM_DATA
 			echo ""
