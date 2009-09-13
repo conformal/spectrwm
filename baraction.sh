@@ -78,8 +78,10 @@ while :; do
 	# instead of sleeping, use iostat as the update timer.
 	# cache the output of apm(8), no need to call that every second.
 	/usr/sbin/iostat -C -c 3600 |&	# wish infinity was an option
+	PID="$!"
 	APM_DATA=""
 	I=0
+	trap "kill $PID; exit" TERM
 	while read -p; do
 		if [ $(( ${I} % 1 )) -eq 0 ]; then
 			APM_DATA=`/usr/sbin/apm -alb`
