@@ -1,16 +1,25 @@
 # $scrotwm$ 
 
 CFLAGS+= -Wall -ggdb -D_GNU_SOURCE -I.
+CFLAGS+= -DSWM_LIB=\"$(LIBDIR)/libswmhack.so.$(LVERS)\"
 LDADD+= -lX11 -lXrandr
+
+PREFIX?= /usr/local
+BINDIR?= $(PREFIX)/bin
+LIBDIR?= $(PREFIX)/lib
+MANDIR?= $(PREFIX)/share/man
 
 CC= gcc
 
 LVERS= $(shell . ../lib/shlib_version; echo $$major.$$minor)
 
-all: symlink scrotwm libswmhack
+all: scrotwm libswmhack.so.$(LVERS)
 
-symlink:
-	ln -sf ../scrotwm.c ../lib/swm_hack.c .
+scrotwm.c:
+	ln -sf ../scrotwm.c
+
+swm_hack.c:
+	ln -sf ../lib/swm_hack.c
 
 scrotwm: scrotwm.o linux.o
 	$(CC) $(LDFLAGS) -o $@ $+ $(LDADD)
@@ -18,8 +27,18 @@ scrotwm: scrotwm.o linux.o
 %.so: %.c
 	$(CC) $(CFLAGS) -c -fpic -DPIC $+ -o $@
 
-libswmhack: swm_hack.so
-	$(CC) -shared -fpic -o libswmhack.so.$(LVERS) `lorder swm_hack.so|tsort`
+libswmhack.so.$(LVERS): swm_hack.so
+	$(CC) -shared -fpic -o libswmhack.so.$(LVERS) swm_hack.so
+
+install: all
+	install -m 755 -d $(DESTDIR)$(BINDIR)
+	install -m 755 -d $(DESTDIR)$(LIBDIR)
+	install -m 755 -d $(DESTDIR)$(MANDIR)/man1
+	install -m 755 scrotwm $(DESTDIR)$(BINDIR)
+	install -m 755 libswmhack.so.$(LVERS) $(DESTDIR)$(LIBDIR)
+	install -m 644 ../scrotwm.1 $(DESTDIR)$(MANDIR)/man1/scrotwm.1
 
 clean:
-	rm -f scrotwm *.o *.so libswmhack.so.*
+	rm -f scrotwm *.o *.so libswmhack.so.* scrotwm.c swm_hack.c
+
+.PHONY: all install clean
