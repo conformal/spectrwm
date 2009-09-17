@@ -2252,7 +2252,7 @@ setup_spawn(void)
 					" -nb $bar_color"
 					" -nf $bar_font_color"
 					" -sb $bar_border"
-					" -sf bar_color",	0);
+					" -sf $bar_color",	0);
 }
 
 /* key bindings */
