@@ -3165,10 +3165,7 @@ unmanage_window(struct ws_win *win)
 
 	DNPRINTF(SWM_D_MISC, "unmanage_window:  %lu\n", win->id);
 
-	/* don't unmanage if we are switching workspaces */
 	ws = win->ws;
-	if (ws->restack)
-		return;
 
 	/* find a window to focus */
 	if (ws->focus == win)
@@ -3312,23 +3309,22 @@ focusin(XEvent *e)
 void
 focusout(XEvent *e)
 {
+	struct swm_screen	*s;
+	Window			rr, cr;
+	int			x, y, wx, wy;
+	unsigned int		mask;
+
 	DNPRINTF(SWM_D_EVENT, "focusout: window: %lu\n", e->xfocus.window);
 
 	if (cur_focus && cur_focus->ws->r &&
 	    cur_focus->id == e->xfocus.window) {
-		struct swm_screen	*s = cur_focus->ws->r->s;
-		Window			rr, cr;
-		int			x, y, wx, wy;
-		unsigned int		mask;
-
-		/* Try to detect synergy hiding the cursor.  */
+		s = cur_focus->ws->r->s;
 		if (XQueryPointer(display, cur_focus->id,
 		    &rr, &cr, &x, &y, &wx, &wy, &mask) != False &&
 		    cr == 0 && !mask &&
-		    x == DisplayWidth(display, s->idx)/2 &&
-		    y == DisplayHeight(display, s->idx)/2) {
+		    x == DisplayWidth(display, s->idx) / 2 &&
+		    y == DisplayHeight(display, s->idx) / 2)
 			unfocus_win(cur_focus);
-		}
 	}
 }
 
