@@ -52,7 +52,7 @@
 
 static const char	*cvstag = "$scrotwm$";
 
-#define	SWM_VERSION	"0.9.6"
+#define	SWM_VERSION	"0.9.7"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1391,7 +1391,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	DNPRINTF(SWM_D_STACK, "stack_master: workspace: %d\n rot=%s flip=%s",
 	    ws->idx, rot ? "yes" : "no", flip ? "yes" : "no");
 
-	if ((winno = count_win(ws, 0)) == 0)
+	winno = count_win(ws, 0);
+	if (winno == 0 && count_win(ws, 1) == 0)
 		return;
 
 	if (ws->focus == NULL)
@@ -1640,15 +1641,20 @@ horizontal_stack(struct workspace *ws, struct swm_geometry *g)
 
 /* fullscreen view */
 void
-max_stack(struct workspace *ws, struct swm_geometry *g) {
+max_stack(struct workspace *ws, struct swm_geometry *g)
+{
 	XWindowChanges		wc;
 	struct swm_geometry	gg = *g;
 	struct ws_win		*win, *winfocus;
 	unsigned int		mask;
+	int			winno;
+
+	/* XXX this function needs to be rewritten it sucks crap */
 
 	DNPRINTF(SWM_D_STACK, "max_stack: workspace: %d\n", ws->idx);
 
-	if (count_win(ws, 0) == 0)
+	winno = count_win(ws, 0);
+	if (winno == 0 && count_win(ws, 1) == 0)
 		return;
 
 	if (ws->focus == NULL)
@@ -1661,8 +1667,10 @@ max_stack(struct workspace *ws, struct swm_geometry *g) {
 				/* XXX maximize? */
 				stack_floater(win, ws->r);
 				XMapRaised(display, win->id);
-			} else
+			} else {
+				/* XXX this sucks */
 				XUnmapWindow(display, win->id);
+			}
 		} else {
 			bzero(&wc, sizeof wc);
 			wc.border_width = 1;
