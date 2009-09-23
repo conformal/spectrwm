@@ -3397,13 +3397,8 @@ void
 unmapnotify(XEvent *e)
 {
 	XDestroyWindowEvent	*ev = &e->xdestroywindow;
-	struct ws_win		*win;
 
 	DNPRINTF(SWM_D_EVENT, "unmapnotify: window: %lu\n", e->xunmap.window);
-
-	if ((win = find_window(ev->window)) != NULL)
-		if (win->transient)
-			unmanage_window(win);
 }
 
 void
