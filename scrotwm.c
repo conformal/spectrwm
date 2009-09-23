@@ -3396,8 +3396,6 @@ propertynotify(XEvent *e)
 void
 unmapnotify(XEvent *e)
 {
-	XDestroyWindowEvent	*ev = &e->xdestroywindow;
-
 	DNPRINTF(SWM_D_EVENT, "unmapnotify: window: %lu\n", e->xunmap.window);
 }
 
