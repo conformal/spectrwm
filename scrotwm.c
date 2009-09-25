@@ -52,7 +52,7 @@
 
 static const char	*cvstag = "$scrotwm$";
 
-#define	SWM_VERSION	"0.9.7"
+#define	SWM_VERSION	"0.9.8"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -110,6 +110,8 @@ static const char	*cvstag = "$scrotwm$";
 #define SWM_D_KEY		0x0200
 #define SWM_D_QUIRK		0x0400
 #define SWM_D_SPAWN		0x0800
+#define SWM_D_EVENTQ		0x1000
+#define SWM_D_CONF		0x2000
 
 u_int32_t		swm_debug = 0
 			    | SWM_D_MISC
@@ -124,6 +126,8 @@ u_int32_t		swm_debug = 0
 			    | SWM_D_KEY
 			    | SWM_D_QUIRK
 			    | SWM_D_SPAWN
+			    | SWM_D_EVENTQ
+			    | SWM_D_CONF
 			    ;
 #else
 #define DPRINTF(x...)
@@ -415,6 +419,127 @@ int				quirks_size = 0, quirks_length = 0;
 struct quirk			*quirks = NULL;
 
 /* events */
+#ifdef SWM_DEBUG
+void
+dumpevent(XEvent *e)
+{
+	char			*name = NULL;
+
+	switch (e->type) {
+	case KeyPress:
+		name = "KeyPress";
+		break;
+	case KeyRelease:
+		name = "KeyRelease";
+		break;
+	case ButtonPress:
+		name = "ButtonPress";
+		break;
+	case ButtonRelease:
+		name = "ButtonRelease";
+		break;
+	case MotionNotify:
+		name = "MotionNotify";
+		break;
+	case EnterNotify:
+		name = "EnterNotify";
+		break;
+	case LeaveNotify:
+		name = "LeaveNotify";
+		break;
+	case FocusIn:
+		name = "FocusIn";
+		break;
+	case FocusOut:
+		name = "FocusOut";
+		break;
+	case KeymapNotify:
+		name = "KeymapNotify";
+		break;
+	case Expose:
+		name = "Expose";
+		break;
+	case GraphicsExpose:
+		name = "GraphicsExpose";
+		break;
+	case NoExpose:
+		name = "NoExpose";
+		break;
+	case VisibilityNotify:
+		name = "VisibilityNotify";
+		break;
+	case CreateNotify:
+		name = "CreateNotify";
+		break;
+	case DestroyNotify:
+		name = "DestroyNotify";
+		break;
+	case UnmapNotify:
+		name = "UnmapNotify";
+		break;
+	case MapNotify:
+		name = "MapNotify";
+		break;
+	case MapRequest:
+		name = "MapRequest";
+		break;
+	case ReparentNotify:
+		name = "ReparentNotify";
+		break;
+	case ConfigureNotify:
+		name = "ConfigureNotify";
+		break;
+	case ConfigureRequest:
+		name = "ConfigureRequest";
+		break;
+	case GravityNotify:
+		name = "GravityNotify";
+		break;
+	case ResizeRequest:
+		name = "ResizeRequest";
+		break;
+	case CirculateNotify:
+		name = "CirculateNotify";
+		break;
+	case CirculateRequest:
+		name = "CirculateRequest";
+		break;
+	case PropertyNotify:
+		name = "PropertyNotify";
+		break;
+	case SelectionClear:
+		name = "SelectionClear";
+		break;
+	case SelectionRequest:
+		name = "SelectionRequest";
+		break;
+	case SelectionNotify:
+		name = "SelectionNotify";
+		break;
+	case ColormapNotify:
+		name = "ColormapNotify";
+		break;
+	case ClientMessage:
+		name = "ClientMessage";
+		break;
+	case MappingNotify:
+		name = "MappingNotify";
+		break;
+	}
+
+	if (name)
+		DNPRINTF(SWM_D_EVENTQ ,"window: %lu event: %s (%d), %d "
+		    "remaining\n",
+		    e->xany.window, name, e->type, QLength(display));
+	else
+		DNPRINTF(SWM_D_EVENTQ, "window: %lu unknown event %d, %d "
+		    "remaining\n",
+		    e->xany.window, e->type, QLength(display));
+}
+#else
+#define dumpevent(e)
+#endif /* SWM_DEBUG */
+
 void			expose(XEvent *);
 void			keypress(XEvent *);
 void			buttonpress(XEvent *);
@@ -2934,7 +3059,9 @@ conf_load(char *filename)
 	size_t			linelen, lineno = 0;
 	int			wordlen, i, optind;
 	struct config_option	*opt;
-	DPRINTF("conf_load begin\n");
+
+	DNPRINTF(SWM_D_CONF, "conf_load begin\n");
+
 	if (filename == NULL) {
 		fprintf(stderr, "conf_load: no filename\n");
 		return (1);
@@ -2943,6 +3070,7 @@ conf_load(char *filename)
 		warn("conf_load: fopen");
 		return (1);
 	}
+
 	while (!feof(config)) {
 		if ((line = fparseln(config, &linelen, &lineno, NULL, 0))
 		    == NULL) {
@@ -3012,8 +3140,10 @@ conf_load(char *filename)
 		free(optsub);
 		free(line);
 	}
+
 	fclose(config);
-	DPRINTF("conf_load end\n");
+	DNPRINTF(SWM_D_CONF, "conf_load end\n");
+
 	return (0);
 }
 
@@ -3831,6 +3961,7 @@ main(int argc, char *argv[])
 		while (XPending(display)) {
 			XNextEvent(display, &e);
 			if (e.type < LASTEvent) {
+				dumpevent(&e);
 				if (handler[e.type])
 					handler[e.type](&e);
 				else
