@@ -150,7 +150,7 @@ u_int32_t		swm_debug = 0
 #define SWM_MAX_FONT_STEPS	(3)
 
 #ifndef SWM_LIB
-#define SWM_LIB			"/usr/local/lib/libswmhack.so.0.0"
+#define SWM_LIB			"/usr/local/lib/libswmhack.so"
 #endif
 
 char			**start_argv;

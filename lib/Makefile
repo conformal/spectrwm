@@ -16,7 +16,7 @@ CFLAGS+= -I${X11BASE}/include
 install:
 	${INSTALL} ${INSTALL_COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 		lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-		${X11BASE}/lib/swmhack.so
+		${PREFIX}/lib/
 
 .include <bsd.lib.mk>
 .include <bsd.xorg.mk>
