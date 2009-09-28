@@ -523,6 +523,12 @@ In the following example the main window of Firefox was clicked:
 $ xprop | grep WM_CLASS
 WM_CLASS(STRING) = "Navigator", "Firefox"
 .Ed
+.Pp
+Note that grepping for WM_CLASS flips class and name.
+In the example above the quirk entry would be:
+.Bd -literal -offset indent
+quirk[Firefox:Navigator] = FLOAT
+.Ed
 .Sh FILES
 .Bl -tag -width "/etc/scrotwm.confXXX" -compact
 .It Pa ~/.scrotwm.conf
