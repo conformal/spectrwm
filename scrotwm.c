@@ -158,6 +158,7 @@ Atom			astate;
 Atom			aprot;
 Atom			adelete;
 volatile sig_atomic_t   running = 1;
+int			outputs = 0;
 int			(*xerrorxlib)(Display *, XErrorEvent *);
 int			other_wm;
 int			ss_enabled = 0;
@@ -1137,9 +1138,6 @@ unfocus_win(struct ws_win *win)
 	if (win == NULL)
 		return;
 
-	if (win->ws->focus != win && win->ws->focus != NULL)
-		win->ws->focus_prev = win->ws->focus;
-
 	if (win->ws->r == NULL)
 		return;
 
@@ -1148,8 +1146,10 @@ unfocus_win(struct ws_win *win)
 	    win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
 	win->got_focus = 0;
 
-	if (win->ws->focus == win)
+	if (win->ws->focus == win) {
 		win->ws->focus = NULL;
+		win->ws->focus_prev = win;
+	}
 }
 
 void
@@ -1174,15 +1174,10 @@ focus_win(struct ws_win *win)
 	if (win == NULL)
 		return;
 
-	if (win->ws->focus)
-		unfocus_win(win->ws->focus);
-	if (win->ws->focus) {
-		/* probably shouldn't happen due to the previous unfocus_win */
-		DNPRINTF(SWM_D_FOCUS, "unfocusing win->ws->focus: %lu\n",
-		    win->ws->focus->id);
-		unfocus_win(win->ws->focus);
-	}
+	/* use big hammer to make sure it works under all use cases */
+	unfocus_all();
 	win->ws->focus = win;
+
 	if (win->ws->r != NULL) {
 		if (win->got_focus == 0) {
 			XSetWindowBorder(display, win->id,
@@ -1200,7 +1195,7 @@ switchws(struct swm_region *r, union arg *args)
 {
 	int			wsid = args->id;
 	struct swm_region	*this_r, *other_r;
-	struct ws_win		*win, *winfocus;
+	struct ws_win		*win, *winfocus = NULL;
 	struct workspace	*new_ws, *old_ws;
 
 	this_r = r;
@@ -1210,6 +1205,17 @@ switchws(struct swm_region *r, union arg *args)
 	DNPRINTF(SWM_D_WS, "switchws screen[%d]:%dx%d+%d+%d: "
 	    "%d -> %d\n", r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r),
 	    old_ws->idx, wsid);
+
+	/* get focus window */
+	if (new_ws->focus)
+		winfocus = new_ws->focus;
+	else if (new_ws->focus_prev)
+		winfocus = new_ws->focus_prev;
+
+	if (new_ws->focus)
+		winfocus = new_ws->focus;
+	else if (new_ws->focus_prev)
+		winfocus = new_ws->focus_prev;
 
 	if (new_ws == old_ws)
 		return;
@@ -1233,15 +1239,8 @@ switchws(struct swm_region *r, union arg *args)
 	this_r->ws = new_ws;
 	new_ws->r = this_r;
 
-	/* get focus window */
-	if (new_ws->focus == NULL)
-		winfocus = TAILQ_FIRST(&new_ws->winlist);
-	else
-		winfocus = new_ws->focus;
-
 	ignore_enter = 1;
 	stack();
-	unfocus_all(); /* we need this after a M-q */
 	focus_win(winfocus);
 	bar_update();
 }
@@ -3482,28 +3481,7 @@ focusin(XEvent *e)
 void
 focusout(XEvent *e)
 {
-	struct swm_screen	*s;
-	struct ws_win		*win, *cur_focus;
-	Window			rr, cr;
-	int			x, y, wx, wy;
-	unsigned int		mask;
-
 	DNPRINTF(SWM_D_EVENT, "focusout: window: %lu\n", e->xfocus.window);
-
-	win = find_window(e->xany.window);
-	if (win)
-		cur_focus = win->ws->focus;
-
-	if (cur_focus && cur_focus->ws->r &&
-	    cur_focus->id == e->xfocus.window) {
-		s = cur_focus->ws->r->s;
-		if (XQueryPointer(display, cur_focus->id,
-		    &rr, &cr, &x, &y, &wx, &wy, &mask) != False &&
-		    cr == 0 && !mask &&
-		    x == DisplayWidth(display, s->idx) / 2 &&
-		    y == DisplayHeight(display, s->idx) / 2)
-			unfocus_win(cur_focus);
-	}
 }
 
 void
@@ -3737,6 +3715,7 @@ scan_xrandr(int i)
 
 	/* map virtual screens onto physical screens */
 #ifdef SWM_XRR_HAS_CRTC
+	outputs = 0;
 	if (xrandr_support) {
 		sr = XRRGetScreenResources(display, screens[i].root);
 		if (sr == NULL)
@@ -3750,6 +3729,7 @@ scan_xrandr(int i)
 			ci = XRRGetCrtcInfo(display, sr, sr->crtcs[c]);
 			if (ci->noutput == 0)
 				continue;
+			outputs++;
 
 			if (ci != NULL && ci->mode == None)
 				new_region(&screens[i], 0, 0,
@@ -3936,8 +3916,8 @@ int
 main(int argc, char *argv[])
 {
 	struct passwd		*pwd;
-	struct swm_region	*r;
-	struct swm_win		*winfocus = NULL;
+	struct swm_region	*r, *rr;
+	struct ws_win		*winfocus = NULL;
 	char			conf[PATH_MAX], *cfile = NULL;
 	struct stat		sb;
 	XEvent			e;
@@ -4034,6 +4014,13 @@ main(int argc, char *argv[])
 
 		/* if we are being restarted go focus on first window */
 		if (winfocus) {
+			rr = TAILQ_FIRST(&screens[0].rl);
+			/* move pointer to first screen */
+			if (ScreenCount(display) > 1 || outputs > 1)
+				XWarpPointer(display, None, rr->s[0].root,
+				    0, 0, 0, 0, rr->g.x,
+				    rr->g.y + bar_enabled ? bar_height : 0);
+
 			focus_win(winfocus);
 			winfocus = NULL;
 			continue;
