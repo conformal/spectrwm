@@ -1162,6 +1162,7 @@ unfocus_all(void)
 		for (j = 0; j < SWM_WS_MAX; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
 				unfocus_win(win);
+	XSync(display, False);
 }
 
 void
@@ -1182,6 +1183,7 @@ focus_win(struct ws_win *win)
 		grabbuttons(win, 1);
 		XSetInputFocus(display, win->id,
 		    RevertToPointerRoot, CurrentTime);
+		XSync(display, False);
 	}
 }
 
@@ -3316,9 +3318,6 @@ manage_window(Window id)
 	if (win->floating && (ws->idx == r->ws->idx))
 		XMapRaised(display, win->id);
 
-	/* make new win focused */
-	focus_win(win);
-
 	return (win);
 }
 
@@ -3333,20 +3332,6 @@ unmanage_window(struct ws_win *win)
 	DNPRINTF(SWM_D_MISC, "unmanage_window:  %lu\n", win->id);
 
 	ws = win->ws;
-
-	/* find a window to focus */
-	if (ws->focus == win)
-		ws->focus = TAILQ_PREV(win, ws_win_list, entry);
-	if (ws->focus == NULL)
-		ws->focus = TAILQ_FIRST(&ws->winlist);
-	if (ws->focus == NULL || ws->focus == win) {
-		ws->focus = NULL;
-		unfocus_win(win);
-	} else
-		focus_win(ws->focus);
-	if (ws->focus_prev == win)
-		ws->focus_prev = NULL;
-
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
 	set_win_state(win, WithdrawnState);
 	if (win->ch.res_class)
@@ -3438,14 +3423,32 @@ configurenotify(XEvent *e)
 void
 destroynotify(XEvent *e)
 {
-	struct ws_win		*win;
+	struct ws_win		*win, *winfocus = NULL;
+	struct workspace	*ws;
+	struct ws_win_list	*wl;
+
 	XDestroyWindowEvent	*ev = &e->xdestroywindow;
 
 	DNPRINTF(SWM_D_EVENT, "destroynotify: window %lu\n", ev->window);
 
 	if ((win = find_window(ev->window)) != NULL) {
+		/* find a window to focus */
+		ws = win->ws;
+		wl = &ws->winlist;
+		if (ws->focus == win) {
+			if (TAILQ_FIRST(wl) == win)
+				winfocus = TAILQ_NEXT(win, entry);
+			else {
+				winfocus = TAILQ_PREV(ws->focus, ws_win_list, entry);
+				if (winfocus == NULL)
+					winfocus = TAILQ_LAST(wl, ws_win_list);
+			}
+		}
+
 		unmanage_window(win);
 		stack();
+		if (winfocus)
+			focus_win(winfocus);
 	}
 }
 
@@ -3462,6 +3465,12 @@ enternotify(XEvent *e)
 		ignore_enter--;
 		return;
 	}
+	/*
+	 * happens when a window is created or destroyed and the border
+	 * crosses the mouse pointer
+	 */
+	if (QLength(display))
+		return;
 
 	if ((win = find_window(ev->window)) != NULL)
 		focus_win(win);
@@ -3504,9 +3513,15 @@ maprequest(XEvent *e)
 		return;
 	if (wa.override_redirect)
 		return;
+
 	manage_window(e->xmaprequest.window);
 
 	stack();
+
+	/* make new win focused */
+	struct ws_win		*win;
+	win = find_window(ev->window);
+	focus_win(win);
 }
 
 void
