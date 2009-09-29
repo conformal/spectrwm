@@ -3191,7 +3191,7 @@ manage_window(Window id)
 {
 	Window			trans;
 	struct workspace	*ws;
-	struct ws_win		*win;
+	struct ws_win		*win, *ww;
 	int			format, i, ws_idx, n;
 	unsigned long		nitems, bytes;
 	Atom			ws_idx_atom = 0, type;
@@ -3244,8 +3244,17 @@ manage_window(Window id)
 			    errstr, prop);
 		}
 		ws = &r->s->ws[ws_idx];
-	} else
+	} else {
 		ws = r->ws;
+		/* this should launch transients in the same ws as parent */
+		/* XXX doesn't work for intel xrandr */
+		if (id && trans) {
+			if ((ww = find_window(trans)) != NULL) {
+				ws = ww->ws;
+				r = ws->r;
+			}
+		}
+	}
 
 	/* set up the window layout */
 	win->id = id;
