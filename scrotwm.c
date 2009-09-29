@@ -232,7 +232,6 @@ struct ws_win {
 	TAILQ_ENTRY(ws_win)	entry;
 	Window			id;
 	struct swm_geometry	g;
-	int			got_focus;
 	int			floating;
 	int			transient;
 	int			manual;
@@ -1144,7 +1143,6 @@ unfocus_win(struct ws_win *win)
 	grabbuttons(win, 0);
 	XSetWindowBorder(display, win->id,
 	    win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
-	win->got_focus = 0;
 
 	if (win->ws->focus == win) {
 		win->ws->focus = NULL;
@@ -1179,12 +1177,9 @@ focus_win(struct ws_win *win)
 	win->ws->focus = win;
 
 	if (win->ws->r != NULL) {
-		if (win->got_focus == 0) {
-			XSetWindowBorder(display, win->id,
-			    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
-			grabbuttons(win, 1);
-		}
-		win->got_focus = 1;
+		XSetWindowBorder(display, win->id,
+		    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
+		grabbuttons(win, 1);
 		XSetInputFocus(display, win->id,
 		    RevertToPointerRoot, CurrentTime);
 	}
