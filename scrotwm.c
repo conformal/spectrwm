@@ -1169,15 +1169,13 @@ unfocus_all(void)
 void
 focus_win(struct ws_win *win)
 {
-	struct ws_win		*cur_focus;
 	DNPRINTF(SWM_D_FOCUS, "focus_win: id: %lu\n", win ? win->id : 0);
 
 	if (win == NULL)
 		return;
 
-	cur_focus = win->ws->focus;
-	if (cur_focus)
-		unfocus_win(cur_focus);
+	if (win->ws->focus)
+		unfocus_win(win->ws->focus);
 	if (win->ws->focus) {
 		/* probably shouldn't happen due to the previous unfocus_win */
 		DNPRINTF(SWM_D_FOCUS, "unfocusing win->ws->focus: %lu\n",
@@ -1186,7 +1184,6 @@ focus_win(struct ws_win *win)
 	}
 	win->ws->focus = win;
 	if (win->ws->r != NULL) {
-		cur_focus = win;
 		if (win->got_focus == 0) {
 			XSetWindowBorder(display, win->id,
 			    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
@@ -1817,7 +1814,6 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 	XWindowChanges		wc;
 	struct swm_geometry	gg = *g;
 	struct ws_win		*win, *winfocus;
-	struct ws_win		*cur_focus;
 	unsigned int		mask;
 	int			winno;
 
@@ -1831,8 +1827,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 
 	if (ws->focus == NULL)
 		ws->focus = TAILQ_FIRST(&ws->winlist);
-	cur_focus = ws->focus;
-	winfocus = cur_focus ? cur_focus : ws->focus;
+	winfocus = ws->focus;
 
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
 		if (win->transient != 0 || win->floating != 0) {
