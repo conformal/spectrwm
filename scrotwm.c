@@ -1508,6 +1508,10 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 		wc.y = (HEIGHT(r) - win->g.h) / 2;
 	}
 
+	/* adjust for region */
+	wc.x += r->g.x;
+	wc.y += r->g.y;
+
 	DNPRINTF(SWM_D_STACK, "stack_floater: win %lu x %d y %d w %d h %d\n",
 	    win->id, wc.x, wc.y, wc.width, wc.height);
 
@@ -3257,13 +3261,17 @@ manage_window(Window id)
 		ws = r->ws;
 		/* this should launch transients in the same ws as parent */
 		/* XXX doesn't work for intel xrandr */
-		if (id && trans) {
-			if ((ww = find_window(trans)) != NULL) {
-				ws = ww->ws;
-				r = ws->r;
-			}
-		}
+		if (id && trans)
+			if ((ww = find_window(trans)) != NULL)
+				if (ws->r) {
+					ws = ww->ws;
+					r = ww->ws->r;
+				}
 	}
+
+	/* shouldn't happen but does... */
+	if (ws->r == NULL)
+		ws->r = r; /* use found r since it isn't filled in */
 
 	/* set up the window layout */
 	win->id = id;
