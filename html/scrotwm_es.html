@@ -1,0 +1,113 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//ES"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>Scrotwm</title>
+<meta name="Generator" content="Vim/7.1">
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+</head><body text="#ffffff" bgcolor="#101010">Bienvenidos al sitio de Scrotwm<p>
+<small>
+Scrotwm es un manejador de ventanas super minimalista para X11.
+Intenta no superponer las ventanas para que las mismas puedan usarse de manera eficiente y
+para cosas mas importantes.
+Tiene configuraciones normales y no requiere que sepas un lenguaje de programacion
+para configurarlo.
+Esta escrito por hackers para hackers y apunta a ser pequeño, compacto y
+rápido.
+</small></p><p>
+<small>Esta inspirado en
+<a href="http://xmonad.org/">xmonad</a>
+y
+<a href="http://www.suckless.org/dwm/">dwm</a>.
+Los dos son buenos productos pero sufren de cosas como:
+sindrome-loco-inportable-lenguaje, cosas tontas por defecto, distribución de ventanas asimetricas
+, "Que dificil puede ser?" y nuevos viejos NIH.
+No obstante dwm tiene una fenomenal fuente y buenas ideas, como asi tambien codigo
+el cual fue pedido prestado.
+Por otro lado xmonad tiene muy buenas configuraciones por defecto, combinación de teclas y soporte
+para xinerama, pero es 'lisiado' ya que no esta escriyo en C.
+</small></p><p>
+<small>Scrotwm es una perla hermosa!
+Nada peor que perder el tiempo moviendo ventanas alrededor hasta encontrar
+el tamaño perfecto o teniendo a penas una combinacion de teclas para una
+tarea que nunca necesitamos.
+La ruta a la agonia es muy larga para cuantificar y es la clasica moda
+<a href="http://www.openbsd.org/">OpenBSD</a>
+ (ponelo, o hackealo) un nuevo manejador de ventanas aparece para servir
+con ningun otro proposito que obedecer a sus amos.
+Fue escrito por Marco Peereboom, Ryan Thomas McBride y Darrin Chandler, el
+mismo es lanzado bajo la
+<a href="http://scrotwm.com.ar/html/license.html">licencia</a> ISC.
+Los Parches serán aceptados tambien bajo la licencia ISC.<br>
+</small></p><p>
+<small>Acá hay algunos screenshots de scrotwm en acción.
+</small></p><center>
+<small><a href="http://scrotwm.com.ar/html/scrotwm.jpg"><img src="scrotwm_es_files/scrotwm_small.jpg" alt="[scrotwm]" border="0"></a><br>
+Apilado Vertical.
+</small><p>
+<small><a href="http://scrotwm.com.ar/html/scrotwm2.jpg"><img src="scrotwm_es_files/scrotwm2_small.jpg" alt="[scrotwm2]" border="0"></a><br>
+Apilado Horizontal.
+</small></p><p>
+<small><a href="http://scrotwm.com.ar/html/scrotwm3.jpg"><img src="scrotwm_es_files/scrotwm3_small.jpg" alt="[scrotwm3]" border="0"></a><br>
+Apilado Horizontal con gvim &amp; Firefox.
+</small></p><p>
+<small><a href="http://scrotwm.com.ar/html/scrotwm4.jpg"><img src="scrotwm_es_files/scrotwm4_small.jpg" alt="[scrotwm4]" border="0"></a><br>
+Apilado Vertical con una ventana flotando en la ventana principal.
+</small></p><p>
+<small><a href="http://scrotwm.com.ar/html/scrotwm5.jpg"><img src="scrotwm_es_files/scrotwm5_small.jpg" alt="[scrotwm5]" border="0"></a><br>
+Mplayer, redimensionado y en movimiento.
+</small></p></center>
+<p>
+<small></small>
+ <font face="monospace">
+Características importantes:<br>
+- xrandr dinamico y soporte para xinerama (multi screen).<br>
+- Navega donde quieras, en cualquier pantalla con el teclado o mouse.<br>
+- Barra de estado personalizable.<br>
+- Archivo de configuración para 'humanos'.<br>
+- Screenshots.<br>
+- Reiniciable sin necesidad de cerrarlo.<br>
+- Menu para ejecutar programas rápidamente.<br>
+- Muchas disposiciones de ventanas, gracias algunas combinación de teclas.<br>
+- Las ventanas pueden ser agregadas o borradas de la ventana principal.<br>
+- Las ventanas pueden ser movidas a otros workspaces o regiones.<br>
+- Redimensionar la ventana principal.<br>
+- Mover/Redimensionar las ventanas.<br>
+- arrastrar-para-que-flote una ventana.<br>
+- El usuario define las regiones.<br>
+- El usuario puede definir la combinación de teclas.<br>
+- El usuario puede definir los quirk bindings<br>
+<br>
+Por hacer:<br>
+- agregar 'busquedas' para la función de ventanas.<br>
+- agregar 'identificador' para la función de ventanas.<br>
+- hacer que alt-shift-arrows no haga nada en el modo simple.<br>
+- cambiar scrotwm de Xlib a <a href="http://xcb.freedesktop.org/">XCB</a>.<br>
+- hacer que las ventanas flotantes recuerden su lugar cuando se re-dibuja la pantalla.<br>
+- hacer que el re-apilamiento funcione.<br>
+<br>
+Bugs conocidos:<br>
+- Cuando se genera una ventana no siempre queda en foco.<br>
+- Cuando se destruye una ventana en muliscreen en la otra pantalla no siempre queda en foco.<br>
+- Cambiando entre workspaces vacios con alt-shift-arrows la ventana queda en foco pero los bordes mal coloreados.<br>
+</font></p><p>
+<small>
+Porfavor leer el
+<a href="http://scrotwm.com.ar/html/man.html">man</a>
+para mas explicaciones.
+</small></p><p>
+<small>Podes descargar el codigo por medio de anoncvs desde:<br>
+CVSROOT=anoncvs@anoncvs.freedaemon.com:/scrotwm<br>
+Alternativamente podes descargar periodicamente los snapshots 
+<a href="http://www.peereboom.us/scrotwm/snapshot">acá</a>.<br>
+</small></p><p>
+<small>Para suscribirse a los cambios por medio del CVS manda un email a
+<a href="mailto:majordomo@freedaemon.com">majordomo@freedaemon.com</a>
+y en el cuerpo del mismo escribí: subscribe scrotwm-changes.
+</small></p><p>
+<small>Copyright (c) 2009 Marco Peereboom &lt;marco@peereboom.us&gt;,
+Ryan Thomas McBride &lt;mcbride@countersiege.com&gt; &amp;
+Darrin Chandler &lt;dwchandler@stilyagin.com&gt;<br>
+</small></p><p>
+<small><small>
+$scrotwm$
+</small></small></p></body></html>
