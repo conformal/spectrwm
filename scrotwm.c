@@ -1857,7 +1857,7 @@ void
 send_to_ws(struct swm_region *r, union arg *args)
 {
 	int			wsid = args->id;
-	struct ws_win		*win = r->ws->focus;
+	struct ws_win		*win = r->ws->focus, *winfocus = NULL;
 	struct workspace	*ws, *nws;
 	Atom			ws_idx_atom = 0;
 	unsigned char		ws_idx_str[SWM_PROPLEN];
@@ -1870,14 +1870,20 @@ send_to_ws(struct swm_region *r, union arg *args)
 	ws = win->ws;
 	nws = &win->s->ws[wsid];
 
-	XUnmapWindow(display, win->id);
-
 	/* find a window to focus */
-	ws->focus = TAILQ_PREV(win, ws_win_list, entry);
-	if (ws->focus == NULL)
-		ws->focus = TAILQ_FIRST(&ws->winlist);
-	if (ws->focus == win)
-		ws->focus = NULL;
+	winfocus = TAILQ_PREV(win, ws_win_list, entry);
+	if (TAILQ_FIRST(&ws->winlist) == win)
+		winfocus = TAILQ_NEXT(win, entry);
+	else {
+		winfocus = TAILQ_PREV(ws->focus, ws_win_list, entry);
+		if (winfocus == NULL)
+			winfocus = TAILQ_LAST(&ws->winlist, ws_win_list);
+	}
+	/* out of windows in ws so focus on nws instead */
+	if (winfocus == NULL)
+		winfocus = win;
+
+	XUnmapWindow(display, win->id);
 
 	TAILQ_REMOVE(&ws->winlist, win, entry);
 
@@ -1900,6 +1906,7 @@ send_to_ws(struct swm_region *r, union arg *args)
 	nws->restack = 1;
 
 	stack();
+	focus_win(winfocus);
 }
 
 void
