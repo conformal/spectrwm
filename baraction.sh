@@ -12,7 +12,7 @@ print_date() {
 }
 
 print_mem() {
-	MEM=`/usr/bin/top | grep Free: | awk {'print $6'}`
+	MEM=`/usr/bin/top | grep Free: | cut -d " " -f7`
 	echo -n "Free mem: $MEM  "
 }
 
