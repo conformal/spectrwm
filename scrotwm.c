@@ -4013,6 +4013,8 @@ main(int argc, char *argv[])
 	while (running) {
 		while (XPending(display)) {
 			XNextEvent(display, &e);
+			if (running == 0)
+				goto done;
 			if (e.type < LASTEvent) {
 				dumpevent(&e);
 				if (handler[e.type])
@@ -4038,7 +4040,7 @@ main(int argc, char *argv[])
 		/* if we are being restarted go focus on first window */
 		if (winfocus) {
 			rr = TAILQ_FIRST(&screens[0].rl);
-			/* move pointer to first screen */
+			/* move pointer to first screen if multi screen */
 			if (ScreenCount(display) > 1 || outputs > 1)
 				XWarpPointer(display, None, rr->s[0].root,
 				    0, 0, 0, 0, rr->g.x,
@@ -4053,13 +4055,15 @@ main(int argc, char *argv[])
 		FD_SET(xfd, &rd);
 		if (select(xfd + 1, &rd, NULL, NULL, NULL) == -1)
 			if (errno != EINTR)
-				errx(1, "select failed");
+				DNPRINTF(SWM_D_MISC, "select failed");
+		if (running == 0)
+			goto done;
 		if (bar_alarm) {
 			bar_alarm = 0;
 			bar_update();
 		}
 	}
-
+done:
 	bar_extra_stop();
 
 	XCloseDisplay(display);
