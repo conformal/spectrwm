@@ -1815,7 +1815,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 {
 	XWindowChanges		wc;
 	struct swm_geometry	gg = *g;
-	struct ws_win		*win, *winfocus;
+	struct ws_win		*win;
 	unsigned int		mask;
 	int			winno;
 
@@ -1827,19 +1827,12 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 	if (winno == 0 && count_win(ws, 1) == 0)
 		return;
 
-	if (ws->focus == NULL)
-		ws->focus = TAILQ_FIRST(&ws->winlist);
-	winfocus = ws->focus;
-
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
 		if (win->transient != 0 || win->floating != 0) {
 			if (win == ws->focus) {
-				/* XXX maximize? */
 				stack_floater(win, ws->r);
 				XMapRaised(display, win->id);
-			} else {
-				/* XXX this sucks */
-				XUnmapWindow(display, win->id);
+				focus_win(win); /* override */
 			}
 		} else {
 			bzero(&wc, sizeof wc);
@@ -1850,16 +1843,8 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 			win->g.h = wc.height = gg.h;
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 			XConfigureWindow(display, win->id, mask, &wc);
-
-			if (win == ws->focus) {
-				XMapRaised(display, win->id);
-			} else
-				XUnmapWindow(display, win->id);
 		}
 	}
-
-	if (winfocus)
-		focus_win(winfocus); /* has to be done outside of the loop */
 }
 
 void
@@ -3205,7 +3190,7 @@ manage_window(Window id)
 	Window			trans;
 	struct workspace	*ws;
 	struct ws_win		*win, *ww;
-	int			format, i, ws_idx, n;
+	int			format, i, ws_idx, n, border_me = 0;
 	unsigned long		nitems, bytes;
 	Atom			ws_idx_atom = 0, type;
 	Atom			*prot = NULL, *pp;
@@ -3266,6 +3251,7 @@ manage_window(Window id)
 				if (ws->r) {
 					ws = ww->ws;
 					r = ww->ws->r;
+					border_me = 1;
 				}
 	}
 
@@ -3322,9 +3308,7 @@ manage_window(Window id)
 			win->g.x = wc.x = WIDTH(win->ws->r) - win->g.w - 2;
 			mask |= CWX;
 		}
-		wc.border_width = 1;
-		mask |= CWBorderWidth;
-		XConfigureWindow(display, win->id, mask, &wc);
+		border_me = 1;
 	}
 
 	/* Reset font sizes (the bruteforce way; no default keybinding). */
@@ -3335,13 +3319,21 @@ manage_window(Window id)
 			fake_keypress(win, XK_KP_Add, ShiftMask);
 	}
 
+	/* border me */
+	if (border_me) {
+		bzero(&wc, sizeof wc);
+		wc.border_width = 1;
+		mask = CWBorderWidth;
+		XConfigureWindow(display, win->id, mask, &wc);
+	}
+
 	XSelectInput(display, id, EnterWindowMask | FocusChangeMask |
 	    PropertyChangeMask | StructureNotifyMask);
 
 	set_win_state(win, NormalState);
 
 	/* floaters need to be mapped if they are in the current workspace */
-	if (win->floating && (ws->idx == r->ws->idx))
+	if ((win->floating || win->transient) && (ws->idx == r->ws->idx))
 		XMapRaised(display, win->id);
 
 	return (win);
@@ -3550,7 +3542,7 @@ maprequest(XEvent *e)
 	/* make new win focused */
 	win = find_window(ev->window);
 	r = root_to_region(win->wa.root);
-	if (win->ws == r->ws) /* XXX this probably breaks multi screen */
+	if (win->ws == r->ws)
 		focus_win(win);
 }
 
