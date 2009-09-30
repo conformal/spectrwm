@@ -198,7 +198,7 @@ GC			bar_gc;
 XGCValues		bar_gcv;
 int			bar_fidx = 0;
 XFontStruct		*bar_fs;
-char			*bar_fonts[] = { NULL, NULL, NULL };	/* XXX Make fully dynamic */
+char			*bar_fonts[] = { NULL, NULL, NULL, NULL };/* XXX Make fully dynamic */
 char			*spawn_term[] = { NULL, NULL };		/* XXX Make fully dynamic */
 
 #define SWM_MENU_FN	(2)
@@ -3512,6 +3512,9 @@ mappingnotify(XEvent *e)
 void
 maprequest(XEvent *e)
 {
+	struct ws_win		*win;
+	struct swm_region	*r;
+
 	XMapRequestEvent	*ev = &e->xmaprequest;
 	XWindowAttributes	wa;
 
@@ -3528,9 +3531,10 @@ maprequest(XEvent *e)
 	stack();
 
 	/* make new win focused */
-	struct ws_win		*win;
 	win = find_window(ev->window);
-	focus_win(win);
+	r = root_to_region(win->wa.root);
+	if (win->ws == r->ws) /* XXX this probably breaks multi screen */
+		focus_win(win);
 }
 
 void
@@ -3905,6 +3909,9 @@ setup_globals(void)
 	    == NULL)
 		err(1, "setup_globals: strdup");
 	if ((bar_fonts[1] = strdup("-*-times-medium-r-*-*-*-*-*-*-*-*-*-*"))
+	    == NULL)
+		err(1, "setup_globals: strdup");
+	if ((bar_fonts[2] = strdup("-misc-fixed-medium-r-*-*-*-*-*-*-*-*-*-*"))
 	    == NULL)
 		err(1, "setup_globals: strdup");
 	if ((spawn_term[0] = strdup("xterm")) == NULL)
