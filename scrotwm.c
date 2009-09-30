@@ -1419,14 +1419,19 @@ void
 cycle_layout(struct swm_region *r, union arg *args)
 {
 	struct workspace	*ws = r->ws;
+	struct ws_win		*winfocus;
 
 	DNPRINTF(SWM_D_EVENT, "cycle_layout: workspace: %d\n", ws->idx);
+
+	winfocus = ws->focus;
 
 	ws->cur_layout++;
 	if (ws->cur_layout->l_stack == NULL)
 		ws->cur_layout = &layouts[0];
+
 	ignore_enter = 1;
 	stack();
+	focus_win(winfocus);
 }
 
 void
