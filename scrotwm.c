@@ -1203,22 +1203,19 @@ switchws(struct swm_region *r, union arg *args)
 	    "%d -> %d\n", r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r),
 	    old_ws->idx, wsid);
 
+	if (new_ws == old_ws)
+		return;
+
 	/* get focus window */
 	if (new_ws->focus)
 		winfocus = new_ws->focus;
 	else if (new_ws->focus_prev)
 		winfocus = new_ws->focus_prev;
-
-	if (new_ws->focus)
-		winfocus = new_ws->focus;
-	else if (new_ws->focus_prev)
-		winfocus = new_ws->focus_prev;
-
-	if (new_ws == old_ws)
-		return;
+	else
+		winfocus = TAILQ_FIRST(&new_ws->winlist);
 
 	other_r = new_ws->r;
-	if (!other_r) {
+	if (other_r == NULL) {
 		/* if the other workspace is hidden, switch windows */
 		/* map new window first to prevent ugly blinking */
 		old_ws->r = NULL;
