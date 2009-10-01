@@ -1476,16 +1476,9 @@ cycle_layout(struct swm_region *r, union arg *args)
 	if (ws->cur_layout->l_stack == NULL)
 		ws->cur_layout = &layouts[0];
 
-	/*
-	 * do the ignore enter dance but undo or sometimes an unwanted
-	 * enter gets discarded
-	 */
 	ignore_enter = 1;
-
 	stack();
 	focus_win(winfocus);
-
-	ignore_enter = 0;
 }
 
 void
@@ -3528,7 +3521,7 @@ enternotify(XEvent *e)
 
 	if (ignore_enter) {
 		/* eat event(r) to prevent autofocus */
-		ignore_enter--;
+		ignore_enter = 0;
 		return;
 	}
 	/*
