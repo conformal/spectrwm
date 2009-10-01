@@ -3255,10 +3255,6 @@ manage_window(Window id)
 				}
 	}
 
-	/* shouldn't happen but does... */
-	if (ws->r == NULL)
-		ws->r = r; /* use found r since it isn't filled in */
-
 	/* set up the window layout */
 	win->id = id;
 	win->ws = ws;
@@ -3305,7 +3301,7 @@ manage_window(Window id)
 			mask |= CWY;
 		}
 		if (win->g.w + win->g.x > WIDTH(r)) {
-			win->g.x = wc.x = WIDTH(win->ws->r) - win->g.w - 2;
+			win->g.x = wc.x = WIDTH(r) - win->g.w - 2;
 			mask |= CWX;
 		}
 		border_me = 1;
