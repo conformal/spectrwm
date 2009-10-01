@@ -1436,9 +1436,16 @@ cycle_layout(struct swm_region *r, union arg *args)
 	if (ws->cur_layout->l_stack == NULL)
 		ws->cur_layout = &layouts[0];
 
+	/*
+	 * do the ignore enter dance but undo or sometimes an unwanted
+	 * enter gets discarded
+	 */
 	ignore_enter = 1;
+
 	stack();
 	focus_win(winfocus);
+
+	ignore_enter = 0;
 }
 
 void
@@ -1493,6 +1500,9 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 {
 	unsigned int		mask;
 	XWindowChanges		wc;
+
+	if (win == NULL)
+		return;
 
 	bzero(&wc, sizeof wc);
 	mask = CWX | CWY | CWBorderWidth | CWWidth | CWHeight;
@@ -1822,11 +1832,9 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 {
 	XWindowChanges		wc;
 	struct swm_geometry	gg = *g;
-	struct ws_win		*win;
+	struct ws_win		*win, *wintrans = NULL;
 	unsigned int		mask;
 	int			winno;
-
-	/* XXX this function needs to be rewritten it sucks crap */
 
 	DNPRINTF(SWM_D_STACK, "max_stack: workspace: %d\n", ws->idx);
 
@@ -1835,12 +1843,8 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		return;
 
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
-		if (win->transient != 0 || win->floating != 0) {
-			if (win == ws->focus) {
-				stack_floater(win, ws->r);
-				XMapRaised(display, win->id);
-				focus_win(win); /* override */
-			}
+		if (win->transient != 0) {
+			wintrans = win;
 		} else {
 			bzero(&wc, sizeof wc);
 			wc.border_width = 1;
@@ -1850,7 +1854,16 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 			win->g.h = wc.height = gg.h;
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 			XConfigureWindow(display, win->id, mask, &wc);
+			if (win != ws->focus)
+				XUnmapWindow(display, win->id);
 		}
+	}
+
+	/* put the last transient on top */
+	if (wintrans) {
+		stack_floater(wintrans, ws->r);
+		XMapRaised(display, wintrans->id);
+		focus_win(wintrans); /* override */
 	}
 }
 
@@ -3545,6 +3558,7 @@ maprequest(XEvent *e)
 	/* make new win focused */
 	win = find_window(ev->window);
 	r = root_to_region(win->wa.root);
+
 	if (win->ws == r->ws)
 		focus_win(win);
 }
