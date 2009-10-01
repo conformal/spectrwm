@@ -338,6 +338,7 @@ struct workspace {
 	struct ws_win		*focus;		/* may be NULL */
 	struct ws_win		*focus_prev;	/* may be NULL */
 	struct swm_region	*r;		/* may be NULL */
+	struct swm_region	*old_r;		/* may be NULL */
 	struct ws_win_list	winlist;	/* list of windows in ws */
 
 	/* stacker state */
@@ -1217,12 +1218,18 @@ switchws(struct swm_region *r, union arg *args)
 	other_r = new_ws->r;
 	if (other_r == NULL) {
 		/* if the other workspace is hidden, switch windows */
-		/* map new window first to prevent ugly blinking */
+		if (old_ws->r != NULL)
+			old_ws->old_r = old_ws->r;
 		old_ws->r = NULL;
 		old_ws->restack = 1;
 
-		TAILQ_FOREACH(win, &new_ws->winlist, entry)
-			XMapRaised(display, win->id);
+		/*
+		 * Map new windows first if they were here before
+		 * to minimize ugly blinking.
+		 */
+		if (new_ws->old_r == this_r)
+			TAILQ_FOREACH(win, &new_ws->winlist, entry)
+				XMapRaised(display, win->id);
 
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
 			XUnmapWindow(display, win->id);
@@ -3735,7 +3742,7 @@ scan_xrandr(int i)
 
 	/* remove any old regions */
 	while ((r = TAILQ_FIRST(&screens[i].rl)) != NULL) {
-		r->ws->r = NULL;
+		r->ws->old_r = r->ws->r = NULL;
 		XDestroyWindow(display, r->bar_window);
 		TAILQ_REMOVE(&screens[i].rl, r, entry);
 		TAILQ_INSERT_TAIL(&screens[i].orl, r, entry);
@@ -3860,6 +3867,7 @@ setup_screens(void)
 			ws->restack = 1;
 			ws->focus = NULL;
 			ws->r = NULL;
+			ws->old_r = NULL;
 			TAILQ_INIT(&ws->winlist);
 
 			for (k = 0; layouts[k].l_stack != NULL; k++)
