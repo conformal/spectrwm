@@ -1330,6 +1330,10 @@ cyclescr(struct swm_region *r, union arg *args)
 	struct swm_region	*rr;
 	int			i;
 
+	/* do nothing if we don't have more than one screen */
+	if (!(ScreenCount(display) > 1 || outputs > 1))
+		return;
+
 	i = r->s->idx;
 	switch (args->id) {
 	case SWM_ARG_ID_CYCLESC_UP:
@@ -2141,8 +2145,15 @@ move(struct ws_win *win, union arg *args)
 }
 
 /* key definitions */
-void dummykeyfunc(struct swm_region *r, union arg *args) {};
-void legacyfunc(struct swm_region *r, union arg *args) {};
+void
+dummykeyfunc(struct swm_region *r, union arg *args)
+{
+};
+
+void
+legacyfunc(struct swm_region *r, union arg *args)
+{
+};
 
 struct keyfunc {
 	char			name[SWM_FUNCNAME_LEN];
@@ -3868,11 +3879,6 @@ screenchange(XEvent *e) {
 
 	/* brute force for now, just re-enumerate the regions */
 	scan_xrandr(i);
-
-	/* hide any windows that went away */
-	TAILQ_FOREACH(r, &screens[i].rl, entry)
-		TAILQ_FOREACH(win, &r->ws->winlist, entry)
-			unmap_window(win);
 
 	/* add bars to all regions */
 	for (i = 0; i < ScreenCount(display); i++)
