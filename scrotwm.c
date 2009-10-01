@@ -548,7 +548,7 @@ void			destroynotify(XEvent *);
 void			enternotify(XEvent *);
 void			focusin(XEvent *);
 void			focusout(XEvent *);
-void			mappingnotify(XEvent *);
+void			mapnotify(XEvent *);
 void			maprequest(XEvent *);
 void			propertynotify(XEvent *);
 void			unmapnotify(XEvent *);
@@ -564,7 +564,7 @@ void			(*handler[LASTEvent])(XEvent *) = {
 				[EnterNotify] = enternotify,
 				[FocusIn] = focusin,
 				[FocusOut] = focusout,
-				[MappingNotify] = mappingnotify,
+				[MapNotify] = mapnotify,
 				[MapRequest] = maprequest,
 				[PropertyNotify] = propertynotify,
 				[UnmapNotify] = unmapnotify,
@@ -579,7 +579,7 @@ sighdlr(int sig)
 	switch (sig) {
 	case SIGCHLD:
 		while ((pid = waitpid(WAIT_ANY, NULL, WNOHANG)) != -1) {
-			DNPRINTF(SWM_D_MISC, stderr, "reaping: %d\n", pid);
+			DNPRINTF(SWM_D_MISC, "reaping: %d\n", pid);
 			if (pid <= 0)
 				break;
 		}
@@ -909,6 +909,36 @@ bar_setup(struct swm_region *r)
 }
 
 void
+set_win_state(struct ws_win *win, long state)
+{
+	long			data[] = {state, None};
+
+	DNPRINTF(SWM_D_EVENT, "set_win_state: window: %lu\n", win->id);
+
+	XChangeProperty(display, win->id, astate, astate, 32, PropModeReplace,
+	    (unsigned char *)data, 2);
+}
+
+long
+getstate(Window w)
+{
+	int			format, status;
+	long			result = -1;
+	unsigned char		*p = NULL;
+	unsigned long		n, extra;
+	Atom			real;
+
+	status = XGetWindowProperty(display, w, astate, 0L, 2L, False, astate,
+	    &real, &format, &n, &extra, (unsigned char **)&p);
+	if (status != Success)
+		return (-1);
+	if (n != 0)
+		result = *((long *)p);
+	XFree(p);
+	return (result);
+}
+
+void
 version(struct swm_region *r, union arg *args)
 {
 	bar_version = !bar_version;
@@ -982,6 +1012,16 @@ quit(struct swm_region *r, union arg *args)
 }
 
 void
+unmap_window(struct ws_win *win)
+{
+	if (win == NULL)
+		return;
+
+	set_win_state(win, IconicState);
+	XUnmapWindow(display, win->id);
+}
+
+void
 unmap_all(void)
 {
 	struct ws_win		*win;
@@ -990,7 +1030,7 @@ unmap_all(void)
 	for (i = 0; i < ScreenCount(display); i++)
 		for (j = 0; j < SWM_WS_MAX; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
-				XUnmapWindow(display, win->id);
+				unmap_window(win);
 }
 
 void
@@ -1232,7 +1272,7 @@ switchws(struct swm_region *r, union arg *args)
 				XMapRaised(display, win->id);
 
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
-			XUnmapWindow(display, win->id);
+			unmap_window(win);
 	} else {
 		other_r->ws = old_ws;
 		old_ws->r = other_r;
@@ -1855,7 +1895,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 			XConfigureWindow(display, win->id, mask, &wc);
 			if (win != ws->focus)
-				XUnmapWindow(display, win->id);
+				unmap_window(win);
 		}
 	}
 
@@ -1897,7 +1937,7 @@ send_to_ws(struct swm_region *r, union arg *args)
 	if (winfocus == NULL)
 		winfocus = win;
 
-	XUnmapWindow(display, win->id);
+	unmap_window(win);
 
 	TAILQ_REMOVE(&ws->winlist, win, entry);
 
@@ -2814,17 +2854,6 @@ buttonpress(XEvent *e)
 			buttons[i].func(win, &buttons[i].args);
 }
 
-void
-set_win_state(struct ws_win *win, long state)
-{
-	long			data[] = {state, None};
-
-	DNPRINTF(SWM_D_EVENT, "set_win_state: window: %lu\n", win->id);
-
-	XChangeProperty(display, win->id, astate, astate, 32, PropModeReplace,
-	    (unsigned char *)data, 2);
-}
-
 const char *quirkname[] = {
 	"NONE",		/* config string for "no value" */
 	"FLOAT",
@@ -3207,7 +3236,7 @@ conf_load(char *filename)
 struct ws_win *
 manage_window(Window id)
 {
-	Window			trans;
+	Window			trans = 0;
 	struct workspace	*ws;
 	struct ws_win		*win, *ww;
 	int			format, i, ws_idx, n, border_me = 0;
@@ -3232,8 +3261,8 @@ manage_window(Window id)
 		XGetWindowProperty(display, id, ws_idx_atom, 0, SWM_PROPLEN,
 		    False, XA_STRING, &type, &format, &nitems, &bytes, &prop);
 	XGetWindowAttributes(display, id, &win->wa);
+	XGetWMNormalHints(display, id, &win->sh, &mask);
 	XGetTransientForHint(display, id, &trans);
-	XGetWMNormalHints(display, id, &win->sh, &mask); /* XXX function? */
 	if (trans) {
 		win->transient = trans;
 		DNPRINTF(SWM_D_MISC, "manage_window: win %u transient %u\n",
@@ -3265,12 +3294,15 @@ manage_window(Window id)
 	} else {
 		ws = r->ws;
 		/* this should launch transients in the same ws as parent */
-		/* XXX doesn't work for intel xrandr */
 		if (id && trans)
 			if ((ww = find_window(trans)) != NULL)
 				if (ws->r) {
 					ws = ww->ws;
-					r = ww->ws->r;
+					if (ww->ws->r)
+						r = ww->ws->r;
+					else
+						fprintf(stderr,
+						    "fix this bug mcbride\n");
 					border_me = 1;
 				}
 	}
@@ -3523,11 +3555,16 @@ focusout(XEvent *e)
 }
 
 void
-mappingnotify(XEvent *e)
+mapnotify(XEvent *e)
 {
+	struct ws_win		*win;
 	XMappingEvent		*ev = &e->xmapping;
 
-	DNPRINTF(SWM_D_EVENT, "mappingnotify: window: %lu\n", ev->window);
+	DNPRINTF(SWM_D_EVENT, "mapnotify: window: %lu\n", ev->window);
+
+	win = find_window(ev->window);
+	if (win)
+		set_win_state(win, NormalState);
 
 	XRefreshKeyboardMapping(ev);
 	if (ev->request == MappingKeyboard)
@@ -3601,7 +3638,40 @@ propertynotify(XEvent *e)
 void
 unmapnotify(XEvent *e)
 {
+	struct ws_win		*win, *winfocus;
+	struct workspace	*ws;
+
 	DNPRINTF(SWM_D_EVENT, "unmapnotify: window: %lu\n", e->xunmap.window);
+
+	/* determine if we need to help unmanage this window */
+	win = find_window(e->xunmap.window);
+	if (win == NULL)
+		return;
+	if (win->transient)
+		return;
+
+	if (getstate(e->xunmap.window) == NormalState) {
+		/*
+		 * this window does not have a destroy event but but it is no
+		 * longer visible due to the app unmapping it so unmanage it
+		 */
+
+		/* find something to focus */
+		ws = win->ws;
+		winfocus = TAILQ_PREV(win, ws_win_list, entry);
+		if (TAILQ_FIRST(&ws->winlist) == win)
+			winfocus = TAILQ_NEXT(win, entry);
+		else {
+			winfocus = TAILQ_PREV(ws->focus, ws_win_list, entry);
+			if (winfocus == NULL)
+				winfocus = TAILQ_LAST(&ws->winlist, ws_win_list);
+		}
+
+		/* trash window and refocus */
+		unmanage_window(win);
+		stack();
+		focus_win(winfocus);
+	}
 }
 
 void
@@ -3649,25 +3719,6 @@ active_wm(void)
 	XSetErrorHandler(xerror);
 	XSync(display, False);
 	return (0);
-}
-
-long
-getstate(Window w)
-{
-	int			format, status;
-	long			result = -1;
-	unsigned char		*p = NULL;
-	unsigned long		n, extra;
-	Atom			real;
-
-	status = XGetWindowProperty(display, w, astate, 0L, 2L, False, astate,
-	    &real, &format, &n, &extra, (unsigned char **)&p);
-	if (status != Success)
-		return (-1);
-	if (n != 0)
-		result = *((long *)p);
-	XFree(p);
-	return (result);
 }
 
 void
@@ -3824,7 +3875,7 @@ screenchange(XEvent *e) {
 	/* hide any windows that went away */
 	TAILQ_FOREACH(r, &screens[i].rl, entry)
 		TAILQ_FOREACH(win, &r->ws->winlist, entry)
-			XUnmapWindow(display, win->id);
+			unmap_window(win);
 
 	/* add bars to all regions */
 	for (i = 0; i < ScreenCount(display); i++)
@@ -3843,7 +3894,7 @@ setup_screens(void)
 	int			errorbase, major, minor;
 	struct workspace	*ws;
 	int			ws_idx_atom;
-
+	long			state, manage;
 
 	if ((screens = calloc(ScreenCount(display),
 	     sizeof(struct swm_screen))) == NULL)
@@ -3909,8 +3960,9 @@ setup_screens(void)
 			    XGetTransientForHint(display, wins[j], &d1))
 				continue;
 
-			if (wa.map_state == IsViewable ||
-			    getstate(wins[j]) == NormalState)
+			state = getstate(wins[j]);
+			manage = state == NormalState || state == IconicState;
+			if (wa.map_state == IsViewable || manage)
 				manage_window(wins[j]);
 		}
 		/* transient windows */
@@ -3918,9 +3970,10 @@ setup_screens(void)
 			if (!XGetWindowAttributes(display, wins[j], &wa))
 				continue;
 
+			state = getstate(wins[j]);
+			manage = state == NormalState || state == IconicState;
 			if (XGetTransientForHint(display, wins[j], &d1) &&
-			    (wa.map_state == IsViewable || getstate(wins[j]) ==
-			    NormalState))
+			    manage)
 				manage_window(wins[j]);
                 }
                 if (wins) {
