@@ -3494,7 +3494,11 @@ destroynotify(XEvent *e)
 		/* find a window to focus */
 		ws = win->ws;
 		wl = &ws->winlist;
-		if (ws->focus == win) {
+
+		/* if we are transient give focus to parent */
+		if (win->transient)
+			winfocus = find_window(win->transient);
+		else if (ws->focus == win) {
 			if (TAILQ_FIRST(wl) == win)
 				winfocus = TAILQ_NEXT(win, entry);
 			else {
