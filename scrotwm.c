@@ -96,8 +96,8 @@ static const char	*cvstag = "$scrotwm$";
 
 /* #define SWM_DEBUG */
 #ifdef SWM_DEBUG
-#define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while(0)
-#define DNPRINTF(n,x...)	do { if (swm_debug & n) fprintf(stderr, x); } while(0)
+#define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while (0)
+#define DNPRINTF(n,x...)	do { if (swm_debug & n) fprintf(stderr, x); } while (0)
 #define	SWM_D_MISC		0x0001
 #define	SWM_D_EVENT		0x0002
 #define	SWM_D_WS		0x0004
@@ -148,6 +148,8 @@ u_int32_t		swm_debug = 0
 #define WIDTH(r)		(r)->g.w
 #define HEIGHT(r)		(r)->g.h
 #define SWM_MAX_FONT_STEPS	(3)
+#define SWM_EV_PROLOGUE(x)	do { XGrabServer(x); } while (0)
+#define SWM_EV_EPILOGUE(x)	do { XUngrabServer(x); XFlush(x); } while (0)
 
 #ifndef SWM_LIB
 #define SWM_LIB			"/usr/local/lib/libswmhack.so"
@@ -2799,65 +2801,6 @@ grabbuttons(struct ws_win *win, int focused)
 		    BUTTONMASK, GrabModeAsync, GrabModeSync, None, None);
 }
 
-void
-expose(XEvent *e)
-{
-	DNPRINTF(SWM_D_EVENT, "expose: window: %lu\n", e->xexpose.window);
-}
-
-void
-keypress(XEvent *e)
-{
-	unsigned int		i;
-	KeySym			keysym;
-	XKeyEvent		*ev = &e->xkey;
-
-	DNPRINTF(SWM_D_EVENT, "keypress: window: %lu\n", ev->window);
-
-	keysym = XKeycodeToKeysym(display, (KeyCode)ev->keycode, 0);
-	for (i = 0; i < keys_length; i++)
-		if (keysym == keys[i].keysym
-		   && CLEANMASK(keys[i].mod) == CLEANMASK(ev->state)
-		   && keyfuncs[keys[i].funcid].func) {
-			if (keys[i].funcid == kf_spawn_custom)
-				spawn_custom(
-				    root_to_region(ev->root),
-				    &(keyfuncs[keys[i].funcid].args),
-				    keys[i].spawn_name
-				    );
-			else
-				keyfuncs[keys[i].funcid].func(
-				    root_to_region(ev->root),
-				    &(keyfuncs[keys[i].funcid].args)
-				    );
-		}
-}
-
-void
-buttonpress(XEvent *e)
-{
-	XButtonPressedEvent	*ev = &e->xbutton;
-
-	struct ws_win		*win;
-	int			i, action;
-
-	DNPRINTF(SWM_D_EVENT, "buttonpress: window: %lu\n", ev->window);
-
-	action = root_click;
-	if ((win = find_window(ev->window)) == NULL)
-		return;
-	else {
-		focus_win(win);
-		action = client_click;
-	}
-
-	for (i = 0; i < LENGTH(buttons); i++)
-		if (action == buttons[i].action && buttons[i].func &&
-		    buttons[i].button == ev->button &&
-		    CLEANMASK(buttons[i].mask) == CLEANMASK(ev->state))
-			buttons[i].func(win, &buttons[i].args);
-}
-
 const char *quirkname[] = {
 	"NONE",		/* config string for "no value" */
 	"FLOAT",
@@ -2874,8 +2817,10 @@ parsequirks(char *qstr, unsigned long *quirk)
 {
 	char			*cp, *name;
 	int			i;
+
 	if (quirk == NULL)
 		return (1);
+
 	cp = qstr;
 	*quirk = 0;
 	while ((name = strsep(&cp, SWM_Q_WS)) != NULL) {
@@ -2904,6 +2849,7 @@ void
 setquirk(const char *class, const char *name, const int quirk)
 {
 	int			i, j;
+
 	/* find existing */
 	for (i = 0; i < quirks_length; i++) {
 		if (!strcmp(quirks[i].class, class) &&
@@ -3412,12 +3358,73 @@ unmanage_window(struct ws_win *win)
 }
 
 void
+expose(XEvent *e)
+{
+	DNPRINTF(SWM_D_EVENT, "expose: window: %lu\n", e->xexpose.window);
+}
+
+void
+keypress(XEvent *e)
+{
+	unsigned int		i;
+	KeySym			keysym;
+	XKeyEvent		*ev = &e->xkey;
+
+	DNPRINTF(SWM_D_EVENT, "keypress: window: %lu\n", ev->window);
+
+	keysym = XKeycodeToKeysym(display, (KeyCode)ev->keycode, 0);
+	for (i = 0; i < keys_length; i++)
+		if (keysym == keys[i].keysym
+		   && CLEANMASK(keys[i].mod) == CLEANMASK(ev->state)
+		   && keyfuncs[keys[i].funcid].func) {
+			if (keys[i].funcid == kf_spawn_custom)
+				spawn_custom(
+				    root_to_region(ev->root),
+				    &(keyfuncs[keys[i].funcid].args),
+				    keys[i].spawn_name
+				    );
+			else
+				keyfuncs[keys[i].funcid].func(
+				    root_to_region(ev->root),
+				    &(keyfuncs[keys[i].funcid].args)
+				    );
+		}
+}
+
+void
+buttonpress(XEvent *e)
+{
+	XButtonPressedEvent	*ev = &e->xbutton;
+
+	struct ws_win		*win;
+	int			i, action;
+
+	DNPRINTF(SWM_D_EVENT, "buttonpress: window: %lu\n", ev->window);
+
+	action = root_click;
+	if ((win = find_window(ev->window)) == NULL)
+		return;
+	else {
+		focus_win(win);
+		action = client_click;
+	}
+
+	for (i = 0; i < LENGTH(buttons); i++)
+		if (action == buttons[i].action && buttons[i].func &&
+		    buttons[i].button == ev->button &&
+		    CLEANMASK(buttons[i].mask) == CLEANMASK(ev->state))
+			buttons[i].func(win, &buttons[i].args);
+}
+
+void
 configurerequest(XEvent *e)
 {
 	XConfigureRequestEvent	*ev = &e->xconfigurerequest;
 	struct ws_win		*win;
 	int			new = 0;
 	XWindowChanges		wc;
+
+	SWM_EV_PROLOGUE(display);
 
 	if ((win = find_window(ev->window)) == NULL)
 		new = 1;
@@ -3468,6 +3475,8 @@ configurerequest(XEvent *e)
 		} else
 			config_win(win);
 	}
+
+	SWM_EV_EPILOGUE(display);
 }
 
 void
@@ -3479,6 +3488,8 @@ configurenotify(XEvent *e)
 	DNPRINTF(SWM_D_EVENT, "configurenotify: window: %lu\n",
 	    e->xconfigure.window);
 
+	SWM_EV_PROLOGUE(display);
+
 	XMapWindow(display, e->xconfigure.window);
 	win = find_window(e->xconfigure.window);
 	if (win) {
@@ -3488,6 +3499,8 @@ configurenotify(XEvent *e)
 		if (font_adjusted)
 			stack();
 	}
+
+	SWM_EV_EPILOGUE(display);
 }
 
 void
@@ -3500,6 +3513,8 @@ destroynotify(XEvent *e)
 	XDestroyWindowEvent	*ev = &e->xdestroywindow;
 
 	DNPRINTF(SWM_D_EVENT, "destroynotify: window %lu\n", ev->window);
+
+	SWM_EV_PROLOGUE(display);
 
 	if ((win = find_window(ev->window)) != NULL) {
 		/* find a window to focus */
@@ -3524,6 +3539,8 @@ destroynotify(XEvent *e)
 		if (winfocus)
 			focus_win(winfocus);
 	}
+
+	SWM_EV_EPILOGUE(display);
 }
 
 void
@@ -3570,6 +3587,8 @@ mapnotify(XEvent *e)
 
 	DNPRINTF(SWM_D_EVENT, "mapnotify: window: %lu\n", ev->window);
 
+	SWM_EV_PROLOGUE(display);
+
 	win = find_window(ev->window);
 	if (win)
 		set_win_state(win, NormalState);
@@ -3577,6 +3596,8 @@ mapnotify(XEvent *e)
 	XRefreshKeyboardMapping(ev);
 	if (ev->request == MappingKeyboard)
 		grabkeys();
+
+	SWM_EV_EPILOGUE(display);
 }
 
 void
@@ -3591,10 +3612,12 @@ maprequest(XEvent *e)
 	DNPRINTF(SWM_D_EVENT, "maprequest: window: %lu\n",
 	    e->xmaprequest.window);
 
+	SWM_EV_PROLOGUE(display);
+
 	if (!XGetWindowAttributes(display, ev->window, &wa))
-		return;
+		goto done;
 	if (wa.override_redirect)
-		return;
+		goto done;
 
 	manage_window(e->xmaprequest.window);
 
@@ -3606,6 +3629,9 @@ maprequest(XEvent *e)
 
 	if (win->ws == r->ws)
 		focus_win(win);
+
+done:
+	SWM_EV_EPILOGUE(display);
 }
 
 void
@@ -3651,12 +3677,14 @@ unmapnotify(XEvent *e)
 
 	DNPRINTF(SWM_D_EVENT, "unmapnotify: window: %lu\n", e->xunmap.window);
 
+	SWM_EV_PROLOGUE(display);
+
 	/* determine if we need to help unmanage this window */
 	win = find_window(e->xunmap.window);
 	if (win == NULL)
-		return;
+		goto done;
 	if (win->transient)
-		return;
+		goto done;
 
 	if (getstate(e->xunmap.window) == NormalState) {
 		/*
@@ -3680,6 +3708,9 @@ unmapnotify(XEvent *e)
 		stack();
 		focus_win(winfocus);
 	}
+
+done:
+	SWM_EV_EPILOGUE(display);
 }
 
 void
@@ -3862,7 +3893,6 @@ void
 screenchange(XEvent *e) {
 	XRRScreenChangeNotifyEvent	*xe = (XRRScreenChangeNotifyEvent *)e;
 	struct swm_region		*r;
-	struct ws_win			*win;
 	int				i;
 
 	DNPRINTF(SWM_D_EVENT, "screenchange: %lu\n", xe->root);
