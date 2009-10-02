@@ -1365,8 +1365,8 @@ cyclescr(struct swm_region *r, union arg *args)
 	};
 	unfocus_all();
 	XSetInputFocus(display, PointerRoot, RevertToPointerRoot, CurrentTime);
-	XWarpPointer(display, None, rr->s[i].root, 0, 0, 0, 0, rr->g.x,
-	    rr->g.y + bar_enabled ? bar_height : 0);
+	XWarpPointer(display, None, rr->s[i].root, 0, 0, 0, 0, rr->g.x + 1,
+	    rr->g.y + bar_enabled + 1 ? bar_height : 0);
 }
 
 void
