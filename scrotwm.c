@@ -1900,8 +1900,11 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 			win->g.h = wc.height = gg.h;
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 			XConfigureWindow(display, win->id, mask, &wc);
+
+			/* unmap only if we don't have multi screen */
 			if (win != ws->focus)
-				unmap_window(win);
+				if (!(ScreenCount(display) > 1 || outputs > 1))
+					unmap_window(win);
 		}
 	}
 
@@ -3528,16 +3531,22 @@ destroynotify(XEvent *e)
 		if (win->transient)
 			winfocus = find_window(win->transient);
 		else if (ws->focus == win) {
-			if ((ws->cur_layout->flags & SWM_L_FOCUSPREV) &&
-			    ws->focus_prev)
-				winfocus = ws->focus_prev;
-			else if (TAILQ_FIRST(wl) == win)
-				winfocus = TAILQ_NEXT(win, entry);
-			else {
-				winfocus = TAILQ_PREV(ws->focus, ws_win_list,
-				    entry);
-				if (winfocus == NULL)
-					winfocus = TAILQ_LAST(wl, ws_win_list);
+			/* if in max_stack try harder */
+			if (ws->cur_layout->flags & SWM_L_FOCUSPREV)
+				if (win != ws->focus && win != ws->focus_prev)
+					winfocus = ws->focus_prev;
+
+			/* fallback and normal handling */
+			if (winfocus == NULL) {
+				if (TAILQ_FIRST(wl) == win)
+					winfocus = TAILQ_NEXT(win, entry);
+				else {
+					winfocus = TAILQ_PREV(ws->focus,
+					    ws_win_list, entry);
+					if (winfocus == NULL)
+						winfocus = TAILQ_LAST(wl,
+						    ws_win_list);
+				}
 			}
 		}
 
@@ -3679,7 +3688,7 @@ propertynotify(XEvent *e)
 void
 unmapnotify(XEvent *e)
 {
-	struct ws_win		*win, *winfocus;
+	struct ws_win		*win, *winfocus = NULL;
 	struct workspace	*ws;
 
 	DNPRINTF(SWM_D_EVENT, "unmapnotify: window: %lu\n", e->xunmap.window);
@@ -3699,15 +3708,24 @@ unmapnotify(XEvent *e)
 		 * longer visible due to the app unmapping it so unmanage it
 		 */
 
-		/* find something to focus */
 		ws = win->ws;
-		winfocus = TAILQ_PREV(win, ws_win_list, entry);
-		if (TAILQ_FIRST(&ws->winlist) == win)
-			winfocus = TAILQ_NEXT(win, entry);
-		else {
-			winfocus = TAILQ_PREV(ws->focus, ws_win_list, entry);
-			if (winfocus == NULL)
-				winfocus = TAILQ_LAST(&ws->winlist, ws_win_list);
+		/* if we are max_stack try harder to focus on something */
+		if (ws->cur_layout->flags & SWM_L_FOCUSPREV)
+			if (win != ws->focus && win != ws->focus_prev)
+				winfocus = ws->focus_prev;
+
+		/* normal and fallback if haven't found anything to focus on */
+		if (winfocus == NULL) {
+			winfocus = TAILQ_PREV(win, ws_win_list, entry);
+			if (TAILQ_FIRST(&ws->winlist) == win)
+				winfocus = TAILQ_NEXT(win, entry);
+			else {
+				winfocus = TAILQ_PREV(ws->focus, ws_win_list,
+				    entry);
+				if (winfocus == NULL)
+					winfocus = TAILQ_LAST(&ws->winlist,
+					    ws_win_list);
+			}
 		}
 
 		/* trash window and refocus */
