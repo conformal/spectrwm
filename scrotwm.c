@@ -1910,11 +1910,15 @@ void
 send_to_ws(struct swm_region *r, union arg *args)
 {
 	int			wsid = args->id;
-	struct ws_win		*win = r->ws->focus, *winfocus = NULL;
+	struct ws_win		*win = win, *winfocus = NULL;
 	struct workspace	*ws, *nws;
 	Atom			ws_idx_atom = 0;
 	unsigned char		ws_idx_str[SWM_PROPLEN];
 
+	if (r && r->ws)
+		win = r->ws->focus;
+	else
+		return;
 	if (win == NULL)
 		return;
 
@@ -1928,18 +1932,18 @@ send_to_ws(struct swm_region *r, union arg *args)
 	if (TAILQ_FIRST(&ws->winlist) == win)
 		winfocus = TAILQ_NEXT(win, entry);
 	else {
-		winfocus = TAILQ_PREV(ws->focus, ws_win_list, entry);
+		winfocus = TAILQ_PREV(win, ws_win_list, entry);
 		if (winfocus == NULL)
 			winfocus = TAILQ_LAST(&ws->winlist, ws_win_list);
 	}
-	/* out of windows in ws so focus on nws instead */
+	/* out of windows in ws so focus on nws instead if we multi screen */
 	if (winfocus == NULL)
-		winfocus = win;
+		if (ScreenCount(display) > 1 || outputs > 1)
+			winfocus = win;
+
 
 	unmap_window(win);
-
 	TAILQ_REMOVE(&ws->winlist, win, entry);
-
 	TAILQ_INSERT_TAIL(&nws->winlist, win, entry);
 	win->ws = nws;
 
@@ -1959,7 +1963,8 @@ send_to_ws(struct swm_region *r, union arg *args)
 	nws->restack = 1;
 
 	stack();
-	focus_win(winfocus);
+	if (winfocus)
+		focus_win(winfocus);
 }
 
 void
@@ -3424,8 +3429,6 @@ configurerequest(XEvent *e)
 	int			new = 0;
 	XWindowChanges		wc;
 
-	SWM_EV_PROLOGUE(display);
-
 	if ((win = find_window(ev->window)) == NULL)
 		new = 1;
 
@@ -3475,8 +3478,6 @@ configurerequest(XEvent *e)
 		} else
 			config_win(win);
 	}
-
-	SWM_EV_EPILOGUE(display);
 }
 
 void
@@ -3488,8 +3489,6 @@ configurenotify(XEvent *e)
 	DNPRINTF(SWM_D_EVENT, "configurenotify: window: %lu\n",
 	    e->xconfigure.window);
 
-	SWM_EV_PROLOGUE(display);
-
 	XMapWindow(display, e->xconfigure.window);
 	win = find_window(e->xconfigure.window);
 	if (win) {
@@ -3499,8 +3498,6 @@ configurenotify(XEvent *e)
 		if (font_adjusted)
 			stack();
 	}
-
-	SWM_EV_EPILOGUE(display);
 }
 
 void
