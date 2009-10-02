@@ -192,6 +192,7 @@ int			bar_extra = 1;
 int			bar_extra_running = 0;
 int			bar_verbose = 1;
 int			bar_height = 0;
+int			stack_enabled = 1;
 int			clock_enabled = 1;
 int			title_name_enabled = 0;
 int			title_class_enabled = 0;
@@ -324,12 +325,13 @@ struct layout {
 	u_int32_t	flags;
 #define SWM_L_FOCUSPREV		(1<<0)
 #define SWM_L_MAPONFOCUS	(1<<1)
+	char		*name;
 } layouts[] =  {
 	/* stack,		configure */
-	{ vertical_stack,	vertical_config,	0},
-	{ horizontal_stack,	horizontal_config,	0},
+	{ vertical_stack,	vertical_config,	0,	"[|]" },
+	{ horizontal_stack,	horizontal_config,	0,	"[-]" },
 	{ max_stack,		NULL,
-	  SWM_L_FOCUSPREV | SWM_L_MAPONFOCUS},
+	  SWM_L_FOCUSPREV | SWM_L_MAPONFOCUS,			"[ ]"},
 	{ NULL,			NULL,			0},
 };
 
@@ -759,6 +761,7 @@ bar_update(void)
 	char			s[SWM_BAR_MAX];
 	char			loc[SWM_BAR_MAX];
 	char			*b;
+	char			*stack = "";
 
 	if (bar_enabled == 0)
 		return;
@@ -791,8 +794,12 @@ bar_update(void)
 			if (r && r->ws)
 				bar_class_name(s, sizeof s, r->ws->focus);
 
-			snprintf(loc, sizeof loc, "%d:%d    %s %s    %s",
-			    x++, r->ws->idx + 1, s, bar_ext, bar_vertext);
+			if (stack_enabled)
+				stack = r->ws->cur_layout->name;
+
+			snprintf(loc, sizeof loc, "%d:%d %s   %s %s    %s",
+			    x++, r->ws->idx + 1, stack, s, bar_ext,
+			    bar_vertext);
 			bar_print(r, loc);
 		}
 	}
@@ -2972,11 +2979,11 @@ setup_quirks(void)
 /* conf file stuff */
 #define SWM_CONF_FILE	"scrotwm.conf"
 
-enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_CLOCK_ENABLED,
-	  SWM_S_CYCLE_EMPTY, SWM_S_CYCLE_VISIBLE, SWM_S_SS_ENABLED,
-	  SWM_S_TERM_WIDTH, SWM_S_TITLE_CLASS_ENABLED, SWM_S_TITLE_NAME_ENABLED,
-	  SWM_S_BAR_FONT, SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM, SWM_S_SS_APP,
-	  SWM_S_DIALOG_RATIO };
+enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_STACK_ENABLED,
+	  SWM_S_CLOCK_ENABLED, SWM_S_CYCLE_EMPTY, SWM_S_CYCLE_VISIBLE,
+	  SWM_S_SS_ENABLED, SWM_S_TERM_WIDTH, SWM_S_TITLE_CLASS_ENABLED,
+	  SWM_S_TITLE_NAME_ENABLED, SWM_S_BAR_FONT, SWM_S_BAR_ACTION,
+	  SWM_S_SPAWN_TERM, SWM_S_SS_APP, SWM_S_DIALOG_RATIO };
 
 int
 setconfvalue(char *selector, char *value, int flags)
@@ -2987,6 +2994,9 @@ setconfvalue(char *selector, char *value, int flags)
 		break;
 	case SWM_S_BAR_ENABLED:
 		bar_enabled = atoi(value);
+		break;
+	case SWM_S_STACK_ENABLED:
+		stack_enabled = atoi(value);
 		break;
 	case SWM_S_CLOCK_ENABLED:
 		clock_enabled = atoi(value);
@@ -3082,6 +3092,7 @@ struct config_option configopt[] = {
 	{ "bar_action",			setconfvalue,	SWM_S_BAR_ACTION },
 	{ "bar_delay",			setconfvalue,	SWM_S_BAR_DELAY },
 	{ "bind",			setconfbinding,	0 },
+	{ "stack_enabled",		setconfvalue,	SWM_S_STACK_ENABLED },
 	{ "clock_enabled",		setconfvalue,	SWM_S_CLOCK_ENABLED },
 	{ "color_focus",		setconfcolor,	SWM_S_COLOR_FOCUS },
 	{ "color_unfocus",		setconfcolor,	SWM_S_COLOR_UNFOCUS },
