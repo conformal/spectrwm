@@ -321,12 +321,16 @@ void	new_region(struct swm_screen *, int, int, int, int);
 struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
 	void		(*l_config)(struct workspace *, int);
+	u_int32_t	flags;
+#define SWM_L_FOCUSPREV		(1<<0)
+#define SWM_L_MAPONFOCUS	(1<<1)
 } layouts[] =  {
 	/* stack,		configure */
-	{ vertical_stack,	vertical_config},
-	{ horizontal_stack,	horizontal_config},
-	{ max_stack,		NULL},
-	{ NULL,			NULL},
+	{ vertical_stack,	vertical_config,	0},
+	{ horizontal_stack,	horizontal_config,	0},
+	{ max_stack,		NULL,
+	  SWM_L_FOCUSPREV | SWM_L_MAPONFOCUS},
+	{ NULL,			NULL,			0},
 };
 
 #define SWM_H_SLICE		(32)
@@ -792,7 +796,6 @@ bar_update(void)
 			bar_print(r, loc);
 		}
 	}
-	XSync(display, False);
 	alarm(bar_delay);
 }
 
@@ -1224,6 +1227,8 @@ focus_win(struct ws_win *win)
 		XSetWindowBorder(display, win->id,
 		    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
 		grabbuttons(win, 1);
+		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS)
+			XMapRaised(display, win->id);
 		XSetInputFocus(display, win->id,
 		    RevertToPointerRoot, CurrentTime);
 		XSync(display, False);
@@ -1463,9 +1468,7 @@ focus(struct swm_region *r, union arg *args)
 	if (winfocus == winlostfocus || winfocus == NULL)
 		return;
 
-	XMapRaised(display, winfocus->id);
 	focus_win(winfocus);
-	XSync(display, False);
 }
 
 void
@@ -1485,6 +1488,7 @@ cycle_layout(struct swm_region *r, union arg *args)
 	ignore_enter = 1;
 	stack();
 	focus_win(winfocus);
+	ignore_enter = 0;
 }
 
 void
@@ -1877,6 +1881,9 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 
 	DNPRINTF(SWM_D_STACK, "max_stack: workspace: %d\n", ws->idx);
 
+	if (ws == NULL)
+		return;
+
 	winno = count_win(ws, 0);
 	if (winno == 0 && count_win(ws, 1) == 0)
 		return;
@@ -1901,7 +1908,6 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 	/* put the last transient on top */
 	if (wintrans) {
 		stack_floater(wintrans, ws->r);
-		XMapRaised(display, wintrans->id);
 		focus_win(wintrans); /* override */
 	}
 }
@@ -3522,10 +3528,14 @@ destroynotify(XEvent *e)
 		if (win->transient)
 			winfocus = find_window(win->transient);
 		else if (ws->focus == win) {
-			if (TAILQ_FIRST(wl) == win)
+			if ((ws->cur_layout->flags & SWM_L_FOCUSPREV) &&
+			    ws->focus_prev)
+				winfocus = ws->focus_prev;
+			else if (TAILQ_FIRST(wl) == win)
 				winfocus = TAILQ_NEXT(win, entry);
 			else {
-				winfocus = TAILQ_PREV(ws->focus, ws_win_list, entry);
+				winfocus = TAILQ_PREV(ws->focus, ws_win_list,
+				    entry);
 				if (winfocus == NULL)
 					winfocus = TAILQ_LAST(wl, ws_win_list);
 			}
