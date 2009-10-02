@@ -2,6 +2,8 @@
 
 .include <bsd.xconf.mk>
 
+PREFIX?=/usr/local
+
 LIB=    swmhack
 NOMAN=	yes
 SRCS=	swm_hack.c

@@ -1,6 +1,9 @@
 # $scrotwm$
 .include <bsd.xconf.mk>
 
+PREFIX?=/usr/local
+
+BINDIR=${PREFIX}/bin
 SUBDIR= lib
 
 PROG=scrotwm
@@ -10,7 +13,7 @@ CFLAGS+=-std=c89 -Wall -Wno-uninitialized -ggdb3
 CPPFLAGS+= -I${X11BASE}/include
 LDADD+=-lutil -L${X11BASE}/lib -lX11 -lXrandr
 
-MANDIR= ${X11BASE}/man/cat
+MANDIR= ${PREFIX}/man/cat
 
 obj: _xenocara_obj
 
