@@ -1193,14 +1193,14 @@ unfocus_win(struct ws_win *win)
 	if (win->ws->r == NULL)
 		return;
 
-	grabbuttons(win, 0);
-	XSetWindowBorder(display, win->id,
-	    win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
-
 	if (win->ws->focus == win) {
 		win->ws->focus = NULL;
 		win->ws->focus_prev = win;
 	}
+
+	grabbuttons(win, 0);
+	XSetWindowBorder(display, win->id,
+	    win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
 }
 
 void
@@ -1233,12 +1233,11 @@ focus_win(struct ws_win *win)
 	if (win->ws->r != NULL) {
 		XSetWindowBorder(display, win->id,
 		    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
-		grabbuttons(win, 1);
 		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS)
 			XMapRaised(display, win->id);
 		XSetInputFocus(display, win->id,
 		    RevertToPointerRoot, CurrentTime);
-		XSync(display, False);
+		grabbuttons(win, 1);
 	}
 }
 
@@ -1581,7 +1580,6 @@ stack(void) {
 	}
 	if (font_adjusted)
 		font_adjusted--;
-	XSync(display, False);
 }
 
 void
@@ -1995,7 +1993,6 @@ send_to_ws(struct swm_region *r, union arg *args)
 	if (winfocus == NULL)
 		if (ScreenCount(display) > 1 || outputs > 1)
 			winfocus = win;
-
 
 	unmap_window(win);
 	TAILQ_REMOVE(&ws->winlist, win, entry);
