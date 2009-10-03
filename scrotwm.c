@@ -1283,7 +1283,9 @@ switchws(struct swm_region *r, union arg *args)
 		 */
 		if (new_ws->old_r == this_r)
 			TAILQ_FOREACH(win, &new_ws->winlist, entry)
-				XMapRaised(display, win->id);
+				if (!(win->ws->cur_layout->flags &
+				    SWM_L_MAPONFOCUS))
+					XMapRaised(display, win->id);
 
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
 			unmap_window(win);
@@ -3710,8 +3712,6 @@ unmapnotify(XEvent *e)
 	win = find_window(e->xunmap.window);
 	if (win == NULL)
 		goto done;
-	if (win->transient)
-		goto done;
 
 	if (getstate(e->xunmap.window) == NormalState) {
 		/*
@@ -3731,8 +3731,9 @@ unmapnotify(XEvent *e)
 			if (TAILQ_FIRST(&ws->winlist) == win)
 				winfocus = TAILQ_NEXT(win, entry);
 			else {
-				winfocus = TAILQ_PREV(ws->focus, ws_win_list,
-				    entry);
+				if (ws->focus)
+					winfocus = TAILQ_PREV(ws->focus,
+					    ws_win_list, entry);
 				if (winfocus == NULL)
 					winfocus = TAILQ_LAST(&ws->winlist,
 					    ws_win_list);
