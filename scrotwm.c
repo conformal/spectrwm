@@ -1247,7 +1247,7 @@ switchws(struct swm_region *r, union arg *args)
 {
 	int			wsid = args->id;
 	struct swm_region	*this_r, *other_r;
-	struct ws_win		*win, *winfocus = NULL;
+	struct ws_win		*win, *winfocus = NULL, *parent = NULL;
 	struct workspace	*new_ws, *old_ws;
 
 	this_r = r;
@@ -1298,7 +1298,16 @@ switchws(struct swm_region *r, union arg *args)
 
 	ignore_enter = 1;
 	stack();
-	focus_win(winfocus);
+	if (winfocus) {
+		/* make sure we see the parent window */
+		if (winfocus->transient) {
+			parent = find_window(winfocus->transient);
+			if (parent)
+				focus_win(parent);
+		}
+
+		focus_win(winfocus);
+	}
 	bar_update();
 }
 
@@ -1484,7 +1493,7 @@ void
 cycle_layout(struct swm_region *r, union arg *args)
 {
 	struct workspace	*ws = r->ws;
-	struct ws_win		*winfocus;
+	struct ws_win		*winfocus, *parent = NULL;
 
 	DNPRINTF(SWM_D_EVENT, "cycle_layout: workspace: %d\n", ws->idx);
 
@@ -1496,6 +1505,12 @@ cycle_layout(struct swm_region *r, union arg *args)
 
 	ignore_enter = 1;
 	stack();
+	/* make sure we see the parent window */
+	if (winfocus->transient) {
+		parent = find_window(winfocus->transient);
+		if (parent)
+			focus_win(parent);
+	}
 	focus_win(winfocus);
 	ignore_enter = 0;
 }
