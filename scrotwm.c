@@ -1353,8 +1353,10 @@ cyclews(struct swm_region *r, union arg *args)
 void
 cyclescr(struct swm_region *r, union arg *args)
 {
-	struct swm_region	*rr;
-	int			i;
+	struct swm_region	*rr = NULL;
+	struct workspace	*ws = NULL;
+	struct ws_win		*winfocus = NULL;
+	int			i, x, y;
 
 	/* do nothing if we don't have more than one screen */
 	if (!(ScreenCount(display) > 1 || outputs > 1))
@@ -1375,10 +1377,28 @@ cyclescr(struct swm_region *r, union arg *args)
 	default:
 		return;
 	};
+	if (rr == NULL)
+		return;
+
+	ws = rr->ws;
+	winfocus = ws->focus;
+	if (winfocus == NULL)
+		winfocus = ws->focus_prev;
+	if (winfocus) {
+		/* use window coordinates */
+		x = winfocus->g.x + 1;
+		y = winfocus->g.y + 1;
+	} else {
+		/* use region coordinates */
+		x = rr->g.x + 1;
+		y = rr->g.y + 1 + bar_enabled ? bar_height : 0;
+	}
+
 	unfocus_all();
 	XSetInputFocus(display, PointerRoot, RevertToPointerRoot, CurrentTime);
-	XWarpPointer(display, None, rr->s[i].root, 0, 0, 0, 0, rr->g.x + 1,
-	    rr->g.y + bar_enabled + 1 ? bar_height : 0);
+	XWarpPointer(display, None, rr->s[i].root, 0, 0, 0, 0, x, y);
+
+	focus_win(winfocus);
 }
 
 void
