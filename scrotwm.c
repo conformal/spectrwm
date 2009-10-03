@@ -1308,6 +1308,7 @@ switchws(struct swm_region *r, union arg *args)
 
 		focus_win(winfocus);
 	}
+	ignore_enter = 0;
 	bar_update();
 }
 
@@ -1506,12 +1507,13 @@ cycle_layout(struct swm_region *r, union arg *args)
 	ignore_enter = 1;
 	stack();
 	/* make sure we see the parent window */
-	if (winfocus->transient) {
-		parent = find_window(winfocus->transient);
+	if (winfocus) {
+		if (winfocus->transient)
+			parent = find_window(winfocus->transient);
 		if (parent)
 			focus_win(parent);
+		focus_win(winfocus);
 	}
-	focus_win(winfocus);
 	ignore_enter = 0;
 }
 
@@ -3577,11 +3579,12 @@ destroynotify(XEvent *e)
 				}
 			}
 		}
-
+		ignore_enter = 1;
 		unmanage_window(win);
 		stack();
 		if (winfocus)
 			focus_win(winfocus);
+		ignore_enter = 0;
 	}
 
 	SWM_EV_EPILOGUE(display);
@@ -3607,8 +3610,11 @@ enternotify(XEvent *e)
 	if (QLength(display))
 		return;
 
-	if ((win = find_window(ev->window)) != NULL)
+	if ((win = find_window(ev->window)) != NULL) {
+		if (win->ws->focus == win)
+			return;
 		focus_win(win);
+	}
 }
 
 void
@@ -3736,9 +3742,12 @@ unmapnotify(XEvent *e)
 
 		ws = win->ws;
 		/* if we are max_stack try harder to focus on something */
-		if (ws->cur_layout->flags & SWM_L_FOCUSPREV)
-			if (win != ws->focus && win != ws->focus_prev)
+		if (ws->cur_layout->flags & SWM_L_FOCUSPREV) {
+			if (win->transient)
+				winfocus = find_window(win->transient);
+			else if (win != ws->focus && win != ws->focus_prev)
 				winfocus = ws->focus_prev;
+		}
 
 		/* normal and fallback if haven't found anything to focus on */
 		if (winfocus == NULL) {
@@ -3757,8 +3766,10 @@ unmapnotify(XEvent *e)
 
 		/* trash window and refocus */
 		unmanage_window(win);
+		ignore_enter = 1;
 		stack();
 		focus_win(winfocus);
+		ignore_enter = 0;
 	}
 
 done:
