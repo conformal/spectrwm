@@ -2629,6 +2629,7 @@ parsekeys(char *keystr, unsigned int currmod, unsigned int *mod, KeySym *ks)
 	DNPRINTF(SWM_D_KEY, "parsekeys: leave ok\n");
 	return (0);
 }
+
 char *
 strdupsafe(char *str)
 {
@@ -2637,6 +2638,7 @@ strdupsafe(char *str)
 	else
 		return (strdup(str));
 }
+
 void
 setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid, char *spawn_name)
 {
@@ -2717,6 +2719,7 @@ setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid, char *spawn_name
 	}
 	DNPRINTF(SWM_D_KEY, "setkeybinding: leave\n");
 }
+
 int
 setconfbinding(char *selector, char *value, int flags)
 {
@@ -2763,6 +2766,7 @@ setconfbinding(char *selector, char *value, int flags)
 	DNPRINTF(SWM_D_KEY, "setconfbinding: no match\n");
 	return (1);
 }
+
 void
 setup_keys(void)
 {
@@ -2820,6 +2824,7 @@ setup_keys(void)
 	setkeybinding(MODKEY|ShiftMask,	XK_Delete,	kf_spawn_custom,	"lock");
 	setkeybinding(MODKEY|ShiftMask,	XK_i,		kf_spawn_custom,	"initscr");
 }
+
 void
 updatenumlockmask(void)
 {
@@ -2931,6 +2936,7 @@ parsequirks(char *qstr, unsigned long *quirk)
 	}
 	return (0);
 }
+
 void
 setquirk(const char *class, const char *name, const int quirk)
 {
@@ -3005,6 +3011,7 @@ setquirk(const char *class, const char *name, const int quirk)
 		}
 	}
 }
+
 int
 setconfquirk(char *selector, char *value, int flags)
 {
@@ -4130,6 +4137,7 @@ setup_screens(void)
 		}
 	}
 }
+
 void
 setup_globals(void)
 {
