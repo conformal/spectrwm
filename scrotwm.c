@@ -922,15 +922,29 @@ bar_setup(struct swm_region *r)
 	bar_refresh();
 }
 
+Bool
+set_win_notify_cb(Display *d, XEvent *e, char *arg)
+{
+	struct ws_win		*win = (struct ws_win *)arg;
+
+	if (win && win->id == e->xany.window && e->xany.type == PropertyNotify)
+			return (True);
+	return (False);
+}
+
 void
 set_win_state(struct ws_win *win, long state)
 {
 	long			data[] = {state, None};
+	XEvent			ev;
 
 	DNPRINTF(SWM_D_EVENT, "set_win_state: window: %lu\n", win->id);
 
 	XChangeProperty(display, win->id, astate, astate, 32, PropModeReplace,
 	    (unsigned char *)data, 2);
+
+	if (state != WithdrawnState)
+		XIfEvent(display, &ev, set_win_notify_cb, (char *)win);
 }
 
 long
@@ -1025,14 +1039,28 @@ quit(struct swm_region *r, union arg *args)
 	running = 0;
 }
 
+Bool
+unmap_window_cb(Display *d, XEvent *e, char *arg)
+{
+	struct ws_win		*win = (struct ws_win *)arg;
+
+	if (win && win->id == e->xany.window && e->xany.type == UnmapNotify)
+			return (True);
+	return (False);
+}
+
 void
 unmap_window(struct ws_win *win)
 {
+	XEvent			ev;
+
 	if (win == NULL)
 		return;
 
 	set_win_state(win, IconicState);
 	XUnmapWindow(display, win->id);
+
+	XIfEvent(display, &ev, unmap_window_cb, (char *)win);
 }
 
 void
@@ -1217,7 +1245,6 @@ unfocus_all(void)
 		for (j = 0; j < SWM_WS_MAX; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
 				unfocus_win(win);
-	XSync(display, False);
 }
 
 void
