@@ -52,7 +52,7 @@
 
 static const char	*cvstag = "$scrotwm$";
 
-#define	SWM_VERSION	"0.9.9"
+#define	SWM_VERSION	"0.9.10"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -937,14 +937,23 @@ set_win_state(struct ws_win *win, long state)
 {
 	long			data[] = {state, None};
 	XEvent			ev;
+	XWindowAttributes	wa;
 
 	DNPRINTF(SWM_D_EVENT, "set_win_state: window: %lu\n", win->id);
+
+	/* make sure we drain everything */
+	XSync(display, True);
+
+	/* make sure we still exist too */
+	if (XGetWindowAttributes(display, win->id, &wa) == BadWindow)
+		return;
 
 	XChangeProperty(display, win->id, astate, astate, 32, PropModeReplace,
 	    (unsigned char *)data, 2);
 
-	if (state != WithdrawnState)
-		XIfEvent(display, &ev, set_win_notify_cb, (char *)win);
+	/* wait for completion of XChangeProperty */
+	while (XCheckIfEvent(display, &ev, set_win_notify_cb, (char *)win))
+		;
 }
 
 long
@@ -1053,14 +1062,25 @@ void
 unmap_window(struct ws_win *win)
 {
 	XEvent			ev;
+	XWindowAttributes	wa;
 
 	if (win == NULL)
+		return;
+
+	/* make sure we still exist too */
+	if (XGetWindowAttributes(display, win->id, &wa) == BadWindow)
+		return;
+
+	/* don't unmap again */
+	if (wa.map_state == IsUnmapped && getstate(win->id) == IconicState)
 		return;
 
 	set_win_state(win, IconicState);
 	XUnmapWindow(display, win->id);
 
-	XIfEvent(display, &ev, unmap_window_cb, (char *)win);
+	/* make sure we wait for XUnmapWindow completion */
+	while (XCheckIfEvent(display, &ev, unmap_window_cb, (char *)win))
+		;
 }
 
 void
@@ -1201,7 +1221,6 @@ spawn(struct swm_region *r, union arg *args)
 		}
 		exit(0);
 	}
-	wait(0);
 }
 
 void
@@ -3438,15 +3457,22 @@ void
 unmanage_window(struct ws_win *win)
 {
 	struct workspace	*ws;
+	XEvent			ev;
 
 	if (win == NULL)
 		return;
 
 	DNPRINTF(SWM_D_MISC, "unmanage_window:  %lu\n", win->id);
 
+	set_win_state(win, WithdrawnState);
+	XSync(display, True);
+
+	/* drain all events for this window, just in case */
+	while (XCheckTypedWindowEvent(display, win->id, -1, &ev))
+		;
+
 	ws = win->ws;
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
-	set_win_state(win, WithdrawnState);
 	if (win->ch.res_class)
 		XFree(win->ch.res_class);
 	if (win->ch.res_name)
@@ -3602,6 +3628,8 @@ destroynotify(XEvent *e)
 	XDestroyWindowEvent	*ev = &e->xdestroywindow;
 
 	DNPRINTF(SWM_D_EVENT, "destroynotify: window %lu\n", ev->window);
+
+	XSync(display, True);
 
 	SWM_EV_PROLOGUE(display);
 
