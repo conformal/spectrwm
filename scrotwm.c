@@ -557,6 +557,7 @@ void			enternotify(XEvent *);
 void			focusin(XEvent *);
 void			focusout(XEvent *);
 void			mapnotify(XEvent *);
+void			mappingnotify(XEvent *);
 void			maprequest(XEvent *);
 void			propertynotify(XEvent *);
 void			unmapnotify(XEvent *);
@@ -573,6 +574,7 @@ void			(*handler[LASTEvent])(XEvent *) = {
 				[FocusIn] = focusin,
 				[FocusOut] = focusout,
 				[MapNotify] = mapnotify,
+				[MappingNotify] = mappingnotify,
 				[MapRequest] = maprequest,
 				[PropertyNotify] = propertynotify,
 				[UnmapNotify] = unmapnotify,
@@ -1233,11 +1235,11 @@ focus_win(struct ws_win *win)
 	if (win->ws->r != NULL) {
 		XSetWindowBorder(display, win->id,
 		    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
+		grabbuttons(win, 1);
 		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS)
 			XMapRaised(display, win->id);
 		XSetInputFocus(display, win->id,
 		    RevertToPointerRoot, CurrentTime);
-		grabbuttons(win, 1);
 	}
 }
 
@@ -3650,7 +3652,7 @@ void
 mapnotify(XEvent *e)
 {
 	struct ws_win		*win;
-	XMappingEvent		*ev = &e->xmapping;
+	XMapEvent		*ev = &e->xmap;
 
 	DNPRINTF(SWM_D_EVENT, "mapnotify: window: %lu\n", ev->window);
 
@@ -3660,11 +3662,17 @@ mapnotify(XEvent *e)
 	if (win)
 		set_win_state(win, NormalState);
 
+	SWM_EV_EPILOGUE(display);
+}
+
+void
+mappingnotify(XEvent *e)
+{
+	XMappingEvent		*ev = &e->xmapping;
+
 	XRefreshKeyboardMapping(ev);
 	if (ev->request == MappingKeyboard)
 		grabkeys();
-
-	SWM_EV_EPILOGUE(display);
 }
 
 void
