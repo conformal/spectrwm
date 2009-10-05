@@ -148,8 +148,6 @@ u_int32_t		swm_debug = 0
 #define WIDTH(r)		(r)->g.w
 #define HEIGHT(r)		(r)->g.h
 #define SWM_MAX_FONT_STEPS	(3)
-#define SWM_EV_PROLOGUE(x)	do { XGrabServer(x); } while (0)
-#define SWM_EV_EPILOGUE(x)	do { XUngrabServer(x); XFlush(x); } while (0)
 
 #ifndef SWM_LIB
 #define SWM_LIB			"/usr/local/lib/libswmhack.so"
@@ -318,6 +316,7 @@ void	max_stack(struct workspace *, struct swm_geometry *);
 
 void	grabbuttons(struct ws_win *, int);
 void	new_region(struct swm_screen *, int, int, int, int);
+void	unmanage_window(struct ws_win *);
 
 struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
@@ -1028,6 +1027,21 @@ count_win(struct workspace *ws, int count_transient)
 {
 	struct ws_win		*win;
 	int			count = 0;
+	int			state;
+
+	/*
+	 * Under stress conditions windows sometimes do not get removed from
+	 * the managed list quickly enough.  Use a very large hammer to get rid
+	 * of them.  A smaller hammer would be nice.
+	 */
+	TAILQ_FOREACH(win, &ws->winlist, entry) {
+		state = getstate(win->id);
+		if (state == -1) {
+			DNPRINTF(SWM_D_MISC, "count_win:removing: %lu\n",
+			    win->id);
+			unmanage_window(win);
+		}
+	}
 
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
 		if (count_transient == 0 && win->floating)
@@ -3457,19 +3471,11 @@ void
 unmanage_window(struct ws_win *win)
 {
 	struct workspace	*ws;
-	XEvent			ev;
 
 	if (win == NULL)
 		return;
 
 	DNPRINTF(SWM_D_MISC, "unmanage_window:  %lu\n", win->id);
-
-	set_win_state(win, WithdrawnState);
-	XSync(display, True);
-
-	/* drain all events for this window, just in case */
-	while (XCheckTypedWindowEvent(display, win->id, -1, &ev))
-		;
 
 	ws = win->ws;
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
@@ -3624,14 +3630,9 @@ destroynotify(XEvent *e)
 	struct ws_win		*win, *winfocus = NULL;
 	struct workspace	*ws;
 	struct ws_win_list	*wl;
-
 	XDestroyWindowEvent	*ev = &e->xdestroywindow;
 
 	DNPRINTF(SWM_D_EVENT, "destroynotify: window %lu\n", ev->window);
-
-	XSync(display, True);
-
-	SWM_EV_PROLOGUE(display);
 
 	if ((win = find_window(ev->window)) != NULL) {
 		/* find a window to focus */
@@ -3660,15 +3661,14 @@ destroynotify(XEvent *e)
 				}
 			}
 		}
-		ignore_enter = 1;
 		unmanage_window(win);
+
+		ignore_enter = 1;
 		stack();
 		if (winfocus)
 			focus_win(winfocus);
 		ignore_enter = 0;
 	}
-
-	SWM_EV_EPILOGUE(display);
 }
 
 void
@@ -3718,13 +3718,9 @@ mapnotify(XEvent *e)
 
 	DNPRINTF(SWM_D_EVENT, "mapnotify: window: %lu\n", ev->window);
 
-	SWM_EV_PROLOGUE(display);
-
 	win = find_window(ev->window);
 	if (win)
 		set_win_state(win, NormalState);
-
-	SWM_EV_EPILOGUE(display);
 }
 
 void
@@ -3749,26 +3745,23 @@ maprequest(XEvent *e)
 	DNPRINTF(SWM_D_EVENT, "maprequest: window: %lu\n",
 	    e->xmaprequest.window);
 
-	SWM_EV_PROLOGUE(display);
-
 	if (!XGetWindowAttributes(display, ev->window, &wa))
-		goto done;
+		return;
 	if (wa.override_redirect)
-		goto done;
+		return;
 
-	manage_window(e->xmaprequest.window);
+	win = manage_window(e->xmaprequest.window);
+	if (win == NULL)
+		return; /* can't happen */
 
+	ignore_enter = 1;
 	stack();
+	ignore_enter = 0;
 
 	/* make new win focused */
-	win = find_window(ev->window);
 	r = root_to_region(win->wa.root);
-
 	if (win->ws == r->ws)
 		focus_win(win);
-
-done:
-	SWM_EV_EPILOGUE(display);
 }
 
 void
@@ -3814,19 +3807,16 @@ unmapnotify(XEvent *e)
 
 	DNPRINTF(SWM_D_EVENT, "unmapnotify: window: %lu\n", e->xunmap.window);
 
-	SWM_EV_PROLOGUE(display);
-
 	/* determine if we need to help unmanage this window */
 	win = find_window(e->xunmap.window);
 	if (win == NULL)
-		goto done;
+		return;
 
 	if (getstate(e->xunmap.window) == NormalState) {
 		/*
 		 * this window does not have a destroy event but but it is no
 		 * longer visible due to the app unmapping it so unmanage it
 		 */
-
 		ws = win->ws;
 		/* if we are max_stack try harder to focus on something */
 		if (ws->cur_layout->flags & SWM_L_FOCUSPREV) {
@@ -3858,9 +3848,6 @@ unmapnotify(XEvent *e)
 		focus_win(winfocus);
 		ignore_enter = 0;
 	}
-
-done:
-	SWM_EV_EPILOGUE(display);
 }
 
 void
