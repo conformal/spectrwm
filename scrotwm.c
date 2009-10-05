@@ -3644,9 +3644,12 @@ destroynotify(XEvent *e)
 			winfocus = find_window(win->transient);
 		else if (ws->focus == win) {
 			/* if in max_stack try harder */
-			if (ws->cur_layout->flags & SWM_L_FOCUSPREV)
-				if (win != ws->focus && win != ws->focus_prev)
+			if (ws->cur_layout->flags & SWM_L_FOCUSPREV) {
+				if (win != ws->focus_prev)
 					winfocus = ws->focus_prev;
+				else if (win != ws->focus)
+					winfocus = ws->focus;
+			}
 
 			/* fallback and normal handling */
 			if (winfocus == NULL) {
@@ -3822,8 +3825,10 @@ unmapnotify(XEvent *e)
 		if (ws->cur_layout->flags & SWM_L_FOCUSPREV) {
 			if (win->transient)
 				winfocus = find_window(win->transient);
-			else if (win != ws->focus && win != ws->focus_prev)
+			else if (win != ws->focus_prev)
 				winfocus = ws->focus_prev;
+			else if (win != ws->focus)
+				winfocus = ws->focus;
 		}
 
 		/* normal and fallback if haven't found anything to focus on */
