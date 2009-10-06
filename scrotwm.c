@@ -240,6 +240,7 @@ struct ws_win {
 	int			font_steps;
 	int			last_inc;
 	int			can_delete;
+	int			java;
 	unsigned long		quirks;
 	struct workspace	*ws;	/* always valid */
 	struct swm_screen	*s;	/* always valid, never changes */
@@ -940,6 +941,8 @@ set_win_state(struct ws_win *win, long state)
 
 	DNPRINTF(SWM_D_EVENT, "set_win_state: window: %lu\n", win->id);
 
+	if (win == NULL)
+		return;
 	/* make sure we drain everything */
 	XSync(display, True);
 
@@ -1089,7 +1092,10 @@ unmap_window(struct ws_win *win)
 	if (wa.map_state == IsUnmapped && getstate(win->id) == IconicState)
 		return;
 
-	set_win_state(win, IconicState);
+	/* java shits itself when windows are set to iconic state */
+	if (win->java == 0)
+		set_win_state(win, IconicState);
+
 	XUnmapWindow(display, win->id);
 
 	/* make sure we wait for XUnmapWindow completion */
@@ -3411,6 +3417,11 @@ manage_window(Window id)
 	if (XGetClassHint(display, win->id, &win->ch)) {
 		DNPRINTF(SWM_D_CLASS, "class: %s name: %s\n",
 		    win->ch.res_class, win->ch.res_name);
+
+		/* java is retarded so treat it special */
+		if (strstr(win->ch.res_name, "sun-awt"))
+			win->java = 1;
+
 		for (i = 0; i < quirks_length; i++){
 			if (!strcmp(win->ch.res_class, quirks[i].class) &&
 			    !strcmp(win->ch.res_name, quirks[i].name)) {
@@ -3813,6 +3824,10 @@ unmapnotify(XEvent *e)
 	/* determine if we need to help unmanage this window */
 	win = find_window(e->xunmap.window);
 	if (win == NULL)
+		return;
+
+	/* java can not deal with this heuristic */
+	if (win->java)
 		return;
 
 	if (getstate(e->xunmap.window) == NormalState) {
