@@ -1,0 +1,2 @@
+@comment $OpenBSD: PFRAG.shared,v 1.2 2009/09/30 00:54:06 sthen Exp $
+@lib lib/libswmhack.so.${LIBswmhack_VERSION}
