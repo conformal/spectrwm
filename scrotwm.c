@@ -3444,8 +3444,6 @@ manage_window(Window id)
 		}
 	}
 
-	if (win->java && win->transient) {
-	}
 	/* alter window position if quirky */
 	if (win->quirks & SWM_Q_ANYWHERE) {
 		win->manual = 1; /* don't center the quirky windows */
