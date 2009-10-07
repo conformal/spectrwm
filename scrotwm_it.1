@@ -1,0 +1,567 @@
+.\"	$scrotwm$
+.\"
+.\" Copyright (c) 2009 Marco Peereboom <marco@peereboom.us>
+.\" Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate$
+.Dt SCROTWM 1
+.Os
+.Sh NOME
+.Nm scrotwm
+.Nd gestore di finestre per X11
+.Sh SINTASSI
+.Nm scrotwm
+.Sh DESCRIZIONE
+.Nm
+è un gestore di finestre minimale che cerca di stare in disparte, in modo
+che il prezioso spazio sullo schermo possa essere usato per cose più
+importanti. Hai dei default sensati e non costringe l'utente ad imparare
+un linguaggio di programmazione per configurarlo. È stato scritto dagli
+hacker per gli hacker e cerca di essere piccolo, compatto e veloce.
+.Pp
+Quando
+.Nm
+viene avviato, legge le impostazioni presenti nel file di configurazione
+.Pa scrotwm.conf .
+Vedere la sezione
+.Sx FILE DI CONFIGURAZIONE
+più sotto.
+.Pp
+In questa pagina di manuale viene usata la seguente notazione:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Cm M
+Meta
+.It Cm S
+Shift
+.It Aq Cm Nome
+Tasto nome
+.It Cm M1
+Tasto 1 (sinistro) del mouse
+.It Cm M3
+Tasto 3 (destro) del mouse
+.El
+.Pp
+.Nm
+è molto semplice da usare. La maggior parte delle operazioni vengono
+svolte usando combinazioni di tasti sulla tastiera o sul mouse.
+Vedere la sezione
+.Sx SCORCIATOIE
+più sotto per i default e le possibilità di personalizzazione.
+.Sh FILE DI CONFIGURAZIONE
+.Nm
+prova per prima cosa ad aprire il file di configurazione personale
+dell'utente,
+.Pa ~/.scrotwm.conf .
+Se il file in questione non è disponibile, prova ad usare il file di
+configurazione globale
+.Pa /etc/scrotwm.conf .
+.Pp
+Il formato di questo file è \*(Ltchiave\*(Gt = \*(Ltvalore\*(Gt.
+Per esempio:
+.Pp
+.Dl color_focus = red
+.Pp
+Per abilitare o disabilitare un'opzione, usare i valori 1 o 0
+rispettivamente.
+.Pp
+Il file supporta le seguenti chiavi:
+.Pp
+.Bl -tag -width "title_class_enabledXXX" -offset indent -compact
+.It Cm color_focus
+Colore del bordo della finestra che ha il focus.
+.It Cm color_unfocus
+Colore del bordo delle finestre che non hanno il focus.
+.It Cm bar_enabled
+Abilita o disabilita la barra di stato.
+.It Cm bar_border Ns Bq Ar x
+Colore del bordo della barra di stato nello schermo
+.Ar x .
+.It Cm bar_color Ns Bq Ar x
+Colore della barra di stato nello schermo
+.Ar x .
+.It Cm bar_font_color Ns Bq Ar x
+Colore del testo della barra di stato nello schermo
+.Ar x .
+.It Cm bar_font
+Font della barra di stato.
+.It Cm bar_action
+Script esterno che aggiunge informazioni come la carica della batteria alla
+barra di stato.
+.It Cm bar_delay
+Frequenza di aggiornamento, in secondi, dello script esterno che aggiunge
+informazioni alla barra di stato.
+.It Cm stack_enabled
+Abilita o disabilita la visualizzazione dell'algoritmo di stacking
+corrente nella barra di stato.
+.It Cm clock_enabled
+Abilita o disabilita l'orologio nella barra di stato. Se disabilitato,
+usando il valore 0, è possibile usare un orologio personalizzato nello
+script specificato in bar_action.
+.It Cm dialog_ratio
+Alcune applicazioni hanno finestre di dialogo troppo piccole per risultare
+utili. Questa è la percentuale dello schermo che verrà usata per le finestre
+di dialogo: ad esempio, 0.6 indica il 60% della dimensione fisica dello
+schermo.
+.It Cm region
+Alloca una regione personalizzata, rimuovendo qualsiasi regione
+automaticamente rilevata stia occupando lo stesso spazio sullo schermo.
+Definita nel formato screen[<idx>]:LARGHEZZAxALTEZZA+X+Y, ad esempio
+\& screen[1]:800x1200+0+0.
+.It Cm term_width
+Imposta la dimensione minima preferita per il terminale. Se questo valore
+è maggiore di 0,
+.Nm
+cercherà di riaggiustare la dimensione del testo nel terminale in modo che
+la larghezza del terminale rimanga sopra il valore quando la finestra
+viene ridimensionata. Al momento solo
+.Xr xterm 1
+è supportato. Il binario di
+.Xr xterm 1
+deve essere setuid o setgid perché questo funzioni: nella maggior parte dei
+sistemi, questo è il default. L'utente potrebbe voler impostare
+program[term] (vedere la sezione
+.Sx PROGRAMMI
+più sotto) per usare una seconda copia del binario di
+.Xr xterm 1
+che non abbia il bit setgid impostato.
+.It Cm title_class_enabled
+Abilita o disabilita la visualizzazione della classe della finestra nella
+barra di stato. Impostare a 1 per abilitare.
+.It Cm title_name_enabled
+Abilita o disabilita la visualizzazione del titolo della finestra nella
+barra di stato. Impostare a 1 per abilitare.
+.It Cm modkey
+Cambia il tasto modificatore.
+Solitamente Mod1 è il tasto ALT e Mod4 è il tasto Windows su un PC.
+.It Cm program Ns Bq Ar p
+Definisce una nuova azione per lanciare il programma
+.Ar p .
+Vedere la sezione
+.Sx PROGRAMMI
+più sotto.
+.It Cm bind Ns Bq Ar x
+Assegna una combinazione di tasti all'azione
+.Ar x .
+Vedere la sezione
+.Sx SCORCIATOIE
+più sotto.
+.It Cm quirk Ns Bq Ar c:n
+Aggiunge un "quirk" per le finestre di classe
+.Ar c
+e nome
+.Ar n .
+Vedere la sezione
+.Sx QUIRKS
+più sotto.
+.El
+.Pp
+I colori devono essere specificati nel formato usato da
+.Xr XQueryColor 3
+e i font in quello usato da
+.Xr XQueryFont 3 .
+.Sh PROGRAMMI
+.Nm
+consente la definizione di azioni personalizzate per lanciare programmi di
+propria scelta, che possono essere assegnate a combinazioni di tasti nello
+stesso modo in cui è possibile farlo con le azioni predefinite.
+Vedere la sezione
+.Sx SCORCIATOIE
+più sotto.
+.Pp
+I programmi di default sono descritte qui sotto:
+.Pp
+.Bl -tag -width "screenshot_wind" -offset indent -compact
+.It Cm term
+xterm
+.It Cm screenshot_all
+screenshot.sh full
+.It Cm screenshot_wind
+screenshot.sh window
+.It Cm lock
+xlock
+.It Cm initscr
+initscreen.sh
+.It Cm menu
+dmenu_run \-fn $bar_font \-nb $bar_color \-nf $bar_font_color \-sb $bar_border \-sf $bar_color
+.El
+.Pp
+I programmi personalizzati vengono specificati con la seguente sintassi:
+.Pp
+.Dl program[<nome>] = <percorso> [<arg> [... <arg>]]
+.Pp
+.Aq nome
+è un qualsiasi identificatore che non va in conflitto con un'azione
+predefinita o una chiave,
+.Aq percorso
+è il programma desiderato, e
+.Aq arg
+sono zero o più argomenti da passare al programma.
+.Pp
+Le seguenti variabili rappresentano valori impostabili in
+.Nm
+(vedere la sezione
+.Sx FILE DI CONFIGURAZIONE
+sopra), e possono essere usati nel campo
+.Aq arg
+dove saranno sostituite con il valore al momento del lancio del programma:
+.Pp
+.Bl -tag -width "$bar_font_color" -offset indent -compact
+.It Cm $bar_border
+.It Cm $bar_color
+.It Cm $bar_font
+.It Cm $bar_font_color
+.It Cm $color_focus
+.It Cm $color_unfocus
+.El
+.Pp
+Esempio:
+.Bd -literal -offset indent
+program[ff] = /usr/local/bin/firefox http://scrotwm.org/
+bind[ff] = Mod+f # adesso Mod+F lancia firefox
+.Ed
+.Pp
+Per eliminare la combinazione precedente:
+.Bd -literal -offset indent
+bind[] = Mod+f
+program[ff] =
+.Ed
+.Pp
+.Sh SCORCIATOIE
+.Nm
+fornisce molte funzioni (o azioni) accessibili tramite combinazioni di
+tasti sul mouse o sulla tastiera.
+.Pp
+Le scorciatoie assegnate al mouse sono:
+.Pp
+.Bl -tag -width "M-j, M-<TAB>XXX" -offset indent -compact
+.It Cm M1
+Dà focus alla finestra
+.It Cm M-M1
+Muove la finestra
+.It Cm M-M3
+Ridimensiona la finestra
+.It Cm M-S-M3
+Ridimensiona la finestra mantenendola centrata
+.El
+.Pp
+Le scorciatoie da tastiera di default sono:
+.Pp
+.Bl -tag -width "M-j, M-<TAB>XXX" -offset indent -compact
+.It Cm M-S- Ns Aq Cm Return
+term
+.It Cm M-p
+menu
+.It Cm M-S-q
+quit
+.It Cm M-q
+restart
+.Nm
+.It Cm M- Ns Aq Cm Space
+cycle_layout
+.It Cm M-S- Ns Aq Cm Space
+reset_layout
+.It Cm M-h
+master_shrink
+.It Cm M-l
+master_grow
+.It Cm M-,
+master_add
+.It Cm M-.
+master_del
+.It Cm M-S-,
+stack_inc
+.It Cm M-S-.
+stack_del
+.It Cm M- Ns Aq Cm Return
+swap_main
+.It Xo
+.Cm M-j ,
+.Cm M- Ns Aq Cm TAB
+.Xc
+focus_next
+.It Xo
+.Cm M-k ,
+.Cm M-S- Ns Aq Cm TAB
+.Xc
+focus_prev
+.It Cm M-m
+focus_main
+.It Cm M-S-j
+swap_next
+.It Cm M-S-k
+swap_prev
+.It Cm M-b
+bar_toggle
+.It Cm M-x
+wind_del
+.It Cm M-S-x
+wind_kill
+.It Cm M- Ns Aq Ar n
+.Ns ws_ Ns Ar n
+.It Cm M-S- Ns Aq Ar n
+.Ns mvws_ Ns Ar n
+.It Cm M- Ns Aq Cm Right
+ws_next
+.It Cm M- Ns Aq Cm Left
+ws_prev
+.It Cm M-S- Ns Aq Cm Right
+screen_next
+.It Cm M-S- Ns Aq Cm Left
+screen_prev
+.It Cm M-s
+screenshot_all
+.It Cm M-S-s
+screenshot_wind
+.It Cm M-S-v
+version
+.It Cm M-t
+float_toggle
+.It Cm M-S Aq Cm Delete
+lock
+.It Cm M-S-i
+initscr
+.El
+.Pp
+I nomi delle azioni e le relative descrizioni sono le seguenti:
+.Pp
+.Bl -tag -width "M-j, M-<TAB>XXX" -offset indent -compact
+.It Cm term
+Lancia un nuovo terminale
+(vedi
+.Sx PROGRAMMI
+più in alto)
+.It Cm menu
+Menu
+(vedi
+.Sx PROGRAMMI
+più in alto)
+.It Cm quit
+Chiude
+.Nm
+.It Cm restart
+Riavvia
+.Nm
+.It Cm cycle_layout
+Cambia layout
+.It Cm reset_layout
+Re-inizializza il layout
+.It Cm master_shrink
+Restringe l'area principale
+.It Cm master_grow
+Allarga l'area principale
+.It Cm master_add
+Aggiunge finestre all'area principale
+.It Cm master_del
+Rimuove finestre dall'area principale
+.It Cm stack_inc
+Aggiunge righe/colonne all'area di stacking
+.It Cm stack_del
+Rimuove righe/colonne dall'area di stacking
+.It Cm swap_main
+Muove la finestra corrente nell'area principale
+.It Cm focus_next
+Dà il focus alla finestra successiva
+.It Cm focus_prev
+Dà il focus alla finestra precedente
+.It Cm focus_main
+Dà il focus alla finestra principale
+.It Cm swap_next
+Scambia con la finestra successiva dell'area di lavoro
+.It Cm swap_prev
+Scambia con la finestra precedente dell'area di lavoro
+.It Cm bar_toggle
+Mostra/nascondi la barra di stato da tutte le aree di lavoro
+.It Cm wind_del
+Chiudi la finestra corrente
+.It Cm wind_kill
+Distruggi la finestra corrente
+.It Cm ws_ Ns Ar n
+Passa all'area di lavoro
+.Ar n ,
+dove
+.Ar n
+è compreso tra 1 e 10
+.It Cm mvws_ Ns Ar n
+Sposta la finestra corrente nell'area di lavoro
+.Ar n ,
+dove
+.Ar n
+è compreso tra 1 e 10
+.It Cm ws_next
+Passa all'area di lavoro non vuota successiva
+.It Cm ws_prev
+Passa all'area di lavoro non vuota precedente
+.It Cm screen_next
+Sposta il puntatore nella regione successiva
+.It Cm screen_prev
+Sposta il puntatore nella regione precedente
+.It Cm screenshot_all
+Cattura uno screenshot dell'intero schermo, se abilitato (vedere la sezione
+.Sx PROGRAMMI
+sopra)
+.It Cm screenshot_wind
+Cattura uno screenshot di una singola finestra, se abilitato (vedere la
+sezione
+.Sx PROGRAMMI
+sopra)
+.It Cm version
+Abilita/disabilita il numero di versione nella barra di stato
+.It Cm float_toggle
+Passa la finestra che ha il focus da floating a tiled
+.It Cm lock
+Blocca lo schermo (vedere la sezione
+.Sx PROGRAMMI
+sopra)
+.It Cm initscr
+Re-inizializza gli schermi fisici (vedere la sezione
+.Sx PROGRAMMI
+sopra)
+.El
+.Pp
+Le scorciatoie personalizzate sono specificate nel file di configurazione
+come segue:
+.Pp
+.Dl bind[<azione>] = <tasti>
+.Pp
+.Aq azione
+è una delle azioni elencate sopra (oppure nulla) e
+.Aq tasti
+è dato da zero o più modificatori (MOD, Mod1, Shift, ecc.) e uno o più
+tasti normali (b, space, ecc.), separati da "+".
+Per esempio:
+.Bd -literal -offset indent
+bind[reset] = Mod4+q # assegna reset ai tasti Windows + q
+bind[] = Mod1+q # rimuovi l'assegnazione di Alt + q
+.Ed
+.Pp
+Più combinazioni di tasti possono essere assegnate alla stessa azione.
+.Sh QUIRK
+.Nm
+fornisce la possibilità di specificare dei "quirk" per la gestione di
+finestre che devono subire un trattamento speciale da un gestore di finestre
+tiling, come ad esempio alcune finestre di dialogo e applicazioni a
+schermo intero.
+.Pp
+I quirk abilitati di default sono elencati qui sotto:
+.Pp
+.Bl -tag -width "OpenOffice.org N.M:VCLSalFrame<TAB>XXX" -offset indent -compact
+.It Firefox\-bin:firefox\-bin
+TRANSSZ
+.It Firefox:Dialog
+FLOAT
+.It Gimp:gimp
+FLOAT + ANYWHERE
+.It MPlayer:xv
+FLOAT + FULLSCREEN
+.It OpenOffice.org 2.4:VCLSalFrame
+FLOAT
+.It OpenOffice.org 3.1:VCLSalFrame
+FLOAT
+.It pcb:pcb
+FLOAT
+.It xine:Xine Window
+FLOAT + ANYWHERE
+.It xine:xine Panel
+FLOAT + ANYWHERE
+.It xine:xine Video Fullscreen Window
+FULLSCREEN + FLOAT
+.It Xitk:Xitk Combo
+FLOAT + ANYWHERE
+.It Xitk:Xine Window
+FLOAT + ANYWHERE
+.It XTerm:xterm
+XTERM_FONTADJ
+.El
+.Pp
+I quirk sono descritti qui sotto:
+.Pp
+.Bl -tag -width "XTERM_FONTADJ<TAB>XXX" -offset indent -compact
+.It FLOAT
+Questa finestra deve essere lasciata libera di muoversi.
+.It TRANSSZ
+Aggiusta la dimensione delle finestre troppo piccole usando dialog_ratio
+(vedere
+.Sx FILE DI CONFIGURAZIONE ) .
+.It ANYWHERE
+Consente alla finestra di decidere da sola dove posizionarsi.
+.It XTERM_FONTADJ
+Aggiusta il font di xterm quando viene ridimensionata la finestra.
+.It FULLSCREEN
+Rimuove i bordi, consentendo alla finestra di usare l'intera dimensione
+dello schermo.
+.El
+.Pp
+I quirk personalizzati vanno specificati nel file di configurazione come
+segue:
+.Pp
+.Dl quirk[<classe>:<nome>] = <quirk> [ + <quirk> ... ]
+.Pp
+.Aq classe
+e
+.Aq nome
+specificano a quali finestre i quirk vanno applicati, e
+.Aq quirk
+è uno dei quirk presente nella lista sopra.
+Ad esempio:
+.Bd -literal -offset indent
+quirk[MPlayer:xv] = FLOAT + FULLSCREEN # lascia che mplayer suoni
+quirk[pcb:pcb] = NONE  # rimuovi un quirk precedentemente specificato
+.Ed
+.Pp
+È possibile ottenere
+.Aq classe
+e
+.Aq nome
+usando xprop(1) e facendo click sulla finestra desiderata.
+Nel seguente esempio è stato fatto click sulla finestra principale di
+Firefox:
+.Bd -literal -offset indent
+$ xprop | grep WM_CLASS
+WM_CLASS(STRING) = "Navigator", "Firefox"
+.Ed
+.Pp
+Bisogna tener conto del fatto che usare grep per trovare WM_CLASS inverte
+la classe e il nome. Nell'esempio precedente, la dichiarazione del quirk
+sarebbe
+.Bd -literal -offset indent
+quirk[Firefox:Navigator] = FLOAT
+.Ed
+.Sh FILE
+.Bl -tag -width "/etc/scrotwm.confXXX" -compact
+.It Pa ~/.scrotwm.conf
+impostazioni di
+.Nm
+dell'utente.
+.It Pa /etc/scrotwm.conf
+impostazioni globali di
+.Nm .
+.El
+.Sh ORIGINE
+.Nm
+prende ispirazione da xmonad & dwm.
+.Sh AUTORI
+.An -nosplit
+.Pp
+.Nm
+è stato scritto da
+.An Marco Peereboom Aq marco@peereboom.us ,
+.An Ryan Thomas McBride Aq mcbride@countersiege.com
+e
+.An Darrin Chandler Aq dwchandler@stilyagin.com .
+.Sh BUGS
+Al momento il menu, invocato usando
+.Cm M-p ,
+dipende da dmenu.
