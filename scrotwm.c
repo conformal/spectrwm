@@ -157,6 +157,7 @@ char			**start_argv;
 Atom			astate;
 Atom			aprot;
 Atom			adelete;
+Atom			takefocus;
 volatile sig_atomic_t   running = 1;
 int			outputs = 0;
 int			(*xerrorxlib)(Display *, XErrorEvent *);
@@ -232,14 +233,16 @@ TAILQ_HEAD(swm_region_list, swm_region);
 struct ws_win {
 	TAILQ_ENTRY(ws_win)	entry;
 	Window			id;
+	Window			transient;
+	struct ws_win		*child_trans;	/* transient child window */
 	struct swm_geometry	g;
 	int			floating;
-	int			transient;
 	int			manual;
 	int			font_size_boundary[SWM_MAX_FONT_STEPS];
 	int			font_steps;
 	int			last_inc;
 	int			can_delete;
+	int			take_focus;
 	int			java;
 	unsigned long		quirks;
 	struct workspace	*ws;	/* always valid */
@@ -1304,8 +1307,9 @@ focus_win(struct ws_win *win)
 		grabbuttons(win, 1);
 		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS)
 			XMapRaised(display, win->id);
-		XSetInputFocus(display, win->id,
-		    RevertToPointerRoot, CurrentTime);
+		if (win->java == 0)
+			XSetInputFocus(display, win->id,
+			    RevertToPointerRoot, CurrentTime);
 	}
 }
 
@@ -3324,7 +3328,7 @@ manage_window(Window id)
 {
 	Window			trans = 0;
 	struct workspace	*ws;
-	struct ws_win		*win, *ww;
+	struct ws_win		*win, *ww, *parent;
 	int			format, i, ws_idx, n, border_me = 0;
 	unsigned long		nitems, bytes;
 	Atom			ws_idx_atom = 0, type;
@@ -3351,14 +3355,20 @@ manage_window(Window id)
 	XGetTransientForHint(display, id, &trans);
 	if (trans) {
 		win->transient = trans;
+		parent = find_window(win->transient);
+		if (parent)
+			parent->child_trans = win;
 		DNPRINTF(SWM_D_MISC, "manage_window: win %u transient %u\n",
 		    (unsigned)win->id, win->transient);
 	}
 	/* get supported protocols */
 	if (XGetWMProtocols(display, id, &prot, &n)) {
-		for (i = 0, pp = prot; i < n; i++, pp++)
+		for (i = 0, pp = prot; i < n; i++, pp++) {
+			if (*pp == takefocus)
+				win->take_focus = 1;
 			if (*pp == adelete)
 				win->can_delete = 1;
+		}
 		if (prot)
 			XFree(prot);
 	}
@@ -3434,6 +3444,8 @@ manage_window(Window id)
 		}
 	}
 
+	if (win->java && win->transient) {
+	}
 	/* alter window position if quirky */
 	if (win->quirks & SWM_Q_ANYWHERE) {
 		win->manual = 1; /* don't center the quirky windows */
@@ -3482,11 +3494,18 @@ void
 unmanage_window(struct ws_win *win)
 {
 	struct workspace	*ws;
+	struct ws_win		*parent;
 
 	if (win == NULL)
 		return;
 
 	DNPRINTF(SWM_D_MISC, "unmanage_window:  %lu\n", win->id);
+
+	if (win->transient) {
+		parent = find_window(win->transient);
+		if (parent)
+			parent->child_trans = NULL;
+	}
 
 	ws = win->ws;
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
@@ -3495,6 +3514,28 @@ unmanage_window(struct ws_win *win)
 	if (win->ch.res_name)
 		XFree(win->ch.res_name);
 	free(win);
+}
+
+void
+focus_magic(struct ws_win *win)
+{
+	if (win->child_trans) {
+		/* win = parent & has a transient so focus on that */
+		if (win->java) {
+			focus_win(win->child_trans);
+			if (win->child_trans->take_focus)
+				client_msg(win, takefocus);
+		} else {
+			focus_win(win->child_trans);
+			if (win->child_trans->take_focus)
+				client_msg(win->child_trans, takefocus);
+		}
+	} else {
+		/* regular focus */
+		focus_win(win);
+		if (win->take_focus)
+			client_msg(win, takefocus);
+	}
 }
 
 void
@@ -3544,10 +3585,9 @@ buttonpress(XEvent *e)
 	action = root_click;
 	if ((win = find_window(ev->window)) == NULL)
 		return;
-	else {
-		focus_win(win);
-		action = client_click;
-	}
+
+	focus_magic(win);
+	action = client_click;
 
 	for (i = 0; i < LENGTH(buttons); i++)
 		if (action == buttons[i].action && buttons[i].func &&
@@ -3705,11 +3745,10 @@ enternotify(XEvent *e)
 	if (QLength(display))
 		return;
 
-	if ((win = find_window(ev->window)) != NULL) {
-		if (win->ws->focus == win)
-			return;
-		focus_win(win);
-	}
+	if ((win = find_window(ev->window)) == NULL)
+		return;
+
+	focus_magic(win);
 }
 
 void
@@ -4243,6 +4282,7 @@ main(int argc, char *argv[])
 	astate = XInternAtom(display, "WM_STATE", False);
 	aprot = XInternAtom(display, "WM_PROTOCOLS", False);
 	adelete = XInternAtom(display, "WM_DELETE_WINDOW", False);
+	takefocus = XInternAtom(display, "WM_TAKE_FOCUS", False);
 
 	/* look for local and global conf file */
 	pwd = getpwuid(getuid());
