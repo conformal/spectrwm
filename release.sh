@@ -16,6 +16,11 @@ if [ -d "$PREFIX$1" ]; then
 	exit 1
 fi
 
+if [ -d "$PREFIX$1-port" ]; then
+	echo "$PREFIX$1 already exists"
+	exit 1
+fi
+
 TARGET="$PREFIX$1"
 mkdir $TARGET
 
@@ -28,3 +33,31 @@ for i in $FILES; do
 done
 
 tar zcf $TARGET.tgz $TARGET
+
+# make port
+PORT="$PREFIX$1-port"
+mkdir $PORT
+
+# Makefile
+cat port/Makefile | sed "s/SCROTWMVERSION/$1/g" > $PORT/Makefile
+
+# distinfo
+md5 $TARGET.tgz > $PORT/distinfo
+rmd160 $TARGET.tgz >> $PORT/distinfo
+sha1 $TARGET.tgz >> $PORT/distinfo
+cksum -a sha256 $TARGET.tgz >> $PORT/distinfo
+wc -c $TARGET.tgz 2>/dev/null | awk '{print "SIZE (" $2 ") = " $1}' >> $PORT/distinfo
+
+# pkg
+mkdir $PORT/pkg
+cp port/pkg/DESCR $PORT/pkg/
+cp port/pkg/PFRAG.shared $PORT/pkg/
+cp port/pkg/PLIST $PORT/pkg/
+
+# patches
+mkdir $PORT/patches
+cp port/patches/patch-scrotwm_c $PORT/patches/
+cp port/patches/patch-scrotwm_conf $PORT/patches/
+
+# make diff
+diff -ruNp -x CVS /usr/ports/x11/scrotwm/ $PORT > $TARGET.diff
