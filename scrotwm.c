@@ -941,6 +941,7 @@ set_win_state(struct ws_win *win, long state)
 	long			data[] = {state, None};
 	XEvent			ev;
 	XWindowAttributes	wa;
+	int			putback;
 
 	DNPRINTF(SWM_D_EVENT, "set_win_state: window: %lu\n", win->id);
 
@@ -957,8 +958,11 @@ set_win_state(struct ws_win *win, long state)
 	    (unsigned char *)data, 2);
 
 	/* wait for completion of XChangeProperty */
+	putback = 0;
 	while (XCheckIfEvent(display, &ev, set_win_notify_cb, (char *)win))
-		;
+		putback = 1;
+	if (putback)
+		XPutBackEvent(display, &ev);
 }
 
 long
@@ -1090,6 +1094,7 @@ unmap_window(struct ws_win *win)
 {
 	XEvent			ev;
 	XWindowAttributes	wa;
+	int			putback;
 
 	if (win == NULL)
 		return;
@@ -1109,8 +1114,11 @@ unmap_window(struct ws_win *win)
 	XUnmapWindow(display, win->id);
 
 	/* make sure we wait for XUnmapWindow completion */
+	putback = 0;
 	while (XCheckIfEvent(display, &ev, unmap_window_cb, (char *)win))
-		;
+		putback = 1;
+	if (putback)
+		XPutBackEvent(display, &ev);
 }
 
 void
