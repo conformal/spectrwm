@@ -1321,6 +1321,9 @@ switchws(struct swm_region *r, union arg *args)
 	struct ws_win		*win, *winfocus = NULL, *parent = NULL;
 	struct workspace	*new_ws, *old_ws;
 
+	if (!(r && r->s))
+		return;
+
 	this_r = r;
 	old_ws = this_r->ws;
 	new_ws = &this_r->s->ws[wsid];
@@ -1329,7 +1332,7 @@ switchws(struct swm_region *r, union arg *args)
 	    "%d -> %d\n", r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r),
 	    old_ws->idx, wsid);
 
-	if (new_ws == old_ws)
+	if (new_ws == NULL || old_ws == NULL || new_ws == old_ws)
 		return;
 
 	/* get focus window */
@@ -3499,6 +3502,9 @@ unmanage_window(struct ws_win *win)
 
 	DNPRINTF(SWM_D_MISC, "unmanage_window:  %lu\n", win->id);
 
+	/* needed for restart wm */
+	set_win_state(win, WithdrawnState);
+
 	if (win->transient) {
 		parent = find_window(win->transient);
 		if (parent)
@@ -4181,7 +4187,6 @@ setup_screens(void)
 		/* attach windows to a region */
 		/* normal windows */
 		for (j = 0; j < no; j++) {
-                        XGetWindowAttributes(display, wins[j], &wa);
 			if (!XGetWindowAttributes(display, wins[j], &wa) ||
 			    wa.override_redirect ||
 			    XGetTransientForHint(display, wins[j], &d1))
@@ -4194,7 +4199,8 @@ setup_screens(void)
 		}
 		/* transient windows */
 		for (j = 0; j < no; j++) {
-			if (!XGetWindowAttributes(display, wins[j], &wa))
+			if (!XGetWindowAttributes(display, wins[j], &wa) ||
+			    wa.override_redirect)
 				continue;
 
 			state = getstate(wins[j]);
