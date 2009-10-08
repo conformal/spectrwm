@@ -997,6 +997,9 @@ client_msg(struct ws_win *win, Atom a)
 {
 	XClientMessageEvent	cm;
 
+	if (win == NULL)
+		return;
+
 	bzero(&cm, sizeof cm);
 	cm.type = ClientMessage;
 	cm.window = win->id;
@@ -1014,6 +1017,10 @@ config_win(struct ws_win *win)
 
 	DNPRINTF(SWM_D_MISC, "config_win: win %lu x %d y %d w %d h %d\n",
 	    win->id, win->g.x, win->g.y, win->g.w, win->g.h);
+
+	if (win == NULL)
+		return;
+
 	ce.type = ConfigureNotify;
 	ce.display = display;
 	ce.event = win->id;
@@ -1122,6 +1129,9 @@ void
 fake_keypress(struct ws_win *win, int keysym, int modifiers)
 {
 	XKeyEvent event;
+
+	if (win == NULL)
+		return;
 
 	event.display = display;	/* Ignored, but what the hell */
 	event.window = win->id;
@@ -1261,7 +1271,8 @@ unfocus_win(struct ws_win *win)
 {
 	if (win == NULL)
 		return;
-
+	if (win->ws == NULL)
+		return;
 	if (win->ws->r == NULL)
 		return;
 
@@ -1295,6 +1306,8 @@ focus_win(struct ws_win *win)
 	DNPRINTF(SWM_D_FOCUS, "focus_win: id: %lu\n", win ? win->id : 0);
 
 	if (win == NULL)
+		return;
+	if (win->ws == NULL)
 		return;
 
 	/* use big hammer to make sure it works under all use cases */
