@@ -52,7 +52,7 @@
 
 static const char	*cvstag = "$scrotwm$";
 
-#define	SWM_VERSION	"0.9.11"
+#define	SWM_VERSION	"0.9.12"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1553,6 +1553,8 @@ swapwin(struct swm_region *r, union arg *args)
 			else
 				return;
                 }
+		if (target == NULL || source == NULL)
+			return;
 		source->ws->focus_prev = target;
 		TAILQ_REMOVE(wl, target, entry);
 		TAILQ_INSERT_BEFORE(source, target, entry);
