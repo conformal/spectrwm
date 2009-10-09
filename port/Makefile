@@ -36,6 +36,7 @@ post-install:
 	${INSTALL_DATA_DIR} ${PREFIX}/share/scrotwm
 	${INSTALL_DATA_DIR} ${PREFIX}/share/examples/scrotwm
 	${INSTALL_SCRIPT} ${WRKSRC}/baraction.sh ${PREFIX}/share/scrotwm
+	${INSTALL_SCRIPT} ${WRKSRC}/initscreen.sh ${PREFIX}/share/scrotwm
 	${INSTALL_SCRIPT} ${WRKSRC}/screenshot.sh ${PREFIX}/share/scrotwm
 	${INSTALL_DATA} ${WRKSRC}/scrotwm.conf ${PREFIX}/share/examples/scrotwm
 
