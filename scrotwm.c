@@ -1044,21 +1044,6 @@ count_win(struct workspace *ws, int count_transient)
 {
 	struct ws_win		*win;
 	int			count = 0;
-	int			state;
-
-	/*
-	 * Under stress conditions windows sometimes do not get removed from
-	 * the managed list quickly enough.  Use a very large hammer to get rid
-	 * of them.  A smaller hammer would be nice.
-	 */
-	TAILQ_FOREACH(win, &ws->winlist, entry) {
-		state = getstate(win->id);
-		if (state == -1) {
-			DNPRINTF(SWM_D_MISC, "count_win:removing: %lu\n",
-			    win->id);
-			unmanage_window(win);
-		}
-	}
 
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
 		if (count_transient == 0 && win->floating)
@@ -3591,6 +3576,15 @@ focus_magic(struct ws_win *win)
 	}
 }
 
+Bool
+destroy_notify_cb(Display *d, XEvent *e, char *arg)
+{
+	struct ws_win		*win = (struct ws_win *)arg;
+	if (win && win->id == e->xany.window && e->xany.type == DestroyNotify)
+			return (True);
+	return (False);
+}
+
 void
 expose(XEvent *e)
 {
@@ -3731,10 +3725,11 @@ configurenotify(XEvent *e)
 void
 destroynotify(XEvent *e)
 {
-	struct ws_win		*win, *winfocus = NULL;
+	struct ws_win		*win, *w, *winfocus = NULL;
 	struct workspace	*ws;
 	struct ws_win_list	*wl;
 	XDestroyWindowEvent	*ev = &e->xdestroywindow;
+	XEvent			de;
 
 	DNPRINTF(SWM_D_EVENT, "destroynotify: window %lu\n", ev->window);
 
@@ -3769,6 +3764,26 @@ destroynotify(XEvent *e)
 			}
 		}
 		unmanage_window(win);
+
+		/*
+		 * Under stress conditions windows sometimes do not get removed
+		 * from the managed list.  Use a very large hammer to get rid
+		 * of them.  A smaller hammer would be nice.
+		 */
+		TAILQ_FOREACH(w, &ws->winlist, entry) {
+			if (win == w)
+				continue; /* can't happen but oh well */
+
+			if (getstate(w->id) != -1)
+				continue;
+
+			/* see if we have a destroy event */
+			if (XCheckIfEvent(display, &de, destroy_notify_cb,
+			    (char *)w) == False)
+				unmanage_window(w); /* no event, help it */
+			else
+				XPutBackEvent(display, &de); /* oops */
+		}
 
 		ignore_enter = 1;
 		stack();
@@ -4307,6 +4322,7 @@ main(int argc, char *argv[])
 	struct passwd		*pwd;
 	struct swm_region	*r, *rr;
 	struct ws_win		*winfocus = NULL;
+	struct timeval		tv;
 	char			conf[PATH_MAX], *cfile = NULL;
 	struct stat		sb;
 	XEvent			e;
@@ -4420,7 +4436,9 @@ main(int argc, char *argv[])
 
 		FD_ZERO(&rd);
 		FD_SET(xfd, &rd);
-		if (select(xfd + 1, &rd, NULL, NULL, NULL) == -1)
+		tv.tv_sec = 1;
+		tv.tv_usec = 0;
+		if (select(xfd + 1, &rd, NULL, NULL, &tv) == -1)
 			if (errno != EINTR)
 				DNPRINTF(SWM_D_MISC, "select failed");
 		if (running == 0)
