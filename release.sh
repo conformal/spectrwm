@@ -42,10 +42,10 @@ mkdir $PORT
 cat port/Makefile | sed "s/SCROTWMVERSION/$1/g" > $PORT/Makefile
 
 # distinfo
-md5 $TARGET.tgz > $PORT/distinfo
-rmd160 $TARGET.tgz >> $PORT/distinfo
-sha1 $TARGET.tgz >> $PORT/distinfo
-cksum -a sha256 $TARGET.tgz >> $PORT/distinfo
+cksum -b -a md5 $TARGET.tgz > $PORT/distinfo
+cksum -b -a rmd160 $TARGET.tgz >> $PORT/distinfo
+cksum -b -a sha1 $TARGET.tgz >> $PORT/distinfo
+cksum -b -a sha256 $TARGET.tgz >> $PORT/distinfo
 wc -c $TARGET.tgz 2>/dev/null | awk '{print "SIZE (" $2 ") = " $1}' >> $PORT/distinfo
 
 # pkg
