@@ -344,7 +344,6 @@ struct layout {
 /* define work spaces */
 struct workspace {
 	int			idx;		/* workspace index */
-	int			restack;	/* restack on switch */
 	struct layout		*cur_layout;	/* current layout handlers */
 	struct ws_win		*focus;		/* may be NULL */
 	struct ws_win		*focus_prev;	/* may be NULL */
@@ -821,7 +820,7 @@ void
 bar_toggle(struct swm_region *r, union arg *args)
 {
 	struct swm_region	*tmpr;
-	int			i, j, sc = ScreenCount(display);
+	int			i, sc = ScreenCount(display);
 
 	DNPRINTF(SWM_D_MISC, "bar_toggle\n");
 
@@ -835,9 +834,6 @@ bar_toggle(struct swm_region *r, union arg *args)
 				XMapRaised(display, tmpr->bar_window);
 
 	bar_enabled = !bar_enabled;
-	for (i = 0; i < sc; i++)
-		for (j = 0; j < SWM_WS_MAX; j++)
-			screens[i].ws[j].restack = 1;
 
 	stack();
 	/* must be after stack */
@@ -925,23 +921,11 @@ bar_setup(struct swm_region *r)
 	bar_refresh();
 }
 
-Bool
-set_win_notify_cb(Display *d, XEvent *e, char *arg)
-{
-	struct ws_win		*win = (struct ws_win *)arg;
-
-	if (win && win->id == e->xany.window && e->xany.type == PropertyNotify)
-			return (True);
-	return (False);
-}
-
 void
 set_win_state(struct ws_win *win, long state)
 {
 	long			data[] = {state, None};
-	XEvent			ev;
 	XWindowAttributes	wa;
-	int			putback;
 
 	DNPRINTF(SWM_D_EVENT, "set_win_state: window: %lu\n", win->id);
 
@@ -956,13 +940,6 @@ set_win_state(struct ws_win *win, long state)
 
 	XChangeProperty(display, win->id, astate, astate, 32, PropModeReplace,
 	    (unsigned char *)data, 2);
-
-	/* wait for completion of XChangeProperty */
-	putback = 0;
-	while (XCheckIfEvent(display, &ev, set_win_notify_cb, (char *)win))
-		putback = 1;
-	if (putback)
-		XPutBackEvent(display, &ev);
 }
 
 long
@@ -1015,6 +992,28 @@ client_msg(struct ws_win *win, Atom a)
 }
 
 void
+configreq_win(struct ws_win *win)
+{
+	XConfigureRequestEvent	cr;
+
+	if (win == NULL)
+		return;
+
+	bzero(&cr, sizeof cr);
+	cr.type = ConfigureRequest;
+	cr.display = display;
+	cr.parent = win->id;
+	cr.window = win->id;
+	cr.x = win->g.x;
+	cr.y = win->g.y;
+	cr.width = win->g.w;
+	cr.height = win->g.h;
+	cr.border_width = 1;
+
+	XSendEvent(display, win->id, False, StructureNotifyMask, (XEvent *)&cr);
+}
+
+void
 config_win(struct ws_win *win)
 {
 	XConfigureEvent		ce;
@@ -1064,22 +1063,10 @@ quit(struct swm_region *r, union arg *args)
 	running = 0;
 }
 
-Bool
-unmap_window_cb(Display *d, XEvent *e, char *arg)
-{
-	struct ws_win		*win = (struct ws_win *)arg;
-
-	if (win && win->id == e->xany.window && e->xany.type == UnmapNotify)
-			return (True);
-	return (False);
-}
-
 void
 unmap_window(struct ws_win *win)
 {
-	XEvent			ev;
 	XWindowAttributes	wa;
-	int			putback;
 
 	if (win == NULL)
 		return;
@@ -1097,13 +1084,6 @@ unmap_window(struct ws_win *win)
 		set_win_state(win, IconicState);
 
 	XUnmapWindow(display, win->id);
-
-	/* make sure we wait for XUnmapWindow completion */
-	putback = 0;
-	while (XCheckIfEvent(display, &ev, unmap_window_cb, (char *)win))
-		putback = 1;
-	if (putback)
-		XPutBackEvent(display, &ev);
 }
 
 void
@@ -1366,7 +1346,6 @@ switchws(struct swm_region *r, union arg *args)
 		if (old_ws->r != NULL)
 			old_ws->old_r = old_ws->r;
 		old_ws->r = NULL;
-		old_ws->restack = 1;
 
 		/*
 		 * Map new windows first if they were here before
@@ -1679,7 +1658,6 @@ stack(void) {
 				fprintf(stderr, "illegal cur_layout\n");
 				abort();
 			}
-			r->ws->restack = 0;
 			if (r->ws->cur_layout->l_stack == NULL) {
 				fprintf(stderr, "illegal l_stack\n");
 				abort();
@@ -1775,7 +1753,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	int			w_inc = 1, h_inc, w_base = 1, h_base;
 	int			hrh, extra = 0, h_slice, last_h = 0;
 	int			split, colno, winno, mwin, msize, mscale;
-	int			remain, missing, v_slice;
+	int			remain, missing, v_slice, reconfigure;
 	unsigned int		mask;
 
 	DNPRINTF(SWM_D_STACK, "stack_master: workspace: %d\n rot=%s flip=%s",
@@ -1896,20 +1874,32 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 
 		bzero(&wc, sizeof wc);
 		wc.border_width = 1;
+		reconfigure = 0;
 		if (rot) {
-			win->g.x = wc.x = win_g.y;
-			win->g.y = wc.y = win_g.x;
-			win->g.w = wc.width = win_g.h;
-			win->g.h = wc.height = win_g.w;
+			if (win->g.x != win_g.y || win->g.y != win_g.x ||
+			    win->g.w != win_g.h || win->g.h != win_g.w) {
+				reconfigure = 1;
+				win->g.x = wc.x = win_g.y;
+				win->g.y = wc.y = win_g.x;
+				win->g.w = wc.width = win_g.h;
+				win->g.h = wc.height = win_g.w;
+			}
 		} else {
-			win->g.x = wc.x = win_g.x;
-			win->g.y = wc.y = win_g.y;
-			win->g.w = wc.width = win_g.w;
-			win->g.h = wc.height = win_g.h;
+			if (win->g.x != win_g.x || win->g.y != win_g.y ||
+			    win->g.w != win_g.w || win->g.h != win_g.h) {
+				reconfigure = 1;
+				win->g.x = wc.x = win_g.x;
+				win->g.y = wc.y = win_g.y;
+				win->g.w = wc.width = win_g.w;
+				win->g.h = wc.height = win_g.h;
+			}
 		}
-		adjust_font(win);
-		mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
-		XConfigureWindow(display, win->id, mask, &wc);
+		if (reconfigure) {
+			adjust_font(win);
+			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
+			XConfigureWindow(display, win->id, mask, &wc);
+			configreq_win(win);
+		}
 		XMapRaised(display, win->id);
 
 		last_h = win_g.h;
@@ -2042,9 +2032,14 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		return;
 
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
-		if (win->transient != 0) {
+		if (win->transient) {
 			wintrans = win;
-		} else {
+			continue;
+		}
+
+		/* only reconfigure if necessary */
+		if (win->g.x != gg.x || win->g.y != gg.y || win->g.w != gg.w ||
+		    win->g.h != gg.h) {
 			bzero(&wc, sizeof wc);
 			wc.border_width = 1;
 			win->g.x = wc.x = gg.x;
@@ -2053,12 +2048,12 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 			win->g.h = wc.height = gg.h;
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 			XConfigureWindow(display, win->id, mask, &wc);
-
-			/* unmap only if we don't have multi screen */
-			if (win != ws->focus)
-				if (!(ScreenCount(display) > 1 || outputs > 1))
-					unmap_window(win);
+			configreq_win(win);
 		}
+		/* unmap only if we don't have multi screen */
+		if (win != ws->focus)
+			if (!(ScreenCount(display) > 1 || outputs > 1))
+				unmap_window(win);
 	}
 
 	/* put the last transient on top */
@@ -2120,8 +2115,6 @@ send_to_ws(struct swm_region *r, union arg *args)
 
 	if (count_win(nws, 1) == 1)
 		nws->focus = win;
-	ws->restack = 1;
-	nws->restack = 1;
 
 	stack();
 	if (winfocus)
@@ -3511,6 +3504,7 @@ manage_window(Window id)
 		wc.border_width = 1;
 		mask = CWBorderWidth;
 		XConfigureWindow(display, win->id, mask, &wc);
+		configreq_win(win);
 	}
 
 	XSelectInput(display, id, EnterWindowMask | FocusChangeMask |
@@ -3692,11 +3686,11 @@ configurerequest(XEvent *e)
 					ev->value_mask |= CWY | CWHeight;
 				}
 			}
+			XMoveResizeWindow(display, win->id,
+			    win->g.x, win->g.y, win->g.w, win->g.h);
 			if ((ev->value_mask & (CWX | CWY)) &&
 			    !(ev->value_mask & (CWWidth | CWHeight)))
 				config_win(win);
-			XMoveResizeWindow(display, win->id,
-			    win->g.x, win->g.y, win->g.w, win->g.h);
 		} else
 			config_win(win);
 	}
@@ -3931,6 +3925,10 @@ unmapnotify(XEvent *e)
 	/* determine if we need to help unmanage this window */
 	win = find_window(e->xunmap.window);
 	if (win == NULL)
+		return;
+
+	/* igonore transients and floaters, like mplayer */
+	if (win->transient || win->floating)
 		return;
 
 	/* java can not deal with this heuristic */
@@ -4226,7 +4224,6 @@ setup_screens(void)
 		for (j = 0; j < SWM_WS_MAX; j++) {
 			ws = &screens[i].ws[j];
 			ws->idx = j;
-			ws->restack = 1;
 			ws->focus = NULL;
 			ws->r = NULL;
 			ws->old_r = NULL;
