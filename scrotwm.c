@@ -2198,6 +2198,7 @@ resize(struct ws_win *win, union arg *args)
 {
 	XEvent			ev;
 	Time			time = 0;
+	struct swm_region	*r = win->ws->r;
 
 	DNPRINTF(SWM_D_MOUSE, "resize: win %lu floating %d trans %d\n",
 	    win->id, win->floating, win->transient);
@@ -2219,6 +2220,14 @@ resize(struct ws_win *win, union arg *args)
 			handler[ev.type](&ev);
 			break;
 		case MotionNotify:
+			/* do not allow resize outside of region */
+			if (ev.xmotion.y_root < r->g.y ||
+			    ev.xmotion.y_root >= r->g.y + r->g.h - 1)
+				continue;
+			if (ev.xmotion.x_root < r->g.x ||
+			    ev.xmotion.x_root >= r->g.x + r->g.w - 1)
+				continue;
+
 			if (ev.xmotion.x <= 1)
 				ev.xmotion.x = 1;
 			if (ev.xmotion.y <= 1)
@@ -2273,6 +2282,7 @@ move(struct ws_win *win, union arg *args)
 	XEvent			ev;
 	Time			time = 0;
 	int			restack = 0;
+	struct swm_region	*r = win->ws->r;
 
 	DNPRINTF(SWM_D_MOUSE, "move: win %lu floating %d trans %d\n",
 	    win->id, win->floating, win->transient);
@@ -2297,6 +2307,14 @@ move(struct ws_win *win, union arg *args)
 			handler[ev.type](&ev);
 			break;
 		case MotionNotify:
+			/* don't allow to move window out of region */
+			if (ev.xmotion.y_root < r->g.y ||
+			    ev.xmotion.y_root + win->g.h >= r->g.y + r->g.h - 1)
+				continue;
+			if (ev.xmotion.x_root < r->g.x ||
+			    ev.xmotion.x_root + win->g.w >= r->g.x + r->g.w - 1)
+				continue;
+
 			win->g.x = ev.xmotion.x_root;
 			win->g.y = ev.xmotion.y_root;
 
