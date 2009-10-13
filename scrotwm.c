@@ -52,7 +52,7 @@
 
 static const char	*cvstag = "$scrotwm$";
 
-#define	SWM_VERSION	"0.9.13"
+#define	SWM_VERSION	"0.9.14"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1350,14 +1350,8 @@ switchws(struct swm_region *r, union arg *args)
 	struct ws_win		*win, *winfocus = NULL, *parent = NULL;
 	struct workspace	*new_ws, *old_ws;
 
-	if (!(r && r->s)) {
-		fprintf(stderr, "r && r->s failed\n");
-		abort();
-	}
-	if (wsid < 0 || wsid > SWM_WS_MAX) {
-		fprintf(stderr, "illegal wsid\n");
-		abort();
-	}
+	if (!(r && r->s))
+		return;
 
 	this_r = r;
 	old_ws = this_r->ws;
@@ -1367,11 +1361,8 @@ switchws(struct swm_region *r, union arg *args)
 	    "%d -> %d\n", r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r),
 	    old_ws->idx, wsid);
 
-	if (new_ws == NULL || old_ws == NULL) {
-		fprintf(stderr, "new_ws = %p old_ws = %p\n", new_ws, old_ws);
-		abort();
-	}
-
+	if (new_ws == NULL || old_ws == NULL)
+		return;
 	if (new_ws == old_ws)
 		return;
 
@@ -1672,28 +1663,12 @@ stack(void) {
 			    "(screen %d, region %d)\n", r->ws->idx, i, j++);
 
 			/* start with screen geometry, adjust for bar */
-			if (r == NULL) {
-				fprintf(stderr, "illegal r\n");
-				abort();
-			}
 			g = r->g;
 			g.w -= 2;
 			g.h -= 2;
 			if (bar_enabled) {
 				g.y += bar_height;
 				g.h -= bar_height;
-			}
-			if (r->ws == NULL) {
-				fprintf(stderr, "illegal ws\n");
-				abort();
-			}
-			if (r->ws->cur_layout == NULL) {
-				fprintf(stderr, "illegal cur_layout\n");
-				abort();
-			}
-			if (r->ws->cur_layout->l_stack == NULL) {
-				fprintf(stderr, "illegal l_stack\n");
-				abort();
 			}
 			r->ws->cur_layout->l_stack(r->ws, &g);
 		}
