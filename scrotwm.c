@@ -52,7 +52,7 @@
 
 static const char	*cvstag = "$scrotwm$";
 
-#define	SWM_VERSION	"0.9.14"
+#define	SWM_VERSION	"0.9.15"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1707,7 +1707,6 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 		wc.y = (HEIGHT(r) - win->g.h) / 2;
 	}
 
-	/* XXX need to fix manual moving into a new region */
 	/* adjust for region */
 	if (wc.x < r->g.x)
 		wc.x += r->g.x;
@@ -2338,8 +2337,6 @@ move(struct ws_win *win, union arg *args)
 
 	/* drain events */
 	while (XCheckMaskEvent(display, EnterWindowMask, &ev));
-
-	/* XXX need to fix manual moving into a new region */
 }
 
 /* key definitions */
