@@ -304,6 +304,7 @@ enum keyfuncid {
 	kf_screenshot_wind,
 	kf_float_toggle,
 	kf_version,
+	kf_dumpwins,
 	kf_spawn_lock,
 	kf_spawn_initscr,
 	kf_spawn_custom,
@@ -321,6 +322,7 @@ void	max_stack(struct workspace *, struct swm_geometry *);
 void	grabbuttons(struct ws_win *, int);
 void	new_region(struct swm_screen *, int, int, int, int);
 void	unmanage_window(struct ws_win *);
+long	getstate(Window);
 
 struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
@@ -350,6 +352,7 @@ struct workspace {
 	struct swm_region	*r;		/* may be NULL */
 	struct swm_region	*old_r;		/* may be NULL */
 	struct ws_win_list	winlist;	/* list of windows in ws */
+	struct ws_win_list	unmanagedlist;	/* list of dead windows in ws */
 
 	/* stacker state */
 	struct {
@@ -545,8 +548,48 @@ dumpevent(XEvent *e)
 		    "remaining\n",
 		    e->xany.window, e->type, QLength(display));
 }
+
+void
+dumpwins(struct swm_region *r, union arg *args)
+{
+	struct ws_win		*win;
+	unsigned int		state;
+	XWindowAttributes	wa;
+
+	if (r->ws == NULL) {
+		fprintf(stderr, "invalid workspace\n");
+		return;
+	}
+
+	fprintf(stderr, "=== managed window list ws %02d ===\n", r->ws->idx);
+
+	TAILQ_FOREACH(win, &r->ws->winlist, entry) {
+		state = getstate(win->id);
+		if (!XGetWindowAttributes(display, win->id, &wa))
+			fprintf(stderr, "window: %lu failed "
+			    "XGetWindowAttributes\n", win->id);
+		fprintf(stderr, "window: %lu map_state: %d state: %d\n",
+		    win->id, wa.map_state, state);
+	}
+
+	fprintf(stderr, "===== unmanaged window list =====\n");
+	TAILQ_FOREACH(win, &r->ws->unmanagedlist, entry) {
+		state = getstate(win->id);
+		if (!XGetWindowAttributes(display, win->id, &wa))
+			fprintf(stderr, "window: %lu failed "
+			    "XGetWindowAttributes\n", win->id);
+		fprintf(stderr, "window: %lu map_state: %d state: %d\n",
+		    win->id, wa.map_state, state);
+	}
+
+	fprintf(stderr, "=================================\n");
+}
 #else
 #define dumpevent(e)
+void
+dumpwins(struct swm_region *r, union arg *args)
+{
+}
 #endif /* SWM_DEBUG */
 
 void			expose(XEvent *);
@@ -925,17 +968,10 @@ void
 set_win_state(struct ws_win *win, long state)
 {
 	long			data[] = {state, None};
-	XWindowAttributes	wa;
 
 	DNPRINTF(SWM_D_EVENT, "set_win_state: window: %lu\n", win->id);
 
 	if (win == NULL)
-		return;
-	/* make sure we drain everything */
-	XSync(display, True);
-
-	/* make sure we still exist too */
-	if (XGetWindowAttributes(display, win->id, &wa) == BadWindow)
 		return;
 
 	XChangeProperty(display, win->id, astate, astate, 32, PropModeReplace,
@@ -1066,22 +1102,14 @@ quit(struct swm_region *r, union arg *args)
 void
 unmap_window(struct ws_win *win)
 {
-	XWindowAttributes	wa;
-
 	if (win == NULL)
 		return;
 
-	/* make sure we still exist too */
-	if (XGetWindowAttributes(display, win->id, &wa) == BadWindow)
-		return;
-
 	/* don't unmap again */
-	if (wa.map_state == IsUnmapped && getstate(win->id) == IconicState)
+	if (getstate(win->id) == IconicState)
 		return;
 
-	/* java shits itself when windows are set to iconic state */
-	if (win->java == 0)
-		set_win_state(win, IconicState);
+	set_win_state(win, IconicState);
 
 	XUnmapWindow(display, win->id);
 }
@@ -1174,6 +1202,21 @@ root_to_region(Window root)
 		r = TAILQ_FIRST(&screens[i].rl);
 
 	return (r);
+}
+
+struct ws_win *
+find_unmanaged_window(Window id)
+{
+	struct ws_win		*win;
+	int			i, j;
+
+	for (i = 0; i < ScreenCount(display); i++)
+		for (j = 0; j < SWM_WS_MAX; j++)
+			TAILQ_FOREACH(win, &screens[i].ws[j].unmanagedlist,
+			    entry)
+				if (id == win->id)
+					return (win);
+	return (NULL);
 }
 
 struct ws_win *
@@ -1288,11 +1331,11 @@ focus_win(struct ws_win *win)
 	win->ws->focus = win;
 
 	if (win->ws->r != NULL) {
-		XSetWindowBorder(display, win->id,
-		    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
 		grabbuttons(win, 1);
 		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS)
 			XMapRaised(display, win->id);
+		XSetWindowBorder(display, win->id,
+		    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
 		if (win->java == 0)
 			XSetInputFocus(display, win->id,
 			    RevertToPointerRoot, CurrentTime);
@@ -1346,16 +1389,6 @@ switchws(struct swm_region *r, union arg *args)
 		if (old_ws->r != NULL)
 			old_ws->old_r = old_ws->r;
 		old_ws->r = NULL;
-
-		/*
-		 * Map new windows first if they were here before
-		 * to minimize ugly blinking.
-		 */
-		if (new_ws->old_r == this_r)
-			TAILQ_FOREACH(win, &new_ws->winlist, entry)
-				if (!(win->ws->cur_layout->flags &
-				    SWM_L_MAPONFOCUS))
-					XMapRaised(display, win->id);
 
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
 			unmap_window(win);
@@ -2374,6 +2407,7 @@ struct keyfunc {
 	{ "spawn_lock",		legacyfunc,	{0} },
 	{ "spawn_initscr",	legacyfunc,	{0} },
 	{ "spawn_custom",	dummykeyfunc,	{0} },
+	{ "dumpwins",		dumpwins,	{0} },
 	{ "invalid key func",	NULL,		{0} },
 };
 struct key {
@@ -2896,6 +2930,9 @@ setup_keys(void)
 	setkeybinding(MODKEY|ShiftMask,	XK_v,		kf_version,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_Delete,	kf_spawn_custom,	"lock");
 	setkeybinding(MODKEY|ShiftMask,	XK_i,		kf_spawn_custom,	"initscr");
+#ifdef SWM_DEBUG
+	setkeybinding(MODKEY|ShiftMask,	XK_d,		kf_dumpwins,	NULL);
+#endif
 }
 
 void
@@ -3370,7 +3407,16 @@ manage_window(Window id)
 	XWindowChanges		wc;
 
 	if ((win = find_window(id)) != NULL)
-			return (win);	/* already being managed */
+		return (win);	/* already being managed */
+
+	/* see if we are on the unmanaged list */
+	if ((win = find_unmanaged_window(id)) != NULL) {
+		DNPRINTF(SWM_D_MISC, "manage previously unmanaged window "
+		    "%lu\n", win->id);
+		TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
+		TAILQ_INSERT_TAIL(&win->ws->winlist, win, entry);
+		return (win);
+	}
 
 	if ((win = calloc(1, sizeof(struct ws_win))) == NULL)
 		errx(1, "calloc: failed to allocate memory for new window");
@@ -3520,9 +3566,28 @@ manage_window(Window id)
 }
 
 void
+free_window(struct ws_win *win)
+{
+	DNPRINTF(SWM_D_MISC, "free_window:  %lu\n", win->id);
+
+	if (win == NULL)
+		return;
+
+	/* needed for restart wm */
+	set_win_state(win, WithdrawnState);
+
+	TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
+
+	if (win->ch.res_class)
+		XFree(win->ch.res_class);
+	if (win->ch.res_name)
+		XFree(win->ch.res_name);
+	free(win);
+}
+
+void
 unmanage_window(struct ws_win *win)
 {
-	struct workspace	*ws;
 	struct ws_win		*parent;
 
 	if (win == NULL)
@@ -3530,22 +3595,14 @@ unmanage_window(struct ws_win *win)
 
 	DNPRINTF(SWM_D_MISC, "unmanage_window:  %lu\n", win->id);
 
-	/* needed for restart wm */
-	set_win_state(win, WithdrawnState);
-
 	if (win->transient) {
 		parent = find_window(win->transient);
 		if (parent)
 			parent->child_trans = NULL;
 	}
 
-	ws = win->ws;
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
-	if (win->ch.res_class)
-		XFree(win->ch.res_class);
-	if (win->ch.res_name)
-		XFree(win->ch.res_name);
-	free(win);
+	TAILQ_INSERT_TAIL(&win->ws->unmanagedlist, win, entry);
 }
 
 void
@@ -3705,12 +3762,10 @@ configurenotify(XEvent *e)
 	DNPRINTF(SWM_D_EVENT, "configurenotify: window: %lu\n",
 	    e->xconfigure.window);
 
-	XMapWindow(display, e->xconfigure.window);
 	win = find_window(e->xconfigure.window);
 	if (win) {
 		XGetWMNormalHints(display, win->id, &win->sh, &mask);
 		adjust_font(win);
-		XMapWindow(display, win->id);
 		if (font_adjusted)
 			stack();
 	}
@@ -3719,72 +3774,67 @@ configurenotify(XEvent *e)
 void
 destroynotify(XEvent *e)
 {
-	struct ws_win		*win, *w, *winfocus = NULL;
+	struct ws_win		*win, *w, *wn, *winfocus = NULL;
 	struct workspace	*ws;
 	struct ws_win_list	*wl;
 	XDestroyWindowEvent	*ev = &e->xdestroywindow;
-	XEvent			de;
+	int			unmanaged = 0;
 
 	DNPRINTF(SWM_D_EVENT, "destroynotify: window %lu\n", ev->window);
 
-	if ((win = find_window(ev->window)) != NULL) {
-		/* find a window to focus */
-		ws = win->ws;
-		wl = &ws->winlist;
-
-		/* if we are transient give focus to parent */
-		if (win->transient)
-			winfocus = find_window(win->transient);
-		else if (ws->focus == win) {
-			/* if in max_stack try harder */
-			if (ws->cur_layout->flags & SWM_L_FOCUSPREV) {
-				if (win != ws->focus_prev)
-					winfocus = ws->focus_prev;
-				else if (win != ws->focus)
-					winfocus = ws->focus;
-			}
-
-			/* fallback and normal handling */
-			if (winfocus == NULL) {
-				if (TAILQ_FIRST(wl) == win)
-					winfocus = TAILQ_NEXT(win, entry);
-				else {
-					winfocus = TAILQ_PREV(ws->focus,
-					    ws_win_list, entry);
-					if (winfocus == NULL)
-						winfocus = TAILQ_LAST(wl,
-						    ws_win_list);
-				}
-			}
-		}
-		unmanage_window(win);
-
-		/*
-		 * Under stress conditions windows sometimes do not get removed
-		 * from the managed list.  Use a very large hammer to get rid
-		 * of them.  A smaller hammer would be nice.
-		 */
-		TAILQ_FOREACH(w, &ws->winlist, entry) {
-			if (win == w)
-				continue; /* can't happen but oh well */
-
-			if (getstate(w->id) != -1)
-				continue;
-
-			/* see if we have a destroy event */
-			if (XCheckIfEvent(display, &de, destroy_notify_cb,
-			    (char *)w) == False)
-				unmanage_window(w); /* no event, help it */
-			else
-				XPutBackEvent(display, &de); /* oops */
-		}
-
-		ignore_enter = 1;
-		stack();
-		if (winfocus)
-			focus_win(winfocus);
-		ignore_enter = 0;
+	if ((win = find_window(ev->window)) == NULL) {
+		if ((win = find_unmanaged_window(ev->window)) == NULL)
+			return;
+		unmanaged = 1;
 	}
+
+	/* find a window to focus */
+	ws = win->ws;
+	wl = &ws->winlist;
+
+	for (w = TAILQ_FIRST(&ws->winlist); w != TAILQ_END(&ws->winlist); w = wn) {
+		wn = TAILQ_NEXT(w, entry);
+		if (win == w)
+			continue; /* can't happen but oh well */
+
+		if (getstate(w->id) != -1)
+			continue;
+		unmanage_window(w);
+	}
+	/* if we are transient give focus to parent */
+	if (win->transient)
+		winfocus = find_window(win->transient);
+	else if (ws->focus == win) {
+		/* if in max_stack try harder */
+		if (ws->cur_layout->flags & SWM_L_FOCUSPREV) {
+			if (win != ws->focus_prev)
+				winfocus = ws->focus_prev;
+			else if (win != ws->focus)
+				winfocus = ws->focus;
+		}
+
+		/* fallback and normal handling */
+		if (winfocus == NULL) {
+			if (TAILQ_FIRST(wl) == win)
+				winfocus = TAILQ_NEXT(win, entry);
+			else {
+				winfocus = TAILQ_PREV(ws->focus,
+				    ws_win_list, entry);
+				if (winfocus == NULL)
+					winfocus = TAILQ_LAST(wl,
+					    ws_win_list);
+			}
+		}
+	}
+	if (unmanaged == 0)
+		unmanage_window(win);
+	free_window(win);
+
+	ignore_enter = 1;
+	stack();
+	if (winfocus)
+		focus_win(winfocus);
+	ignore_enter = 0;
 }
 
 void
@@ -3833,7 +3883,7 @@ mapnotify(XEvent *e)
 
 	DNPRINTF(SWM_D_EVENT, "mapnotify: window: %lu\n", ev->window);
 
-	win = find_window(ev->window);
+	win = manage_window(ev->window);
 	if (win)
 		set_win_state(win, NormalState);
 }
@@ -3925,10 +3975,6 @@ unmapnotify(XEvent *e)
 	/* determine if we need to help unmanage this window */
 	win = find_window(e->xunmap.window);
 	if (win == NULL)
-		return;
-
-	/* igonore transients and floaters, like mplayer */
-	if (win->transient || win->floating)
 		return;
 
 	/* java can not deal with this heuristic */
@@ -4228,6 +4274,7 @@ setup_screens(void)
 			ws->r = NULL;
 			ws->old_r = NULL;
 			TAILQ_INIT(&ws->winlist);
+			TAILQ_INIT(&ws->unmanagedlist);
 
 			for (k = 0; layouts[k].l_stack != NULL; k++)
 				if (layouts[k].l_config != NULL)
@@ -4254,7 +4301,7 @@ setup_screens(void)
 				continue;
 
 			state = getstate(wins[j]);
-			manage = state == NormalState || state == IconicState;
+			manage = state == IconicState;
 			if (wa.map_state == IsViewable || manage)
 				manage_window(wins[j]);
 		}
@@ -4265,7 +4312,7 @@ setup_screens(void)
 				continue;
 
 			state = getstate(wins[j]);
-			manage = state == NormalState || state == IconicState;
+			manage = state == IconicState;
 			if (XGetTransientForHint(display, wins[j], &d1) &&
 			    manage)
 				manage_window(wins[j]);
