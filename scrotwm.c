@@ -1688,8 +1688,8 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 
 	bzero(&wc, sizeof wc);
 	mask = CWX | CWY | CWBorderWidth | CWWidth | CWHeight;
-	if ((win->quirks & SWM_Q_FULLSCREEN) && (win->g.w == WIDTH(r)) &&
-	    (win->g.h == HEIGHT(r)))
+	if ((win->quirks & SWM_Q_FULLSCREEN) && (win->g.w >= WIDTH(r)) &&
+	    (win->g.h >= HEIGHT(r)))
 		wc.border_width = 0;
 	else
 		wc.border_width = 1;
@@ -1710,6 +1710,11 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 	/* adjust for region */
 	wc.x += r->g.x;
 	wc.y += r->g.y;
+
+	win->g.x = wc.x;
+	win->g.y = wc.y;
+	win->g.w = wc.width;
+	win->g.h = wc.height;
 
 	DNPRINTF(SWM_D_STACK, "stack_floater: win %lu x %d y %d w %d h %d\n",
 	    win->id, wc.x, wc.y, wc.width, wc.height);
@@ -3488,8 +3493,10 @@ manage_window(Window id)
 			    !strcmp(win->ch.res_name, quirks[i].name)) {
 				DNPRINTF(SWM_D_CLASS, "found: %s name: %s\n",
 				    win->ch.res_class, win->ch.res_name);
-				if (quirks[i].quirk & SWM_Q_FLOAT)
+				if (quirks[i].quirk & SWM_Q_FLOAT) {
 					win->floating = 1;
+					border_me = 1;
+				}
 				win->quirks = quirks[i].quirk;
 			}
 		}
@@ -3678,7 +3685,8 @@ configurerequest(XEvent *e)
 	XWindowChanges		wc;
 
 	if ((win = find_window(ev->window)) == NULL)
-		new = 1;
+		if ((win = find_unmanaged_window(ev->window)) == NULL)
+			new = 1;
 
 	if (new) {
 		DNPRINTF(SWM_D_EVENT, "configurerequest: new window: %lu\n",
