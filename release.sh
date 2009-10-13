@@ -35,6 +35,8 @@ done
 tar zcf $TARGET.tgz $TARGET
 
 # make port
+sudo rm -rf ports
+sudo cvs -d /cvs co ports/x11/scrotwm
 PORT="$PREFIX$1-port"
 mkdir $PORT
 
@@ -60,4 +62,4 @@ cp port/patches/patch-scrotwm_c $PORT/patches/
 cp port/patches/patch-scrotwm_conf $PORT/patches/
 
 # make diff
-diff -ruNp -x CVS /usr/ports/x11/scrotwm/ $PORT > $TARGET.diff
+diff -ruNp -x CVS ports/x11/scrotwm/ $PORT > $TARGET.diff
