@@ -1707,19 +1707,23 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 		wc.y = (HEIGHT(r) - win->g.h) / 2;
 	}
 
+	/* XXX need to fix manual moving into a new region */
 	/* adjust for region */
-	wc.x += r->g.x;
-	wc.y += r->g.y;
+	if (wc.x < r->g.x)
+		wc.x += r->g.x;
+	if (wc.y < r->g.y)
+		wc.y += r->g.y;
 
 	win->g.x = wc.x;
 	win->g.y = wc.y;
 	win->g.w = wc.width;
 	win->g.h = wc.height;
 
-	DNPRINTF(SWM_D_STACK, "stack_floater: win %lu x %d y %d w %d h %d\n",
+	DNPRINTF(SWM_D_MISC, "stack_floater: win %lu x %d y %d w %d h %d\n",
 	    win->id, wc.x, wc.y, wc.width, wc.height);
 
 	XConfigureWindow(display, win->id, mask, &wc);
+	configreq_win(win);
 }
 
 /*
@@ -2186,7 +2190,7 @@ resize_window(struct ws_win *win, int center)
 	    win->id, wc.x, wc.y, wc.width, wc.height);
 
 	XConfigureWindow(display, win->id, mask, &wc);
-	config_win(win);
+	configreq_win(win);
 }
 
 void
@@ -2260,7 +2264,7 @@ move_window(struct ws_win *win)
 	    win->id, wc.x, wc.y, wc.width, wc.height);
 
 	XConfigureWindow(display, win->id, mask, &wc);
-	config_win(win);
+	configreq_win(win);
 }
 
 void
@@ -2316,6 +2320,8 @@ move(struct ws_win *win, union arg *args)
 
 	/* drain events */
 	while (XCheckMaskEvent(display, EnterWindowMask, &ev));
+
+	/* XXX need to fix manual moving into a new region */
 }
 
 /* key definitions */
@@ -3712,27 +3718,8 @@ configurerequest(XEvent *e)
 				win->g.w = ev->width;
 			if (ev->value_mask & CWHeight)
 				win->g.h = ev->height;
-			if (win->ws->r != NULL) {
-				/* this seems to be full screen */
-				if (win->g.w >= WIDTH(win->ws->r)) {
-					win->g.x = 0;
-					win->g.w = WIDTH(win->ws->r);
-					ev->value_mask |= CWX | CWWidth;
-				}
-				if (win->g.h >= HEIGHT(win->ws->r)) {
-					/* kill border */
-					win->g.y = 0;
-					win->g.h = HEIGHT(win->ws->r);
-					ev->value_mask |= CWY | CWHeight;
-				}
-			}
-			XMoveResizeWindow(display, win->id,
-			    win->g.x, win->g.y, win->g.w, win->g.h);
-			if ((ev->value_mask & (CWX | CWY)) &&
-			    !(ev->value_mask & (CWWidth | CWHeight)))
-				config_win(win);
-		} else
-			config_win(win);
+		}
+		config_win(win);
 	}
 }
 
@@ -3775,7 +3762,8 @@ destroynotify(XEvent *e)
 	ws = win->ws;
 	wl = &ws->winlist;
 
-	for (w = TAILQ_FIRST(&ws->winlist); w != TAILQ_END(&ws->winlist); w = wn) {
+	for (w = TAILQ_FIRST(&ws->winlist); w != TAILQ_END(&ws->winlist);
+	    w = wn) {
 		wn = TAILQ_NEXT(w, entry);
 		if (win == w)
 			continue; /* can't happen but oh well */
