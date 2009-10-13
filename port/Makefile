@@ -33,11 +33,14 @@ pre-configure:
 	@${SUBST_CMD} ${WRKSRC}/scrotwm.conf ${WRKSRC}/scrotwm.c
 
 post-install:
-	${INSTALL_DATA_DIR} ${PREFIX}/share/scrotwm
 	${INSTALL_DATA_DIR} ${PREFIX}/share/examples/scrotwm
-	${INSTALL_SCRIPT} ${WRKSRC}/baraction.sh ${PREFIX}/share/scrotwm
-	${INSTALL_SCRIPT} ${WRKSRC}/initscreen.sh ${PREFIX}/share/scrotwm
-	${INSTALL_SCRIPT} ${WRKSRC}/screenshot.sh ${PREFIX}/share/scrotwm
+	${INSTALL_SCRIPT} ${WRKSRC}/baraction.sh ${PREFIX}/share/examples/scrotwm
+	${INSTALL_SCRIPT} ${WRKSRC}/initscreen.sh ${PREFIX}/share/examples/scrotwm
+	${INSTALL_SCRIPT} ${WRKSRC}/screenshot.sh ${PREFIX}/share/examples/scrotwm
 	${INSTALL_DATA} ${WRKSRC}/scrotwm.conf ${PREFIX}/share/examples/scrotwm
+.for i in es it
+	${INSTALL_DATA_DIR} ${PREFIX}/man/$i/cat1
+	mv ${PREFIX}/man/cat1/scrotwm_$i.0 ${PREFIX}/man/$i/cat1/scrotwm.0
+.endfor
 
 .include <bsd.port.mk>
