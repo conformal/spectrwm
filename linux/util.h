@@ -13,3 +13,8 @@ char   *fgetln(FILE *, size_t *);
 char   *fparseln(FILE *, size_t *, size_t *, const char [3], int);
 
 long long strtonum(const char *, long long, long long, const char **);
+
+/* there is no limit to ulrich drepper's crap */
+#ifndef TAILQ_END
+#define	TAILQ_END(head)			NULL
+#endif
