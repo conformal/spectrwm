@@ -9,7 +9,7 @@ EXTRACT_SUFX=		.tgz
 CATEGORIES=		x11
 
 HOMEPAGE=		http://www.scrotwm.org/
-MAINTAINER=		Pierre-Yves Ritschard <pyr@spootnik.org>
+MAINTAINER=		Marco Peereboom <marco@peereboom.us>
 
 # BSD
 PERMIT_PACKAGE_CDROM=   Yes

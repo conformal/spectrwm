@@ -63,3 +63,6 @@ cp port/patches/patch-scrotwm_conf $PORT/patches/
 
 # make diff
 diff -ruNp -x CVS ports/x11/scrotwm/ $PORT > $TARGET.diff
+
+# kill ports dir or cvs will be angry
+sudo rm -rf ports
