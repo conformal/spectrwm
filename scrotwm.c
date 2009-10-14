@@ -94,6 +94,7 @@ static const char	*cvstag = "$scrotwm$";
 #endif
 #endif
 
+#define SWM_DEBUG
 /* #define SWM_DEBUG */
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while (0)
@@ -337,7 +338,7 @@ struct layout {
 	{ horizontal_stack,	horizontal_config,	0,	"[-]" },
 	{ max_stack,		NULL,
 	  SWM_L_FOCUSPREV | SWM_L_MAPONFOCUS,			"[ ]"},
-	{ NULL,			NULL,			0},
+	{ NULL,			NULL,			0,	NULL },
 };
 
 #define SWM_H_SLICE		(32)
@@ -369,9 +370,9 @@ enum	{ SWM_S_COLOR_BAR, SWM_S_COLOR_BAR_BORDER, SWM_S_COLOR_BAR_FONT,
 	  SWM_S_COLOR_FOCUS, SWM_S_COLOR_UNFOCUS, SWM_S_COLOR_MAX };
 
 /* physical screen mapping */
-#define SWM_WS_MAX		(10)		/* XXX Too small? */
+#define SWM_WS_MAX		(10)
 struct swm_screen {
-	int			idx;		/* screen index */
+	int			idx;	/* screen index */
 	struct swm_region_list	rl;	/* list of regions on this screen */
 	struct swm_region_list	orl;	/* list of old regions */
 	Window			root;
@@ -3763,14 +3764,14 @@ destroynotify(XEvent *e)
 	struct workspace	*ws;
 	struct ws_win_list	*wl;
 	XDestroyWindowEvent	*ev = &e->xdestroywindow;
-	int			unmanaged = 0;
 
 	DNPRINTF(SWM_D_EVENT, "destroynotify: window %lu\n", ev->window);
 
 	if ((win = find_window(ev->window)) == NULL) {
 		if ((win = find_unmanaged_window(ev->window)) == NULL)
 			return;
-		unmanaged = 1;
+		free_window(win);
+		return;
 	}
 
 	/* find a window to focus */
@@ -3812,8 +3813,7 @@ destroynotify(XEvent *e)
 			}
 		}
 	}
-	if (unmanaged == 0)
-		unmanage_window(win);
+	unmanage_window(win);
 	free_window(win);
 
 	ignore_enter = 1;
@@ -4359,6 +4359,7 @@ main(int argc, char *argv[])
 	int			xfd, i;
 	fd_set			rd;
 
+swm_debug = 0;
 	start_argv = argv;
 	fprintf(stderr, "Welcome to scrotwm V%s cvs tag: %s\n",
 	    SWM_VERSION, cvstag);
