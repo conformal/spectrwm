@@ -94,7 +94,6 @@ static const char	*cvstag = "$scrotwm$";
 #endif
 #endif
 
-#define SWM_DEBUG
 /* #define SWM_DEBUG */
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while (0)
@@ -3631,15 +3630,6 @@ focus_magic(struct ws_win *win)
 	}
 }
 
-Bool
-destroy_notify_cb(Display *d, XEvent *e, char *arg)
-{
-	struct ws_win		*win = (struct ws_win *)arg;
-	if (win && win->id == e->xany.window && e->xany.type == DestroyNotify)
-			return (True);
-	return (False);
-}
-
 void
 expose(XEvent *e)
 {
@@ -4359,7 +4349,6 @@ main(int argc, char *argv[])
 	int			xfd, i;
 	fd_set			rd;
 
-swm_debug = 0;
 	start_argv = argv;
 	fprintf(stderr, "Welcome to scrotwm V%s cvs tag: %s\n",
 	    SWM_VERSION, cvstag);
