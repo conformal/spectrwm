@@ -318,6 +318,8 @@ void	horizontal_config(struct workspace *, int);
 void	horizontal_stack(struct workspace *, struct swm_geometry *);
 void	max_stack(struct workspace *, struct swm_geometry *);
 
+struct ws_win *find_window(Window);
+
 void	grabbuttons(struct ws_win *, int);
 void	new_region(struct swm_screen *, int, int, int, int);
 void	unmanage_window(struct ws_win *);
@@ -327,15 +329,14 @@ struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
 	void		(*l_config)(struct workspace *, int);
 	u_int32_t	flags;
-#define SWM_L_FOCUSPREV		(1<<0)
-#define SWM_L_MAPONFOCUS	(1<<1)
+#define SWM_L_MAPONFOCUS	(1<<0)
 	char		*name;
 } layouts[] =  {
 	/* stack,		configure */
 	{ vertical_stack,	vertical_config,	0,	"[|]" },
 	{ horizontal_stack,	horizontal_config,	0,	"[-]" },
 	{ max_stack,		NULL,
-	  SWM_L_FOCUSPREV | SWM_L_MAPONFOCUS,			"[ ]"},
+	  SWM_L_MAPONFOCUS,					"[ ]"},
 	{ NULL,			NULL,			0,	NULL },
 };
 
@@ -2114,7 +2115,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 {
 	XWindowChanges		wc;
 	struct swm_geometry	gg = *g;
-	struct ws_win		*win, *wintrans = NULL;
+	struct ws_win		*win, *wintrans = NULL, *parent = NULL;
 	unsigned int		mask;
 	int			winno;
 
@@ -2130,6 +2131,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
 		if (win->transient) {
 			wintrans = win;
+			parent = find_window(win->transient);
 			continue;
 		}
 
@@ -2154,8 +2156,10 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 
 	/* put the last transient on top */
 	if (wintrans) {
+		if (parent)
+			XMapRaised(display, parent->id);
 		stack_floater(wintrans, ws->r);
-		focus_magic(wintrans); /* override */
+		focus_magic(wintrans);
 	}
 }
 
@@ -3456,12 +3460,22 @@ conf_load(char *filename)
 	return (0);
 }
 
+void
+set_child_transient(struct ws_win *win)
+{
+	struct ws_win		*parent;
+
+	parent = find_window(win->transient);
+	if (parent)
+		parent->child_trans = win;
+}
+
 struct ws_win *
 manage_window(Window id)
 {
 	Window			trans = 0;
 	struct workspace	*ws;
-	struct ws_win		*win, *ww, *parent;
+	struct ws_win		*win, *ww;
 	int			format, i, ws_idx, n, border_me = 0;
 	unsigned long		nitems, bytes;
 	Atom			ws_idx_atom = 0, type;
@@ -3481,6 +3495,8 @@ manage_window(Window id)
 		    "%lu\n", win->id);
 		TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
 		TAILQ_INSERT_TAIL(&win->ws->winlist, win, entry);
+		if (win->transient)
+			set_child_transient(win);
 		return (win);
 	}
 
@@ -3497,9 +3513,7 @@ manage_window(Window id)
 	XGetTransientForHint(display, id, &trans);
 	if (trans) {
 		win->transient = trans;
-		parent = find_window(win->transient);
-		if (parent)
-			parent->child_trans = win;
+		set_child_transient(win);
 		DNPRINTF(SWM_D_MISC, "manage_window: win %lu transient %lu\n",
 		    win->id, win->transient);
 	}
