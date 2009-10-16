@@ -1657,11 +1657,10 @@ focus(struct swm_region *r, union arg *args)
 		return;
 	}
 
-	cur_focus = r->ws->focus;
-	if (cur_focus == NULL) {
+	if (r->ws->focus == NULL)
 		return;
-	}
 
+	cur_focus = r->ws->focus;
 	ws = r->ws;
 	wl = &ws->winlist;
 
@@ -1695,22 +1694,12 @@ focus(struct swm_region *r, union arg *args)
 		}
 		break;
 	case SWM_ARG_ID_FOCUSNEXT:
-		cur_focus = r->ws->focus;
-		if (cur_focus == NULL)
-			return;
-		wl = &cur_focus->ws->winlist;
-
 		winfocus = TAILQ_NEXT(cur_focus, entry);
 		if (winfocus == NULL)
 			winfocus = TAILQ_FIRST(wl);
 		break;
 
 	case SWM_ARG_ID_FOCUSMAIN:
-		cur_focus = r->ws->focus;
-		if (cur_focus == NULL)
-			return;
-		wl = &cur_focus->ws->winlist;
-
 		winfocus = TAILQ_FIRST(wl);
 		if (winfocus == cur_focus)
 			winfocus = cur_focus->ws->focus_prev;
