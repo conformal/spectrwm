@@ -329,14 +329,15 @@ struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
 	void		(*l_config)(struct workspace *, int);
 	u_int32_t	flags;
-#define SWM_L_MAPONFOCUS	(1<<0)
+#define SWM_L_FOCUSPREV		(1<<0)
+#define SWM_L_MAPONFOCUS	(1<<1)
 	char		*name;
 } layouts[] =  {
 	/* stack,		configure */
 	{ vertical_stack,	vertical_config,	0,	"[|]" },
 	{ horizontal_stack,	horizontal_config,	0,	"[-]" },
 	{ max_stack,		NULL,
-	  SWM_L_MAPONFOCUS,					"[ ]"},
+	  SWM_L_MAPONFOCUS | SWM_L_FOCUSPREV,			"[ ]"},
 	{ NULL,			NULL,			0,	NULL },
 };
 
@@ -418,7 +419,7 @@ union arg {
 };
 
 void	focus(struct swm_region *, union arg *);
-void	focus_magic(struct ws_win *);
+void	focus_magic(struct ws_win *, int);
 
 /* quirks */
 struct quirk {
@@ -1633,9 +1634,10 @@ swapwin(struct swm_region *r, union arg *args)
 void
 focus(struct swm_region *r, union arg *args)
 {
-	struct ws_win		*winfocus, *winlostfocus;
-	struct ws_win_list	*wl;
-	struct ws_win		*cur_focus;
+	struct ws_win		*winfocus = NULL, *winlostfocus = NULL;
+	struct ws_win		*cur_focus = NULL;
+	struct ws_win_list	*wl = NULL;
+	struct workspace	*ws = NULL;
 
 	if (!(r && r->ws))
 		return;
@@ -1651,32 +1653,64 @@ focus(struct swm_region *r, union arg *args)
 		else
 			winfocus = TAILQ_FIRST(&r->ws->winlist);
 			
-		focus_magic(winfocus);
+		focus_magic(winfocus, 0);
 		return;
 	}
 
 	cur_focus = r->ws->focus;
-	if (cur_focus == NULL)
+	if (cur_focus == NULL) {
 		return;
+	}
 
-	wl = &cur_focus->ws->winlist;
+	ws = r->ws;
+	wl = &ws->winlist;
 
 	winlostfocus = cur_focus;
 
 	switch (args->id) {
 	case SWM_ARG_ID_FOCUSPREV:
-		winfocus = TAILQ_PREV(cur_focus, ws_win_list, entry);
-		if (winfocus == NULL)
-			winfocus = TAILQ_LAST(wl, ws_win_list);
-		break;
+		if (cur_focus->transient)
+			winfocus = find_window(cur_focus->transient);
+		else if (ws->focus == cur_focus) {
+			/* if in max_stack try harder */
+			if (ws->cur_layout->flags & SWM_L_FOCUSPREV) {
+				if (cur_focus != ws->focus_prev)
+					winfocus = ws->focus_prev;
+				else if (cur_focus != ws->focus)
+					winfocus = ws->focus;
+			}
 
+			/* fallback and normal handling */
+			if (winfocus == NULL) {
+				if (TAILQ_FIRST(wl) == cur_focus)
+					winfocus = TAILQ_NEXT(cur_focus, entry);
+				else {
+					winfocus = TAILQ_PREV(ws->focus,
+					    ws_win_list, entry);
+					if (winfocus == NULL)
+						winfocus = TAILQ_LAST(wl,
+						    ws_win_list);
+				}
+			}
+		}
+		break;
 	case SWM_ARG_ID_FOCUSNEXT:
+		cur_focus = r->ws->focus;
+		if (cur_focus == NULL)
+			return;
+		wl = &cur_focus->ws->winlist;
+
 		winfocus = TAILQ_NEXT(cur_focus, entry);
 		if (winfocus == NULL)
 			winfocus = TAILQ_FIRST(wl);
 		break;
 
 	case SWM_ARG_ID_FOCUSMAIN:
+		cur_focus = r->ws->focus;
+		if (cur_focus == NULL)
+			return;
+		wl = &cur_focus->ws->winlist;
+
 		winfocus = TAILQ_FIRST(wl);
 		if (winfocus == cur_focus)
 			winfocus = cur_focus->ws->focus_prev;
@@ -1691,7 +1725,7 @@ focus(struct swm_region *r, union arg *args)
 	if (winfocus == winlostfocus || winfocus == NULL)
 		return;
 
-	focus_magic(winfocus);
+	focus_magic(winfocus, 0);
 }
 
 void
@@ -2159,7 +2193,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		if (parent)
 			XMapRaised(display, parent->id);
 		stack_floater(wintrans, ws->r);
-		focus_magic(wintrans);
+		focus_magic(wintrans, 1);
 	}
 }
 
@@ -3698,12 +3732,12 @@ unmanage_window(struct ws_win *win)
 }
 
 void
-focus_magic(struct ws_win *win)
+focus_magic(struct ws_win *win, int do_trans)
 {
 	if (win == NULL)
 		return;
 
-	if (win->child_trans) {
+	if (do_trans && win->child_trans) {
 		/* win = parent & has a transient so focus on that */
 		if (win->java) {
 			focus_win(win->child_trans);
@@ -3769,7 +3803,7 @@ buttonpress(XEvent *e)
 	if ((win = find_window(ev->window)) == NULL)
 		return;
 
-	focus_magic(win);
+	focus_magic(win, 1);
 	action = client_click;
 
 	for (i = 0; i < LENGTH(buttons); i++)
@@ -3879,7 +3913,7 @@ enternotify(XEvent *e)
 	if ((win = find_window(ev->window)) == NULL)
 		return;
 
-	focus_magic(win);
+	focus_magic(win, 1);
 }
 
 void
@@ -3942,7 +3976,7 @@ maprequest(XEvent *e)
 	/* make new win focused */
 	r = root_to_region(win->wa.root);
 	if (win->ws == r->ws)
-		focus_magic(win);
+		focus_magic(win, 0);
 }
 
 void
