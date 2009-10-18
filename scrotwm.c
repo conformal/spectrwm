@@ -1736,6 +1736,7 @@ cycle_layout(struct swm_region *r, union arg *args)
 	stack();
 	a.id = SWM_ARG_ID_FOCUSCUR;
 	focus(r, &a);
+	bar_update();
 }
 
 void
@@ -3881,8 +3882,8 @@ destroynotify(XEvent *e)
 	a.id = SWM_ARG_ID_FOCUSPREV;
 	focus(win->ws->r, &a);
 	unmanage_window(win);
-	free_window(win);
 	stack();
+	free_window(win);
 }
 
 void
