@@ -148,6 +148,7 @@ u_int32_t		swm_debug = 0
 #define WIDTH(r)		(r)->g.w
 #define HEIGHT(r)		(r)->g.h
 #define SWM_MAX_FONT_STEPS	(3)
+#define WINID(w)		(w ? w->id : 0)
 
 #ifndef SWM_LIB
 #define SWM_LIB			"/usr/local/lib/libswmhack.so"
@@ -1633,6 +1634,63 @@ swapwin(struct swm_region *r, union arg *args)
 }
 
 void
+focus_prev(struct ws_win *win)
+{
+	struct ws_win		*winfocus = NULL, *winlostfocus = NULL;
+	struct ws_win		*cur_focus = NULL;
+	struct ws_win_list	*wl = NULL;
+	struct workspace	*ws = NULL;
+
+	DNPRINTF(SWM_D_FOCUS, "focus_prev: id %lu\n", WINID(win));
+
+	if (!(win && win->ws))
+		return;
+
+	ws = win->ws;
+	wl = &ws->winlist;
+	cur_focus = ws->focus;
+	winlostfocus = cur_focus;
+
+	/* pickle, just focus on whatever */
+	if (cur_focus == NULL) {
+		/* use prev_focus if valid */
+		if (ws->focus_prev && ws->focus_prev != cur_focus &&
+		    find_window(WINID(ws->focus_prev)))
+			winfocus = ws->focus_prev;
+		if (winfocus == NULL)
+			winfocus = TAILQ_FIRST(wl);
+		goto done;
+	}
+
+	/* if transient focus on parent */
+	if (cur_focus->transient) {
+		winfocus = find_window(cur_focus->transient);
+		goto done;
+	}
+
+	/* if in max_stack try harder */
+	/* XXX needs more love */
+	if (ws->cur_layout->flags & SWM_L_FOCUSPREV) {
+		if (cur_focus != ws->focus_prev)
+			winfocus = ws->focus_prev;
+		else if (cur_focus != ws->focus)
+			winfocus = ws->focus;
+		goto done;
+	}
+
+	if (cur_focus == win)
+		winfocus = TAILQ_PREV(win, ws_win_list, entry);
+	if (winfocus == NULL)
+		winfocus = TAILQ_FIRST(wl);
+	if (winfocus == NULL || winfocus == win)
+		winfocus = TAILQ_NEXT(cur_focus, entry);
+done:
+	if (winfocus == winlostfocus || winfocus == NULL)
+		return;
+	focus_magic(winfocus, SWM_F_GENERIC);
+}
+
+void
 focus(struct swm_region *r, union arg *args)
 {
 	struct ws_win		*winfocus = NULL, *winlostfocus = NULL;
@@ -1658,42 +1716,20 @@ focus(struct swm_region *r, union arg *args)
 		return;
 	}
 
-	if (r->ws->focus == NULL)
+	if ((cur_focus = r->ws->focus) == NULL)
 		return;
-
-	cur_focus = r->ws->focus;
 	ws = r->ws;
 	wl = &ws->winlist;
 
 	winlostfocus = cur_focus;
 
 	switch (args->id) {
-	case SWM_ARG_ID_FOCUSPREV:
-		if (cur_focus->transient)
-			winfocus = find_window(cur_focus->transient);
-		else if (ws->focus == cur_focus) {
-			/* if in max_stack try harder */
-			if (ws->cur_layout->flags & SWM_L_FOCUSPREV) {
-				if (cur_focus != ws->focus_prev)
-					winfocus = ws->focus_prev;
-				else if (cur_focus != ws->focus)
-					winfocus = ws->focus;
-			}
-
-			/* fallback and normal handling */
-			if (winfocus == NULL) {
-				if (TAILQ_FIRST(wl) == cur_focus)
-					winfocus = TAILQ_NEXT(cur_focus, entry);
-				else {
-					winfocus = TAILQ_PREV(ws->focus,
-					    ws_win_list, entry);
-					if (winfocus == NULL)
-						winfocus = TAILQ_LAST(wl,
-						    ws_win_list);
-				}
-			}
-		}
+ 	case SWM_ARG_ID_FOCUSPREV:
+		winfocus = TAILQ_PREV(cur_focus, ws_win_list, entry);
+		if (winfocus == NULL)
+			winfocus = TAILQ_LAST(wl, ws_win_list);
 		break;
+
 	case SWM_ARG_ID_FOCUSNEXT:
 		winfocus = TAILQ_NEXT(cur_focus, entry);
 		if (winfocus == NULL)
@@ -1704,8 +1740,6 @@ focus(struct swm_region *r, union arg *args)
 		winfocus = TAILQ_FIRST(wl);
 		if (winfocus == cur_focus)
 			winfocus = cur_focus->ws->focus_prev;
-		if (winfocus == NULL)
-			return;
 		break;
 
 	default:
@@ -2203,6 +2237,8 @@ send_to_ws(struct swm_region *r, union arg *args)
 	else
 		return;
 	if (win == NULL)
+		return;
+	if (win->ws->idx == wsid)
 		return;
 
 	DNPRINTF(SWM_D_MOVE, "send_to_ws: win: %lu\n", win->id);
@@ -3716,6 +3752,7 @@ unmanage_window(struct ws_win *win)
 			parent->child_trans = NULL;
 	}
 
+	focus_prev(win);
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
 	TAILQ_INSERT_TAIL(&win->ws->unmanagedlist, win, entry);
 
@@ -3725,6 +3762,8 @@ unmanage_window(struct ws_win *win)
 void
 focus_magic(struct ws_win *win, int do_trans)
 {
+	DNPRINTF(SWM_D_FOCUS, "focus_magic: %lu %d\n", WINID(win), do_trans);
+
 	if (win == NULL)
 		return;
 
@@ -3868,7 +3907,6 @@ destroynotify(XEvent *e)
 {
 	struct ws_win		*win;
 	XDestroyWindowEvent	*ev = &e->xdestroywindow;
-	union arg		a;
 
 	DNPRINTF(SWM_D_EVENT, "destroynotify: window %lu\n", ev->window);
 
@@ -3879,8 +3917,6 @@ destroynotify(XEvent *e)
 		return;
 	}
 
-	a.id = SWM_ARG_ID_FOCUSPREV;
-	focus(win->ws->r, &a);
 	unmanage_window(win);
 	stack();
 	free_window(win);
@@ -4009,7 +4045,6 @@ void
 unmapnotify(XEvent *e)
 {
 	struct ws_win		*win;
-	union arg		a;
 
 	DNPRINTF(SWM_D_EVENT, "unmapnotify: window: %lu\n", e->xunmap.window);
 
@@ -4018,10 +4053,14 @@ unmapnotify(XEvent *e)
 	if (win == NULL)
 		return;
 
+	/*
+	 * XXX this is a work around for going fullscreen on mplayer
+	 * remove this and find a better heuristic
+	 */
+	if (win->floating)
+		return;
+
 	if (getstate(e->xunmap.window) == NormalState) {
-		/* trash window and refocus */
-		a.id = SWM_ARG_ID_FOCUSPREV;
-		focus(win->ws->r, &a);
 		unmanage_window(win);
 		stack();
 	}
