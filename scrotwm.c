@@ -1394,7 +1394,7 @@ unfocus_all_except(struct ws_win *except)
 	struct ws_win		*win;
 	int			i, j;
 
-	DNPRINTF(SWM_D_FOCUS, "unfocus_all_except(%d):\n", except->id);
+	DNPRINTF(SWM_D_FOCUS, "unfocus_all_except: id: %lu\n", except->id);
 
 	for (i = 0; i < ScreenCount(display); i++)
 		for (j = 0; j < SWM_WS_MAX; j++)
