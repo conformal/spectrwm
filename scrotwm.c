@@ -1389,17 +1389,18 @@ unfocus_win(struct ws_win *win)
 }
 
 void
-unfocus_all(void)
+unfocus_all_except(struct ws_win *except)
 {
 	struct ws_win		*win;
 	int			i, j;
 
-	DNPRINTF(SWM_D_FOCUS, "unfocus_all:\n");
+	DNPRINTF(SWM_D_FOCUS, "unfocus_all_except(%d):\n", except->id);
 
 	for (i = 0; i < ScreenCount(display); i++)
 		for (j = 0; j < SWM_WS_MAX; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
-				unfocus_win(win);
+				if (win != except)
+					unfocus_win(win);
 }
 
 void
@@ -1420,7 +1421,7 @@ focus_win(struct ws_win *win)
 	}
 
 	/* use big hammer to make sure it works under all use cases */
-	unfocus_all();
+	unfocus_all_except(win);
 
 	if (validate_win(win)) {
 		kill_refs(win);
