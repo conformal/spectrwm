@@ -3776,9 +3776,6 @@ focus_magic(struct ws_win *win, int do_trans)
 	if (win == NULL)
 		return;
 
-	if (win == win->ws->focus)
-		return;
-
 	if (do_trans == SWM_F_TRANSIENT && win->child_trans) {
 		/* win = parent & has a transient so focus on that */
 		if (win->java) {
