@@ -1678,13 +1678,12 @@ focus_prev(struct ws_win *win)
 	}
 
 	/* if in max_stack try harder */
-	/* XXX needs more love */
 	if (ws->cur_layout->flags & SWM_L_FOCUSPREV) {
-		if (cur_focus != ws->focus_prev)
-			winfocus = ws->focus_prev;
-		else if (cur_focus != ws->focus)
-			winfocus = ws->focus;
-		goto done;
+		/* window got unmapped go to parent which is now cur_focus */
+		if (ws->focus_prev == win)
+			winfocus = cur_focus;
+		if (winfocus)
+			goto focusanyway;
 	}
 
 	if (cur_focus == win)
@@ -1696,6 +1695,7 @@ focus_prev(struct ws_win *win)
 done:
 	if (winfocus == winlostfocus || winfocus == NULL)
 		return;
+focusanyway:
 	focus_magic(winfocus, SWM_F_GENERIC);
 }
 
