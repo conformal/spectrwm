@@ -1690,7 +1690,7 @@ focus_prev(struct ws_win *win)
 	if (cur_focus == win)
 		winfocus = TAILQ_PREV(win, ws_win_list, entry);
 	if (winfocus == NULL)
-		winfocus = TAILQ_FIRST(wl);
+		winfocus = TAILQ_LAST(wl, ws_win_list);
 	if (winfocus == NULL || winfocus == win)
 		winfocus = TAILQ_NEXT(cur_focus, entry);
 done:
