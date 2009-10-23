@@ -1353,6 +1353,8 @@ validate_ws(struct workspace *testws)
 void
 unfocus_win(struct ws_win *win)
 {
+	DNPRINTF(SWM_D_FOCUS, "unfocus_win: id: %lu\n", WINID(win));
+
 	if (win == NULL)
 		return;
 	if (win->ws == NULL)
@@ -1406,6 +1408,9 @@ unfocus_all_except(struct ws_win *except)
 void
 focus_win(struct ws_win *win)
 {
+	int			rtr;
+	Window			wf;
+
 	DNPRINTF(SWM_D_FOCUS, "focus_win: id: %lu\n", win ? win->id : 0);
 
 	if (win == NULL)
@@ -1431,14 +1436,17 @@ focus_win(struct ws_win *win)
 	win->ws->focus = win;
 
 	if (win->ws->r != NULL) {
-		grabbuttons(win, 1);
-		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS)
-			XMapRaised(display, win->id);
+		XGetInputFocus(display, &wf, &rtr);
+		if (wf != win->id) {
+			grabbuttons(win, 1);
+			if (win->java == 0)
+				XSetInputFocus(display, win->id,
+				    RevertToParent, CurrentTime);
+		}
 		XSetWindowBorder(display, win->id,
 		    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
-		if (win->java == 0)
-			XSetInputFocus(display, win->id,
-			    RevertToPointerRoot, CurrentTime);
+		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS)
+			XMapRaised(display, win->id);
 	}
 }
 
@@ -3766,6 +3774,9 @@ focus_magic(struct ws_win *win, int do_trans)
 	DNPRINTF(SWM_D_FOCUS, "focus_magic: %lu %d\n", WINID(win), do_trans);
 
 	if (win == NULL)
+		return;
+
+	if (win == win->ws->focus)
 		return;
 
 	if (do_trans == SWM_F_TRANSIENT && win->child_trans) {
