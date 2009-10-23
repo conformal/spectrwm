@@ -1679,11 +1679,14 @@ focus_prev(struct ws_win *win)
 
 	/* if in max_stack try harder */
 	if (ws->cur_layout->flags & SWM_L_FOCUSPREV) {
-		/* window got unmapped go to parent which is now cur_focus */
-		if (ws->focus_prev == win)
-			winfocus = cur_focus;
+ 		if (cur_focus != ws->focus_prev)
+ 			winfocus = ws->focus_prev;
+ 		else if (cur_focus != ws->focus)
+ 			winfocus = ws->focus;
+		else
+			winfocus = TAILQ_PREV(win, ws_win_list, entry);
 		if (winfocus)
-			goto focusanyway;
+			goto done;
 	}
 
 	if (cur_focus == win)
@@ -1695,7 +1698,7 @@ focus_prev(struct ws_win *win)
 done:
 	if (winfocus == winlostfocus || winfocus == NULL)
 		return;
-focusanyway:
+
 	focus_magic(winfocus, SWM_F_GENERIC);
 }
 
@@ -1720,7 +1723,7 @@ focus(struct swm_region *r, union arg *args)
 			winfocus = r->ws->focus_prev;
 		else
 			winfocus = TAILQ_FIRST(&r->ws->winlist);
-			
+
 		focus_magic(winfocus, SWM_F_GENERIC);
 		return;
 	}
@@ -3968,6 +3971,10 @@ enternotify(XEvent *e)
 	}
 
 	if ((win = find_window(ev->window)) == NULL)
+		return;
+
+	/* in fullstack kill all enters */
+	if (win->ws->cur_layout->flags & SWM_L_FOCUSPREV)
 		return;
 
 	focus_magic(win, SWM_F_TRANSIENT);
