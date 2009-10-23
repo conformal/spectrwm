@@ -3935,16 +3935,37 @@ void
 enternotify(XEvent *e)
 {
 	XCrossingEvent		*ev = &e->xcrossing;
+	XEvent			cne;
 	struct ws_win		*win;
 
-	DNPRINTF(SWM_D_EVENT, "enternotify: window: %lu\n", ev->window);
+	DNPRINTF(SWM_D_EVENT, "enternotify: window: %lu mode %d detail %d\n",
+	    ev->window, ev->mode, ev->detail);
+
+	/*
+	 * all these checks need to be in this order because the
+	 * XCheckTypedWindowEvent relies on weeding out the previous events
+	 *
+	 * making this code an option would enable a follow mouse for focus
+	 * feature
+	 */
 
 	/*
 	 * happens when a window is created or destroyed and the border
-	 * crosses the mouse pointer
+	 * crosses the mouse pointer and when switching ws
 	 */
-	if (QLength(display))
+	if (ev->mode == NotifyNormal && ev->detail == NotifyVirtual)
 		return;
+
+	/* this window already has focus */
+	if (ev->mode == NotifyNormal && ev->detail == NotifyInferior)
+		return;
+
+	/* this window is being deleted or moved to another ws */
+	if (XCheckTypedWindowEvent(display, ev->window, ConfigureNotify,
+	    &cne) == True) {
+		XPutBackEvent(display, &cne);
+		return;
+	}
 
 	if ((win = find_window(ev->window)) == NULL)
 		return;
