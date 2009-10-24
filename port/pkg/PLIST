@@ -11,10 +11,12 @@ man/it/cat1/
 share/examples/scrotwm/
 @sample share/scrotwm/
 share/examples/scrotwm/baraction.sh
+@mode 0555
 @sample share/scrotwm/baraction.sh
 share/examples/scrotwm/initscreen.sh
 @sample share/scrotwm/initscreen.sh
 share/examples/scrotwm/screenshot.sh
 @sample share/scrotwm/screenshot.sh
+@mode
 share/examples/scrotwm/scrotwm.conf
 @sample ${SYSCONFDIR}/scrotwm.conf
