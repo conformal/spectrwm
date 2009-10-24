@@ -3941,8 +3941,10 @@ enternotify(XEvent *e)
 	XEvent			cne;
 	struct ws_win		*win;
 
-	DNPRINTF(SWM_D_EVENT, "enternotify: window: %lu mode %d detail %d\n",
-	    ev->window, ev->mode, ev->detail);
+	DNPRINTF(SWM_D_FOCUS, "enternotify: window: %lu mode %d detail %d root "
+	    "%lu subwindow %lu same_screen %d focus %d state %d\n",
+	    ev->window, ev->mode, ev->detail, ev->root, ev->subwindow,
+	    ev->same_screen, ev->focus, ev->state);
 
 	/*
 	 * all these checks need to be in this order because the
@@ -3953,10 +3955,20 @@ enternotify(XEvent *e)
 	 */
 
 	/*
+	 * state is set when we are switching workspaces and focus is set when
+	 * scrotwm launches via a restart
+	 */
+	if (ev->state || ev->focus)
+		return;
+	/*
 	 * happens when a window is created or destroyed and the border
 	 * crosses the mouse pointer and when switching ws
+	 *
+	 * we need the subwindow test to see if we came from root in order
+	 * to give focus to floaters
 	 */
-	if (ev->mode == NotifyNormal && ev->detail == NotifyVirtual)
+	if (ev->mode == NotifyNormal && ev->detail == NotifyVirtual &&
+	    ev->subwindow == 0)
 		return;
 
 	/* this window already has focus */
