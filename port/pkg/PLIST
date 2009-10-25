@@ -8,6 +8,9 @@ man/es/cat1/
 man/it/
 man/it/cat1/
 @man man/it/cat1/scrotwm.0
+man/ru/
+man/ru/cat1/
+@man man/ru/cat1/scrotwm.0
 share/examples/scrotwm/
 @sample share/scrotwm/
 share/examples/scrotwm/baraction.sh
