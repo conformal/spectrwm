@@ -3958,8 +3958,11 @@ enternotify(XEvent *e)
 	 * state is set when we are switching workspaces and focus is set when
 	 * scrotwm launches via a restart
 	 */
-	if (ev->state || ev->focus)
+	if (ev->state || ev->focus) {
+		DNPRINTF(SWM_D_EVENT, "ignoring enternotify: focus\n");
 		return;
+	}
+
 	/*
 	 * happens when a window is created or destroyed and the border
 	 * crosses the mouse pointer and when switching ws
@@ -3968,26 +3971,35 @@ enternotify(XEvent *e)
 	 * to give focus to floaters
 	 */
 	if (ev->mode == NotifyNormal && ev->detail == NotifyVirtual &&
-	    ev->subwindow == 0)
+	    ev->subwindow == 0) {
+		DNPRINTF(SWM_D_EVENT, "ignoring enternotify: NotifyVirtual\n");
 		return;
+	}
 
 	/* this window already has focus */
-	if (ev->mode == NotifyNormal && ev->detail == NotifyInferior)
+	if (ev->mode == NotifyNormal && ev->detail == NotifyInferior) {
+		DNPRINTF(SWM_D_EVENT, "ignoring enternotify: win has focus\n");
 		return;
+	}
 
 	/* this window is being deleted or moved to another ws */
 	if (XCheckTypedWindowEvent(display, ev->window, ConfigureNotify,
 	    &cne) == True) {
+		DNPRINTF(SWM_D_EVENT, "ignoring enternotify: configurenotify\n");
 		XPutBackEvent(display, &cne);
 		return;
 	}
 
-	if ((win = find_window(ev->window)) == NULL)
+	if ((win = find_window(ev->window)) == NULL) {
+		DNPRINTF(SWM_D_EVENT, "ignoring enternotify: win == NULL\n");
 		return;
+	}
 
 	/* in fullstack kill all enters */
-	if (win->ws->cur_layout->flags & SWM_L_FOCUSPREV)
+	if (win->ws->cur_layout->flags & SWM_L_FOCUSPREV) {
+		DNPRINTF(SWM_D_EVENT, "ignoring event: fullstack\n");
 		return;
+	}
 
 	focus_magic(win, SWM_F_TRANSIENT);
 }
