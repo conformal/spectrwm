@@ -3954,8 +3954,11 @@ enternotify(XEvent *e)
 	 * feature
 	 */
 
-	/* Focus is set when the window being entered already has focus. */
-	if (ev->focus) {
+	/*
+	 * state is set when we are switching workspaces and focus is set when
+	 * scrotwm launches via a restart
+	 */
+	if (ev->state || ev->focus) {
 		DNPRINTF(SWM_D_EVENT, "ignoring enternotify: focus\n");
 		return;
 	}
