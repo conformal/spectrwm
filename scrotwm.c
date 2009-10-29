@@ -161,6 +161,7 @@ Atom			adelete;
 Atom			takefocus;
 volatile sig_atomic_t   running = 1;
 int			outputs = 0;
+int			last_focus_event = 0;
 int			(*xerrorxlib)(Display *, XErrorEvent *);
 int			other_wm;
 int			ss_enabled = 0;
@@ -606,8 +607,7 @@ void			configurerequest(XEvent *);
 void			configurenotify(XEvent *);
 void			destroynotify(XEvent *);
 void			enternotify(XEvent *);
-void			focusin(XEvent *);
-void			focusout(XEvent *);
+void			focusevent(XEvent *);
 void			mapnotify(XEvent *);
 void			mappingnotify(XEvent *);
 void			maprequest(XEvent *);
@@ -623,8 +623,8 @@ void			(*handler[LASTEvent])(XEvent *) = {
 				[ConfigureNotify] = configurenotify,
 				[DestroyNotify] = destroynotify,
 				[EnterNotify] = enternotify,
-				[FocusIn] = focusin,
-				[FocusOut] = focusout,
+				[FocusIn] = focusevent,
+				[FocusOut] = focusevent,
 				[MapNotify] = mapnotify,
 				[MappingNotify] = mappingnotify,
 				[MapRequest] = maprequest,
@@ -3956,9 +3956,13 @@ enternotify(XEvent *e)
 
 	/*
 	 * state is set when we are switching workspaces and focus is set when
-	 * scrotwm launches via a restart
+	 * the window or a subwindow already has focus (occurs during restart).
+	 *
+	 * Only honor the focus flag if last_focus_event is not FocusOut,
+	 * this allows scrotwm to continue to control focus when another
+	 * program is also playing with it.
 	 */
-	if (ev->state || ev->focus) {
+	if (ev->state || (ev->focus && last_focus_event != FocusOut)) {
 		DNPRINTF(SWM_D_EVENT, "ignoring enternotify: focus\n");
 		return;
 	}
@@ -3995,25 +3999,64 @@ enternotify(XEvent *e)
 		return;
 	}
 
-	/* in fullstack kill all enters */
-	if (win->ws->cur_layout->flags & SWM_L_FOCUSPREV) {
-		DNPRINTF(SWM_D_EVENT, "ignoring event: fullstack\n");
-		return;
+	/*
+	 * In fullstack kill all enters unless they come from a different ws
+	 * (i.e. another region) or focus has been grabbed externally.
+	 */
+	if (win->ws->cur_layout->flags & SWM_L_FOCUSPREV &&
+	    last_focus_event != FocusOut) {
+		struct ws_win	*w;
+		Window		focus_return;
+		int		revert_to_return;
+
+		XGetInputFocus(display, &focus_return, &revert_to_return);
+		if ((w = find_window(focus_return)) == NULL ||
+		    w->ws == win->ws) {
+			DNPRINTF(SWM_D_EVENT, "ignoring event: fullstack\n");
+			return;
+		}
 	}
 
 	focus_magic(win, SWM_F_TRANSIENT);
 }
 
-void
-focusin(XEvent *e)
-{
-	DNPRINTF(SWM_D_EVENT, "focusin: window: %lu\n", e->xfocus.window);
-}
+/* lets us use one switch statement for arbitrary mode/detail combinations */
+#define MERGE_MEMBERS(a,b)	(((a & 0xffff) << 16) | (b & 0xffff))
 
 void
-focusout(XEvent *e)
+focusevent(XEvent *e)
 {
-	DNPRINTF(SWM_D_EVENT, "focusout: window: %lu\n", e->xfocus.window);
+	struct ws_win		*win;
+	u_int32_t		mode_detail;
+	XFocusChangeEvent	*ev = &e->xfocus;
+
+	DNPRINTF(SWM_D_EVENT, "focusevent: %s window: %lu mode %d detail %d\n",
+	    ev->type == FocusIn ? "entering" : "leaving",
+	    ev->window, ev->mode, ev->detail);
+
+	last_focus_event = ev->type;
+	mode_detail = MERGE_MEMBERS(ev->mode, ev->detail);
+
+	switch (mode_detail) {
+	/* synergy client focus operations */
+	case MERGE_MEMBERS(NotifyNormal, NotifyNonlinear):
+	case MERGE_MEMBERS(NotifyNormal, NotifyNonlinearVirtual):
+
+	/* synergy server focus operations */
+	case MERGE_MEMBERS(NotifyWhileGrabbed, NotifyNonlinear):
+
+	/* Entering applications like rdesktop that mangle the pointer */
+	case MERGE_MEMBERS(NotifyNormal, NotifyPointer):
+
+		if ((win = find_window(e->xfocus.window)) != NULL && win->ws->r)
+			XSetWindowBorder(display, win->id,
+			    win->ws->r->s->c[ev->type == FocusIn ?
+			    SWM_S_COLOR_FOCUS : SWM_S_COLOR_UNFOCUS].color);
+		break;
+	default:
+		DNPRINTF(SWM_D_FOCUS, "ignoring focusevent\n");
+		break;
+	}
 }
 
 void
