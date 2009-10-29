@@ -3939,7 +3939,10 @@ enternotify(XEvent *e)
 {
 	XCrossingEvent		*ev = &e->xcrossing;
 	XEvent			cne;
-	struct ws_win		*win;
+	struct ws_win		*win, *w;
+	Window			focus_return;
+	int			revert_to_return;
+
 
 	DNPRINTF(SWM_D_FOCUS, "enternotify: window: %lu mode %d detail %d root "
 	    "%lu subwindow %lu same_screen %d focus %d state %d\n",
@@ -4005,10 +4008,6 @@ enternotify(XEvent *e)
 	 */
 	if (win->ws->cur_layout->flags & SWM_L_FOCUSPREV &&
 	    last_focus_event != FocusOut) {
-		struct ws_win	*w;
-		Window		focus_return;
-		int		revert_to_return;
-
 		XGetInputFocus(display, &focus_return, &revert_to_return);
 		if ((w = find_window(focus_return)) == NULL ||
 		    w->ws == win->ws) {
