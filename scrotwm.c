@@ -161,7 +161,7 @@ Atom			adelete;
 Atom			takefocus;
 volatile sig_atomic_t   running = 1;
 int			outputs = 0;
-int			last_focus_event = 0;
+int			last_focus_event = FocusOut;
 int			(*xerrorxlib)(Display *, XErrorEvent *);
 int			other_wm;
 int			ss_enabled = 0;
@@ -4032,6 +4032,11 @@ focusevent(XEvent *e)
 	DNPRINTF(SWM_D_EVENT, "focusevent: %s window: %lu mode %d detail %d\n",
 	    ev->type == FocusIn ? "entering" : "leaving",
 	    ev->window, ev->mode, ev->detail);
+
+	if (last_focus_event == ev->type) {
+		DNPRINTF(SWM_D_FOCUS, "ignoring focusevent: bad ordering\n");
+		return;
+	}
 
 	last_focus_event = ev->type;
 	mode_detail = MERGE_MEMBERS(ev->mode, ev->detail);
