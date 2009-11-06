@@ -1119,6 +1119,9 @@ unmap_window(struct ws_win *win)
 	set_win_state(win, IconicState);
 
 	XUnmapWindow(display, win->id);
+	if (win->ws->r)
+		XSetWindowBorder(display, win->id,
+		    win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
 }
 
 void
@@ -1230,13 +1233,32 @@ struct ws_win *
 find_window(Window id)
 {
 	struct ws_win		*win;
-	int			i, j;
+	Window			wrr, wpr, *wcr = NULL;
+	int			i, j, nc;
 
 	for (i = 0; i < ScreenCount(display); i++)
 		for (j = 0; j < SWM_WS_MAX; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
 				if (id == win->id)
 					return (win);
+
+	/* if we were looking for the parent return that window instead */
+	if (XQueryTree(display, id, &wrr, &wpr, &wcr, &nc) == 0)
+		return (NULL);
+	if (wcr)
+		XFree(wcr);
+
+	/* ignore not found and root */
+	if (wpr == 0 || wrr == wpr)
+		return (NULL);
+
+	/* look for parent */
+	for (i = 0; i < ScreenCount(display); i++)
+		for (j = 0; j < SWM_WS_MAX; j++)
+			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
+				if (wpr == win->id)
+					return (win);
+
 	return (NULL);
 }
 
@@ -1353,6 +1375,8 @@ validate_ws(struct workspace *testws)
 void
 unfocus_win(struct ws_win *win)
 {
+	XEvent			cne;
+
 	DNPRINTF(SWM_D_FOCUS, "unfocus_win: id: %lu\n", WINID(win));
 
 	if (win == NULL)
@@ -1385,31 +1409,38 @@ unfocus_win(struct ws_win *win)
 		win->ws->focus_prev = NULL;
 	}
 
+	/* drain all previous unfocus events */
+	while (XCheckTypedEvent(display, FocusOut, &cne) == True)
+		;
+
 	grabbuttons(win, 0);
 	XSetWindowBorder(display, win->id,
 	    win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
+
 }
 
 void
-unfocus_all_except(struct ws_win *except)
+unfocus_all(void)
 {
 	struct ws_win		*win;
 	int			i, j;
 
-	DNPRINTF(SWM_D_FOCUS, "unfocus_all_except: id: %lu\n", except->id);
+	DNPRINTF(SWM_D_FOCUS, "unfocus_all\n");
 
 	for (i = 0; i < ScreenCount(display); i++)
 		for (j = 0; j < SWM_WS_MAX; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
-				if (win != except)
-					unfocus_win(win);
+				unfocus_win(win);
 }
 
 void
 focus_win(struct ws_win *win)
 {
-	int			rtr;
-	Window			wf;
+	XEvent			cne;
+	Window			cur_focus;
+	int			rr;
+	struct ws_win		*cfw = NULL;
+
 
 	DNPRINTF(SWM_D_FOCUS, "focus_win: id: %lu\n", win ? win->id : 0);
 
@@ -1425,24 +1456,26 @@ focus_win(struct ws_win *win)
 		return;
 	}
 
-	/* use big hammer to make sure it works under all use cases */
-	unfocus_all_except(win);
-
 	if (validate_win(win)) {
 		kill_refs(win);
 		return;
 	}
 
+	XGetInputFocus(display, &cur_focus, &rr);
+	if ((cfw = find_window(cur_focus)) != NULL)
+		unfocus_win(cfw);
+
 	win->ws->focus = win;
 
 	if (win->ws->r != NULL) {
-		XGetInputFocus(display, &wf, &rtr);
-		if (wf != win->id) {
-			grabbuttons(win, 1);
-			if (win->java == 0)
-				XSetInputFocus(display, win->id,
-				    RevertToParent, CurrentTime);
-		}
+		/* drain all previous focus events */
+		while (XCheckTypedEvent(display, FocusIn, &cne) == True)
+			;
+
+		if (win->java == 0)
+			XSetInputFocus(display, win->id,
+			    RevertToParent, CurrentTime);
+		grabbuttons(win, 1);
 		XSetWindowBorder(display, win->id,
 		    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
 		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS)
@@ -1915,6 +1948,7 @@ void
 stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 {
 	XWindowChanges		wc;
+	XWindowAttributes	wa;
 	struct swm_geometry	win_g, r_g = *g;
 	struct ws_win		*win;
 	int			i, j, s, stacks;
@@ -2068,7 +2102,10 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			XConfigureWindow(display, win->id, mask, &wc);
 			configreq_win(win);
 		}
-		XMapRaised(display, win->id);
+
+		if (XGetWindowAttributes(display, win->id, &wa))
+			if (wa.map_state == IsUnmapped)
+				XMapRaised(display, win->id);
 
 		last_h = win_g.h;
 		i++;
@@ -3764,7 +3801,10 @@ unmanage_window(struct ws_win *win)
 			parent->child_trans = NULL;
 	}
 
-	focus_prev(win);
+	/* work around for mplayer going full screen */
+	if (!win->floating)
+		focus_prev(win);
+
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
 	TAILQ_INSERT_TAIL(&win->ws->unmanagedlist, win, entry);
 
@@ -3929,6 +3969,9 @@ destroynotify(XEvent *e)
 		return;
 	}
 
+	/* make sure we focus on something */
+	win->floating = 0;
+
 	unmanage_window(win);
 	stack();
 	free_window(win);
@@ -3943,12 +3986,13 @@ enternotify(XEvent *e)
 	Window			focus_return;
 	int			revert_to_return;
 
-
 	DNPRINTF(SWM_D_FOCUS, "enternotify: window: %lu mode %d detail %d root "
 	    "%lu subwindow %lu same_screen %d focus %d state %d\n",
 	    ev->window, ev->mode, ev->detail, ev->root, ev->subwindow,
 	    ev->same_screen, ev->focus, ev->state);
 
+	goto focusme;
+#if 0
 	/*
 	 * all these checks need to be in this order because the
 	 * XCheckTypedWindowEvent relies on weeding out the previous events
@@ -4015,6 +4059,28 @@ enternotify(XEvent *e)
 			return;
 		}
 	}
+#endif
+focusme:
+	if (QLength(display)) {
+		DNPRINTF(SWM_D_EVENT, "ignore enternotify %d\n",
+		    QLength(display));
+		return;
+	}
+
+	if ((win = find_window(ev->window)) == NULL) {
+		DNPRINTF(SWM_D_EVENT, "ignoring enternotify: win == NULL\n");
+		return;
+	}
+
+	/*
+	 * if we have more enternotifies let them handle it in due time
+	 */
+	if (XCheckTypedEvent(display, EnterNotify, &cne) == True) {
+		DNPRINT(SWM_D_EVENT,
+		    "ignoring enternotify: got more enternotify\n");
+		XPutBackEvent(display, &cne);
+		return;
+	}
 
 	focus_magic(win, SWM_F_TRANSIENT);
 }
@@ -4025,6 +4091,10 @@ enternotify(XEvent *e)
 void
 focusevent(XEvent *e)
 {
+	DNPRINTF(SWM_D_EVENT, "focusevent: %s window: %lu mode %d detail %d\n",
+	    ev->type == FocusIn ? "entering" : "leaving",
+	    ev->window, ev->mode, ev->detail);
+#if 0
 	struct ws_win		*win;
 	u_int32_t		mode_detail;
 	XFocusChangeEvent	*ev = &e->xfocus;
@@ -4058,9 +4128,11 @@ focusevent(XEvent *e)
 			    SWM_S_COLOR_FOCUS : SWM_S_COLOR_UNFOCUS].color);
 		break;
 	default:
+		fprintf(stderr, "ignoring focusevent\n");
 		DNPRINTF(SWM_D_FOCUS, "ignoring focusevent\n");
 		break;
 	}
+#endif
 }
 
 void
@@ -4159,13 +4231,6 @@ unmapnotify(XEvent *e)
 	/* determine if we need to help unmanage this window */
 	win = find_window(e->xunmap.window);
 	if (win == NULL)
-		return;
-
-	/*
-	 * XXX this is a work around for going fullscreen on mplayer
-	 * remove this and find a better heuristic
-	 */
-	if (win->floating)
 		return;
 
 	if (getstate(e->xunmap.window) == NormalState) {
@@ -4586,6 +4651,8 @@ main(int argc, char *argv[])
 
 	/* set some values to work around bad programs */
 	workaround();
+
+	unfocus_all();
 
 	grabkeys();
 	stack();
