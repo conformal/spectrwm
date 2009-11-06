@@ -4076,7 +4076,7 @@ focusme:
 	 * if we have more enternotifies let them handle it in due time
 	 */
 	if (XCheckTypedEvent(display, EnterNotify, &cne) == True) {
-		DNPRINT(SWM_D_EVENT,
+		DNPRINTF(SWM_D_EVENT,
 		    "ignoring enternotify: got more enternotify\n");
 		XPutBackEvent(display, &cne);
 		return;
