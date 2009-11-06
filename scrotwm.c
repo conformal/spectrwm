@@ -3982,10 +3982,12 @@ enternotify(XEvent *e)
 {
 	XCrossingEvent		*ev = &e->xcrossing;
 	XEvent			cne;
-	struct ws_win		*win, *w;
+	struct ws_win		*win;
+#if 0
+	struct ws_win		*w;
 	Window			focus_return;
 	int			revert_to_return;
-
+#endif
 	DNPRINTF(SWM_D_FOCUS, "enternotify: window: %lu mode %d detail %d root "
 	    "%lu subwindow %lu same_screen %d focus %d state %d\n",
 	    ev->window, ev->mode, ev->detail, ev->root, ev->subwindow,
