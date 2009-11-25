@@ -84,6 +84,10 @@ static const char	*cvstag = "$scrotwm$";
 #include <X11/Xutil.h>
 #include <X11/extensions/Xrandr.h>
 
+#ifdef __OSX__
+#include <osx.h>
+#endif
+
 #if RANDR_MAJOR < 1
 #  error XRandR versions less than 1.0 are not supported
 #endif

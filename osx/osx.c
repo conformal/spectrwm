@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "util.h"
+#include "osx.h"
 
 /* --------------------------------------------------------------------------- */
 /*	$OpenBSD: strtonum.c,v 1.6 2004/08/03 19:38:01 millert Exp $	*/
