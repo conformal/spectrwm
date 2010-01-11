@@ -14,6 +14,10 @@ char   *fparseln(FILE *, size_t *, size_t *, const char [3], int);
 
 long long strtonum(const char *, long long, long long, const char **);
 
+#ifndef WAIT_ANY
+#define WAIT_ANY		(-1)
+#endif
+
 /* there is no limit to ulrich drepper's crap */
 #ifndef TAILQ_END
 #define	TAILQ_END(head)			NULL

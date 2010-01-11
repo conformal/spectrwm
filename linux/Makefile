@@ -28,7 +28,7 @@ scrotwm: scrotwm.o linux.o
 	$(CC) $(CFLAGS) -c -fpic -DPIC $+ -o $@
 
 libswmhack.so.$(LVERS): swm_hack.so
-	$(CC) -shared -fpic -o libswmhack.so.$(LVERS) swm_hack.so
+	$(CC) -shared -fpic -o libswmhack.so.$(LVERS) swm_hack.so $(LDADD)
 
 install: all
 	install -m 755 -d $(DESTDIR)$(BINDIR)
@@ -37,6 +37,9 @@ install: all
 	install -m 755 scrotwm $(DESTDIR)$(BINDIR)
 	install -m 755 libswmhack.so.$(LVERS) $(DESTDIR)$(LIBDIR)
 	install -m 644 ../scrotwm.1 $(DESTDIR)$(MANDIR)/man1/scrotwm.1
+	install -m 644 ../scrotwm_es.1 $(DESTDIR)$(MANDIR)/man1/scrotwm_es.1
+	install -m 644 ../scrotwm_it.1 $(DESTDIR)$(MANDIR)/man1/scrotwm_it.1
+	install -m 644 ../scrotwm_ru.1 $(DESTDIR)$(MANDIR)/man1/scrotwm_ru.1
 
 clean:
 	rm -f scrotwm *.o *.so libswmhack.so.* scrotwm.c swm_hack.c
