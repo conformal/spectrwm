@@ -28,7 +28,7 @@ scrotwm: scrotwm.o osx.o
 	$(CC) $(CFLAGS) -c -fpic -DPIC $+ -o $@
 
 libswmhack.so.$(LVERS): swm_hack.so
-	$(CC) -shared -fpic -o libswmhack.so.$(LVERS) $(LDADD) swm_hack.so
+	$(CC) -shared -bundle -fpic -o libswmhack.so.$(LVERS) $(LDADD) swm_hack.so
 
 install: all
 	install -m 755 -d $(DESTDIR)$(BINDIR)
