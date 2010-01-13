@@ -198,6 +198,7 @@ int			bar_verbose = 1;
 int			bar_height = 0;
 int			stack_enabled = 1;
 int			clock_enabled = 1;
+char			*clock_format = NULL;
 int			title_name_enabled = 0;
 int			title_class_enabled = 0;
 pid_t			bar_pid;
@@ -843,7 +844,8 @@ bar_update(void)
 	else {
 		time(&tmt);
 		localtime_r(&tmt, &tm);
-		strftime(s, sizeof s, "%a %b %d %R %Z %Y    ", &tm);
+		strftime(s, sizeof s, clock_format, &tm);
+		strlcat(s, "    ", sizeof s);
 	}
 
 	for (i = 0; i < ScreenCount(display); i++) {
@@ -855,7 +857,7 @@ bar_update(void)
 			if (stack_enabled)
 				stack = r->ws->cur_layout->name;
 
-			snprintf(loc, sizeof loc, "%d:%d %s   %s %s    %s",
+			snprintf(loc, sizeof loc, "%d:%d %s   %s    %s    %s",
 			    x++, r->ws->idx + 1, stack, s, bar_ext,
 			    bar_vertext);
 			bar_print(r, loc);
@@ -3346,10 +3348,11 @@ setup_quirks(void)
 #define SWM_CONF_FILE	"scrotwm.conf"
 
 enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_STACK_ENABLED,
-	  SWM_S_CLOCK_ENABLED, SWM_S_CYCLE_EMPTY, SWM_S_CYCLE_VISIBLE,
-	  SWM_S_SS_ENABLED, SWM_S_TERM_WIDTH, SWM_S_TITLE_CLASS_ENABLED,
-	  SWM_S_TITLE_NAME_ENABLED, SWM_S_BAR_FONT, SWM_S_BAR_ACTION,
-	  SWM_S_SPAWN_TERM, SWM_S_SS_APP, SWM_S_DIALOG_RATIO };
+	  SWM_S_CLOCK_ENABLED, SWM_S_CLOCK_FORMAT, SWM_S_CYCLE_EMPTY,
+	  SWM_S_CYCLE_VISIBLE, SWM_S_SS_ENABLED, SWM_S_TERM_WIDTH,
+	  SWM_S_TITLE_CLASS_ENABLED, SWM_S_TITLE_NAME_ENABLED, SWM_S_BAR_FONT,
+	  SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM, SWM_S_SS_APP, SWM_S_DIALOG_RATIO
+	};
 
 int
 setconfvalue(char *selector, char *value, int flags)
@@ -3366,6 +3369,13 @@ setconfvalue(char *selector, char *value, int flags)
 		break;
 	case SWM_S_CLOCK_ENABLED:
 		clock_enabled = atoi(value);
+		break;
+	case SWM_S_CLOCK_FORMAT:
+#ifndef SWM_DENY_CLOCK_FORMAT
+		free(clock_format);
+		if ((clock_format = strdup(value)) == NULL)
+			err(1, "setconfvalue: clock_format");
+#endif
 		break;
 	case SWM_S_CYCLE_EMPTY:
 		cycle_empty = atoi(value);
@@ -3460,6 +3470,7 @@ struct config_option configopt[] = {
 	{ "bind",			setconfbinding,	0 },
 	{ "stack_enabled",		setconfvalue,	SWM_S_STACK_ENABLED },
 	{ "clock_enabled",		setconfvalue,	SWM_S_CLOCK_ENABLED },
+	{ "clock_format",		setconfvalue,	SWM_S_CLOCK_FORMAT },
 	{ "color_focus",		setconfcolor,	SWM_S_COLOR_FOCUS },
 	{ "color_unfocus",		setconfcolor,	SWM_S_COLOR_UNFOCUS },
 	{ "cycle_empty",		setconfvalue,	SWM_S_CYCLE_EMPTY },
@@ -4562,6 +4573,8 @@ setup_globals(void)
 		err(1, "setup_globals: strdup");
 	if ((spawn_term[0] = strdup("xterm")) == NULL)
 		err(1, "setup_globals: strdup");
+	if ((clock_format = strdup("%a %b %d %R %Z %Y")) == NULL)
+		errx(1, "strdup");
 }
 
 void
