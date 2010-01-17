@@ -16,6 +16,18 @@ Compile scrotwm from the osx directory of the snapshot:
 cd osx
 make
 </pre>
+<p>
+To compile scrotwm on OSX 10.5 edit the Makefile and replace:
+<pre>
+libswmhack.so.$(LVERS): swm_hack.so
+	$(CC) -shared -fpic -o libswmhack.so.$(LVERS) $(LDADD) swm_hack.so
+</pre>
+With:
+<pre>
+libswmhack.so.$(LVERS): swm_hack.so
+	$(CC) -shared -bundle -fpic -o libswmhack.so.$(LVERS) $(LDADD) swm_hack.so
+</pre>
+<p>
 Install scrotwm:
 <pre>sudo make install</pre>
 <br>
