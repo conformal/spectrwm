@@ -1434,7 +1434,7 @@ focus_win(struct ws_win *win)
 void
 switchws(struct swm_region *r, union arg *args)
 {
-	int			wsid = args->id;
+	int			wsid = args->id, unmap_old = 0;
 	struct swm_region	*this_r, *other_r;
 	struct ws_win		*win;
 	struct workspace	*new_ws, *old_ws;
@@ -1462,9 +1462,7 @@ switchws(struct swm_region *r, union arg *args)
 		if (old_ws->r != NULL)
 			old_ws->old_r = old_ws->r;
 		old_ws->r = NULL;
-
-		TAILQ_FOREACH(win, &old_ws->winlist, entry)
-			unmap_window(win);
+		unmap_old = 1;
 	} else {
 		other_r->ws = old_ws;
 		old_ws->r = other_r;
@@ -1476,6 +1474,11 @@ switchws(struct swm_region *r, union arg *args)
 	a.id = SWM_ARG_ID_FOCUSCUR;
 	focus(new_ws->r, &a);
 	bar_update();
+
+	/* unmap old windows */
+	if (unmap_old)
+		TAILQ_FOREACH(win, &old_ws->winlist, entry)
+			unmap_window(win);
 }
 
 void
@@ -4740,7 +4743,7 @@ main(int argc, char *argv[])
 	}
 done:
 	bar_extra_stop();
-
+	XFreeGC(display, bar_gc);
 	XCloseDisplay(display);
 
 	return (0);
