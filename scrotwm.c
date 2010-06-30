@@ -52,7 +52,7 @@
 
 static const char	*cvstag = "$scrotwm$";
 
-#define	SWM_VERSION	"0.9.23"
+#define	SWM_VERSION	"0.9.24"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -154,6 +154,10 @@ u_int32_t		swm_debug = 0
 #define SWM_MAX_FONT_STEPS	(3)
 #define WINID(w)		(w ? w->id : 0)
 
+#define SWM_FOCUS_DEFAULT	(0)
+#define SWM_FOCUS_SYNERGY	(1)
+#define SWM_FOCUS_FOLLOW	(2)
+
 #ifndef SWM_LIB
 #define SWM_LIB			"/usr/local/lib/libswmhack.so"
 #endif
@@ -201,6 +205,7 @@ int			clock_enabled = 1;
 char			*clock_format = NULL;
 int			title_name_enabled = 0;
 int			title_class_enabled = 0;
+int			focus_mode = SWM_FOCUS_DEFAULT;
 pid_t			bar_pid;
 GC			bar_gc;
 XGCValues		bar_gcv;
@@ -3353,8 +3358,9 @@ setup_quirks(void)
 enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_STACK_ENABLED,
 	  SWM_S_CLOCK_ENABLED, SWM_S_CLOCK_FORMAT, SWM_S_CYCLE_EMPTY,
 	  SWM_S_CYCLE_VISIBLE, SWM_S_SS_ENABLED, SWM_S_TERM_WIDTH,
-	  SWM_S_TITLE_CLASS_ENABLED, SWM_S_TITLE_NAME_ENABLED, SWM_S_BAR_FONT,
-	  SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM, SWM_S_SS_APP, SWM_S_DIALOG_RATIO
+	  SWM_S_TITLE_CLASS_ENABLED, SWM_S_TITLE_NAME_ENABLED,
+	  SWM_S_FOCUS_MODE, SWM_S_BAR_FONT, SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM,
+	  SWM_S_SS_APP, SWM_S_DIALOG_RATIO
 	};
 
 int
@@ -3397,6 +3403,16 @@ setconfvalue(char *selector, char *value, int flags)
 		break;
 	case SWM_S_TITLE_NAME_ENABLED:
 		title_name_enabled = atoi(value);
+		break;
+	case SWM_S_FOCUS_MODE:
+		if (!strcmp(value, "default"))
+			focus_mode = SWM_FOCUS_DEFAULT;
+		else if (!strcmp(value, "follow_cursor"))
+			focus_mode = SWM_FOCUS_FOLLOW;
+		else if (!strcmp(value, "synergy"))
+			focus_mode = SWM_FOCUS_SYNERGY;
+		else
+			err(1, "focus_mode");
 		break;
 	case SWM_S_BAR_FONT:
 		free(bar_fonts[0]);
@@ -3488,7 +3504,8 @@ struct config_option configopt[] = {
 	{ "screenshot_app",		setconfvalue,	SWM_S_SS_APP },
 	{ "term_width",			setconfvalue,	SWM_S_TERM_WIDTH },
 	{ "title_class_enabled",	setconfvalue,	SWM_S_TITLE_CLASS_ENABLED },
-	{ "title_name_enabled",		setconfvalue,	SWM_S_TITLE_NAME_ENABLED }
+	{ "title_name_enabled",		setconfvalue,	SWM_S_TITLE_NAME_ENABLED },
+	{ "focus_mode",			setconfvalue,   SWM_S_FOCUS_MODE },
 };
 
 
@@ -4011,7 +4028,17 @@ enternotify(XEvent *e)
 	    ev->window, ev->mode, ev->detail, ev->root, ev->subwindow,
 	    ev->same_screen, ev->focus, ev->state);
 
-	goto focusme;
+	switch (focus_mode) {
+	case SWM_FOCUS_DEFAULT:
+		if (QLength(display)) {
+			DNPRINTF(SWM_D_EVENT, "ignore enternotify %d\n",
+			    QLength(display));
+			return;
+		}
+		break;
+	case SWM_FOCUS_FOLLOW:
+		break;
+	case SWM_FOCUS_SYNERGY:
 #if 0
 	/*
 	 * all these checks need to be in this order because the
@@ -4080,11 +4107,7 @@ enternotify(XEvent *e)
 		}
 	}
 #endif
-focusme:
-	if (QLength(display)) {
-		DNPRINTF(SWM_D_EVENT, "ignore enternotify %d\n",
-		    QLength(display));
-		return;
+		break;
 	}
 
 	if ((win = find_window(ev->window)) == NULL) {
