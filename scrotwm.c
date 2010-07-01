@@ -236,6 +236,7 @@ struct swm_region {
 	TAILQ_ENTRY(swm_region)	entry;
 	struct swm_geometry	g;
 	struct workspace	*ws;	/* current workspace on this region */
+	struct workspace	*ws_prior; /* prior workspace on this region */
 	struct swm_screen	*s;	/* screen idx */
 	Window			bar_window;
 };
@@ -1469,9 +1470,11 @@ switchws(struct swm_region *r, union arg *args)
 		old_ws->r = NULL;
 		unmap_old = 1;
 	} else {
+		other_r->ws_prior = new_ws;
 		other_r->ws = old_ws;
 		old_ws->r = other_r;
 	}
+	this_r->ws_prior = old_ws;
 	this_r->ws = new_ws;
 	new_ws->r = this_r;
 
@@ -1522,6 +1525,23 @@ cyclews(struct swm_region *r, union arg *args)
 
 		switchws(r, &a);
 	} while (a.id != r->ws->idx);
+}
+
+void
+priorws(struct swm_region *r, union arg *args)
+{
+	union arg		a;
+	struct swm_screen	*s = r->s;
+	
+	DNPRINTF(SWM_D_WS, "priorws id %d "
+	    "in screen[%d]:%dx%d+%d+%d ws %d\n", args->id,
+	    r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
+	
+	if (r->ws_prior == NULL)
+		return;
+	
+	a.id = r->ws_prior->idx;
+	switchws(r, &a);
 }
 
 void
@@ -2506,6 +2526,7 @@ enum keyfuncid {
 	kf_ws_10,
 	kf_ws_next,
 	kf_ws_prev,
+	kf_ws_prior,
 	kf_screen_next,
 	kf_screen_prev,
 	kf_mvws_1,
@@ -2579,6 +2600,7 @@ struct keyfunc {
 	{ "ws_10",		switchws,	{.id = 9} },
 	{ "ws_next",		cyclews,	{.id = SWM_ARG_ID_CYCLEWS_UP} },
 	{ "ws_prev",		cyclews,	{.id = SWM_ARG_ID_CYCLEWS_DOWN} },
+	{ "ws_prior",		priorws,	{0} },
 	{ "screen_next",	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_UP} },
 	{ "screen_prev",	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_DOWN} },
 	{ "mvws_1",		send_to_ws,	{.id = 0} },
@@ -3101,6 +3123,7 @@ setup_keys(void)
 	setkeybinding(MODKEY,		XK_0,		kf_ws_10,	NULL);
 	setkeybinding(MODKEY,		XK_Right,	kf_ws_next,	NULL);
 	setkeybinding(MODKEY,		XK_Left,	kf_ws_prev,	NULL);
+	setkeybinding(MODKEY,		XK_a,		kf_ws_prior,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_Right,	kf_screen_next,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_Left,	kf_screen_prev,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_1,		kf_mvws_1,	NULL);
@@ -4393,6 +4416,7 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 	HEIGHT(r) = h;
 	r->s = s;
 	r->ws = ws;
+	r->ws_prior = NULL;
 	ws->r = r;
 	TAILQ_INSERT_TAIL(&s->rl, r, entry);
 }
