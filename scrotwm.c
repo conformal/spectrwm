@@ -774,6 +774,7 @@ bar_update(void)
 	int			i, x;
 	size_t			len;
 	char			s[SWM_BAR_MAX];
+	char			cn[SWM_BAR_MAX];
 	char			loc[SWM_BAR_MAX];
 	char			*b;
 	char			*stack = "";
@@ -807,14 +808,15 @@ bar_update(void)
 	for (i = 0; i < ScreenCount(display); i++) {
 		x = 1;
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
+			strlcpy(cn, "", sizeof cn);
 			if (r && r->ws)
-				bar_class_name(s, sizeof s, r->ws->focus);
+				bar_class_name(cn, sizeof cn, r->ws->focus);
 
 			if (stack_enabled)
 				stack = r->ws->cur_layout->name;
 
-			snprintf(loc, sizeof loc, "%d:%d %s   %s    %s    %s",
-			    x++, r->ws->idx + 1, stack, s, bar_ext,
+			snprintf(loc, sizeof loc, "%d:%d %s   %s%s    %s    %s",
+			    x++, r->ws->idx + 1, stack, s, cn, bar_ext,
 			    bar_vertext);
 			bar_print(r, loc);
 		}
@@ -4278,9 +4280,6 @@ enternotify(XEvent *e)
 void
 focusevent(XEvent *e)
 {
-	DNPRINTF(SWM_D_EVENT, "focusevent: %s window: %lu mode %d detail %d\n",
-	    ev->type == FocusIn ? "entering" : "leaving",
-	    ev->window, ev->mode, ev->detail);
 #if 0
 	struct ws_win		*win;
 	u_int32_t		mode_detail;
@@ -4492,6 +4491,9 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 		    (X(r) + WIDTH(r)) > x &&
 		    Y(r) < (y + h) &&
 		    (Y(r) + HEIGHT(r)) > y) {
+		    	if (r->ws->r != NULL)
+				r->ws->old_r = r->ws->r;
+			r->ws->r = NULL;
 			XDestroyWindow(display, r->bar_window);
 			TAILQ_REMOVE(&s->rl, r, entry);
 			TAILQ_INSERT_TAIL(&s->orl, r, entry);
