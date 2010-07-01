@@ -52,7 +52,7 @@
 
 static const char	*cvstag = "$scrotwm$";
 
-#define	SWM_VERSION	"0.9.24"
+#define	SWM_VERSION	"0.9.25"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -247,7 +247,11 @@ struct ws_win {
 	Window			id;
 	Window			transient;
 	struct ws_win		*child_trans;	/* transient child window */
-	struct swm_geometry	g;
+	struct swm_geometry	g;		/* current geometry */
+	struct swm_geometry	g_float;	/* geometry when floating */
+	struct swm_geometry	rg_float;	/* region geom when floating */
+	int			g_floatvalid;	/* flag: geometry in g_float is valid */
+	int			floatmaxed;	/* flag: floater was maxed in max_stack */
 	int			floating;
 	int			manual;
 	int			font_size_boundary[SWM_MAX_FONT_STEPS];
@@ -295,6 +299,9 @@ struct layout {
 	  SWM_L_MAPONFOCUS | SWM_L_FOCUSPREV,			"[ ]"},
 	{ NULL,			NULL,			0,	NULL },
 };
+
+/* position of max_stack mode in the layouts array */
+#define SWM_MAX_STACK		2
 
 #define SWM_H_SLICE		(32)
 #define SWM_V_SLICE		(32)
@@ -352,6 +359,7 @@ union arg {
 #define SWM_ARG_ID_SWAPNEXT	(10)
 #define SWM_ARG_ID_SWAPPREV	(11)
 #define SWM_ARG_ID_SWAPMAIN	(12)
+#define SWM_ARG_ID_MOVELAST	(13)
 #define SWM_ARG_ID_MASTERSHRINK (20)
 #define SWM_ARG_ID_MASTERGROW	(21)
 #define SWM_ARG_ID_MASTERADD	(22)
@@ -1464,12 +1472,11 @@ switchws(struct swm_region *r, union arg *args)
 
 	other_r = new_ws->r;
 	if (other_r == NULL) {
-		/* if the other workspace is hidden, switch windows */
-		if (old_ws->r != NULL)
-			old_ws->old_r = old_ws->r;
+		/* the other workspace is hidden, hide this one */
 		old_ws->r = NULL;
 		unmap_old = 1;
 	} else {
+		/* the other ws is visible in another region, exchange them */
 		other_r->ws_prior = new_ws;
 		other_r->ws = old_ws;
 		old_ws->r = other_r;
@@ -1641,6 +1648,10 @@ swapwin(struct swm_region *r, union arg *args)
 		TAILQ_INSERT_BEFORE(source, target, entry);
 		TAILQ_REMOVE(wl, source, entry);
 		TAILQ_INSERT_HEAD(wl, source, entry);
+		break;
+	case SWM_ARG_ID_MOVELAST:
+		TAILQ_REMOVE(wl, source, entry);
+		TAILQ_INSERT_TAIL(wl, source, entry);
 		break;
 	default:
 		DNPRINTF(SWM_D_MOVE, "invalid id: %d\n", args->id);
@@ -1831,10 +1842,27 @@ stack(void) {
 				g.h -= bar_height;
 			}
 			r->ws->cur_layout->l_stack(r->ws, &g);
+			/* save r so we can track region changes */
+			r->ws->old_r = r;
 		}
 	}
 	if (font_adjusted)
 		font_adjusted--;
+}
+
+void
+store_float_geom(struct ws_win *win, struct swm_region *r)
+{
+	/* retain window geom and region geom */
+	win->g_float.x = win->g.x;
+	win->g_float.y = win->g.y;
+	win->g_float.w = win->g.w;
+	win->g_float.h = win->g.h;
+	win->rg_float.x = r->g.x;
+	win->rg_float.y = r->g.y;
+	win->rg_float.w = r->g.w;
+	win->rg_float.h = r->g.h;
+	win->g_floatvalid = 1;
 }
 
 void
@@ -1848,6 +1876,26 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 
 	bzero(&wc, sizeof wc);
 	mask = CWX | CWY | CWBorderWidth | CWWidth | CWHeight;
+
+	/*
+	 * to allow windows to change their size (e.g. mplayer fs) only retrieve
+	 * geom on ws switches or return from max mode
+	 */
+
+	if (win->floatmaxed || (r != r->ws->old_r && win->g_floatvalid) ) {
+		/*
+		 * use stored g and rg to set relative position and size
+		 * as in old region or before max stack mode
+		 */
+		win->g.x = win->g_float.x - win->rg_float.x + r->g.x;
+		win->g.y = win->g_float.y - win->rg_float.y + r->g.y;
+		win->g.w = win->g_float.w;
+		win->g.h = win->g_float.h;
+		win->g_floatvalid = 0;
+	}
+
+	win->floatmaxed = 0;
+
 	if ((win->quirks & SWM_Q_FULLSCREEN) && (win->g.w >= WIDTH(r)) &&
 	    (win->g.h >= HEIGHT(r)))
 		wc.border_width = 0;
@@ -1857,26 +1905,39 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 		win->g.w = (double)WIDTH(r) * dialog_ratio;
 		win->g.h = (double)HEIGHT(r) * dialog_ratio;
 	}
-	wc.width = win->g.w;
-	wc.height = win->g.h;
-	if (win->manual) {
-		wc.x = win->g.x;
-		wc.y = win->g.y;
-	} else {
-		wc.x = (WIDTH(r) - win->g.w) / 2;
-		wc.y = (HEIGHT(r) - win->g.h) / 2;
+
+	if (!win->manual) {
+		/*
+		 * floaters and transients are auto-centred unless moved
+		 * or resized
+		 */
+                win->g.x = r->g.x + (WIDTH(r) - win->g.w) / 2;
+                win->g.y = r->g.y + (HEIGHT(r) - win->g.h) / 2;
 	}
 
-	/* adjust for region */
-	if (wc.x < r->g.x)
-		wc.x += r->g.x;
-	if (wc.y < r->g.y)
-		wc.y += r->g.y;
+	/* win can be outside r if new r smaller than old r */
+	/* Ensure top left corner inside r (move probs otherwise) */
+	if (win->g.x < r->g.x )
+		win->g.x = r->g.x;
+	if (win->g.x > r->g.x + r->g.w - 1)
+		win->g.x = (win->g.w > r->g.w) ? r->g.x :
+		    (r->g.x + r->g.w - win->g.w - 2);
+	if (win->g.y < r->g.y )
+		win->g.y = r->g.y;
+	if (win->g.y > r->g.y + r->g.h - 1)
+		win->g.y = (win->g.h > r->g.h) ? r->g.y :
+		    (r->g.y + r->g.h - win->g.h - 2);
 
-	win->g.x = wc.x;
-	win->g.y = wc.y;
-	win->g.w = wc.width;
-	win->g.h = wc.height;
+	wc.x = win->g.x;
+	wc.y = win->g.y;
+	wc.width = win->g.w;
+	wc.height = win->g.h;
+
+	/*
+	 * Retain floater and transient geometry for correct positioning
+	 * when ws changes region
+	 */
+	store_float_geom(win, r);
 
 	DNPRINTF(SWM_D_MISC, "stack_floater: win %lu x %d y %d w %d h %d\n",
 	    win->id, wc.x, wc.y, wc.width, wc.height);
@@ -2187,7 +2248,7 @@ horizontal_config(struct workspace *ws, int id)
 void
 horizontal_stack(struct workspace *ws, struct swm_geometry *g)
 {
-	DNPRINTF(SWM_D_STACK, "vertical_stack: workspace: %d\n", ws->idx);
+	DNPRINTF(SWM_D_STACK, "horizontal_stack: workspace: %d\n", ws->idx);
 
 	stack_master(ws, g, 1, 0);
 }
@@ -2216,6 +2277,15 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 			wintrans = win;
 			parent = find_window(win->transient);
 			continue;
+		}
+
+		if (win->floating && win->floatmaxed == 0 ) {
+			/*
+			 * retain geometry for retrieval on exit from
+			 * max_stack mode
+			 */
+			store_float_geom(win, ws->r);
+			win->floatmaxed = 1;
 		}
 
 		/* only reconfigure if necessary */
@@ -2313,8 +2383,27 @@ floating_toggle(struct swm_region *r, union arg *args)
 	if (win == NULL)
 		return;
 
-	win->floating = !win->floating;
-	win->manual = 0;
+	/* reject floating toggles in max stack mode */
+	if (r->ws->cur_layout == &layouts[SWM_MAX_STACK])
+		return;
+
+	if (win->floating) {
+		if (!win->floatmaxed) {
+			/* retain position for refloat */
+			store_float_geom(win, r);
+		}
+		win->floating = 0;
+	} else {
+		if (win->g_floatvalid) {
+                        /* refloat at last floating relative position */
+                        win->g.x = win->g_float.x - win->rg_float.x + r->g.x;
+                        win->g.y = win->g_float.y - win->rg_float.y + r->g.y;
+                        win->g.w = win->g_float.w;
+                        win->g.h = win->g_float.h;
+                }
+		win->floating = 1;
+	}
+
 	stack();
 	a.id = SWM_ARG_ID_FOCUSCUR;
 	focus(win->ws->r, &a);
@@ -2352,6 +2441,9 @@ resize(struct ws_win *win, union arg *args)
 	XEvent			ev;
 	Time			time = 0;
 	struct swm_region	*r = win->ws->r;
+	int			relx, rely;
+	union arg		a;
+
 
 	DNPRINTF(SWM_D_MOUSE, "resize: win %lu floating %d trans %lu\n",
 	    win->id, win->floating, win->transient);
@@ -2359,10 +2451,32 @@ resize(struct ws_win *win, union arg *args)
 	if (!(win->transient != 0 || win->floating != 0))
 		return;
 
+	/* reject resizes in max mode for floaters (transient ok) */
+	if (win->floatmaxed)
+		return;
+
+	win->manual = 1;
+	/* raise the window = move to last in window list */
+	a.id = SWM_ARG_ID_MOVELAST;
+	swapwin(r, &a);
+	stack();
+
 	if (XGrabPointer(display, win->id, False, MOUSEMASK, GrabModeAsync,
 	    GrabModeAsync, None, None /* cursor */, CurrentTime) != GrabSuccess)
 		return;
-	XWarpPointer(display, None, win->id, 0, 0, 0, 0, win->g.w, win->g.h);
+
+	/* place pointer at bottom left corner or nearest point inside r */
+	if ( win->g.x + win->g.w < r->g.x + r->g.w - 1)
+		relx = win->g.w;
+	else
+		relx = r->g.x + r->g.w - win->g.x - 2;
+
+	if ( win->g.y + win->g.h < r->g.y + r->g.h - 1)
+		rely = win->g.h;
+	else
+		rely = r->g.y + r->g.h - win->g.y - 2;
+
+	XWarpPointer(display, None, win->id, 0, 0, 0, 0, relx, rely);
 	do {
 		XMaskEvent(display, MOUSEMASK | ExposureMask |
 		    SubstructureRedirectMask, &ev);
@@ -2374,11 +2488,10 @@ resize(struct ws_win *win, union arg *args)
 			break;
 		case MotionNotify:
 			/* do not allow resize outside of region */
-			if (ev.xmotion.y_root < r->g.y ||
-			    ev.xmotion.y_root >= r->g.y + r->g.h - 1)
-				continue;
-			if (ev.xmotion.x_root < r->g.x ||
-			    ev.xmotion.x_root >= r->g.x + r->g.w - 1)
+			if (	ev.xmotion.x_root < r->g.x ||
+				ev.xmotion.x_root > r->g.x + r->g.w - 1 ||
+				ev.xmotion.y_root < r->g.y ||
+				ev.xmotion.y_root > r->g.y + r->g.h - 1)
 				continue;
 
 			if (ev.xmotion.x <= 1)
@@ -2401,6 +2514,8 @@ resize(struct ws_win *win, union arg *args)
 		XSync(display, False);
 		resize_window(win, args->id);
 	}
+	store_float_geom(win,r);
+
 	XWarpPointer(display, None, win->id, 0, 0, 0, 0, win->g.w - 1,
 	    win->g.h - 1);
 	XUngrabPointer(display, CurrentTime);
@@ -2434,22 +2549,30 @@ move(struct ws_win *win, union arg *args)
 {
 	XEvent			ev;
 	Time			time = 0;
-	int			restack = 0;
 	struct swm_region	*r = win->ws->r;
+	union arg		a;
 
 	DNPRINTF(SWM_D_MOUSE, "move: win %lu floating %d trans %lu\n",
 	    win->id, win->floating, win->transient);
 
-	if (win->floating == 0) {
+	/* in max_stack mode should only move transients */
+	if (win->ws->cur_layout == &layouts[SWM_MAX_STACK] && !win->transient)
+		return;
+
+	win->manual = 1;
+	if (win->floating == 0 && !win->transient) {
 		win->floating = 1;
-		win->manual = 1;
-		restack = 1;
 	}
+
+	/* raise the window = move to last in window list */
+	a.id = SWM_ARG_ID_MOVELAST;
+	swapwin(r, &a);
+	stack();
 
 	if (XGrabPointer(display, win->id, False, MOUSEMASK, GrabModeAsync,
 	    GrabModeAsync, None, None /* cursor */, CurrentTime) != GrabSuccess)
 		return;
-	XWarpPointer(display, None, win->id, 0, 0, 0, 0, 0, 0);
+	XWarpPointer(display, None, win->id, 0, 0, 0, 0, -1, -1);
 	do {
 		XMaskEvent(display, MOUSEMASK | ExposureMask |
 		    SubstructureRedirectMask, &ev);
@@ -2460,12 +2583,11 @@ move(struct ws_win *win, union arg *args)
 			handler[ev.type](&ev);
 			break;
 		case MotionNotify:
-			/* don't allow to move window out of region */
-			if (ev.xmotion.y_root < r->g.y ||
-			    ev.xmotion.y_root + win->g.h >= r->g.y + r->g.h - 1)
-				continue;
-			if (ev.xmotion.x_root < r->g.x ||
-			    ev.xmotion.x_root + win->g.w >= r->g.x + r->g.w - 1)
+			/* don't allow to move window origin out of region */
+			if (	ev.xmotion.x_root < r->g.x ||
+				ev.xmotion.x_root > r->g.x + r->g.w - 1 ||
+				ev.xmotion.y_root < r->g.y ||
+				ev.xmotion.y_root > r->g.y + r->g.h - 1)
 				continue;
 
 			win->g.x = ev.xmotion.x_root;
@@ -2484,10 +2606,9 @@ move(struct ws_win *win, union arg *args)
 		XSync(display, False);
 		move_window(win);
 	}
+	store_float_geom(win,r);
 	XWarpPointer(display, None, win->id, 0, 0, 0, 0, 0, 0);
 	XUngrabPointer(display, CurrentTime);
-	if (restack)
-		stack();
 
 	/* drain events */
 	while (XCheckMaskEvent(display, EnterWindowMask, &ev));
@@ -3735,6 +3856,8 @@ manage_window(Window id)
 	win->g.h = win->wa.height;
 	win->g.x = win->wa.x;
 	win->g.y = win->wa.y;
+	win->g_floatvalid = 0;
+	win->floatmaxed = 0;
 
 	/* Set window properties so we can remember this after reincarnation */
 	if (ws_idx_atom && prop == NULL &&
