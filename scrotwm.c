@@ -3338,8 +3338,7 @@ void
 setup_quirks(void)
 {
 	setquirk("MPlayer",		"xv",		SWM_Q_FLOAT | SWM_Q_FULLSCREEN);
-	setquirk("OpenOffice.org 2.4",	"VCLSalFrame",	SWM_Q_FLOAT);
-	setquirk("OpenOffice.org 3.0",	"VCLSalFrame",	SWM_Q_FLOAT);
+	setquirk("OpenOffice.org 3.2",	"VCLSalFrame",	SWM_Q_FLOAT);
 	setquirk("Firefox-bin",		"firefox-bin",	SWM_Q_TRANSSZ);
 	setquirk("Firefox",		"Dialog",	SWM_Q_FLOAT);
 	setquirk("Gimp",		"gimp",		SWM_Q_FLOAT | SWM_Q_ANYWHERE);
