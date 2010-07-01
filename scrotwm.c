@@ -2113,7 +2113,12 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			win_g.y += last_h + 2;
 
 		bzero(&wc, sizeof wc);
-		wc.border_width = 1;
+		if (bar_enabled == 0 && winno == 1){
+			wc.border_width = 0;
+			win_g.w += 2;
+			win_g.h += 2;
+		} else
+			wc.border_width = 1;
 		reconfigure = 0;
 		if (rot) {
 			if (win->g.x != win_g.y || win->g.y != win_g.x ||
@@ -2294,11 +2299,17 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		if (win->g.x != gg.x || win->g.y != gg.y || win->g.w != gg.w ||
 		    win->g.h != gg.h) {
 			bzero(&wc, sizeof wc);
-			wc.border_width = 1;
 			win->g.x = wc.x = gg.x;
 			win->g.y = wc.y = gg.y;
-			win->g.w = wc.width = gg.w;
-			win->g.h = wc.height = gg.h;
+			if (bar_enabled){
+				wc.border_width = 1;
+				win->g.w = wc.width = gg.w;
+				win->g.h = wc.height = gg.h;
+			} else {
+				wc.border_width = 0;
+				win->g.w = wc.width = gg.w + 2;
+				win->g.h = wc.height = gg.h + 2;
+			}
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 			XConfigureWindow(display, win->id, mask, &wc);
 			configreq_win(win);
