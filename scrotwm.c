@@ -206,6 +206,7 @@ char			*clock_format = NULL;
 int			title_name_enabled = 0;
 int			title_class_enabled = 0;
 int			focus_mode = SWM_FOCUS_DEFAULT;
+int			disable_border = 0;
 pid_t			bar_pid;
 GC			bar_gc;
 XGCValues		bar_gcv;
@@ -2113,7 +2114,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			win_g.y += last_h + 2;
 
 		bzero(&wc, sizeof wc);
-		if (bar_enabled == 0 && winno == 1){
+		if (disable_border && bar_enabled == 0 && winno == 1){
 			wc.border_width = 0;
 			win_g.w += 2;
 			win_g.h += 2;
@@ -3514,8 +3515,8 @@ enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_STACK_ENABLED,
 	  SWM_S_CLOCK_ENABLED, SWM_S_CLOCK_FORMAT, SWM_S_CYCLE_EMPTY,
 	  SWM_S_CYCLE_VISIBLE, SWM_S_SS_ENABLED, SWM_S_TERM_WIDTH,
 	  SWM_S_TITLE_CLASS_ENABLED, SWM_S_TITLE_NAME_ENABLED,
-	  SWM_S_FOCUS_MODE, SWM_S_BAR_FONT, SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM,
-	  SWM_S_SS_APP, SWM_S_DIALOG_RATIO
+	  SWM_S_FOCUS_MODE, SWM_S_DISABLE_BORDER, SWM_S_BAR_FONT,
+	  SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM, SWM_S_SS_APP, SWM_S_DIALOG_RATIO
 	};
 
 int
@@ -3568,6 +3569,9 @@ setconfvalue(char *selector, char *value, int flags)
 			focus_mode = SWM_FOCUS_SYNERGY;
 		else
 			err(1, "focus_mode");
+		break;
+	case SWM_S_DISABLE_BORDER:
+		disable_border = atoi(value);
 		break;
 	case SWM_S_BAR_FONT:
 		free(bar_fonts[0]);
@@ -3661,6 +3665,7 @@ struct config_option configopt[] = {
 	{ "title_class_enabled",	setconfvalue,	SWM_S_TITLE_CLASS_ENABLED },
 	{ "title_name_enabled",		setconfvalue,	SWM_S_TITLE_NAME_ENABLED },
 	{ "focus_mode",			setconfvalue,   SWM_S_FOCUS_MODE },
+	{ "disable_border",		setconfvalue,   SWM_S_DISABLE_BORDER },
 };
 
 
