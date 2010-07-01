@@ -1531,7 +1531,6 @@ void
 priorws(struct swm_region *r, union arg *args)
 {
 	union arg		a;
-	struct swm_screen	*s = r->s;
 	
 	DNPRINTF(SWM_D_WS, "priorws id %d "
 	    "in screen[%d]:%dx%d+%d+%d ws %d\n", args->id,
@@ -4548,6 +4547,10 @@ setup_screens(void)
 		setscreencolor("rgb:00/80/80", i + 1, SWM_S_COLOR_BAR_BORDER);
 		setscreencolor("black", i + 1, SWM_S_COLOR_BAR);
 		setscreencolor("rgb:a0/a0/a0", i + 1, SWM_S_COLOR_BAR_FONT);
+
+		/* set default cursor */
+		XDefineCursor(display, screens[i].root,
+		    XCreateFontCursor(display, XC_left_ptr));
 
 		/* init all workspaces */
 		/* XXX these should be dynamically allocated too */
