@@ -168,6 +168,7 @@ Atom			aprot;
 Atom			adelete;
 Atom			takefocus;
 volatile sig_atomic_t   running = 1;
+volatile sig_atomic_t   restart_wm = 0;
 int			outputs = 0;
 int			last_focus_event = FocusOut;
 int			(*xerrorxlib)(Display *, XErrorEvent *);
@@ -608,9 +609,11 @@ sighdlr(int sig)
 				break;
 		}
 		break;
+	case SIGHUP:
+		restart_wm = 1;
+		break;
 	case SIGINT:
 	case SIGTERM:
-	case SIGHUP:
 	case SIGQUIT:
 		running = 0;
 		break;
@@ -4924,6 +4927,8 @@ main(int argc, char *argv[])
 		if (select(xfd + 1, &rd, NULL, NULL, &tv) == -1)
 			if (errno != EINTR)
 				DNPRINTF(SWM_D_MISC, "select failed");
+		if (restart_wm == 1)
+			restart(NULL, NULL);
 		if (running == 0)
 			goto done;
 		if (bar_alarm) {
