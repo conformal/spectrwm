@@ -599,16 +599,36 @@ void			(*handler[LASTEvent])(XEvent *) = {
 void
 sighdlr(int sig)
 {
+	int			saved_errno, status;
 	pid_t			pid;
+
+	saved_errno = errno;
 
 	switch (sig) {
 	case SIGCHLD:
-		while ((pid = waitpid(WAIT_ANY, NULL, WNOHANG)) != -1) {
-			DNPRINTF(SWM_D_MISC, "reaping: %d\n", pid);
-			if (pid <= 0)
+		while ((pid = waitpid(WAIT_ANY, &status, WNOHANG)) != 0) {
+			if (pid == -1) {
+				if (errno == EINTR)
+					continue;
+#ifdef SWM_DEBUG
+				if (errno != ECHILD)
+					warn("sighdlr: waitpid");
+#endif /* SWM_DEBUG */
 				break;
+			}
+
+#ifdef SWM_DEBUG
+			if (WIFEXITED(status)) {
+				if (WEXITSTATUS(status) != 0)
+					warnx("sighdlr: child exit status: %d",
+					    WEXITSTATUS(status));
+			} else
+				warnx("sighdlr: child is terminated "
+				    "abnormally");
+#endif /* SWM_DEBUG */
 		}
 		break;
+
 	case SIGHUP:
 		restart_wm = 1;
 		break;
@@ -618,18 +638,8 @@ sighdlr(int sig)
 		running = 0;
 		break;
 	}
-}
 
-void
-installsignal(int sig, char *name)
-{
-	struct sigaction	sa;
-
-	sa.sa_handler = sighdlr;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = 0;
-	if (sigaction(sig, &sa, NULL) == -1)
-		err(1, "could not install %s handler", name);
+	errno = saved_errno;
 }
 
 unsigned long
@@ -4806,6 +4816,7 @@ main(int argc, char *argv[])
 	XEvent			e;
 	int			xfd, i;
 	fd_set			rd;
+	struct sigaction	sact;
 
 	start_argv = argv;
 	fprintf(stderr, "Welcome to scrotwm V%s cvs tag: %s\n",
@@ -4819,12 +4830,19 @@ main(int argc, char *argv[])
 	if (active_wm())
 		errx(1, "other wm running");
 
-	/* handle some signale */
-	installsignal(SIGINT, "INT");
-	installsignal(SIGHUP, "HUP");
-	installsignal(SIGQUIT, "QUIT");
-	installsignal(SIGTERM, "TERM");
-	installsignal(SIGCHLD, "CHLD");
+	/* handle some signals */
+	bzero(&sact, sizeof(sact));
+	sigemptyset(&sact.sa_mask);
+	sact.sa_flags = 0;
+	sact.sa_handler = sighdlr;
+	sigaction(SIGINT, &sact, NULL);
+	sigaction(SIGQUIT, &sact, NULL);
+	sigaction(SIGTERM, &sact, NULL);
+	sigaction(SIGHUP, &sact, NULL);
+
+	sact.sa_handler = sighdlr;
+	sact.sa_flags = SA_NOCLDSTOP;
+	sigaction(SIGCHLD, &sact, NULL);
 
 	astate = XInternAtom(display, "WM_STATE", False);
 	aprot = XInternAtom(display, "WM_PROTOCOLS", False);
