@@ -1605,7 +1605,7 @@ cyclescr(struct swm_region *r, union arg *args)
 
 	/* move mouse to region */
 	x = rr->g.x + 1;
-	y = rr->g.y + 1 + bar_enabled ? bar_height : 0;
+	y = rr->g.y + 1 + (bar_enabled ? bar_height : 0);
 	XWarpPointer(display, None, rr->s[i].root, 0, 0, 0, 0, x, y);
 
 	a.id = SWM_ARG_ID_FOCUSCUR;
@@ -4579,6 +4579,7 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 	r->ws = ws;
 	r->ws_prior = NULL;
 	ws->r = r;
+	outputs++;
 	TAILQ_INSERT_TAIL(&s->rl, r, entry);
 }
 
@@ -4604,10 +4605,10 @@ scan_xrandr(int i)
 		TAILQ_REMOVE(&screens[i].rl, r, entry);
 		TAILQ_INSERT_TAIL(&screens[i].orl, r, entry);
 	}
+	outputs = 0;
 
 	/* map virtual screens onto physical screens */
 #ifdef SWM_XRR_HAS_CRTC
-	outputs = 0;
 	if (xrandr_support) {
 		sr = XRRGetScreenResources(display, screens[i].root);
 		if (sr == NULL)
@@ -4621,7 +4622,6 @@ scan_xrandr(int i)
 			ci = XRRGetCrtcInfo(display, sr, sr->crtcs[c]);
 			if (ci->noutput == 0)
 				continue;
-			outputs++;
 
 			if (ci != NULL && ci->mode == None)
 				new_region(&screens[i], 0, 0,
@@ -4938,7 +4938,7 @@ main(int argc, char *argv[])
 			if (ScreenCount(display) > 1 || outputs > 1)
 				XWarpPointer(display, None, rr->s[0].root,
 				    0, 0, 0, 0, rr->g.x,
-				    rr->g.y + bar_enabled ? bar_height : 0);
+				    rr->g.y + (bar_enabled ? bar_height : 0));
 
 			a.id = SWM_ARG_ID_FOCUSCUR;
 			focus(rr, &a);
