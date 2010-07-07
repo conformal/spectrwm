@@ -922,6 +922,11 @@ bar_setup(struct swm_region *r)
 {
 	int			i;
 
+	if (bar_fs) {
+		XFreeFont(display, bar_fs);
+		bar_fs = NULL;
+	}
+
 	for (i = 0; bar_fonts[i] != NULL; i++) {
 		bar_fs = XLoadQueryFont(display, bar_fonts[i]);
 		if (bar_fs) {
@@ -931,6 +936,9 @@ bar_setup(struct swm_region *r)
 	}
 	if (bar_fonts[i] == NULL)
 			errx(1, "couldn't load font");
+	if (bar_fs == NULL)
+		errx(1, "couldn't create font structure");
+
 	bar_height = bar_fs->ascent + bar_fs->descent + 3;
 
 	r->bar_window = XCreateSimpleWindow(display,
