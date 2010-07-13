@@ -1,6 +1,6 @@
 /* $scrotwm$ */
 /*
- * Copyright (c) 2009 Marco Peereboom <marco@peereboom.us>
+ * Copyright (c) 2009-2010 Marco Peereboom <marco@peereboom.us>
  * Copyright (c) 2009 Ryan McBride <mcbride@countersiege.com>
  * Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
  * Copyright (c) 2009 Pierre-Yves Ritschard <pyr@spootnik.org>
