@@ -198,6 +198,7 @@ int			bar_version = 0;
 sig_atomic_t		bar_alarm = 0;
 int			bar_delay = 30;
 int			bar_enabled = 1;
+int			bar_at_bottom = 0;
 int			bar_extra = 1;
 int			bar_extra_running = 0;
 int			bar_verbose = 1;
@@ -921,7 +922,7 @@ bar_refresh(void)
 void
 bar_setup(struct swm_region *r)
 {
-	int			i;
+	int			i, x, y;
 
 	if (bar_fs) {
 		XFreeFont(display, bar_fs);
@@ -941,9 +942,11 @@ bar_setup(struct swm_region *r)
 		errx(1, "couldn't create font structure");
 
 	bar_height = bar_fs->ascent + bar_fs->descent + 3;
+	x = X(r);
+	y = bar_at_bottom ? (Y(r) + HEIGHT(r) - bar_height) : Y(r);
 
 	r->bar_window = XCreateSimpleWindow(display,
-	    r->s->root, X(r), Y(r), WIDTH(r) - 2, bar_height - 2,
+	    r->s->root, x, y, WIDTH(r) - 2, bar_height - 2,
 	    1, r->s->c[SWM_S_COLOR_BAR_BORDER].color,
 	    r->s->c[SWM_S_COLOR_BAR].color);
 	bar_gc = XCreateGC(display, r->bar_window, 0, &bar_gcv);
@@ -1880,7 +1883,8 @@ stack(void) {
 			g.w -= 2;
 			g.h -= 2;
 			if (bar_enabled) {
-				g.y += bar_height;
+				if(!bar_at_bottom)
+					g.y += bar_height;
 				g.h -= bar_height;
 			}
 			r->ws->cur_layout->l_stack(r->ws, &g);
@@ -3555,7 +3559,8 @@ enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_STACK_ENABLED,
 	  SWM_S_CYCLE_VISIBLE, SWM_S_SS_ENABLED, SWM_S_TERM_WIDTH,
 	  SWM_S_TITLE_CLASS_ENABLED, SWM_S_TITLE_NAME_ENABLED,
 	  SWM_S_FOCUS_MODE, SWM_S_DISABLE_BORDER, SWM_S_BAR_FONT,
-	  SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM, SWM_S_SS_APP, SWM_S_DIALOG_RATIO
+	  SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM, SWM_S_SS_APP, SWM_S_DIALOG_RATIO,
+	  SWM_S_BAR_AT_BOTTOM
 	};
 
 int
@@ -3567,6 +3572,9 @@ setconfvalue(char *selector, char *value, int flags)
 		break;
 	case SWM_S_BAR_ENABLED:
 		bar_enabled = atoi(value);
+		break;
+	case SWM_S_BAR_AT_BOTTOM:
+		bar_at_bottom = atoi(value);
 		break;
 	case SWM_S_STACK_ENABLED:
 		stack_enabled = atoi(value);
@@ -3678,6 +3686,7 @@ struct config_option {
 };
 struct config_option configopt[] = {
 	{ "bar_enabled",		setconfvalue,	SWM_S_BAR_ENABLED },
+	{ "bar_at_bottom",		setconfvalue,	SWM_S_BAR_AT_BOTTOM },
 	{ "bar_border",			setconfcolor,	SWM_S_COLOR_BAR_BORDER },
 	{ "bar_color",			setconfcolor,	SWM_S_COLOR_BAR },
 	{ "bar_font_color",		setconfcolor,	SWM_S_COLOR_BAR_FONT },
