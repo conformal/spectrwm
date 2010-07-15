@@ -1883,7 +1883,7 @@ stack(void) {
 			g.w -= 2;
 			g.h -= 2;
 			if (bar_enabled) {
-				if(!bar_at_bottom)
+				if (!bar_at_bottom)
 					g.y += bar_height;
 				g.h -= bar_height;
 			}
