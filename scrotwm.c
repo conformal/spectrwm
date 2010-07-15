@@ -66,6 +66,7 @@ static const char	*cvstag = "$scrotwm$";
 #include <string.h>
 #include <util.h>
 #include <pwd.h>
+#include <paths.h>
 #include <ctype.h>
 
 #include <sys/types.h>
@@ -1251,39 +1252,56 @@ find_window(Window id)
 void
 spawn(struct swm_region *r, union arg *args)
 {
-	char			*ret;
-	int			si;
+	int			fd;
+	char			*ret = NULL;
 
 	DNPRINTF(SWM_D_MISC, "spawn: %s\n", args->argv[0]);
-	/*
-	 * The double-fork construct avoids zombie processes and keeps the code
-	 * clean from stupid signal handlers.
-	 */
+
 	if (fork() == 0) {
-		if (fork() == 0) {
-			if (display)
-				close(ConnectionNumber(display));
-			setenv("LD_PRELOAD", SWM_LIB, 1);
-			if (asprintf(&ret, "%d", r->ws->idx)) {
-				setenv("_SWM_WS", ret, 1);
-				free(ret);
-			}
-			if (asprintf(&ret, "%d", getpid())) {
-				setenv("_SWM_PID", ret, 1);
-				free(ret);
-			}
-			setsid();
-			/* kill stdin, mplayer, ssh-add etc. need that */
-			si = open("/dev/null", O_RDONLY, 0);
-			if (si == -1)
-				err(1, "open /dev/null");
-			if (dup2(si, 0) == -1)
-				err(1, "dup2 /dev/null");
-			execvp(args->argv[0], args->argv);
-			fprintf(stderr, "execvp failed\n");
-			perror(" failed");
+		if (display)
+			close(ConnectionNumber(display));
+
+		setenv("LD_PRELOAD", SWM_LIB, 1);
+
+		if (asprintf(&ret, "%d", r->ws->idx) == -1) {
+			perror("_SWM_WS");
+			_exit(1);
 		}
-		exit(0);
+		setenv("_SWM_WS", ret, 1);
+		free(ret);
+		ret = NULL;
+
+		if (asprintf(&ret, "%d", getpid()) == -1) {
+			perror("_SWM_PID");
+			_exit(1);
+		}
+		setenv("_SWM_PID", ret, 1);
+		free(ret);
+		ret = NULL;
+
+		if (setsid() == -1) {
+			perror("setsid");
+			_exit(1);
+		}
+
+		/*
+		 * close stdin and stdout to prevent interaction between apps
+		 * and the baraction script
+		 * leave stderr open to record errors
+		*/
+		if ((fd = open(_PATH_DEVNULL, O_RDWR, 0)) == -1) {
+			perror("open");
+			_exit(1);
+		}
+		dup2(fd, STDIN_FILENO);
+		dup2(fd, STDOUT_FILENO);
+		if (fd > 2)
+			close(fd);
+
+		execvp(args->argv[0], args->argv);
+
+		perror("execvp");
+		_exit(1);
 	}
 }
 
