@@ -1109,9 +1109,8 @@ unmap_window(struct ws_win *win)
 	set_win_state(win, IconicState);
 
 	XUnmapWindow(display, win->id);
-	if (win->ws->r)
-		XSetWindowBorder(display, win->id,
-		    win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
+	XSetWindowBorder(display, win->id,
+	    win->s->c[SWM_S_COLOR_UNFOCUS].color); 
 }
 
 void
@@ -1392,7 +1391,7 @@ unfocus_win(struct ws_win *win)
 		return;
 
 	if (validate_ws(win->ws))
-		abort();
+		abort(); /* XXX replace with return at some point */
 
 	if (win->ws->r == NULL)
 		return;
@@ -1457,7 +1456,8 @@ focus_win(struct ws_win *win)
 		return;
 
 	if (validate_ws(win->ws))
-		abort();
+		abort(); /* XXX replace with return at some point */
+
 	if (validate_win(win)) {
 		kill_refs(win);
 		return;
@@ -1743,10 +1743,10 @@ focus_prev(struct ws_win *win)
 
 	/* if in max_stack try harder */
 	if (ws->cur_layout->flags & SWM_L_FOCUSPREV) {
- 		if (cur_focus != ws->focus_prev)
- 			winfocus = ws->focus_prev;
- 		else if (cur_focus != ws->focus)
- 			winfocus = ws->focus;
+		if (cur_focus != ws->focus_prev)
+			winfocus = ws->focus_prev;
+		else if (cur_focus != ws->focus)
+			winfocus = ws->focus;
 		else
 			winfocus = TAILQ_PREV(win, ws_win_list, entry);
 		if (winfocus)
@@ -1800,7 +1800,7 @@ focus(struct swm_region *r, union arg *args)
 	winlostfocus = cur_focus;
 
 	switch (args->id) {
- 	case SWM_ARG_ID_FOCUSPREV:
+	case SWM_ARG_ID_FOCUSPREV:
 		winfocus = TAILQ_PREV(cur_focus, ws_win_list, entry);
 		if (winfocus == NULL)
 			winfocus = TAILQ_LAST(wl, ws_win_list);
@@ -4071,9 +4071,17 @@ focus_magic(struct ws_win *win, int do_trans)
 			if (win->child_trans->take_focus)
 				client_msg(win, takefocus);
 		} else {
-			focus_win(win->child_trans);
-			if (win->child_trans->take_focus)
-				client_msg(win->child_trans, takefocus);
+			/* make sure transient hasn't dissapeared */
+			if (validate_win(win->child_trans) == 0) {
+				focus_win(win->child_trans);
+				if (win->child_trans->take_focus)
+					client_msg(win->child_trans, takefocus);
+			} else {
+				win->child_trans = NULL;
+				focus_win(win);
+				if (win->take_focus)
+					client_msg(win, takefocus);
+			}
 		}
 	} else {
 		/* regular focus */
