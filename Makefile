@@ -17,6 +17,9 @@ LDADD+=-lutil -L${X11BASE}/lib -lX11 -lXrandr
 
 MANDIR= ${PREFIX}/man/cat
 
+scrotwm_ru.cat1: scrotwm_ru.1
+	 nroff -mandoc ${.CURDIR}/scrotwm_ru.1 > ${.TARGET}
+
 obj: _xenocara_obj
 
 .include <bsd.prog.mk>
