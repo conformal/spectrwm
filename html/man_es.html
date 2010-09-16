@@ -1,345 +1,377 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html>
 <head>
-<title>scrotwm_es.1.html</title>
-<meta name="Generator" content="Vim/7.2">
 <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+<title>~/scrotwm_es.1.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v6">
+<meta name="syntax" content="man">
+<meta name="settings" content="use_css">
+<style type="text/css">
+<!--
+pre { font-family: monospace; background-color: #000000; color: #ffffff; }
+body { font-family: monospace; background-color: #000000; color: #ffffff; }
+.PreProc { color: #ff40ff; }
+.Statement { color: #ffff00; }
+.Title { color: #ff40ff; }
+-->
+</style>
 </head>
-<body text="#ffffff" bgcolor="#000000"><font face="monospace">
-<font color="#ffff00">NOMBRE</font><br>
-&nbsp;&nbsp;&nbsp;&nbsp; scrotwm - es un manejador de ventanas para X11<br>
-<br>
-<font color="#ffff00">SYNOPSIS</font><br>
-&nbsp;&nbsp;&nbsp;&nbsp; scrotwm<br>
-<br>
-<font color="#ffff00">DESCRIPCION</font><br>
-&nbsp;&nbsp;&nbsp;&nbsp; scrotwm es un manejador de ventanas super minimalista para X11. Intenta<br>
-&nbsp;&nbsp;&nbsp;&nbsp; no superponer las ventanas para que las mismas puedan usarse de manera<br>
-&nbsp;&nbsp;&nbsp;&nbsp; eficiente y para cosas mas importantes.&nbsp;&nbsp;Tiene configuraciones normales y<br>
-&nbsp;&nbsp;&nbsp;&nbsp; no requiere que sepas un lenguaje de programacion para configurarlo. Esta<br>
-&nbsp;&nbsp;&nbsp;&nbsp; escrito por hackers para hackers y apunta a ser pequeno, compacto y rapi-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; do.<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; Cuando scrotwm inicia, lo primero que hace es leer el archivo de configu-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; racion, scrotwm.conf.&nbsp;&nbsp;Ver ARCHIVOS DE CONFIGURACION<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; La siguiente anotacion se usa a traves de esta pagina:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Meta<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; S&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Shift<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &lt;Name&gt;&nbsp;&nbsp;Nombre de tecla<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Boton 1 del mouse<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Boton 3 del mouse<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; scrotwm es muy simple de usar.&nbsp;&nbsp;La mayoria de las acciones se hacen con<br>
-&nbsp;&nbsp;&nbsp;&nbsp; los mapeos (bindings) de mouse o teclado.&nbsp;&nbsp;Ver la seccion de BINDINGS<br>
-&nbsp;&nbsp;&nbsp;&nbsp; para las personalizaciones y configuraciones por defecto.<br>
-<br>
-<font color="#ffff00">ARCHIVOS DE CONFIGURACION</font><br>
-&nbsp;&nbsp;&nbsp;&nbsp; scrotwm primero trata de abrir el archivo por defecto en el directorio<br>
-&nbsp;&nbsp;&nbsp;&nbsp; del usuario, ~/.scrotwm.conf.&nbsp;&nbsp;Si ese archivo no esta disponible, luego<br>
-&nbsp;&nbsp;&nbsp;&nbsp; trata de abrir el archivo global de configuracion /etc/scrotwm.conf.<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; El formato del archivo es &lt;tecla&gt; = &lt;configuracion&gt;.&nbsp;&nbsp;Por ejemplo:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; color_focus = red<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; Habilitamos o deshabilitamos la opcion usando 1 o 0 respectivamente.<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; El archivo soporta las siguientes palabras clave:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; color_focus&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Color del borde de la ventana en foco.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; color_unfocus&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Color del borde de la ventana fuera de fo-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; co.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bar_enabled&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Habilitar o deshabilitar la barra de esta-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; do.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bar_border[x]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Color del borde de la barra de estado en<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pantalla.&nbsp;&nbsp;x.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bar_color[x]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Color de la ventana de la barra de estado<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; en pantalla.&nbsp;&nbsp;x.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bar_font_color[x]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Color de la fuente en la barra de estado en<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pantalla.&nbsp;&nbsp;x.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bar_font&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fuente de la barra de estado.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bar_action&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Scripts externos con populares agregados de<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; informacion para la barra de estado, como<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; la vida de la bateria.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bar_delay&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Frecuencia de actualizacion, en segundos,<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; de los scripts de la barra de estado.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; stack_enabled&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Habilitar o deshabilitar mostrar el algo-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ritmo de apilamiento en la barra de estado.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; clock_enabled&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Habilitar o deshabilitar el reloj en la<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; barra de estado, deshabilitado por defecto<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; con un 0, para usar el reloj de la barra de<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; estado (bar_action)<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; dialog_ratio&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Algunas aplicaciones tienen ventanas de di-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; alogo muy pequenas como para ser usables.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Este relacion (ratio) es el tamano de la<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pantalla, por ejemplo 0.6 es 60% del tamano<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; fisico de la pantalla.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; region&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Acomodar una region personalizada, re-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; moviendo cualquier autodetecion de regiones<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; que ocupe el espacio en la pantalla.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Definiendo el formato screen[&lt;idx&gt;]:WIDTHx-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; HEIGHT+X+Y, e.g. screen[1]:800x1200+0+0.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; term_width&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Setear un ancho minimo preferido para la<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; terminal.&nbsp;&nbsp;Si el valor es mayor que 0,<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; scrotwm intentara ajustar el tamano de la<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; fuente de la terminal para mantener el an-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; cho de la terminal por encima de este<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; numero cuando la ventana cambia de tamano.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Actualmente solo es soportado por <font color="#ff40ff">xterm(1)</font><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; El binario de <font color="#ff40ff">xterm(1)</font>&nbsp;no debe ser un setu-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; id o setgid, que no sea el que viene por<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; defecto en la mayoria de los sistemas.&nbsp;&nbsp;Los<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; usuarios pueden necesitar setear pro-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; gram[term] (ver la seccion PROGRAMAS ) para<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; usar una copia alternativa del binario de<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#ff40ff">xterm(1)</font>&nbsp;sin el seteo del setgid.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; title_class_enabled&nbsp;&nbsp;&nbsp;&nbsp; Habilitar o deshabilitar la clase de ven-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; tana en la barre de estado.&nbsp;&nbsp;Habilitado<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; seteando 1<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; title_name_enabled&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Habilitar o deshabilita el titulo de la<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ventana en la barra de estado.&nbsp;&nbsp;Habilitado<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; seteando 1<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; modkey&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Cambiar mod key.&nbsp;&nbsp;Mod1 generalmente es la<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; tecla ALT y Mod4 la tecla de windows en una<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; PC.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; program[p]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Definir una nueva accion para ejecutar un<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; programa.&nbsp;&nbsp;p.&nbsp;&nbsp;Ver la seccion de PROGRAMAS<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bind[x]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Combinacion de teclas para una accion x.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Ver la seccion BINDINGS<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; quirk[c:n]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Agregar un &quot;quirk&quot; (o forzados) para ven-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; tanas con clase c y nombre n.&nbsp;&nbsp;Ver la sec-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; cion QUIRKS<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; Los colores deben ser especificados por la especificacion <font color="#ff40ff">XQueryColor(3)</font><br>
-&nbsp;&nbsp;&nbsp;&nbsp; y las fuentes por la especificacion <font color="#ff40ff">XQueryFont(3)</font><br>
-<br>
-<font color="#ffff00">PROGRAMAS</font><br>
-&nbsp;&nbsp;&nbsp;&nbsp; scrotwm te permite definir acciones personales para lanzar los programas<br>
-&nbsp;&nbsp;&nbsp;&nbsp; que quieras y luego obligar a la misma con una funcion de acciones.&nbsp;&nbsp;Ver<br>
-&nbsp;&nbsp;&nbsp;&nbsp; la seccion BINDINGS<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; Los programas por defecto se describen aca:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; term&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; xterm<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; screenshot_all&nbsp;&nbsp; screenshot.sh completo<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; screenshot_wind&nbsp;&nbsp;screenshot.sh por ventana<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; lock&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; xlock<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; initscr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;initscreen.sh<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; menu&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; dmenu_run -fn $bar_font -nb $bar_color -nf<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$bar_font_color -sb $bar_border -sf $bar_color<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; Los programas en la configuracion personal, se especifican aca:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; program[&lt;nombre&gt;] = &lt;progpath&gt; [&lt;arg&gt; [... &lt;arg&gt;]]<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; &lt;nombre&gt; es un identificador, no genera conflictos con ninguna accion o<br>
-&nbsp;&nbsp;&nbsp;&nbsp; palabra clave, &lt;progpath&gt; es la ruta al programa, y &lt;arg&gt; es ninguno o<br>
-&nbsp;&nbsp;&nbsp;&nbsp; mas de un argumento para el programa.<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; Las siguientes variables de configuracion en scrotwm (ver ARCHIVOS DE<br>
-&nbsp;&nbsp;&nbsp;&nbsp; CONFIGURACION ), y pueden ser usadas en los campos de &lt;arg&gt; como asi tam-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; bien sustituidas por valores al momento del inicio de un programa:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; $bar_border<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; $bar_color<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; $bar_font<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; $bar_font_color<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; $color_focus<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; $color_unfocus<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; Ejemplo:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; program[ff] = /usr/local/bin/firefox <a href="http://scrotwm.com.ar/">http://scrotwm.com.ar/</a><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bind[ff] = Mod+f # Ahora Mod+F inicia firefox<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; Para deshacer lo anterior:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bind[] = Mod+f<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; program[ff] =<br>
-<br>
-<font color="#ffff00">BINDINGS</font><br>
-&nbsp;&nbsp;&nbsp;&nbsp; scrotwm provee muchas funciones (o acciones) accesibles por medio de la<br>
-&nbsp;&nbsp;&nbsp;&nbsp; asignacion (bindings) de teclas o el mouse.<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; Las corrientes asignaciones (bindings) del mouse son:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Enfoco una ventana<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-M1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Muevo una ventana<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-M3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Redimenciono una ventana<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-M3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Redimenciono una ventana hasta que quede centrada<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; Las corrientes asignaciones (bindings) de teclas son:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-&lt;Return&gt;&nbsp;&nbsp;&nbsp;&nbsp; term<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-p&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;menu<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-q&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;quit<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-q&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;restart scrotwm<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-&lt;Space&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cycle_layout<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-&lt;Space&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;reset_layout<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-h&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;master_shrink<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-l&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;master_grow<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;master_add<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;master_del<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stack_inc<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stack_del<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-&lt;Return&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; swap_main<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-j, M-&lt;TAB&gt;&nbsp;&nbsp;&nbsp;&nbsp; focus_next<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-k, M-S-&lt;TAB&gt;&nbsp;&nbsp; focus_prev<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-m&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;focus_main<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-j&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;swap_next<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-k&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;swap_prev<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-b&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bar_toggle<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-x&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;wind_del<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-x&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;wind_kill<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-&lt;n&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ws_n<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-&lt;n&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mvws_n<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-&lt;Right&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ws_next<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-&lt;Left&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ws_prev<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-&lt;Right&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;screen_next<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-&lt;Left&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; screen_prev<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;screenshot_all<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;screenshot_wind<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-v&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;version<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;float_toggle<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S &lt;Delete&gt;&nbsp;&nbsp;&nbsp;&nbsp; lock<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M-S-i&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;initscr<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; El nombre de las acciones descripta a continuacion:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; term&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Ejecutar una terminal (ver PROGRAMAS )<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; menu&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Menu (ver PROGRAMAS )<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; quit&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Salir scrotwm<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; restart&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Reiniciar scrotwm<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; cycle_layout&nbsp;&nbsp;&nbsp;&nbsp; Disposicion de las ventanas<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; reset_layout&nbsp;&nbsp;&nbsp;&nbsp; Reiniciar la disposicion de las ventanas<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; master_shrink&nbsp;&nbsp;&nbsp;&nbsp;Achicar la region principal<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; master_grow&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Agrandar la region principal<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; master_add&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Agregar una ventana a la region principal<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; master_del&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Quitar una ventana de la region principal<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; stack_inc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Agregar columnas/filas a las pilas<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; stack_del&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Quitar columnas/filas de las pilas<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; swap_main&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Mover la ventana corriente a la region principal<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; focus_next&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Enfocar la proxima ventana en la estacion de tra-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bajo<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; focus_prev&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Enfocar la anterior ventana en la estacion de tra-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bajo<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; focus_main&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Enfocar en la ventana principal de la estacion de<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;trabajo<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; swap_next&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ejecutar con la siguiente ventana en la estacion<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;de trabajo<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; swap_prev&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ejecutar con la anterior ventana en la estacion de<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;trabajo<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bar_toggle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Cambiar la barra de estado en todas las estaciones<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;de trabajo<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; wind_del&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Borrar la ventana corriente en la estacion de tra-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bajo<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; wind_kill&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Destruir la ventana corriente en la estacion de<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;trabajo<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ws_n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Cambiar entre estaciones de trabajo n, donde n es<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1 por 10<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mvws_n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Mover la ventana corriente a una estacion de tra-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bajo n, donde n es 1 por 10<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ws_next&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Cambiar a la proxima estacion de trabajo con una<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ventana en ella<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ws_prev&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Cambiar a la anterior estacion de trabajo con una<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ventana en ella<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; screen_next&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Mover el puntero a la proxima region<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; screen_prev&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Mover el puntero a la anterior region<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; screenshot_all&nbsp;&nbsp; Tomar una captura de pantalla de todo la pantalla<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(si esta habilitado) (ver PROGRAMAS )<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; screenshot_wind&nbsp;&nbsp;Tomar una captura de pantalla de la ventana selec-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cionada (si esta habilitado) (ver PROGRAMAS )<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; version&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Mostrar la version en la barra de estado<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; float_toggle&nbsp;&nbsp;&nbsp;&nbsp; Mostar la ventana en foco entre las flotantes y<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;acomodadas<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; lock&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Bloquear pantalla (ver PROGRAMAS )<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; initscr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Reiniciar la pantalla (ver PROGRAMAS )<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; Personalizar mapeos (bindings) en el archivo de configuracion:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bind[&lt;accion&gt;] = &lt;teclas&gt;<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; &lt;accion&gt; una de las acciones listadas (o ninguna) y &lt;teclas&gt; una o mas<br>
-&nbsp;&nbsp;&nbsp;&nbsp; teclas modificadas (puede ser ninguna tambien) (MOD, Mod1, Shift, etc.) y<br>
-&nbsp;&nbsp;&nbsp;&nbsp; una o mas teclas normales (b, barra espaciadora, etc.), separadas por un<br>
-&nbsp;&nbsp;&nbsp;&nbsp; &quot;+&quot;.&nbsp;&nbsp;Por ejemplo:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bind[reset] = Mod4+q # combinacion Tecla de Windows + q reinicia<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bind[] = Mod1+q # des-hace la combinacion Alt + q<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; Multiples combinaciones de teclas pueden hacer lo mismo.<br>
-<br>
-<font color="#ffff00">QUIRKS</font><br>
-&nbsp;&nbsp;&nbsp;&nbsp; scrotwm te da &quot;quirks&quot; (o forzados) ventanas que tienen que ser tratas de<br>
-&nbsp;&nbsp;&nbsp;&nbsp; manera especial, como por ejemplo, popups, aplicaciones de pantalla com-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; pleta, etc.<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; Los &quot;quirks&quot; (o forzados) por defecto son:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Firefox-bin:firefox-bin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TRANSSZ<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Firefox:Dialog&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FLOAT<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gimp:gimp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FLOAT + ANYWHERE<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MPlayer:xv&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FLOAT + FULLSCREEN<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OpenOffice.org 2.4:VCLSalFrame&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FLOAT<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OpenOffice.org 3.1:VCLSalFrame&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FLOAT<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pcb:pcb&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FLOAT<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; xine:Xine Window&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FLOAT + ANYWHERE<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; xine:xine Panel&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FLOAT + ANYWHERE<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; xine:xine Video Fullscreen Window&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FULLSCREEN + FLOAT<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Xitk:Xitk Combo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FLOAT + ANYWHERE<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Xitk:Xine Window&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FLOAT + ANYWHERE<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; XTerm:xterm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; XTERM_FONTADJ<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; Los &quot;quirks&quot; (o forzados) se describen a continuacion:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FLOAT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Esta ventana no tiene que ser acomodada,<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pero le permitimos flotar libremente.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TRANSSZ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ajusta el tamano de las ventanas transito-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rias que son demasiado pequenas utilizando<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dialog_ratio (ver ARCHIVOS DE<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CONFIGURACION).<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ANYWHERE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Permite que la ventana se ponga donde<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;quiera.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; XTERM_FONTADJ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ajusta las fuentes de xterm cuando se redi-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;menciona.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FULLSCREEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Quita el borde para permitir las ventanas en<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pantalla completa.<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; Las configuraciones de &quot;quirks&quot; (o forzados) en el archivo de configu-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; racion se ven a continuacion:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; quirk[&lt;clases&gt;:&lt;nombre&gt;] = &lt;quirk&gt; [+ &lt;quirk&gt; ...]<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; &lt;clases&gt; y &lt;nombre&gt; especifica la ventana en la cual el &quot;quirk(s)&quot; (o<br>
-&nbsp;&nbsp;&nbsp;&nbsp; forzados) se aplica, y &lt;quirk&gt; es uno de los &quot;quirks&quot; (o forzados) de la<br>
-&nbsp;&nbsp;&nbsp;&nbsp; lista.&nbsp;&nbsp;Por ejemplo:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; quirk[MPlayer:xv] = FLOAT + FULLSCREEN # dejamos que mplayer funcione libremente<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; quirk[pcb:pcb] = NONE&nbsp;&nbsp;# borramos el quirk existente<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; Podes obtener &lt;clases&gt; y &lt;nombre&gt; corriendo el programa <font color="#ff40ff">xprop(1)</font>&nbsp;y luego<br>
-&nbsp;&nbsp;&nbsp;&nbsp; clickear en la ventana que quieras.&nbsp;&nbsp;En el proximo ejemplo, podremos ver-<br>
-&nbsp;&nbsp;&nbsp;&nbsp; lo en accion con una ventana de Firefox:<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; $ xprop | grep WM_CLASS<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; WM_CLASS(STRING) = &quot;Navigator&quot;, &quot;Firefox&quot;<br>
-<br>
-<font color="#ffff00">ARCHIVOS</font><br>
-&nbsp;&nbsp;&nbsp;&nbsp; ~/.scrotwm.conf&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; scrotwm archivo de configuracion especifico del<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; usuario.<br>
-&nbsp;&nbsp;&nbsp;&nbsp; /etc/scrotwm.conf&nbsp;&nbsp;&nbsp;&nbsp; scrotwm configuraciones globales.<br>
-<br>
-<font color="#ffff00">HISTORIA</font><br>
-&nbsp;&nbsp;&nbsp;&nbsp; scrotwm fue inspirado en xmonad y dwm.<br>
-<br>
-<font color="#ffff00">AUTORES</font><br>
-&nbsp;&nbsp;&nbsp;&nbsp; scrotwm fue escrito por Marco Peereboom &lt;marco@peereboom.us&gt;, Ryan Thomas<br>
-&nbsp;&nbsp;&nbsp;&nbsp; McBride &lt;mcbride@countersiege.com&gt; and Darrin Chandler<br>
-&nbsp;&nbsp;&nbsp;&nbsp; &lt;dwchandler@stilyagin.com&gt;.<br>
-<br>
-<font color="#ffff00">BUGS</font><br>
-&nbsp;&nbsp;&nbsp;&nbsp; Actualmente el menu, se llama con M-p, depende de dmenu.<br>
-</font></body>
+<body>
+<pre>
+<span class="Title">SCROTWM(1)                 OpenBSD Reference Manual                 SCROTWM(1)</span>
+
+<span class="Statement">NOMBRE</span>
+     scrotwm - es un manejador de ventanas para X11
+
+<span class="Statement">SYNOPSIS</span>
+     scrotwm
+
+<span class="Statement">DESCRIPCIN</span>
+     scrotwm es un manejador de ventanas super minimalista para X11. Intenta
+     no superponer las ventanas para que las mismas puedan usarse de manera
+     eficiente y para cosas mas importantes.  Tiene configuraciones normales y
+     no requiere que sepas un lenguaje de programacion para configurarlo. Esta
+     escrito por hackers para hackers y apunta a ser pequeo, compacto y rpido.
+
+     Cuando scrotwm inicia, lo primero que hace es leer el archivo de
+     configuracion, scrotwm.conf.  Ver ARCHIVOS DE CONFIGURACIN
+
+     La siguiente anotacion se usa a travs de esta pagina:
+
+           M       Meta
+           S       Shift
+           &lt;Name&gt;  Nombre de tecla
+           M1      Boton 1 del mouse
+           M3      Boton 3 del mouse
+
+     scrotwm es muy simple de usar.  La mayoria de las acciones se hacen con
+     los mapeos (bindings) de mouse o teclado.  Ver la seccin de BINDINGS para
+     las personalizaciones y configuraciones por defecto.
+
+<span class="Statement">ARCHIVOS DE CONFIGURACIN</span>
+     scrotwm primero trata de abrir el archivo por defecto en el directorio
+     del usuario, ~/.scrotwm.conf.  Si ese archivo no esta disponible, luego
+     trata de abrir el archivo global de configuracion /etc/scrotwm.conf.
+
+     El formato del archivo es &lt;tecla&gt; = &lt;configuracion&gt;.  Por ejemplo:
+
+           color_focus = red
+
+     Habilitamos o deshabilitamos la opcin usando 1 o 0 respectivamente.
+
+     El archivo soporta las siguientes palabras clave:
+
+           color_focus             Color del borde de la ventana en foco.
+           color_unfocus           Color del borde de la ventana fuera de
+                                   foco.
+           bar_enabled             Habilitar o deshabilitar la barra de
+                                   estado.
+           bar_border[x]           Color del borde de la barra de estado en
+                                   pantalla.  x.
+           bar_color[x]            Color de la ventana de la barra de estado
+                                   en pantalla.  x.
+           bar_font_color[x]       Color de la fuente en la barra de estado en
+                                   pantalla.  x.
+           bar_font                Fuente de la barra de estado.
+           bar_action              Scripts externos con populares agregados de
+                                   informacin para la barra de estado, como la
+                                   vida de la bateria.
+           bar_delay               Frecuencia de actualizacin, en segundos, de
+                                   los scripts de la barra de estado.
+           bar_at_bottom           Puedes posicionar la statusbar en la parte
+                                   inferior de la pantalla.
+           stack_enabled           Habilitar o deshabilitar mostrar el
+                                   algoritmo de apilamiento en la barra de
+                                   estado.
+           clock_enabled           Habilitar o deshabilitar el reloj en la
+                                   barra de estado, deshabilitado por defecto
+                                   con un 0, para usar el reloj de la barra de
+                                   estado (bar_action)
+           dialog_ratio            Algunas aplicaciones tienen ventanas de
+                                   dialogo muy pequeas como para ser usables.
+                                   Este relacin (ratio) es el tamao de la
+                                   pantalla, por ejemplo 0.6 es 60% del tamao
+                                   fsico de la pantalla.
+           region                  Acomodar una region personalizada,
+                                   removiendo cualquier autodetecin de
+                                   regiones que ocupe el espacio en la
+                                   pantalla.  Definiendo el formato
+                                   screen[&lt;idx&gt;]:WIDTHxHEIGHT+X+Y, e.g.
+                                   screen[1]:800x1200+0+0.
+           term_width              Setear un ancho minimo preferido para la
+                                   terminal.  Si el valor es mayor que 0,
+                                   scrotwm intentar ajustar el tamao de la
+                                   fuente de la terminal para mantener el
+                                   ancho de la terminal por encima de este
+                                   nmero cuando la ventana cambia de tamao.
+                                   Actualmente solo es soportado por <span class="PreProc">xterm(1)</span>
+                                   El binario de <span class="PreProc">xterm(1)</span> no debe ser un
+                                   setuid o setgid, que no sea el que viene
+                                   por defecto en la mayoria de los sistemas.
+                                   Los usuarios pueden necesitar setear
+                                   program[term] (ver la seccin PROGRAMAS )
+                                   para usar una copia alternativa del binario
+                                   de <span class="PreProc">xterm(1)</span> sin el seteo del setgid.
+           title_class_enabled     Habilitar o deshabilitar la clase de
+                                   ventana en la barre de estado.  Habilitado
+                                   seteando 1
+           title_name_enabled      Habilitar o deshabilita el titulo de la
+                                   ventana en la barra de estado.  Habilitado
+                                   seteando 1
+           modkey                  Cambiar mod key.  Mod1 generalmente es la
+                                   tecla ALT y Mod4 la tecla de windows en una
+                                   PC.
+           focus_mode              Usando el valor de follow_cursor puedes
+                                   hacer que el manejador de ventanas se
+                                   enfoque en la ventana cuando el cursor pase
+                                   por arriba de las mismas o bien cambiando
+                                   de estacion de trabajo.
+           disable_border          Remueve el borde de una sola ventana cuando
+                                   la barra de estado esta desactivada.
+           program[p]              Definir una nueva accion para ejecutar un
+                                   programa.  p.  Ver la seccin de PROGRAMAS
+           bind[x]                 Combinacin de teclas para una accin x.  Ver
+                                   la seccin BINDINGS
+           quirk[c:n]              Agregar un &quot;quirk&quot; (o forzados) para
+                                   ventanas con clase c y nombre n.  Ver la
+                                   seccin QUIRKS
+
+     Los colores deben ser especificados por la especificacin <span class="PreProc">XQueryColor(3)</span> y
+     las fuentes por la especificacin <span class="PreProc">XQueryFont(3)</span>
+
+<span class="Statement">PROGRAMAS</span>
+     scrotwm te permite definir acciones personales para lanzar los programas
+     que quieras y luego obligar a la misma con una funcin de acciones.  Ver
+     la seccin BINDINGS
+
+     Los programas por defecto se describen ac:
+
+           term             xterm
+           screenshot_all   screenshot.sh completo
+           screenshot_wind  screenshot.sh por ventana
+           lock             xlock
+           initscr          initscreen.sh
+           menu             dmenu_run -fn $bar_font -nb $bar_color -nf
+                            $bar_font_color -sb $bar_border -sf $bar_color
+
+     Los programas en la configuracin personal, se especifican aca:
+
+           program[&lt;nombre&gt;] = &lt;progpath&gt; [&lt;arg&gt; [... &lt;arg&gt;]]
+
+     &lt;nombre&gt; es un identificador, no genera conflictos con ninguna accion o
+     palabra clave, &lt;progpath&gt; es la ruta al programa, y &lt;arg&gt; es ninguno o
+     mas de un argumento para el programa.
+
+     Las siguientes variables de configuracion en scrotwm (ver ARCHIVOS DE
+     CONFIGURACIN ), y pueden ser usadas en los campos de &lt;arg&gt; como asi
+     tambien sustituidas por valores al momento del inicio de un programa:
+
+           $bar_border
+           $bar_color
+           $bar_font
+           $bar_font_color
+           $color_focus
+           $color_unfocus
+
+     Ejemplo:
+
+           program[ff] = /usr/local/bin/firefox <a href="http://scrotwm.com.ar/">http://scrotwm.com.ar/</a>
+           bind[ff] = Mod+f # Ahora Mod+F inicia firefox
+
+     Para deshacer lo anterior:
+
+           bind[] = Mod+f
+           program[ff] =
+
+<span class="Statement">SIGNALS</span>
+     Enviando scrotwm una se?al de HUP reinicia scrotwm.
+
+<span class="Statement">BINDINGS</span>
+     scrotwm provee muchas funciones (o acciones) accesibles por medio de la
+     asignacin (bindings) de teclas o el mouse.
+
+     Las corrientes asignaciones (bindings) del mouse son:
+
+           M1               Enfoco una ventana
+           M-M1             Muevo una ventana
+           M-M3             Redimenciono una ventana
+           M-S-M3           Redimenciono una ventana hasta que quede centrada
+
+     Las corrientes asignaciones (bindings) de teclas son:
+
+           M-S-&lt;Return&gt;     term
+           M-p              menu
+           M-S-q            quit
+           M-q              restart scrotwm
+           M-&lt;Space&gt;        cycle_layout
+           M-S-&lt;Space&gt;      reset_layout
+           M-h              master_shrink
+           M-l              master_grow
+           M-,              master_add
+           M-.              master_del
+           M-S-,            stack_inc
+           M-S-.            stack_del
+           M-&lt;Return&gt;       swap_main
+           M-j, M-&lt;TAB&gt;     focus_next
+           M-k, M-S-&lt;TAB&gt;   focus_prev
+           M-m              focus_main
+           M-S-j            swap_next
+           M-S-k            swap_prev
+           M-b              bar_toggle
+           M-x              wind_del
+           M-S-x            wind_kill
+           M-&lt;n&gt;            ws_n
+           M-S-&lt;n&gt;          mvws_n
+           M-&lt;Right&gt;        ws_next
+           M-&lt;Left&gt;         ws_prev
+           M-a              ws_prior
+           M-S-&lt;Right&gt;      screen_next
+           M-S-&lt;Left&gt;       screen_prev
+           M-s              screenshot_all
+           M-S-s            screenshot_wind
+           M-S-v            version
+           M-t              float_toggle
+           M-S &lt;Delete&gt;     lock
+           M-S-i            initscr
+
+     El nombre de las accines descripta a continuacin:
+
+           term             Ejecutar una terminal (ver PROGRAMAS)
+           menu             Menu (ver PROGRAMAS)
+           quit             Salir scrotwm
+           restart          Reiniciar scrotwm
+           cycle_layout     Disposicin de las ventanas
+           reset_layout     Reiniciar la disposicin de las ventanas
+           master_shrink    Achicar la region principal
+           master_grow      Agrandar la region principal
+           master_add       Agregar una ventana a la region principal
+           master_del       Quitar una ventana de la region principal
+           stack_inc        Agregar columnas/filas a las pilas
+           stack_del        Quitar columnas/filas de las pilas
+           swap_main        Mover la ventana corriente a la region principal
+           focus_next       Enfocar la proxima ventana en la estacin de
+                            trabajo
+           focus_prev       Enfocar la anterior ventana en la estacin de
+                            trabajo
+           focus_main       Enfocar en la ventana principal de la estacin de
+                            trabajo
+           swap_next        Ejecutar con la siguiente ventana en la estacin de
+                            trabajo
+           swap_prev        Ejecutar con la anterior ventana en la estacin de
+                            trabajo
+           bar_toggle       Cambiar la barra de estado en todas las estaciones
+                            de trabajo
+           wind_del         Borrar la ventana corriente en la estacin de
+                            trabajo
+           wind_kill        Destruir la ventana corriente en la estacin de
+                            trabajo
+           ws_n             Cambiar entre estaciones de trabajo n, donde n es
+                            1 por 10
+           mvws_n           Mover la ventana corriente a una estacin de
+                            trabajo n, donde n es 1 por 10
+           ws_next          Cambiar a la proxima estacin de trabajo con una
+                            ventana en ella
+           ws_prev          Cambiar a la anterior estacin de trabajo con una
+                            ventana en ella
+           screen_next      Mover el puntero a la proxima region
+           screen_prev      Mover el puntero a la anterior region
+           screenshot_all   Tomar una captura de pantalla de todo la pantalla
+                            (si esta habilitado) (ver PROGRAMAS)
+           screenshot_wind  Tomar una captura de pantalla de la ventana
+                            seleccionada (si esta habilitado) (ver PROGRAMAS)
+           version          Mostrar la version en la barra de estado
+           float_toggle     Mostar la ventana en foco entre las flotantes y
+                            acomodadas
+           lock             Bloquear pantalla (ver PROGRAMAS)
+           initscr          Reiniciar la pantalla (ver PROGRAMAS)
+
+     Personalizar mapeos (bindings) en el archivo de configuracin:
+
+           bind[&lt;accion&gt;] = &lt;teclas&gt;
+
+     &lt;accion&gt; una de las acciones listadas (o ninguna) y &lt;teclas&gt; una o mas
+     teclas modificadas (puede ser ninguna tambien) (MOD, Mod1, Shift, etc.) y
+     una o mas teclas normales (b, barra espaciadora, etc.), separadas por un
+     &quot;+&quot;.  Por ejemplo:
+
+           bind[reset] = Mod4+q # combinacin Tecla de Windows + q reinicia
+           bind[] = Mod1+q # des-hace la combinacin Alt + q
+
+     Multiples combinaciones de teclas pueden hacer lo mismo.
+
+<span class="Statement">QUIRKS</span>
+     scrotwm te da &quot;quirks&quot; (o forzados) ventanas que tienen que ser tratas de
+     manera especial, como por ejemplo, popups, aplicaciones de pantalla
+     completa, etc.
+
+     Los &quot;quirks&quot; (o forzados) por defecto son:
+
+           Firefox-bin:firefox-bin                 TRANSSZ
+           Firefox:Dialog                          FLOAT
+           Gimp:gimp                               FLOAT + ANYWHERE
+           MPlayer:xv                              FLOAT + FULLSCREEN
+           OpenOffice.org 2.4:VCLSalFrame          FLOAT
+           OpenOffice.org 3.1:VCLSalFrame          FLOAT
+           pcb:pcb                                 FLOAT
+           xine:Xine Window                        FLOAT + ANYWHERE
+           xine:xine Panel                         FLOAT + ANYWHERE
+           xine:xine Video Fullscreen Window       FULLSCREEN + FLOAT
+           Xitk:Xitk Combo                         FLOAT + ANYWHERE
+           Xitk:Xine Window                        FLOAT + ANYWHERE
+           XTerm:xterm                             XTERM_FONTADJ
+
+     Los &quot;quirks&quot; (o forzados) se describen a continuacin:
+
+           FLOAT                  Esta ventana no tiene que ser acomodada,
+                                  pero le permitimos flotar libremente.
+           TRANSSZ                Ajusta el tamao de las ventanas transitorias
+                                  que son demasiado pequeas utilizando
+                                  dialog_ratio (ver ARCHIVOS DE CONFIGURACIN).
+           ANYWHERE               Permite que la ventana se ponga donde
+                                  quiera.
+           XTERM_FONTADJ          Ajusta las fuentes de xterm cuando se
+                                  redimenciona.
+           FULLSCREEN             Quita el borde para permitir las ventanas en
+                                  pantalla completa.
+
+     Las configuraciones de &quot;quirks&quot; (o forzados) en el archivo de
+     configuracin se ven a continuacin:
+
+           quirk[&lt;clases&gt;:&lt;nombre&gt;] = &lt;quirk&gt; [+ &lt;quirk&gt; ...]
+
+     &lt;clases&gt; y &lt;nombre&gt; especifica la ventana en la cual el &quot;quirk(s)&quot; (o
+     forzados) se aplica, y &lt;quirk&gt; es uno de los &quot;quirks&quot; (o forzados) de la
+     lista.  Por ejemplo:
+
+           quirk[MPlayer:xv] = FLOAT + FULLSCREEN # dejamos que mplayer funcione libremente
+           quirk[pcb:pcb] = NONE  # borramos el quirk existente
+
+     Podes obtener &lt;clases&gt; y &lt;nombre&gt; corriendo el programa <span class="PreProc">xprop(1)</span> y luego
+     clickear en la ventana que quieras.  En el proximo ejemplo, podremos
+     verlo en accin con una ventana de Firefox:
+
+           $ xprop | grep WM_CLASS
+           WM_CLASS(STRING) = &quot;Navigator&quot;, &quot;Firefox&quot;
+
+<span class="Statement">ARCHIVOS</span>
+     ~/.scrotwm.conf       scrotwm archivo de configuracin especifico del
+                           usuario.
+     /etc/scrotwm.conf     scrotwm configuraciones globales.
+
+<span class="Statement">HISTORIA</span>
+     scrotwm fue inspirado en xmonad y dwm.
+
+<span class="Statement">AUTORES</span>
+
+     scrotwm fue escrito por Marco Peereboom &lt;marco@peereboom.us&gt;, Ryan Thomas
+     McBride &lt;mcbride@countersiege.com&gt; and Darrin Chandler
+     &lt;dwchandler@stilyagin.com&gt;.
+
+<span class="Statement">BUGS</span>
+     Actualmente el menu, se llama con M-p, depende de dmenu.
+
+OpenBSD 4.8                     October 7, 2009                    OpenBSD 4.8
+</pre>
+</body>
 </html>

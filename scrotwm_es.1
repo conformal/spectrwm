@@ -102,6 +102,8 @@ de estado, como la vida de la bateria.
 .It Cm bar_delay
 Frecuencia de actualización, en segundos, de los scripts de la barra de 
 estado.
+.It Cm bar_at_bottom
+Puedes posicionar la statusbar en la parte inferior de la pantalla.
 .It Cm stack_enabled
 Habilitar o deshabilitar mostrar el algoritmo de apilamiento en la barra
 de estado.
@@ -145,6 +147,12 @@ Habilitado seteando 1
 .It Cm modkey
 Cambiar mod key.
 Mod1 generalmente es la tecla ALT y Mod4 la tecla de windows en una PC.
+.It Cm focus_mode
+Usando el valor de follow_cursor puedes hacer que el manejador de ventanas
+se enfoque en la ventana cuando el cursor pase por arriba de las mismas o
+bien cambiando de estacion de trabajo.
+.It Cm disable_border
+Remueve el borde de una sola ventana cuando la barra de estado esta desactivada.
 .It Cm program Ns Bq Ar p
 Definir una nueva accion para ejecutar un programa.
 .Ar p .
@@ -234,6 +242,10 @@ Para deshacer lo anterior:
 bind[] = Mod+f
 program[ff] =
 .Ed
+.Sh SIGNALS
+Enviando
+.Nm
+una se?al de HUP reinicia scrotwm.
 .Pp
 .Sh BINDINGS
 .Nm
@@ -313,6 +325,8 @@ wind_kill
 ws_next
 .It Cm M- Ns Aq Cm Left
 ws_prev
+.It Cm M-a
+ws_prior
 .It Cm M-S- Ns Aq Cm Right
 screen_next
 .It Cm M-S- Ns Aq Cm Left
