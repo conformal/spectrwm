@@ -6,53 +6,54 @@
 <meta name="Generator" content="Vim/7.1">
 <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
 </head>
-Using scrotwm on OSX<p>
+Usando o scrotwm no OSX<p>
 <small>
-<a href="osx_pt.html">Em Português</a>
+<a href="osx.html">In English</a>
 <p>
 </small>
 <body bgcolor="#101010" text="#ffffff">
-A port to OSX was created to make OSX useful for UNIX people.
-Following are the compilation and installation steps.
+Um port para OSX foi criado para fazer o OSX útil
+para o pessoal do UNIX.
+A seguir estão os passos para a compilação e a instalação.
 <p>
-Compile scrotwm from the osx directory of the snapshot:
+Compile o scrotwm do diretório osx do snapshot:
 <pre>
 cd osx
 make
 </pre>
 <p>
-To compile scrotwm on OSX 10.5 edit the Makefile and replace:
+Para compilar o scrotwm no OSX 10.5 edite o Makefile e troque:
 <pre>
 libswmhack.so.$(LVERS): swm_hack.so
 	$(CC) -shared -fpic -o libswmhack.so.$(LVERS) $(LDADD) swm_hack.so
 </pre>
-With:
+Para:
 <pre>
 libswmhack.so.$(LVERS): swm_hack.so
 	$(CC) -shared -bundle -fpic -o libswmhack.so.$(LVERS) $(LDADD) swm_hack.so
 </pre>
 <p>
-Install scrotwm:
+Instale o scrotwm:
 <pre>sudo make install</pre>
 <br>
-Download
+Baixe o
 <a href="http://tools.suckless.org/dmenu/">dmenu</a>
-and compile it:
+e compile:
 <pre>make</pre>
-Install dmenu:
+Instale o dmenu:
 <pre>sudo make install</pre>
-Create a .xinitrc in the home dir of the user and add at least the following line:
+Crie um .xinitrc no diretório home do usuário e adicione ao menos a seguinte linha:
 <pre>
 exec scrotwm
 </pre>
-Set the X11 preferences of OSX to the following:
+Ajuste as preferências do X11 do OSX para as seguintes:
 <center>
 <img border=0 src="osx1.png" alt="[osx1]"><br>
 <img border=0 src="osx2.png" alt="[osx2]"><br>
 <img border=0 src="osx3.png" alt="[osx3]"><br>
 <img border=0 src="osx4.png" alt="[osx4]"><br>
 <img border=0 src="osx5.png" alt="[osx5]"><br>
-This all results in scrotwm bliss!<br>
+Tudo isso resulta no êxtase do scrotwm!<br>
 <a href="osx.jpg"><img border=0 src="osx_small.jpg" alt="[scrotwm]"></a><br>
 </center>
 <p>

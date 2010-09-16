@@ -39,6 +39,7 @@ install: all
 	install -m 644 ../scrotwm.1 $(DESTDIR)$(MANDIR)/man1/scrotwm.1
 	install -m 644 ../scrotwm_es.1 $(DESTDIR)$(MANDIR)/man1/scrotwm_es.1
 	install -m 644 ../scrotwm_it.1 $(DESTDIR)$(MANDIR)/man1/scrotwm_it.1
+	install -m 644 ../scrotwm_pt.1 $(DESTDIR)$(MANDIR)/man1/scrotwm_pt.1
 	install -m 644 ../scrotwm_ru.1 $(DESTDIR)$(MANDIR)/man1/scrotwm_ru.1
 
 clean:

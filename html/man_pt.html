@@ -1,0 +1,384 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+<title>~/scrotwm_pt.1.html</title>
+<meta name="Generator" content="Vim/7.3">
+<meta name="plugin-version" content="vim7.3_v6">
+<meta name="syntax" content="man">
+<meta name="settings" content="use_css">
+<style type="text/css">
+<!--
+pre { font-family: monospace; background-color: #000000; color: #ffffff; }
+body { font-family: monospace; background-color: #000000; color: #ffffff; }
+.PreProc { color: #ff40ff; }
+.Statement { color: #ffff00; }
+.Title { color: #ff40ff; }
+-->
+</style>
+</head>
+<body>
+<pre>
+<span class="Title">SCROTWM(1)                 OpenBSD Reference Manual                 SCROTWM(1)</span>
+
+<span class="Statement">NOME</span>
+     scrotwm - gerenciador de janela para o X11
+
+<span class="Statement">SINOPSE</span>
+     scrotwm
+
+<span class="Statement">DESCRICAO</span>
+     scrotwm e um gerenciador de janela minimalista que tenta nao atrapalhar a
+     valorosa forma real da tela para que essa possa ser usada para coisas
+     muito mais importantes.  Tem sensatos defaults e nao requer que alguem
+     aprenda uma linguagem de programacao para fazer qualquer configuracao.
+     Ele foi escrito por hackers para hackers e esforca-se em ser pequeno,
+     compacto e rapido.
+
+     Quando o scrotwm inicia, ele le as configuracoes do seu arquivo de
+     configuracao, scrotwm.conf.  Veja a secao ARQUIVOS DE CONFIGURACAO logo
+     abaixo.
+
+     A seguinte notacao e usada por toda essa pagina:
+
+           M       Meta
+           S       Shift
+           &lt;Name&gt;  Nome da tecla
+           M1      Botao 1 do mouse
+           M3      Botao 3 do mouse
+
+     scrotwm e muito simples de usar.  Muitas das acoes sao iniciadas por
+     atalhos do mouse ou do teclado.  Veja a secao ATALHOS logo abaixo para os
+     defaults e as personalizacoes.
+
+<span class="Statement">ARQUIVOS DE CONFIGURACAO</span>
+     scrotwm primeiro tenta abrir o arquivo de configuracao no diretorio do
+     usuario, ~/.scrotwm.conf.  Se o arquivo nao estiver disponivel, entao
+     tenta abrir o arquivo de configuracao global /etc/scrotwm.conf.
+
+     Assim e o formato do arquivo:&lt;palavra-chave&gt; = &lt;configuracao&gt;.  Por
+     exemplo:
+
+           color_focus = red
+
+     Para habilitar ou desabilitar uma opcao usa-se o 1 ou 0, respectivamente.
+
+     O arquivo suporta as seguintes palavras-chave:
+
+           color_focus             Cor da borda da janela atualmente focada.
+           color_unfocus           Cor da borda das janelas fora de foco.
+           bar_enabled             Habilita ou desabilita a barra de status.
+           bar_border[x]           Cor da borda da barra de status na tela x.
+           bar_color[x]            Cor da janela da barra de status na tela x.
+           bar_font_color[x]       Cor da fonte na barra de status na tela x.
+           bar_font                Fonte da barra de status.
+           bar_action              Script externo que preenche a barra de
+                                   status com informacoes adicionais, como
+                                   tempo de vida da bateria.
+           bar_delay               Frequencia da atualizacao, em segundos, do
+                                   script externo que preenche a barra de
+                                   status.
+           bar_at_bottom           Coloca a barra de status na parte inferior
+                                   de cada regiao, ao inves da parte superior.
+           stack_enabled           Habilita ou desabilita mostrar o atual
+                                   algoritmo de empilhamento na barra de
+                                   status.
+           clock_enabled           Habilita ou desabilita mostrar o relogio na
+                                   barra de status.  Desabilite configurando
+                                   para 0, entao um relogio personalizado pode
+                                   ser usado no script bar_action.
+           dialog_ratio            Algumas aplicacoes tem janelas de dialogo
+                                   que sao muito pequenas para serem uteis.
+                                   Essa taxa e o tamanho da tela para o qual
+                                   elas serao redimencionadas.  Por exemplo,
+                                   0.6 equivale a 60% do tamanho da tela
+                                   fisica.
+           region                  Aloca uma regiao personalizada, removendo
+                                   qualquer regiao automaticamente detectada
+                                   que ocupe o mesmo espaco na tela.  Definido
+                                   no formato screen[&lt;idx&gt;]:WIDTHxHEIGHT+X+Y,
+                                   e.g. screen[1]:800x1200+0+0.
+           term_width              Configura a largura minima preferida para o
+                                   terminal Se esse valor for maior do que 0,
+                                   scrotwm vai tentar ajustar os tamanhos da
+                                   fonte no terminal para manter a largura do
+                                   terminal acima desse numero enquanto a
+                                   janela e redimencionada.  Apenas o <span class="PreProc">xterm(1)</span>
+                                   e suportado atualmente.  O binario do
+                                   <span class="PreProc">xterm(1)</span> nao deve ser setuid ou setgid, que
+                                   e o default em muitos sistemas.  Os
+                                   usuarios podem precisar de configurar
+                                   program[term] (veja a secao PROGRAMAS )
+                                   para usar uma copia alternativa do binario
+                                   do <span class="PreProc">xterm(1)</span> sem o bit setgid ativado.
+           title_class_enabled     Habilita ou desabilita mostrar a classe da
+                                   janela na barra de status.  Habilite
+                                   configurando para 1.
+           title_name_enabled      Habilita ou desabilita mostrar o titulo da
+                                   janela na barra de status.  Habilite
+                                   configurando para 1.
+           modkey                  Muda a tecla de modificacao.  Mod1 e
+                                   geralmente a tecla ALT e Mod4 e a tecla
+                                   windows em um PC.
+           focus_mode              Usar um valor de follow_cursor vai fazer o
+                                   gerenciador de janela focar a janela sob o
+                                   mouse quando trocando areas de trabalho e
+                                   criando janelas.
+           disable_border          Remove a borda quando a barra estiver
+                                   desabilitada e houver apenas uma janela na
+                                   tela.
+           program[p]              Define uma nova acao para executar um
+                                   programa p.  Veja a secao PROGRAMAS logo
+                                   abaixo.
+           bind[x]                 Cria uma combinacao de teclas de atalho
+                                   para a acao x.  Veja a secao ATALHOS logo
+                                   abaixo.
+           quirk[c:n]              Adicione &quot;quirk&quot; para janelas com classe c
+                                   e nome n.  Veja a secao QUIRKS logo abaixo.
+
+     Cores precisam ser especificadas pela especificacao <span class="PreProc">XQueryColor(3)</span> e
+     fontes pela especificacao <span class="PreProc">XQueryFont(3)</span>.
+
+     Para listar as fontes disponiveis em seu sistema veja o manual do
+     <span class="PreProc">fc-list(1)</span> ou do <span class="PreProc">xlsfonts(1)</span>.  A aplicacao <span class="PreProc">xfontsel(1)</span> pode te ajudar a
+     mostrar a X Logical Font Description (&quot;XLFD&quot;) usada na configuracao da
+     palavra-chave bar_font.
+
+<span class="Statement">PROGRAMAS</span>
+     scrotwm te permite definir acoes personalizadas para executar programas
+     de sua escolha e entao criar um atalho para elas da mesma forma que as
+     acoes embutidas.  Veja a secao ATALHOS logo abaixo.
+
+     Os programas default sao descritos abaixo:
+
+           term             xterm
+           screenshot_all   screenshot.sh full
+           screenshot_wind  screenshot.sh window
+           lock             xlock
+           initscr          initscreen.sh
+           menu             dmenu_run -fn $bar_font -nb $bar_color -nf
+                            $bar_font_color -sb $bar_border -sf $bar_color
+
+     Programas personalizados no arquivo de configuracao sao especificados da
+     seguinte maneira:
+
+           program[&lt;name&gt;] = &lt;progpath&gt; [&lt;arg&gt; [... &lt;arg&gt;]]
+
+     &lt;name&gt; e um identificador qualquer que nao conflite com uma acao ou
+     palavra-chave embutida, &lt;progpath&gt; e o programa desejado, e &lt;arg&gt; e zero
+     ou mais argumentos para o programa.
+
+     As seguintes variaveis representam valores configuraveis no scrotwm (veja
+     a secao ARQUIVOS DE CONFIGURACAO logo acima), e podem ser usadas nos
+     campos &lt;arg&gt; e serao substituidas pelos valores na hora em que o programa
+     for executado:
+
+           $bar_border
+           $bar_color
+           $bar_font
+           $bar_font_color
+           $color_focus
+           $color_unfocus
+
+     Exemplo:
+
+           program[ff] = /usr/local/bin/firefox <a href="http://scrotwm.org/">http://scrotwm.org/</a>
+           bind[ff] = Mod+f # Agora Mod+F executa o firefox
+
+     Para desfazer a configuracao anterior:
+
+           bind[] = Mod+f
+           program[ff] =
+
+<span class="Statement">ATALHOS</span>
+     scrotwm prove muitas funcoes (ou aces) acessadas pelos atalhos do teclado
+     ou do mouse.
+
+     Os atuais atalhos do mouse sao descritos abaixo:
+
+           M1               Foca a janela
+           M-M1             Move a janela
+           M-M3             Redimenciona a janela
+           M-S-M3           Redimenciona a janela enquanto a mantem
+                            centralizada
+
+     Os atalhos default do teclado sao descritos abaixo:
+
+           M-S-&lt;Return&gt;     term
+           M-p              menu
+           M-S-q            quit
+           M-q              restart scrotwm
+           M-&lt;Space&gt;        cycle_layout
+           M-S-&lt;Space&gt;      reset_layout
+           M-h              master_shrink
+           M-l              master_grow
+           M-,              master_add
+           M-.              master_del
+           M-S-,            stack_inc
+           M-S-.            stack_del
+           M-&lt;Return&gt;       swap_main
+           M-j, M-&lt;TAB&gt;     focus_next
+           M-k, M-S-&lt;TAB&gt;   focus_prev
+           M-m              focus_main
+           M-S-j            swap_next
+           M-S-k            swap_prev
+           M-b              bar_toggle
+           M-x              wind_del
+           M-S-x            wind_kill
+           M-&lt;n&gt;            ws_n
+           M-S-&lt;n&gt;          mvws_n
+           M-&lt;Right&gt;        ws_next
+           M-&lt;Left&gt;         ws_prev
+           M-a              ws_prior
+           M-S-&lt;Right&gt;      screen_next
+           M-S-&lt;Left&gt;       screen_prev
+           M-s              screenshot_all
+           M-S-s            screenshot_wind
+           M-S-v            version
+           M-t              float_toggle
+           M-S &lt;Delete&gt;     lock
+           M-S-i            initscr
+
+     Os nomes das acoes e suas descrices estao listados abaixo:
+
+           term             Executa um novo terminal (veja a secao PROGRAMAS
+                            logo acima)
+           menu             Menu (veja a secao PROGRAMAS logo acima)
+           quit             Sair scrotwm
+           restart          Reiniciar scrotwm
+           cycle_layout     Circula entre os possiveis layouts
+           reset_layout     Reinicia o layout
+           master_shrink    Encolhe a area mestre
+           master_grow      Aumenta a area mestre
+           master_add       Adiciona janelas na area mestre
+           master_del       Remove janelas da area mestre
+           stack_inc        Adiciona colunas/linhas para a area de
+                            empilhamento
+           stack_del        Remove colunas/linhas da area de empilhamento
+           swap_main        Move a janela atual para a area mestre
+           focus_next       Foca a proxima janela da area de trabalho
+           focus_prev       Foca a janela anterior da area de trabalho
+           focus_main       Foca a janela principal da area de trabalho
+           swap_next        Troca com a proxima janela da area de trabalho
+           swap_prev        Troca com a janela anterior da area de trabalho
+           bar_toggle       Ativa/desativa a barra de status em todas as areas
+                            de trabalho
+           wind_del         Apaga a janela atual da area de trabalho
+           wind_kill        Destroi a janela atual da area de trabalho
+           ws_n             Troca para a area de trabalho n, onde n vai de 1
+                            ate 10
+           mvws_n           Move a janela atual para a area de trabalho n,
+                            onde n vai de 1 ate 10
+           ws_next          Troca para a proxima area de trabalho que possua
+                            uma janela
+           ws_prev          Troca para a area de trabalho anterior que possua
+                            uma janela
+           ws_prior         Troca para a ultima area de trabalho visitada
+           screen_next      Move o ponteiro para a proxima regiao
+           screen_prev      Move o ponteiro para a regiao anterior
+           screenshot_all   Tira screenshot da tela inteira (se habilitado)
+                            (veja a secao PROGRAMAS logo acima)
+           screenshot_wind  Tira screenshot da janela selecionada (se
+                            habilitado) (veja a secao PROGRAMAS logo acima)
+           version          Ativa/desativa a versao na barras de status
+           float_toggle     Troca o estado da janela focada entre flutuante e
+                            tiled
+           lock             Trava a tela (veja a secao PROGRAMAS logo acima)
+           initscr          Reinicializa as telas fisicas (veja a secao
+                            PROGRAMAS logo acima)
+
+     Atalhos personalizados no arquivo de configuracao sao especificados da
+     seguinte maneira:
+
+           bind[&lt;action&gt;] = &lt;keys&gt;
+
+     &lt;action&gt; e uma das acoes listadas acima (ou vazio) e &lt;keys&gt; esta na forma
+     de zero ou mais teclas de modificacao (MOD, Mod1, Shift, etc.) e uma ou
+     mais teclas normais (b, space, etc.), separadas pelo &quot;+&quot;.  Por exemplo:
+
+           bind[reset] = Mod4+q # combina a tecla Windows + q para reiniciar
+           bind[] = Mod1+q # desfaz a combinacao Alt + q
+
+     Multiplas combinacoes de teclas podem ser usadas para a mesma acao.
+
+<span class="Statement">QUIRKS</span>
+     scrotwm prove &quot;quirks&quot; que manipulam janelas que devem ser tratadas
+     especialmente em um gerenciador de janela &quot;tiling&quot;, tal como algumas
+     aplicacoes de dialogos e tela cheia.
+
+     Os quirks default estao descritos abaixo:
+
+           Firefox-bin:firefox-bin                 TRANSSZ
+           Firefox:Dialog                          FLOAT
+           Gimp:gimp                               FLOAT + ANYWHERE
+           MPlayer:xv                              FLOAT + FULLSCREEN
+           OpenOffice.org 2.4:VCLSalFrame          FLOAT
+           OpenOffice.org 3.1:VCLSalFrame          FLOAT
+           pcb:pcb                                 FLOAT
+           xine:Xine Window                        FLOAT + ANYWHERE
+           xine:xine Panel                         FLOAT + ANYWHERE
+           xine:xine Video Fullscreen Window       FULLSCREEN + FLOAT
+           Xitk:Xitk Combo                         FLOAT + ANYWHERE
+           Xitk:Xine Window                        FLOAT + ANYWHERE
+           XTerm:xterm                             XTERM_FONTADJ
+
+     Os quirks em si estao descritos abaixo:
+
+           FLOAT                  Esta janela nao deve ser &quot;tiled&quot;, mas
+                                  permitida a flutuar livremente.
+           TRANSSZ                Ajusta o tamanho das janelas transitorias
+                                  que sejam muito pequenas usando dialog_ratio
+                                  (veja a secao ARQUIVOS DE CONFIGURACAO).
+           ANYWHERE               Permite que a janela posicione a si mesma,
+                                  nao-centrada.
+           XTERM_FONTADJ          Ajusta as fontes do xterm quando
+                                  redimencionando.
+           FULLSCREEN             Remove a borda para permitir a janela usar
+                                  todo o tamanho da tela.
+
+     Quirks personalizados no arquivo de configuracao sao especificados da
+     seguinte maneira:
+
+           quirk[&lt;class&gt;:&lt;name&gt;] = &lt;quirk&gt; [+ &lt;quirk&gt; ...]
+
+     &lt;class&gt; e &lt;name&gt; especificam a janela ao qual o quirk se aplica, e
+     &lt;quirk&gt; e um dos quirks da lista acima.  Por exemplo:
+
+           quirk[MPlayer:xv] = FLOAT + FULLSCREEN # faz o mplayer tocar livremente
+           quirk[pcb:pcb] = NONE  # remove quirk existente
+
+     Voce pode obter &lt;class&gt; e &lt;name&gt; executando o <span class="PreProc">xprop(1)</span> e entao clicando
+     na janela desejada.  No seguinte exemplo a jenela principal do Firefox
+     foi clicada:
+
+           $ xprop | grep WM_CLASS
+           WM_CLASS(STRING) = &quot;Navigator&quot;, &quot;Firefox&quot;
+
+     Note que usando o <span class="PreProc">grep(1)</span> para WM_CLASS voce obtem class e name.  No
+     exemplo acima a configuracao do quirk poderia ser:
+
+           quirk[Firefox:Navigator] = FLOAT
+
+<span class="Statement">SINAIS</span>
+     Enviar ao scrotwm um sinal HUP fara com que o mesmo seja reiniciado.
+
+<span class="Statement">ARQUIVOS</span>
+     ~/.scrotwm.conf       Configuracoes especificas do usuario.
+     /etc/scrotwm.conf     Configuracoes globais.
+
+<span class="Statement">HISTORIA</span>
+     scrotwm foi inspirado pelo xmonad &amp; dwm.
+
+<span class="Statement">AUTORES</span>
+
+     scrotwm foi escrito por Marco Peereboom &lt;marco@peereboom.us&gt;, Ryan Thomas
+     McBride &lt;mcbride@countersiege.com&gt; e Darrin Chandler
+     &lt;dwchandler@stilyagin.com&gt;.
+
+<span class="Statement">BUGS</span>
+     Atualmente o menu, invocado com M-p, depende do dmenu.
+
+OpenBSD 4.8                      July 15, 2010                     OpenBSD 4.8
+</pre>
+</body>
+</html>

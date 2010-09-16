@@ -6,26 +6,27 @@
 <meta name="Generator" content="Vim/7.1">
 <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
 </head>
-Using scrotwm on Windows/cygwin<p>
+Usando o scrotwm no Windows/cygwin<p>
 <small>
-<a href="cygwin_pt.html">Em Português</a>
+<a href="cygwin.html">In English</a>
 <p>
 </small>
 <body bgcolor="#101010" text="#ffffff">
-A port to Windows/cygwin was created to make Windows useful for UNIX people.
-Following are the compilation and installation steps.
+Um port para Windows/cygwin foi criado para fazer o Windows útil
+para o pessoal do UNIX.
+A seguir estão os passos para a compilação e a instalação.
 <p>
-Compile scrotwm from the linux directory of the snapshot:
+Compile o scrotwm do diretório linux do snapshot:
 <pre>
 cd linux
 make
 </pre>
-Install scrotwm:
+Instale o scrotwm:
 <pre>sudo make install</pre>
 <br>
-Download
+Baixe o
 <a href="http://tools.suckless.org/dmenu/">dmenu</a>
-and patch config.mk with:
+e aplique o patch no config.mk com:
 <pre>
 $ diff -uNp config.mk.old config.mk
 --- config.mk.old       2010-01-11 16:23:55.503440600 -0600
@@ -41,21 +42,22 @@ LDFLAGS = -s ${LIBS}
 # Solaris
 
 </pre>
-Compile it:
+Compile:
 <pre>make</pre>
-Install dmenu:
+Instale o dmenu:
 <pre>sudo make install</pre>
-Create a .xinitrc in the home dir of the user and add at least the following line:
+Crie um .xinitrc no diretório home do usuário e adicione ao menos a seguinte linha:
 <pre>
 exec /usr/local/bin/scrotwm
 </pre>
-If the stupid menu bar in xterm angers you add the folowing line to ~/.Xdefaults
+Se a estúpida barra de menu no xterm te irritar adicione a seguinte linha 
+no ~/.Xdefaults
 <pre>
 xterm.ToolBar:          false
 </pre>
 <p>
 <center>
-This all results in scrotwm bliss!<p>
+Tudo isso resulta no êxtase do scrotwm!<p>
 <a href="cygwin.png"><img border=0 src="cygwin_small.png" alt="[scrotwm]"></a><br>
 </center>
 <p>

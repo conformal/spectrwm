@@ -1,0 +1,583 @@
+.\"    $scrotwm$
+.\"
+.\" Copyright (c) 2009 Marco Peereboom <marco@peereboom.us>
+.\" Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate$
+.Dt SCROTWM 1
+.Os
+.Sh NOME
+.Nm scrotwm
+.Nd gerenciador de janela para o X11
+.Sh SINOPSE
+.Nm scrotwm
+.Sh DESCRI\(,C\(~AO
+.Nm
+\('e um gerenciador de janela minimalista que tenta n\(~ao atrapalhar a
+valorosa forma real da tela para que essa possa
+ser usada para coisas muito mais importantes.
+Tem sensatos defaults e n\(~ao requer que algu\('em aprenda uma linguagem de
+programa\(,c\(~ao para fazer qualquer configura\(,c\(~ao.
+Ele foi escrito por hackers para hackers e esfor\(,ca-se em ser pequeno, compacto e 
+r\('apido.
+.Pp
+Quando o
+.Nm
+inicia, ele l\(^e as configura\(,c\(~oes do seu arquivo de configura\(,c\(~ao,
+.Pa scrotwm.conf .
+Veja a se\(,c\(~ao
+.Sx ARQUIVOS DE CONFIGURA\(,C\(~AO
+logo abaixo.
+.Pp
+A seguinte nota\(,c\(~ao \('e usada por toda essa p\('agina:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Cm M
+Meta
+.It Cm S
+Shift
+.It Aq Cm Name
+Nome da tecla
+.It Cm M1
+Bot\(~ao 1 do mouse
+.It Cm M3
+Bot\(~ao 3 do mouse
+.El
+.Pp
+.Nm
+\('e muito simples de usar.
+Muitas das a\(,c\(~oes s\(~ao iniciadas por atalhos do mouse ou do teclado.
+Veja a se\(,c\(~ao
+.Sx ATALHOS
+logo abaixo para os defaults e as personaliza\(,c\(~oes.
+.Sh ARQUIVOS DE CONFIGURA\(,C\(~AO
+.Nm
+primeiro tenta abrir o arquivo de configura\(,c\(~ao no diret\('orio do usu\('ario,
+.Pa ~/.scrotwm.conf .
+Se o arquivo n\(~ao estiver dispon\('ivel, ent\(~ao tenta abrir o arquivo de
+configura\(,c\(~ao global
+.Pa /etc/scrotwm.conf .
+.Pp
+Assim \('e o formato do arquivo:\*(Ltpalavra-chave\*(Gt = \*(Ltconfigura\(,c\(~ao\*(Gt.
+Por exemplo:
+.Pp
+.Dl color_focus = red
+.Pp
+Para habilitar ou desabilitar uma op\(,c\(~ao usa-se o 1 ou 0, respectivamente. 
+.Pp
+O arquivo suporta as seguintes palavras-chave:
+.Pp
+.Bl -tag -width "title_class_enabledXXX" -offset indent -compact
+.It Cm color_focus
+Cor da borda da janela atualmente focada.
+.It Cm color_unfocus
+Cor da borda das janelas fora de foco.
+.It Cm bar_enabled
+Habilita ou desabilita a barra de status.
+.It Cm bar_border Ns Bq Ar x
+Cor da borda da barra de status na tela
+.Ar x .
+.It Cm bar_color Ns Bq Ar x
+Cor da janela da barra de status na tela
+.Ar x .
+.It Cm bar_font_color Ns Bq Ar x
+Cor da fonte na barra de status na tela
+.Ar x .
+.It Cm bar_font
+Fonte da barra de status.
+.It Cm bar_action
+Script externo que preenche a barra de status com informa\(,c\(~oes adicionais,
+como tempo de vida da bateria.
+.It Cm bar_delay
+Freq\(:u\(^encia da atualiza\(,c\(~ao, em segundos, do script externo que preenche
+a barra de status.
+.It Cm bar_at_bottom
+Coloca a barra de status na parte inferior de cada regi\(~ao, ao inv\('es da parte superior.
+.It Cm stack_enabled
+Habilita ou desabilita mostrar o atual algor\('itmo de empilhamento na barra de status.
+.It Cm clock_enabled
+Habilita ou desabilita mostrar o rel\('ogio na barra de status.
+Desabilite configurando para 0, ent\(~ao um rel\('ogio personalizado pode ser usado no
+script bar_action.
+.It Cm dialog_ratio
+Algumas aplica\(,c\(~oes tem janelas de di\('alogo que s\(~ao muito pequenas para serem \('uteis.
+Essa taxa \('e o tamanho da tela para o qual elas ser\(~ao redimencionadas.
+Por exemplo, 0.6 equivale a 60% do tamanho da tela f\('isica.
+.It Cm region
+Aloca uma regi\(~ao personalizada, removendo qualquer regi\(~ao automaticamente detectada
+que ocupe o mesmo espa\(,co na tela.
+Definido no formato screen[<idx>]:WIDTHxHEIGHT+X+Y,
+e.g.\& screen[1]:800x1200+0+0.
+.It Cm term_width
+Configura a largura m\('inima preferida para o terminal
+Se esse valor for maior do que 0,
+.Nm
+vai tentar ajustar os tamanhos da fonte no terminal para manter a largura
+do terminal acima desse n\('umero enquanto a janela \('e redimencionada.
+Apenas o
+.Xr xterm 1
+\('e suportado atualmente.
+O bin\('ario do
+.Xr xterm 1
+n\(~ao deve ser setuid ou setgid, que \('e o default em muitos sistemas.
+Os usu\('arios podem precisar de configurar program[term] (veja a se\(,c\(~ao
+.Sx PROGRAMAS
+) para usar uma c\('opia alternativa do bin\('ario do
+.Xr xterm 1
+sem o bit setgid ativado.
+.It Cm title_class_enabled
+Habilita ou desabilita mostrar a classe da janela na barra de status.
+Habilite configurando para 1.
+.It Cm title_name_enabled
+Habilita ou desabilita mostrar o t\('itulo da janela na barra de status.
+Habilite configurando para 1.
+.It Cm modkey
+Muda a tecla de modifica\(,c\(~ao.
+Mod1 \('e geralmente a tecla ALT e Mod4 \('e a tecla windows em um PC.
+.It Cm focus_mode
+Usar um valor de follow_cursor vai fazer o gerenciador de janela focar
+a janela sob o mouse quando trocando \('areas de trabalho e criando janelas.
+.It Cm disable_border
+Remove a borda quando a barra estiver desabilitada e houver apenas uma janela na tela.
+.It Cm program Ns Bq Ar p
+Define uma nova a\(,c\(~ao para executar um programa
+.Ar p .
+Veja a se\(,c\(~ao
+.Sx PROGRAMAS
+logo abaixo.
+.It Cm bind Ns Bq Ar x
+Cria uma combina\(,c\(~ao de teclas de atalho para a a\(,c\(~ao
+.Ar x .
+Veja a se\(,c\(~ao 
+.Sx ATALHOS
+logo abaixo.
+.It Cm quirk Ns Bq Ar c:n
+Adicione "quirk" para janelas com classe
+.Ar c
+e nome
+.Ar n .
+Veja a se\(,c\(~ao
+.Sx QUIRKS
+logo abaixo.
+.El
+.Pp
+Cores precisam ser especificadas pela especifica\(,c\(~ao
+.Xr XQueryColor 3
+e fontes pela especifica\(,c\(~ao
+.Xr XQueryFont 3 .
+.Pp
+Para listar as fontes dispon\('iveis em seu sistema veja o manual do
+.Xr fc-list 1
+ou do
+.Xr xlsfonts 1 .
+A aplica\(,c\(~ao 
+.Xr xfontsel 1
+pode te ajudar a mostrar a X Logical Font Description ("XLFD") usada na
+configura\(,c\(~ao da palavra-chave bar_font.
+.Sh PROGRAMAS
+.Nm
+te permite definir a\(,c\(~oes personalizadas para executar programas de sua escolha
+e ent\(~ao criar um atalho para elas da mesma forma que as a\(,c\(~oes embutidas.
+Veja a se\(,c\(~ao
+.Sx ATALHOS
+logo abaixo.
+.Pp
+Os programas default s\(~ao descritos abaixo:
+.Pp
+.Bl -tag -width "screenshot_wind" -offset indent -compact
+.It Cm term
+xterm
+.It Cm screenshot_all
+screenshot.sh full
+.It Cm screenshot_wind
+screenshot.sh window
+.It Cm lock
+xlock
+.It Cm initscr
+initscreen.sh
+.It Cm menu
+dmenu_run \-fn $bar_font \-nb $bar_color \-nf $bar_font_color \-sb $bar_border \-sf $bar_color
+.El
+.Pp
+Programas personalizados no arquivo de configura\(,c\(~ao s\(~ao especificados da seguinte maneira:
+.Pp
+.Dl program[<name>] = <progpath> [<arg> [... <arg>]]
+.Pp
+.Aq name
+\('e um identificador qualquer que n\(~ao conflite com uma a\(,c\(~ao ou palavra-chave embutida,
+.Aq progpath
+\('e o programa desejado, e
+.Aq arg
+\('e zero ou mais argumentos para o programa.
+.Pp
+As seguintes vari\('aveis representam valores configur\('aveis no
+.Nm
+(veja a se\(,c\(~ao
+.Sx ARQUIVOS DE CONFIGURA\(,C\(~AO
+logo acima),
+e podem ser usadas nos campos
+.Aq arg
+e ser\(~ao substitu\('idas pelos valores na hora em que o programa for executado:
+.Pp
+.Bl -tag -width "$bar_font_color" -offset indent -compact
+.It Cm $bar_border
+.It Cm $bar_color
+.It Cm $bar_font
+.It Cm $bar_font_color
+.It Cm $color_focus
+.It Cm $color_unfocus
+.El
+.Pp
+Exemplo:
+.Bd -literal -offset indent
+program[ff] = /usr/local/bin/firefox http://scrotwm.org/
+bind[ff] = Mod+f # Agora Mod+F executa o firefox
+.Ed
+.Pp
+Para desfazer a configura\(,c\(~ao anterior:
+.Bd -literal -offset indent
+bind[] = Mod+f
+program[ff] =
+.Ed
+.Pp
+.Sh ATALHOS
+.Nm
+prov\(^e muitas fun\(,c\(~oes (ou a\(,cões) acessadas pelos atalhos do teclado ou do mouse.
+.Pp
+Os atuais atalhos do mouse s\(~ao descritos abaixo:
+.Pp
+.Bl -tag -width "M-j, M-<TAB>XXX" -offset indent -compact
+.It Cm M1
+Foca a janela
+.It Cm M-M1
+Move a janela
+.It Cm M-M3
+Redimenciona a janela
+.It Cm M-S-M3
+Redimenciona a janela enquanto a mant\('em centralizada
+.El
+.Pp
+Os atalhos default do teclado s\(~ao descritos abaixo:
+.Pp
+.Bl -tag -width "M-j, M-<TAB>XXX" -offset indent -compact
+.It Cm M-S- Ns Aq Cm Return
+term
+.It Cm M-p
+menu
+.It Cm M-S-q
+quit
+.It Cm M-q
+restart
+.Nm
+.It Cm M- Ns Aq Cm Space
+cycle_layout
+.It Cm M-S- Ns Aq Cm Space
+reset_layout
+.It Cm M-h
+master_shrink
+.It Cm M-l
+master_grow
+.It Cm M-,
+master_add
+.It Cm M-.
+master_del
+.It Cm M-S-,
+stack_inc
+.It Cm M-S-.
+stack_del
+.It Cm M- Ns Aq Cm Return
+swap_main
+.It Xo
+.Cm M-j ,
+.Cm M- Ns Aq Cm TAB
+.Xc
+focus_next
+.It Xo
+.Cm M-k ,
+.Cm M-S- Ns Aq Cm TAB
+.Xc
+focus_prev
+.It Cm M-m
+focus_main
+.It Cm M-S-j
+swap_next
+.It Cm M-S-k
+swap_prev
+.It Cm M-b
+bar_toggle
+.It Cm M-x
+wind_del
+.It Cm M-S-x
+wind_kill
+.It Cm M- Ns Aq Ar n
+.Ns ws_ Ns Ar n
+.It Cm M-S- Ns Aq Ar n
+.Ns mvws_ Ns Ar n
+.It Cm M- Ns Aq Cm Right
+ws_next
+.It Cm M- Ns Aq Cm Left
+ws_prev
+.It Cm M-a
+ws_prior
+.It Cm M-S- Ns Aq Cm Right
+screen_next
+.It Cm M-S- Ns Aq Cm Left
+screen_prev
+.It Cm M-s
+screenshot_all
+.It Cm M-S-s
+screenshot_wind
+.It Cm M-S-v
+version
+.It Cm M-t
+float_toggle
+.It Cm M-S Aq Cm Delete
+lock
+.It Cm M-S-i
+initscr
+.El
+.Pp
+Os nomes das a\(,c\(~oes e suas descri\(,cões est\(~ao listados abaixo:
+.Pp
+.Bl -tag -width "M-j, M-<TAB>XXX" -offset indent -compact
+.It Cm term
+Executa um novo terminal
+(veja a se\(,c\(~ao
+.Sx PROGRAMAS
+logo acima)
+.It Cm menu
+Menu
+(veja a se\(,c\(~ao
+.Sx PROGRAMAS
+logo acima)
+.It Cm quit
+Sair
+.Nm
+.It Cm restart
+Reiniciar
+.Nm
+.It Cm cycle_layout
+Circula entre os poss\('iveis layouts
+.It Cm reset_layout
+Reinicia o layout
+.It Cm master_shrink
+Encolhe a \('area mestre
+.It Cm master_grow
+Aumenta a \('area mestre
+.It Cm master_add
+Adiciona janelas na \('area mestre
+.It Cm master_del
+Remove janelas da \('area mestre
+.It Cm stack_inc
+Adiciona colunas/linhas para a \('area de empilhamento
+.It Cm stack_del
+Remove colunas/linhas da \('area de empilhamento
+.It Cm swap_main
+Move a janela atual para a \('area mestre
+.It Cm focus_next
+Foca a pr\('oxima janela da \('area de trabalho
+.It Cm focus_prev
+Foca a janela anterior da \('area de trabalho
+.It Cm focus_main
+Foca a janela principal da \('area de trabalho
+.It Cm swap_next
+Troca com a pr\('oxima janela da \('area de trabalho
+.It Cm swap_prev
+Troca com a janela anterior da \('area de trabalho
+.It Cm bar_toggle
+Ativa/desativa a barra de status em todas as \('areas de trabalho
+.It Cm wind_del
+Apaga a janela atual da \('area de trabalho
+.It Cm wind_kill
+Destr\('oi a janela atual da \('area de trabalho
+.It Cm ws_ Ns Ar n
+Troca para a \('area de trabalho
+.Ar n ,
+onde
+.Ar n
+vai de 1 at\('e 10
+.It Cm mvws_ Ns Ar n
+Move a janela atual para a \('area de trabalho
+.Ar n ,
+onde
+.Ar n
+vai de 1 at\('e 10
+.It Cm ws_next
+Troca para a pr\('oxima \('area de trabalho que possua uma janela
+.It Cm ws_prev
+Troca para a \('area de trabalho anterior que possua uma janela
+.It Cm ws_prior
+Troca para a \('ultima \('area de trabalho visitada
+.It Cm screen_next
+Move o ponteiro para a pr\('oxima regi\(~ao
+.It Cm screen_prev
+Move o ponteiro para a regi\(~ao anterior
+.It Cm screenshot_all
+Tira screenshot da tela inteira (se habilitado)
+(veja a se\(,c\(~ao
+.Sx PROGRAMAS
+logo acima)
+.It Cm screenshot_wind
+Tira screenshot da janela selecionada (se habilitado)
+(veja a se\(,c\(~ao
+.Sx PROGRAMAS
+logo acima)
+.It Cm version
+Ativa/desativa a vers\(~ao na barras de status
+.It Cm float_toggle
+Troca o estado da janela focada entre flutuante e tiled
+.It Cm lock
+Trava a tela
+(veja a se\(,c\(~ao
+.Sx PROGRAMAS
+logo acima)
+.It Cm initscr
+Reinicializa as telas f\('isicas
+(veja a se\(,c\(~ao
+.Sx PROGRAMAS
+logo acima)
+.El
+.Pp
+Atalhos personalizados no arquivo de configura\(,c\(~ao s\(~ao especificados da seguinte maneira:
+.Pp
+.Dl bind[<action>] = <keys>
+.Pp
+.Aq action
+\('e uma das a\(,c\(~oes listadas acima (ou vazio) e
+.Aq keys
+est\('a na forma de zero ou mais teclas de modifica\(,c\(~ao
+(MOD, Mod1, Shift, etc.) e uma ou mais teclas normais
+(b, space, etc.), separadas pelo "+".
+Por exemplo:
+.Bd -literal -offset indent
+bind[reset] = Mod4+q # combina a tecla Windows + q para reiniciar
+bind[] = Mod1+q # desfaz a combina\(,c\(~ao Alt + q
+.Ed
+.Pp
+M\('ultiplas combina\(,c\(~oes de teclas podem ser usadas para a mesma a\(,c\(~ao.
+.Sh QUIRKS
+.Nm
+prov\(^e "quirks" que manipulam janelas que devem ser tratadas especialmente
+em um gerenciador de janela "tiling", tal como algumas aplica\(,c\(~oes de
+di\('alogos e tela cheia.
+.Pp
+Os quirks default est\(~ao descritos abaixo:
+.Pp
+.Bl -tag -width "OpenOffice.org N.M:VCLSalFrame<TAB>XXX" -offset indent -compact
+.It Firefox\-bin:firefox\-bin
+TRANSSZ
+.It Firefox:Dialog
+FLOAT
+.It Gimp:gimp
+FLOAT + ANYWHERE
+.It MPlayer:xv
+FLOAT + FULLSCREEN
+.It OpenOffice.org 2.4:VCLSalFrame
+FLOAT
+.It OpenOffice.org 3.1:VCLSalFrame
+FLOAT
+.It pcb:pcb
+FLOAT
+.It xine:Xine Window
+FLOAT + ANYWHERE
+.It xine:xine Panel
+FLOAT + ANYWHERE
+.It xine:xine Video Fullscreen Window
+FULLSCREEN + FLOAT
+.It Xitk:Xitk Combo
+FLOAT + ANYWHERE
+.It Xitk:Xine Window
+FLOAT + ANYWHERE
+.It XTerm:xterm
+XTERM_FONTADJ
+.El
+.Pp
+Os quirks em si est\(~ao descritos abaixo:
+.Pp
+.Bl -tag -width "XTERM_FONTADJ<TAB>XXX" -offset indent -compact
+.It FLOAT
+Esta janela n\(~ao deve ser "tiled", mas permitida a flutuar livremente.
+.It TRANSSZ
+Ajusta o tamanho das janelas transit\('orias que sejam muito pequenas
+usando dialog_ratio 
+(veja a se\(,c\(~ao
+.Sx ARQUIVOS DE CONFIGURA\(,C\(~AO ) .
+.It ANYWHERE
+Permite que a janela posicione a si mesma, n\(~ao-centrada.
+.It XTERM_FONTADJ
+Ajusta as fontes do xterm quando redimencionando.
+.It FULLSCREEN
+Remove a borda para permitir a janela usar todo o tamanho da tela.
+.El
+.Pp
+Quirks personalizados no arquivo de configura\(,c\(~ao s\(~ao especificados da seguinte maneira:
+.Pp
+.Dl quirk[<class>:<name>] = <quirk> [ + <quirk> ... ]
+.Pp
+.Aq class
+e
+.Aq name
+especificam a janela ao qual o quirk se aplica, e
+.Aq quirk
+\('e um dos quirks da lista acima.
+Por exemplo:
+.Bd -literal -offset indent
+quirk[MPlayer:xv] = FLOAT + FULLSCREEN # faz o mplayer tocar livremente
+quirk[pcb:pcb] = NONE  # remove quirk existente
+.Ed
+.Pp
+Voc\(^e pode obter
+.Aq class
+e
+.Aq name
+executando o xprop(1) e ent\(~ao clicando na janela desejada.
+No seguinte exemplo a jenela principal do Firefox foi clicada:
+.Bd -literal -offset indent
+$ xprop | grep WM_CLASS
+WM_CLASS(STRING) = "Navigator", "Firefox"
+.Ed
+.Pp
+Note que usando o grep(1) para WM_CLASS voc\(^e obt\('em class e name. 
+No exemplo acima a configura\(,c\(~ao do quirk poderia ser:
+.Bd -literal -offset indent
+quirk[Firefox:Navigator] = FLOAT
+.Ed
+.Sh SINAIS
+Enviar ao
+.Nm
+um sinal HUP far\('a com que o mesmo seja reiniciado.
+.Sh ARQUIVOS
+.Bl -tag -width "/etc/scrotwm.confXXX" -compact
+.It Pa ~/.scrotwm.conf
+Configura\(,c\(~oes espec\('ificas do usu\('ario.
+.It Pa /etc/scrotwm.conf
+Configura\(,c\(~oes globais.
+.El
+.Sh HIST\('ORIA
+.Nm
+foi inspirado pelo xmonad & dwm.
+.Sh AUTORES
+.An -nosplit
+.Pp
+.Nm
+foi escrito por
+.An Marco Peereboom Aq marco@peereboom.us ,
+.An Ryan Thomas McBride Aq mcbride@countersiege.com
+e
+.An Darrin Chandler Aq dwchandler@stilyagin.com .
+.Sh BUGS
+Atualmente o menu, invocado com
+.Cm M-p ,
+depende do dmenu.
