@@ -258,6 +258,7 @@ struct ws_win {
 	int			floatmaxed;	/* flag: floater was maxed in max_stack */
 	int			floating;
 	int			manual;
+	unsigned int		ewmh_flags;
 	int			font_size_boundary[SWM_MAX_FONT_STEPS];
 	int			font_steps;
 	int			last_inc;
@@ -402,6 +403,335 @@ struct quirk {
 };
 int				quirks_size = 0, quirks_length = 0;
 struct quirk			*quirks = NULL;
+
+/*
+ * Supported EWMH hints should be added to
+ * both the enum and the ewmh array
+ */
+enum { _NET_ACTIVE_WINDOW, _NET_MOVERESIZE_WINDOW, _NET_CLOSE_WINDOW,
+    _NET_WM_WINDOW_TYPE, _NET_WM_WINDOW_TYPE_DOCK,
+    _NET_WM_WINDOW_TYPE_TOOLBAR, _NET_WM_WINDOW_TYPE_UTILITY,
+    _NET_WM_WINDOW_TYPE_SPLASH, _NET_WM_WINDOW_TYPE_DIALOG,
+    _NET_WM_WINDOW_TYPE_NORMAL, _NET_WM_STATE,
+    _NET_WM_STATE_MAXIMIZED_HORZ, _NET_WM_STATE_MAXIMIZED_VERT,
+    _NET_WM_STATE_SKIP_TASKBAR, _NET_WM_STATE_SKIP_PAGER,
+    _NET_WM_STATE_HIDDEN, _NET_WM_STATE_ABOVE, _SWM_WM_STATE_MANUAL,
+    _NET_WM_STATE_FULLSCREEN, _NET_WM_ALLOWED_ACTIONS, _NET_WM_ACTION_MOVE,
+    _NET_WM_ACTION_RESIZE, _NET_WM_ACTION_FULLSCREEN, _NET_WM_ACTION_CLOSE,
+    SWM_EWMH_HINT_MAX };
+
+struct ewmh_hint {
+	char	*name;
+	Atom	 atom;
+} ewmh[SWM_EWMH_HINT_MAX] =	{
+    /* must be in same order as in the enum */
+    {"_NET_ACTIVE_WINDOW", None},
+    {"_NET_MOVERESIZE_WINDOW", None},
+    {"_NET_CLOSE_WINDOW", None},
+    {"_NET_WM_WINDOW_TYPE", None},
+    {"_NET_WM_WINDOW_TYPE_DOCK", None},
+    {"_NET_WM_WINDOW_TYPE_TOOLBAR", None},
+    {"_NET_WM_WINDOW_TYPE_UTILITY", None},
+    {"_NET_WM_WINDOW_TYPE_SPLASH", None},
+    {"_NET_WM_WINDOW_TYPE_DIALOG", None},
+    {"_NET_WM_WINDOW_TYPE_NORMAL", None},
+    {"_NET_WM_STATE", None},
+    {"_NET_WM_STATE_MAXIMIZED_HORZ", None},
+    {"_NET_WM_STATE_MAXIMIZED_VERT", None},
+    {"_NET_WM_STATE_SKIP_TASKBAR", None},
+    {"_NET_WM_STATE_SKIP_PAGER", None},
+    {"_NET_WM_STATE_HIDDEN", None},
+    {"_NET_WM_STATE_ABOVE", None},
+    {"_SWM_WM_STATE_MANUAL", None},
+    {"_NET_WM_STATE_FULLSCREEN", None},
+    {"_NET_WM_ALLOWED_ACTIONS", None},
+    {"_NET_WM_ACTION_MOVE", None},
+    {"_NET_WM_ACTION_RESIZE", None},
+    {"_NET_WM_ACTION_FULLSCREEN", None},
+    {"_NET_WM_ACTION_CLOSE", None},
+};
+
+void	store_float_geom(struct ws_win *win, struct swm_region *r);
+int	floating_toggle_win(struct ws_win *win);
+
+int
+get_property(Window id, Atom atom, long count, Atom type,
+    unsigned long *n, unsigned char **data)
+{
+	int			format, status;
+	unsigned long		tmp, extra;
+	unsigned long		*nitems;
+	Atom			real;
+
+	nitems = n != NULL ? n : &tmp;
+	status = XGetWindowProperty(display, id, atom, 0L, count, False, type,
+	    &real, &format, nitems, &extra, data);
+
+	if (status != Success)
+		return False;
+	if (real != type)
+		return False;
+
+	return True;
+}
+
+void
+setup_ewmh(void)
+{
+	int			i,j;
+	Atom			sup_list;
+
+	sup_list = XInternAtom(display, "_NET_SUPPORTED", False);
+
+	for (i = 0; i < LENGTH(ewmh); i++)
+		ewmh[i].atom = XInternAtom(display, ewmh[i].name, False);
+
+	for (i = 0; i < ScreenCount(display); i++) {
+		/* Support check window will be created by workaround(). */
+
+		/* Report supported atoms */
+		XDeleteProperty(display, screens[i].root, sup_list);
+		for (j = 0; j < LENGTH(ewmh); j++)
+			XChangeProperty(display, screens[i].root, sup_list, XA_ATOM, 32,
+			    PropModeAppend, (unsigned char *)&ewmh[j].atom,1);
+	}
+}
+
+void
+teardown_ewmh(void)
+{
+	int			i, success;
+	unsigned char		*data = NULL;
+	unsigned long		n;
+	Atom			sup_check, sup_list;
+	Window			id;
+
+	sup_check = XInternAtom(display, "_NET_SUPPORTING_WM_CHECK", False);
+	sup_list = XInternAtom(display, "_NET_SUPPORTED", False);
+
+	for (i = 0; i < ScreenCount(display); i++) {
+		/* Get the support check window and destroy it */
+		success = get_property(screens[i].root, sup_check, 1, XA_WINDOW,
+		    &n, &data);
+
+		if (success) {
+			id = data[0];
+			XDestroyWindow(display, id);
+			XDeleteProperty(display, screens[i].root, sup_check);
+			XDeleteProperty(display, screens[i].root, sup_list);
+		}
+
+		XFree(data);
+	}
+}
+
+void
+ewmh_autoquirk(struct ws_win *win)
+{
+	int			success, i;
+	unsigned long		*data = NULL;
+	unsigned long		n;
+	Atom			type;
+
+	success = get_property(win->id, ewmh[_NET_WM_WINDOW_TYPE].atom, (~0L),
+	    XA_ATOM, &n, (unsigned char **)&data);
+
+	if (!success) {
+		XFree(data);
+		return;
+	}
+
+	for (i = 0; i < n; i++) {
+		type = data[i];
+		if (type == ewmh[_NET_WM_WINDOW_TYPE_NORMAL].atom)
+			break;
+		if (type == ewmh[_NET_WM_WINDOW_TYPE_DOCK].atom ||
+		    type == ewmh[_NET_WM_WINDOW_TYPE_TOOLBAR].atom ||
+		    type == ewmh[_NET_WM_WINDOW_TYPE_UTILITY].atom) {
+			win->floating = 1;
+			win->quirks = SWM_Q_FLOAT | SWM_Q_ANYWHERE;
+			break;
+		}
+		if (type == ewmh[_NET_WM_WINDOW_TYPE_SPLASH].atom ||
+		    type == ewmh[_NET_WM_WINDOW_TYPE_DIALOG].atom) {
+			win->floating = 1;
+			win->quirks = SWM_Q_FLOAT;
+			break;
+		}
+	}
+
+	XFree(data);
+}
+
+#define SWM_EWMH_ACTION_COUNT_MAX	(6)
+#define EWMH_F_FULLSCREEN		(1<<0)
+#define EWMH_F_ABOVE			(1<<1)
+#define EWMH_F_HIDDEN			(1<<2)
+#define EWMH_F_SKIP_PAGER		(1<<3)
+#define EWMH_F_SKIP_TASKBAR		(1<<4)
+#define SWM_F_MANUAL			(1<<5)
+
+int
+ewmh_set_win_fullscreen(struct ws_win *win, int fs)
+{
+	struct swm_geometry	rg;
+
+	if (!win->ws->r)
+		return 0;
+
+	if (!win->floating)
+		return 0;
+
+	DNPRINTF(SWM_D_MISC, "ewmh_set_win_fullscreen: win 0x%lx fs: %d\n",
+	    win->id, fs);
+
+	rg = win->ws->r->g;
+
+	if (fs) {
+		store_float_geom(win, win->ws->r);
+
+		win->g.x = rg.x;
+		win->g.y = rg.y;
+		win->g.w = rg.w;
+		win->g.h = rg.h;
+	}	else {
+		if (win->g_floatvalid) {
+			/* refloat at last floating relative position */
+			win->g.x = win->g_float.x - win->rg_float.x + rg.x;
+			win->g.y = win->g_float.y - win->rg_float.y + rg.y;
+			win->g.w = win->g_float.w;
+			win->g.h = win->g_float.h;
+		}
+	}
+
+	return 1;
+}
+
+void
+ewmh_update_actions(struct ws_win *win)
+{
+	Atom			actions[SWM_EWMH_ACTION_COUNT_MAX];
+	int			n = 0;
+
+	if (win == NULL)
+		return;
+
+	actions[n++] = ewmh[_NET_WM_ACTION_CLOSE].atom;
+
+	if (win->floating) {
+		actions[n++] = ewmh[_NET_WM_ACTION_MOVE].atom;
+		actions[n++] = ewmh[_NET_WM_ACTION_RESIZE].atom;
+	}
+
+	XChangeProperty(display, win->id, ewmh[_NET_WM_ALLOWED_ACTIONS].atom,
+	    XA_ATOM, 32, PropModeReplace, (unsigned char *)actions, n);
+}
+
+#define _NET_WM_STATE_REMOVE	0    /* remove/unset property */
+#define _NET_WM_STATE_ADD	1    /* add/set property */
+#define _NET_WM_STATE_TOGGLE	2    /* toggle property */
+
+void
+ewmh_update_win_state(struct ws_win *win, long state, long action)
+{
+	unsigned int		mask = 0;
+	unsigned int		changed = 0;
+	unsigned int		orig_flags;
+
+	if (win == NULL)
+		return;
+
+	if (state == ewmh[_NET_WM_STATE_FULLSCREEN].atom)
+		mask = EWMH_F_FULLSCREEN;
+	if (state == ewmh[_NET_WM_STATE_ABOVE].atom)
+		mask = EWMH_F_ABOVE;
+	if (state == ewmh[_SWM_WM_STATE_MANUAL].atom)
+		mask = SWM_F_MANUAL;
+	if (state == ewmh[_NET_WM_STATE_SKIP_PAGER].atom)
+		mask = EWMH_F_SKIP_PAGER;
+	if (state == ewmh[_NET_WM_STATE_SKIP_TASKBAR].atom)
+		mask = EWMH_F_SKIP_TASKBAR;
+
+
+	orig_flags = win->ewmh_flags;
+
+	switch (action) {
+	case _NET_WM_STATE_REMOVE:
+		win->ewmh_flags &= ~mask;
+		break;
+	case _NET_WM_STATE_ADD:
+		win->ewmh_flags |= mask;
+		break;
+	case _NET_WM_STATE_TOGGLE:
+		win->ewmh_flags ^= mask;
+		break;
+	}
+
+	changed = (win->ewmh_flags & mask) ^ (orig_flags & mask) ? 1 : 0;
+
+	if (state == ewmh[_NET_WM_STATE_ABOVE].atom)
+		if (changed)
+			if (!floating_toggle_win(win))
+				win->ewmh_flags = orig_flags; /* revert */
+	if (state == ewmh[_SWM_WM_STATE_MANUAL].atom)
+		if (changed)
+			win->manual = (win->ewmh_flags & SWM_F_MANUAL) != 0;
+	if (state == ewmh[_NET_WM_STATE_FULLSCREEN].atom)
+		if (changed)
+			if (!ewmh_set_win_fullscreen(win, win->ewmh_flags & EWMH_F_FULLSCREEN))
+				win->ewmh_flags = orig_flags; /* revert */
+
+	XDeleteProperty(display, win->id, ewmh[_NET_WM_STATE].atom);
+
+	if (win->ewmh_flags & EWMH_F_FULLSCREEN)
+		XChangeProperty(display, win->id, ewmh[_NET_WM_STATE].atom,
+		    XA_ATOM, 32, PropModeAppend,
+		    (unsigned char *)&ewmh[_NET_WM_STATE_FULLSCREEN].atom, 1);
+	if (win->ewmh_flags & EWMH_F_SKIP_PAGER)
+		XChangeProperty(display, win->id, ewmh[_NET_WM_STATE].atom,
+		    XA_ATOM, 32, PropModeAppend,
+		    (unsigned char *)&ewmh[_NET_WM_STATE_SKIP_PAGER].atom, 1);
+	if (win->ewmh_flags & EWMH_F_SKIP_TASKBAR)
+		XChangeProperty(display, win->id, ewmh[_NET_WM_STATE].atom,
+		    XA_ATOM, 32, PropModeAppend,
+		    (unsigned char *)&ewmh[_NET_WM_STATE_SKIP_TASKBAR].atom, 1);
+	if (win->ewmh_flags & EWMH_F_ABOVE)
+		XChangeProperty(display, win->id, ewmh[_NET_WM_STATE].atom,
+		    XA_ATOM, 32, PropModeAppend,
+		    (unsigned char *)&ewmh[_NET_WM_STATE_ABOVE].atom, 1);
+	if (win->ewmh_flags & SWM_F_MANUAL)
+		XChangeProperty(display, win->id, ewmh[_NET_WM_STATE].atom,
+		    XA_ATOM, 32, PropModeAppend,
+		    (unsigned char *)&ewmh[_SWM_WM_STATE_MANUAL].atom, 1);
+}
+
+void
+ewmh_get_win_state(struct ws_win *win)
+{
+	int			success, i;
+	unsigned long		n;
+	Atom			*states;
+
+	if (win == NULL)
+		return;
+
+	win->ewmh_flags = 0;
+	if (win->floating)
+		win->ewmh_flags |= EWMH_F_ABOVE;
+	if (win->manual)
+		win->ewmh_flags |= SWM_F_MANUAL;
+
+	success = get_property(win->id, ewmh[_NET_WM_STATE].atom, (~0L), XA_ATOM,
+	    &n, (unsigned char **)&states);
+
+	if (!success)
+		return;
+
+	for (i = 0; i < n; i++)
+		ewmh_update_win_state(win, states[i], _NET_WM_STATE_ADD);
+
+	XFree(states);
+}
 
 /* events */
 #ifdef SWM_DEBUG
@@ -579,6 +909,7 @@ void			maprequest(XEvent *);
 void			propertynotify(XEvent *);
 void			unmapnotify(XEvent *);
 void			visibilitynotify(XEvent *);
+void			clientmessage(XEvent *);
 
 void			(*handler[LASTEvent])(XEvent *) = {
 				[Expose] = expose,
@@ -596,6 +927,7 @@ void			(*handler[LASTEvent])(XEvent *) = {
 				[PropertyNotify] = propertynotify,
 				[UnmapNotify] = unmapnotify,
 				[VisibilityNotify] = visibilitynotify,
+				[ClientMessage] = clientmessage,
 };
 
 void
@@ -978,15 +1310,11 @@ set_win_state(struct ws_win *win, long state)
 long
 getstate(Window w)
 {
-	int			format, status;
 	long			result = -1;
 	unsigned char		*p = NULL;
-	unsigned long		n, extra;
-	Atom			real;
+	unsigned long		n;
 
-	status = XGetWindowProperty(display, w, astate, 0L, 2L, False, astate,
-	    &real, &format, &n, &extra, (unsigned char **)&p);
-	if (status != Success)
+	if (!get_property(w, astate, 2L, astate, &n, &p))
 		return (-1);
 	if (n != 0)
 		result = *((long *)p);
@@ -1110,7 +1438,7 @@ unmap_window(struct ws_win *win)
 
 	XUnmapWindow(display, win->id);
 	XSetWindowBorder(display, win->id,
-	    win->s->c[SWM_S_COLOR_UNFOCUS].color); 
+	    win->s->c[SWM_S_COLOR_UNFOCUS].color);
 }
 
 void
@@ -1223,7 +1551,8 @@ find_window(Window id)
 {
 	struct ws_win		*win;
 	Window			wrr, wpr, *wcr = NULL;
-	int			i, j, nc;
+	int			i, j;
+	unsigned int		nc;
 
 	for (i = 0; i < ScreenCount(display); i++)
 		for (j = 0; j < SWM_WS_MAX; j++)
@@ -1382,6 +1711,7 @@ void
 unfocus_win(struct ws_win *win)
 {
 	XEvent			cne;
+	Window 			none = None;
 
 	DNPRINTF(SWM_D_FOCUS, "unfocus_win: id: %lu\n", WINID(win));
 
@@ -1423,6 +1753,9 @@ unfocus_win(struct ws_win *win)
 	XSetWindowBorder(display, win->id,
 	    win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
 
+	XChangeProperty(display, win->s->root,
+	    ewmh[_NET_ACTIVE_WINDOW].atom, XA_WINDOW, 32,
+	    PropModeReplace, (unsigned char *)&none,1);
 }
 
 void
@@ -1487,6 +1820,10 @@ focus_win(struct ws_win *win)
 		    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
 		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS)
 			XMapRaised(display, win->id);
+
+		XChangeProperty(display, win->s->root,
+		    ewmh[_NET_ACTIVE_WINDOW].atom, XA_WINDOW, 32,
+		    PropModeReplace, (unsigned char *)&win->id,1);
 	}
 }
 
@@ -1583,14 +1920,14 @@ void
 priorws(struct swm_region *r, union arg *args)
 {
 	union arg		a;
-	
+
 	DNPRINTF(SWM_D_WS, "priorws id %d "
 	    "in screen[%d]:%dx%d+%d+%d ws %d\n", args->id,
 	    r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
-	
+
 	if (r->ws_prior == NULL)
 		return;
-	
+
 	a.id = r->ws_prior->idx;
 	switchws(r, &a);
 }
@@ -1928,7 +2265,8 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 	 * geom on ws switches or return from max mode
 	 */
 
-	if (win->floatmaxed || (r != r->ws->old_r && win->g_floatvalid) ) {
+	if (win->floatmaxed || (r != r->ws->old_r && win->g_floatvalid
+	    && !(win->ewmh_flags & EWMH_F_FULLSCREEN))) {
 		/*
 		 * use stored g and rg to set relative position and size
 		 * as in old region or before max stack mode
@@ -1957,8 +2295,8 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 		 * floaters and transients are auto-centred unless moved
 		 * or resized
 		 */
-                win->g.x = r->g.x + (WIDTH(r) - win->g.w) / 2;
-                win->g.y = r->g.y + (HEIGHT(r) - win->g.h) / 2;
+		win->g.x = r->g.x + (WIDTH(r) - win->g.w) / 2;
+		win->g.y = r->g.y + (HEIGHT(r) - win->g.h) / 2;
 	}
 
 	/* win can be outside r if new r smaller than old r */
@@ -1983,7 +2321,8 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 	 * Retain floater and transient geometry for correct positioning
 	 * when ws changes region
 	 */
-	store_float_geom(win, r);
+	if (!(win->ewmh_flags & EWMH_F_FULLSCREEN))
+		store_float_geom(win, r);
 
 	DNPRINTF(SWM_D_MISC, "stack_floater: win %lu x %d y %d w %d h %d\n",
 	    win->id, wc.x, wc.y, wc.width, wc.height);
@@ -2032,7 +2371,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	XWindowChanges		wc;
 	XWindowAttributes	wa;
 	struct swm_geometry	win_g, r_g = *g;
-	struct ws_win		*win;
+	struct ws_win		*win, *fs_win = 0;
 	int			i, j, s, stacks;
 	int			w_inc = 1, h_inc, w_base = 1, h_base;
 	int			hrh, extra = 0, h_slice, last_h = 0;
@@ -2108,6 +2447,11 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
 		if (win->transient != 0 || win->floating != 0)
 			continue;
+
+		if (win->ewmh_flags & EWMH_F_FULLSCREEN) {
+			fs_win = win;
+			continue;
+		}
 
 		if (split && i == split) {
 			colno = (winno - mwin) / stacks;
@@ -2205,8 +2549,18 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		if (win->transient == 0 && win->floating == 0)
 			continue;
 
+		if (win->ewmh_flags & EWMH_F_FULLSCREEN) {
+			fs_win = win;
+			continue;
+		}
+
 		stack_floater(win, ws->r);
 		XMapRaised(display, win->id);
+	}
+
+	if (fs_win) {
+		stack_floater(fs_win, ws->r);
+		XMapRaised(display, fs_win->id);
 	}
 }
 
@@ -2413,6 +2767,7 @@ send_to_ws(struct swm_region *r, union arg *args)
 		XChangeProperty(display, win->id, ws_idx_atom, XA_STRING, 8,
 		    PropModeReplace, ws_idx_str, SWM_PROPLEN);
 	}
+
 	stack();
 }
 
@@ -2421,7 +2776,7 @@ wkill(struct swm_region *r, union arg *args)
 {
 	DNPRINTF(SWM_D_MISC, "wkill %d\n", args->id);
 
-	if(r->ws->focus == NULL)
+	if (r->ws->focus == NULL)
 		return;
 
 	if (args->id == SWM_ARG_ID_KILLWINDOW)
@@ -2431,18 +2786,23 @@ wkill(struct swm_region *r, union arg *args)
 			client_msg(r->ws->focus, adelete);
 }
 
-void
-floating_toggle(struct swm_region *r, union arg *args)
+
+int
+floating_toggle_win(struct ws_win *win)
 {
-	struct ws_win	*win = r->ws->focus;
-	union arg	a;
+	struct swm_region	*r;
 
 	if (win == NULL)
-		return;
+		return 0;
+
+	if (!win->ws->r)
+		return 0;
+
+	r = win->ws->r;
 
 	/* reject floating toggles in max stack mode */
-	if (r->ws->cur_layout == &layouts[SWM_MAX_STACK])
-		return;
+	if (win->ws->cur_layout == &layouts[SWM_MAX_STACK])
+		return 0;
 
 	if (win->floating) {
 		if (!win->floatmaxed) {
@@ -2452,18 +2812,35 @@ floating_toggle(struct swm_region *r, union arg *args)
 		win->floating = 0;
 	} else {
 		if (win->g_floatvalid) {
-                        /* refloat at last floating relative position */
-                        win->g.x = win->g_float.x - win->rg_float.x + r->g.x;
-                        win->g.y = win->g_float.y - win->rg_float.y + r->g.y;
-                        win->g.w = win->g_float.w;
-                        win->g.h = win->g_float.h;
-                }
+			/* refloat at last floating relative position */
+			win->g.x = win->g_float.x - win->rg_float.x + r->g.x;
+			win->g.y = win->g_float.y - win->rg_float.y + r->g.y;
+			win->g.w = win->g_float.w;
+			win->g.h = win->g_float.h;
+		}
 		win->floating = 1;
 	}
 
+	ewmh_update_actions(win);
+
+	return 1;
+}
+
+void
+floating_toggle(struct swm_region *r, union arg *args)
+{
+	struct ws_win		*win = r->ws->focus;
+	union arg		a;
+
+	ewmh_update_win_state(win, ewmh[_NET_WM_STATE_ABOVE].atom,
+	    _NET_WM_STATE_TOGGLE);
+
 	stack();
-	a.id = SWM_ARG_ID_FOCUSCUR;
-	focus(win->ws->r, &a);
+
+	if (win == win->ws->focus) {
+		a.id = SWM_ARG_ID_FOCUSCUR;
+		focus(win->ws->r, &a);
+	}
 }
 
 void
@@ -2513,6 +2890,8 @@ resize(struct ws_win *win, union arg *args)
 		return;
 
 	win->manual = 1;
+	ewmh_update_win_state(win, ewmh[_SWM_WM_STATE_MANUAL].atom,
+	    _NET_WM_STATE_ADD);
 	/* raise the window = move to last in window list */
 	a.id = SWM_ARG_ID_MOVELAST;
 	swapwin(r, &a);
@@ -2619,7 +2998,11 @@ move(struct ws_win *win, union arg *args)
 	win->manual = 1;
 	if (win->floating == 0 && !win->transient) {
 		win->floating = 1;
+		ewmh_update_win_state(win, ewmh[_NET_WM_STATE_ABOVE].atom,
+		    _NET_WM_STATE_ADD);
 	}
+	ewmh_update_win_state(win, ewmh[_SWM_WM_STATE_MANUAL].atom,
+	    _NET_WM_STATE_ADD);
 
 	/* raise the window = move to last in window list */
 	a.id = SWM_ARG_ID_MOVELAST;
@@ -3382,7 +3765,7 @@ grabbuttons(struct ws_win *win, int focused)
 
 	updatenumlockmask();
 	XUngrabButton(display, AnyButton, AnyModifier, win->id);
-	if(focused) {
+	if (focused) {
 		for (i = 0; i < LENGTH(buttons); i++)
 			if (buttons[i].action == client_click)
 				for (j = 0; j < LENGTH(modifiers); j++)
@@ -3850,6 +4233,7 @@ manage_window(Window id)
 		TAILQ_INSERT_TAIL(&win->ws->winlist, win, entry);
 		if (win->transient)
 			set_child_transient(win);
+		ewmh_update_actions(win);
 		return (win);
 	}
 
@@ -3870,6 +4254,7 @@ manage_window(Window id)
 		DNPRINTF(SWM_D_MISC, "manage_window: win %lu transient %lu\n",
 		    win->id, win->transient);
 	}
+
 	/* get supported protocols */
 	if (XGetWMProtocols(display, id, &prot, &n)) {
 		for (i = 0, pp = prot; i < n; i++, pp++) {
@@ -3924,6 +4309,7 @@ manage_window(Window id)
 	win->g.y = win->wa.y;
 	win->g_floatvalid = 0;
 	win->floatmaxed = 0;
+	win->ewmh_flags = 0;
 
 	/* Set window properties so we can remember this after reincarnation */
 	if (ws_idx_atom && prop == NULL &&
@@ -3933,7 +4319,10 @@ manage_window(Window id)
 		XChangeProperty(display, win->id, ws_idx_atom, XA_STRING, 8,
 		    PropModeReplace, ws_idx_str, SWM_PROPLEN);
 	}
-	XFree(prop);
+	if (prop)
+		XFree(prop);
+
+	ewmh_autoquirk(win);
 
 	if (XGetClassHint(display, win->id, &win->ch)) {
 		DNPRINTF(SWM_D_CLASS, "class: %s name: %s\n",
@@ -3964,7 +4353,7 @@ manage_window(Window id)
 		win->manual = 1; /* don't center the quirky windows */
 		bzero(&wc, sizeof wc);
 		mask = 0;
-		if (win->g.y < bar_height) {
+		if (bar_enabled && win->g.y < bar_height) {
 			win->g.y = wc.y = bar_height;
 			mask |= CWY;
 		}
@@ -3982,6 +4371,10 @@ manage_window(Window id)
 		for (i = 0; i < SWM_MAX_FONT_STEPS; i++)
 			fake_keypress(win, XK_KP_Add, ShiftMask);
 	}
+
+	ewmh_get_win_state(win);
+	ewmh_update_actions(win);
+	ewmh_update_win_state(win, None, _NET_WM_STATE_REMOVE);
 
 	/* border me */
 	if (border_me) {
@@ -4512,6 +4905,59 @@ visibilitynotify(XEvent *e)
 					bar_update();
 }
 
+void
+clientmessage(XEvent *e)
+{
+	XClientMessageEvent *ev;
+	struct ws_win *win;
+
+	ev = &e->xclient;
+
+	win = find_window(ev->window);
+	if (win == NULL)
+		return;
+
+	DNPRINTF(SWM_D_EVENT, "clientmessage: window: 0x%lx type: %ld \n",
+	    ev->window, ev->message_type);
+
+	if (ev->message_type == ewmh[_NET_ACTIVE_WINDOW].atom) {
+		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_ACTIVE_WINDOW \n");
+		focus_win(win);
+	}
+	if (ev->message_type == ewmh[_NET_CLOSE_WINDOW].atom) {
+		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_CLOSE_WINDOW \n");
+		if (win->can_delete)
+			client_msg(win, adelete);
+		else
+			XKillClient(display, win->id);
+	}
+	if (ev->message_type == ewmh[_NET_MOVERESIZE_WINDOW].atom) {
+		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_MOVERESIZE_WINDOW \n");
+		if (win->floating) {
+			if (ev->data.l[0] & (1<<8)) /* x */
+				win->g.x = ev->data.l[1];
+			if (ev->data.l[0] & (1<<9)) /* y */
+				win->g.y = ev->data.l[2];
+			if (ev->data.l[0] & (1<<10)) /* width */
+				win->g.w = ev->data.l[3];
+			if (ev->data.l[0] & (1<<11)) /* height */
+				win->g.h = ev->data.l[4];
+		}
+		else {
+			/* TODO: Change stack sizes */
+		}
+		config_win(win);
+	}
+	if (ev->message_type == ewmh[_NET_WM_STATE].atom) {
+		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_WM_STATE \n");
+		ewmh_update_win_state(win, ev->data.l[1], ev->data.l[0]);
+		if (ev->data.l[2])
+			ewmh_update_win_state(win, ev->data.l[2], ev->data.l[0]);
+
+		stack();
+	}
+}
+
 int
 xerror_start(Display *d, XErrorEvent *ee)
 {
@@ -4706,16 +5152,57 @@ screenchange(XEvent *e) {
 }
 
 void
-setup_screens(void)
+grab_windows(void)
 {
 	Window			d1, d2, *wins = NULL;
 	XWindowAttributes	wa;
 	unsigned int		no;
-        int			i, j, k;
+	int			i, j;
+	long			state, manage;
+
+	for (i = 0; i < ScreenCount(display); i++) {
+		if (!XQueryTree(display, screens[i].root, &d1, &d2, &wins, &no))
+			continue;
+
+		/* attach windows to a region */
+		/* normal windows */
+		for (j = 0; j < no; j++) {
+			if (!XGetWindowAttributes(display, wins[j], &wa) ||
+			    wa.override_redirect ||
+			    XGetTransientForHint(display, wins[j], &d1))
+				continue;
+
+			state = getstate(wins[j]);
+			manage = state == IconicState;
+			if (wa.map_state == IsViewable || manage)
+				manage_window(wins[j]);
+		}
+		/* transient windows */
+		for (j = 0; j < no; j++) {
+			if (!XGetWindowAttributes(display, wins[j], &wa) ||
+			    wa.override_redirect)
+				continue;
+
+			state = getstate(wins[j]);
+			manage = state == IconicState;
+			if (XGetTransientForHint(display, wins[j], &d1) &&
+			    manage)
+				manage_window(wins[j]);
+		}
+		if (wins) {
+			XFree(wins);
+			wins = NULL;
+		}
+	}
+}
+
+void
+setup_screens(void)
+{
+	int			i, j, k;
 	int			errorbase, major, minor;
 	struct workspace	*ws;
 	int			ws_idx_atom;
-	long			state, manage;
 
 	if ((screens = calloc(ScreenCount(display),
 	     sizeof(struct swm_screen))) == NULL)
@@ -4766,45 +5253,12 @@ setup_screens(void)
 					    SWM_ARG_ID_STACKINIT);
 			ws->cur_layout = &layouts[0];
 		}
-		/* grab existing windows (before we build the bars)*/
-		if (!XQueryTree(display, screens[i].root, &d1, &d2, &wins, &no))
-			continue;
 
 		scan_xrandr(i);
 
 		if (xrandr_support)
 			XRRSelectInput(display, screens[i].root,
 			    RRScreenChangeNotifyMask);
-
-		/* attach windows to a region */
-		/* normal windows */
-		for (j = 0; j < no; j++) {
-			if (!XGetWindowAttributes(display, wins[j], &wa) ||
-			    wa.override_redirect ||
-			    XGetTransientForHint(display, wins[j], &d1))
-				continue;
-
-			state = getstate(wins[j]);
-			manage = state == IconicState;
-			if (wa.map_state == IsViewable || manage)
-				manage_window(wins[j]);
-		}
-		/* transient windows */
-		for (j = 0; j < no; j++) {
-			if (!XGetWindowAttributes(display, wins[j], &wa) ||
-			    wa.override_redirect)
-				continue;
-
-			state = getstate(wins[j]);
-			manage = state == IconicState;
-			if (XGetTransientForHint(display, wins[j], &d1) &&
-			    manage)
-				manage_window(wins[j]);
-                }
-                if (wins) {
-                        XFree(wins);
-			wins = NULL;
-		}
 	}
 }
 
@@ -4831,7 +5285,7 @@ workaround(void)
 {
 	int			i;
 	Atom			netwmcheck, netwmname, utf8_string;
-	Window			root;
+	Window			root, win;
 
 	/* work around sun jdk bugs, code from wmname */
 	netwmcheck = XInternAtom(display, "_NET_SUPPORTING_WM_CHECK", False);
@@ -4839,10 +5293,16 @@ workaround(void)
 	utf8_string = XInternAtom(display, "UTF8_STRING", False);
 	for (i = 0; i < ScreenCount(display); i++) {
 		root = screens[i].root;
+		win = XCreateSimpleWindow(display,root, 0, 0, 1, 1, 0,
+		    screens[i].c[SWM_S_COLOR_UNFOCUS].color,
+		    screens[i].c[SWM_S_COLOR_UNFOCUS].color);
+
 		XChangeProperty(display, root, netwmcheck, XA_WINDOW, 32,
-		    PropModeReplace, (unsigned char *)&root, 1);
-		XChangeProperty(display, root, netwmname, utf8_string, 8,
-		    PropModeReplace, "LG3D", strlen("LG3D"));
+		    PropModeReplace, (unsigned char *)&win,1);
+		XChangeProperty(display, win, netwmcheck, XA_WINDOW, 32,
+		    PropModeReplace, (unsigned char *)&win,1);
+		XChangeProperty(display, win, netwmname, utf8_string, 8,
+		    PropModeReplace, (unsigned char*)"LG3D", strlen("LG3D"));
 	}
 }
 
@@ -4903,6 +5363,7 @@ main(int argc, char *argv[])
 	setup_quirks();
 	setup_spawn();
 
+	/* load config */
 	snprintf(conf, sizeof conf, "%s/.%s", pwd->pw_dir, SWM_CONF_FILE);
 	if (stat(conf, &sb) != -1) {
 		if (S_ISREG(sb.st_mode))
@@ -4917,6 +5378,13 @@ main(int argc, char *argv[])
 	if (cfile)
 		conf_load(cfile);
 
+	setup_ewmh();
+	/* set some values to work around bad programs */
+	workaround();
+
+	/* grab existing windows (before we build the bars) */
+	grab_windows();
+
 	/* setup all bars */
 	for (i = 0; i < ScreenCount(display); i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
@@ -4924,9 +5392,6 @@ main(int argc, char *argv[])
 				winfocus = TAILQ_FIRST(&r->ws->winlist);
 			bar_setup(r);
 		}
-
-	/* set some values to work around bad programs */
-	workaround();
 
 	unfocus_all();
 
@@ -4998,6 +5463,7 @@ main(int argc, char *argv[])
 		}
 	}
 done:
+	teardown_ewmh();
 	bar_extra_stop();
 	XFreeGC(display, bar_gc);
 	XCloseDisplay(display);
