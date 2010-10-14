@@ -4439,9 +4439,15 @@ unmanage_window(struct ws_win *win)
 			parent->child_trans = NULL;
 	}
 
-	/* work around for mplayer going full screen */
-	if (!win->floating)
-		focus_prev(win);
+	if (count_win(win->ws, 0) > 1) {
+		/* work around for mplayer going full screen */
+		if (!win->floating)
+			focus_prev(win);
+	} else
+		/* the last window is getting nuked, so make sure
+		   the keyboard isn't left without focus */
+		XSetInputFocus(display, PointerRoot,
+		    PointerRoot, CurrentTime);
 
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
 	TAILQ_INSERT_TAIL(&win->ws->unmanagedlist, win, entry);
