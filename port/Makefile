@@ -1,4 +1,4 @@
-# $OpenBSD: Makefile,v 1.10 2009/09/30 00:54:06 sthen Exp $
+# $OpenBSD: Makefile,v 1.23 2010/10/19 08:13:59 espie Exp $
 
 COMMENT=		small tiling window manager
 
@@ -17,7 +17,7 @@ PERMIT_PACKAGE_FTP=     Yes
 PERMIT_DISTFILES_CDROM= Yes
 PERMIT_DISTFILES_FTP=   Yes
 
-MASTER_SITES=	http://www.peereboom.us/scrotwm/snapshot/
+MASTER_SITES=	http://opensource.conformal.com/snapshots/scrotwm/
 
 NO_REGRESS=     Yes
 WANTLIB=        c X11 Xrandr util
@@ -28,6 +28,7 @@ MAKE_FLAGS=	BINDIR="${TRUEPREFIX}/bin" \
 		MANDIR="${TRUEPREFIX}/man/cat" \
 		SHLIB_MAJOR=${LIBswmhack_VERSION:C/\..*//} \
 		SHLIB_MINOR=${LIBswmhack_VERSION:C/.*\.//}
+USE_GROFF =	Yes
 
 pre-configure:
 	@${SUBST_CMD} ${WRKSRC}/scrotwm.conf ${WRKSRC}/scrotwm.c
@@ -38,6 +39,7 @@ post-install:
 	${INSTALL_SCRIPT} ${WRKSRC}/initscreen.sh ${PREFIX}/share/examples/scrotwm
 	${INSTALL_SCRIPT} ${WRKSRC}/screenshot.sh ${PREFIX}/share/examples/scrotwm
 	${INSTALL_DATA} ${WRKSRC}/scrotwm.conf ${PREFIX}/share/examples/scrotwm
+
 .for i in es it pt ru
 	${INSTALL_DATA_DIR} ${PREFIX}/man/$i/cat1
 	mv ${PREFIX}/man/cat1/scrotwm_$i.0 ${PREFIX}/man/$i/cat1/scrotwm.0
