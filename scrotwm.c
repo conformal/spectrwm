@@ -52,7 +52,7 @@
 
 static const char	*cvstag = "$scrotwm$";
 
-#define	SWM_VERSION	"0.9.26"
+#define	SWM_VERSION	"0.9.27"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -4439,15 +4439,11 @@ unmanage_window(struct ws_win *win)
 			parent->child_trans = NULL;
 	}
 
-	if (count_win(win->ws, 0) > 1) {
-		/* work around for mplayer going full screen */
-		if (!win->floating)
-			focus_prev(win);
-	} else
-		/* the last window is getting nuked, so make sure
-		   the keyboard isn't left without focus */
-		XSetInputFocus(display, PointerRoot,
-		    PointerRoot, CurrentTime);
+	/* focus on root just in case */
+	XSetInputFocus(display, PointerRoot, PointerRoot, CurrentTime);
+
+	if (!win->floating)
+		focus_prev(win);
 
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
 	TAILQ_INSERT_TAIL(&win->ws->unmanagedlist, win, entry);
