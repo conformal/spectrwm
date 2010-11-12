@@ -1040,10 +1040,12 @@ custom_region(char *val)
 	if (x  < 0 || x > DisplayWidth(display, sidx) ||
 	    y < 0 || y > DisplayHeight(display, sidx) ||
 	    w + x > DisplayWidth(display, sidx) ||
-	    h + y > DisplayHeight(display, sidx))
-		errx(1, "region %ux%u+%u+%u not within screen boundaries "
+	    h + y > DisplayHeight(display, sidx)) {
+		fprintf(stderr, "ignoring region %ux%u+%u+%u - not within screen boundaries "
 		    "(%ux%u)\n", w, h, x, y,
 		    DisplayWidth(display, sidx), DisplayHeight(display, sidx));
+		return;
+	}
 
 	new_region(&screens[sidx], x, y, w, h);
 }
