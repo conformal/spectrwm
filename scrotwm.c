@@ -2834,6 +2834,9 @@ floating_toggle(struct swm_region *r, union arg *args)
 	struct ws_win		*win = r->ws->focus;
 	union arg		a;
 
+	if (win == NULL)
+		return;
+
 	ewmh_update_win_state(win, ewmh[_NET_WM_STATE_ABOVE].atom,
 	    _NET_WM_STATE_TOGGLE);
 
