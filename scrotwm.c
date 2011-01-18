@@ -208,6 +208,7 @@ int			clock_enabled = 1;
 char			*clock_format = NULL;
 int			title_name_enabled = 0;
 int			title_class_enabled = 0;
+int			window_name_enabled = 0;
 int			focus_mode = SWM_FOCUS_DEFAULT;
 int			disable_border = 0;
 pid_t			bar_pid;
@@ -1116,6 +1117,23 @@ out:
 }
 
 void
+bar_window_name(char *s, ssize_t sz, struct ws_win *cur_focus)
+{
+	char			*title;
+
+	if (window_name_enabled && cur_focus != NULL) {
+		XFetchName(display, cur_focus->id, &title);
+		if (title) {
+			if (cur_focus->floating)
+				strlcat(s, "(f) ", sz);
+			strlcat(s, title, sz);
+			strlcat(s, " ", sz);
+			XFree(title);
+		}
+	}
+}
+
+void
 bar_update(void)
 {
 	time_t			tmt;
@@ -1159,8 +1177,10 @@ bar_update(void)
 		x = 1;
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
 			strlcpy(cn, "", sizeof cn);
-			if (r && r->ws)
+			if (r && r->ws) {
 				bar_class_name(cn, sizeof cn, r->ws->focus);
+				bar_window_name(cn, sizeof cn, r->ws->focus);
+			}
 
 			if (stack_enabled)
 				stack = r->ws->cur_layout->name;
@@ -1827,6 +1847,9 @@ focus_win(struct ws_win *win)
 		    ewmh[_NET_ACTIVE_WINDOW].atom, XA_WINDOW, 32,
 		    PropModeReplace, (unsigned char *)&win->id,1);
 	}
+
+	if (window_name_enabled)
+		bar_update();
 }
 
 void
@@ -3945,7 +3968,7 @@ setup_quirks(void)
 enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_STACK_ENABLED,
 	  SWM_S_CLOCK_ENABLED, SWM_S_CLOCK_FORMAT, SWM_S_CYCLE_EMPTY,
 	  SWM_S_CYCLE_VISIBLE, SWM_S_SS_ENABLED, SWM_S_TERM_WIDTH,
-	  SWM_S_TITLE_CLASS_ENABLED, SWM_S_TITLE_NAME_ENABLED,
+	  SWM_S_TITLE_CLASS_ENABLED, SWM_S_TITLE_NAME_ENABLED, SWM_S_WINDOW_NAME_ENABLED,
 	  SWM_S_FOCUS_MODE, SWM_S_DISABLE_BORDER, SWM_S_BAR_FONT,
 	  SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM, SWM_S_SS_APP, SWM_S_DIALOG_RATIO,
 	  SWM_S_BAR_AT_BOTTOM
@@ -3991,6 +4014,9 @@ setconfvalue(char *selector, char *value, int flags)
 		break;
 	case SWM_S_TITLE_CLASS_ENABLED:
 		title_class_enabled = atoi(value);
+		break;
+	case SWM_S_WINDOW_NAME_ENABLED:
+		window_name_enabled = atoi(value);
 		break;
 	case SWM_S_TITLE_NAME_ENABLED:
 		title_name_enabled = atoi(value);
@@ -4097,6 +4123,7 @@ struct config_option configopt[] = {
 	{ "spawn_term",			setconfvalue,	SWM_S_SPAWN_TERM },
 	{ "screenshot_enabled",		setconfvalue,	SWM_S_SS_ENABLED },
 	{ "screenshot_app",		setconfvalue,	SWM_S_SS_APP },
+	{ "window_name_enabled",	setconfvalue,	SWM_S_WINDOW_NAME_ENABLED },
 	{ "term_width",			setconfvalue,	SWM_S_TERM_WIDTH },
 	{ "title_class_enabled",	setconfvalue,	SWM_S_TITLE_CLASS_ENABLED },
 	{ "title_name_enabled",		setconfvalue,	SWM_S_TITLE_NAME_ENABLED },
@@ -4873,6 +4900,8 @@ propertynotify(XEvent *e)
 		XMoveResizeWindow(display, win->id,
 		    win->g.x, win->g.y, win->g.w, win->g.h);
 #endif
+		if (window_name_enabled)
+			bar_update();
 		break;
 	default:
 		break;
