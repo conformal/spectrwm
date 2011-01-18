@@ -1713,7 +1713,7 @@ void
 unfocus_win(struct ws_win *win)
 {
 	XEvent			cne;
-	Window 			none = None;
+	Window			none = None;
 
 	DNPRINTF(SWM_D_FOCUS, "unfocus_win: id: %lu\n", WINID(win));
 
@@ -1723,7 +1723,7 @@ unfocus_win(struct ws_win *win)
 		return;
 
 	if (validate_ws(win->ws))
-		abort(); /* XXX replace with return at some point */
+		return; /* XXX this gets hit with thunderbird, needs fixing */
 
 	if (win->ws->r == NULL)
 		return;
@@ -1791,7 +1791,7 @@ focus_win(struct ws_win *win)
 		return;
 
 	if (validate_ws(win->ws))
-		abort(); /* XXX replace with return at some point */
+		return; /* XXX this gets hit with thunderbird, needs fixing */
 
 	if (validate_win(win)) {
 		kill_refs(win);
