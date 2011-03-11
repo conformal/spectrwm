@@ -198,6 +198,7 @@ int			bar_version = 0;
 sig_atomic_t		bar_alarm = 0;
 int			bar_delay = 30;
 int			bar_enabled = 1;
+int			bar_border_width = 1;
 int			bar_at_bottom = 0;
 int			bar_extra = 1;
 int			bar_extra_running = 0;
@@ -1296,13 +1297,13 @@ bar_setup(struct swm_region *r)
 	if (bar_fs == NULL)
 		errx(1, "couldn't create font structure");
 
-	bar_height = bar_fs->ascent + bar_fs->descent + 3;
+	bar_height = bar_fs->ascent + bar_fs->descent + 1 + 2 * bar_border_width;
 	x = X(r);
 	y = bar_at_bottom ? (Y(r) + HEIGHT(r) - bar_height) : Y(r);
 
 	r->bar_window = XCreateSimpleWindow(display,
-	    r->s->root, x, y, WIDTH(r) - 2, bar_height - 2,
-	    1, r->s->c[SWM_S_COLOR_BAR_BORDER].color,
+	    r->s->root, x, y, WIDTH(r) - 2 * bar_border_width, bar_height - 2 * bar_border_width,
+	    bar_border_width, r->s->c[SWM_S_COLOR_BAR_BORDER].color,
 	    r->s->c[SWM_S_COLOR_BAR].color);
 	bar_gc = XCreateGC(display, r->bar_window, 0, &bar_gcv);
 	XSetFont(display, bar_gc, bar_fs->fid);
@@ -3966,7 +3967,7 @@ setup_quirks(void)
 /* conf file stuff */
 #define SWM_CONF_FILE	"scrotwm.conf"
 
-enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_STACK_ENABLED,
+enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_BAR_BORDER_WIDTH, SWM_S_STACK_ENABLED,
 	  SWM_S_CLOCK_ENABLED, SWM_S_CLOCK_FORMAT, SWM_S_CYCLE_EMPTY,
 	  SWM_S_CYCLE_VISIBLE, SWM_S_SS_ENABLED, SWM_S_TERM_WIDTH,
 	  SWM_S_TITLE_CLASS_ENABLED, SWM_S_TITLE_NAME_ENABLED, SWM_S_WINDOW_NAME_ENABLED,
@@ -3984,6 +3985,9 @@ setconfvalue(char *selector, char *value, int flags)
 		break;
 	case SWM_S_BAR_ENABLED:
 		bar_enabled = atoi(value);
+		break;
+	case SWM_S_BAR_BORDER_WIDTH:
+		bar_border_width = atoi(value);
 		break;
 	case SWM_S_BAR_AT_BOTTOM:
 		bar_at_bottom = atoi(value);
@@ -4106,6 +4110,7 @@ struct config_option configopt[] = {
 	{ "bar_enabled",		setconfvalue,	SWM_S_BAR_ENABLED },
 	{ "bar_at_bottom",		setconfvalue,	SWM_S_BAR_AT_BOTTOM },
 	{ "bar_border",			setconfcolor,	SWM_S_COLOR_BAR_BORDER },
+	{ "bar_border_width",			setconfvalue,	SWM_S_BAR_BORDER_WIDTH },
 	{ "bar_color",			setconfcolor,	SWM_S_COLOR_BAR },
 	{ "bar_font_color",		setconfcolor,	SWM_S_COLOR_BAR_FONT },
 	{ "bar_font",			setconfvalue,	SWM_S_BAR_FONT },
