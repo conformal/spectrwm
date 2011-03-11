@@ -52,7 +52,7 @@
 
 static const char	*cvstag = "$scrotwm$";
 
-#define	SWM_VERSION	"0.9.27"
+#define	SWM_VERSION	"0.9.29"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -211,6 +211,7 @@ int			title_class_enabled = 0;
 int			window_name_enabled = 0;
 int			focus_mode = SWM_FOCUS_DEFAULT;
 int			disable_border = 0;
+int			border_width = 1;
 pid_t			bar_pid;
 GC			bar_gc;
 XGCValues		bar_gcv;
@@ -1391,7 +1392,7 @@ configreq_win(struct ws_win *win)
 	cr.y = win->g.y;
 	cr.width = win->g.w;
 	cr.height = win->g.h;
-	cr.border_width = 1;
+	cr.border_width = border_width;
 
 	XSendEvent(display, win->id, False, StructureNotifyMask, (XEvent *)&cr);
 }
@@ -1415,7 +1416,7 @@ config_win(struct ws_win *win)
 	ce.y = win->g.y;
 	ce.width = win->g.w;
 	ce.height = win->g.h;
-	ce.border_width = 1; /* XXX store this! */
+	ce.border_width = border_width; /* XXX store this! */
 	ce.above = None;
 	ce.override_redirect = False;
 	XSendEvent(display, win->id, False, StructureNotifyMask, (XEvent *)&ce);
@@ -2242,8 +2243,8 @@ stack(void) {
 
 			/* start with screen geometry, adjust for bar */
 			g = r->g;
-			g.w -= 2;
-			g.h -= 2;
+			g.w -= 2 * border_width;
+			g.h -= 2 * border_width;
 			if (bar_enabled) {
 				if (!bar_at_bottom)
 					g.y += bar_height;
@@ -2309,7 +2310,7 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 	    (win->g.h >= HEIGHT(r)))
 		wc.border_width = 0;
 	else
-		wc.border_width = 1;
+		wc.border_width = border_width;
 	if (win->transient && (win->quirks & SWM_Q_TRANSSZ)) {
 		win->g.w = (double)WIDTH(r) * dialog_ratio;
 		win->g.h = (double)HEIGHT(r) * dialog_ratio;
@@ -2320,22 +2321,22 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 		 * floaters and transients are auto-centred unless moved
 		 * or resized
 		 */
-		win->g.x = r->g.x + (WIDTH(r) - win->g.w) / 2;
-		win->g.y = r->g.y + (HEIGHT(r) - win->g.h) / 2;
+		win->g.x = r->g.x + (WIDTH(r) - win->g.w) / 2 - border_width;
+		win->g.y = r->g.y + (HEIGHT(r) - win->g.h) / 2 - border_width;
 	}
 
 	/* win can be outside r if new r smaller than old r */
 	/* Ensure top left corner inside r (move probs otherwise) */
-	if (win->g.x < r->g.x )
-		win->g.x = r->g.x;
+	if (win->g.x < r->g.x - border_width)
+		win->g.x = r->g.x - border_width;
 	if (win->g.x > r->g.x + r->g.w - 1)
 		win->g.x = (win->g.w > r->g.w) ? r->g.x :
-		    (r->g.x + r->g.w - win->g.w - 2);
-	if (win->g.y < r->g.y )
-		win->g.y = r->g.y;
+		    (r->g.x + r->g.w - win->g.w - 2 * border_width);
+	if (win->g.y < r->g.y - border_width)
+		win->g.y = r->g.y - border_width;
 	if (win->g.y > r->g.y + r->g.h - 1)
 		win->g.y = (win->g.h > r->g.h) ? r->g.y :
-		    (r->g.y + r->g.h - win->g.h - 2);
+		    (r->g.y + r->g.h - win->g.h - 2 * border_width);
 
 	wc.x = win->g.x;
 	wc.y = win->g.y;
@@ -2461,11 +2462,11 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	} else {
 		msize = -2;
 		colno = split = winno / stacks;
-		win_g.w = ((r_g.w - (stacks * 2) + 2) / stacks);
+		win_g.w = ((r_g.w - (stacks * 2 * border_width) + 2 * border_width) / stacks);
 	}
 	hrh = r_g.h / colno;
 	extra = r_g.h - (colno * hrh);
-	win_g.h = hrh - 2;
+	win_g.h = hrh - 2 * border_width;
 
 	/*  stack all the tiled windows */
 	i = j = 0, s = stacks;
@@ -2488,15 +2489,15 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			if (flip)
 				win_g.x = r_g.x;
 			else
-				win_g.x += win_g.w + 2;
-			win_g.w = (r_g.w - msize - (stacks * 2)) / stacks;
+				win_g.x += win_g.w + 2 * border_width;
+			win_g.w = (r_g.w - msize - (stacks * 2 * border_width)) / stacks;
 			if (s == 1)
-				win_g.w += (r_g.w - msize - (stacks * 2)) %
+				win_g.w += (r_g.w - msize - (stacks * 2 * border_width)) %
 				    stacks;
 			s--;
 			j = 0;
 		}
-		win_g.h = hrh - 2;
+		win_g.h = hrh - 2 * border_width;
 		if (rot) {
 			h_inc = win->sh.width_inc;
 			h_base = win->sh.base_width;
@@ -2523,15 +2524,15 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		if (j == 0)
 			win_g.y = r_g.y;
 		else
-			win_g.y += last_h + 2;
+			win_g.y += last_h + 2 * border_width;
 
 		bzero(&wc, sizeof wc);
 		if (disable_border && bar_enabled == 0 && winno == 1){
 			wc.border_width = 0;
-			win_g.w += 2;
-			win_g.h += 2;
+			win_g.w += 2 * border_width;
+			win_g.h += 2 * border_width;
 		} else
-			wc.border_width = 1;
+			wc.border_width = border_width;
 		reconfigure = 0;
 		if (rot) {
 			if (win->g.x != win_g.y || win->g.y != win_g.x ||
@@ -2725,13 +2726,13 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 			win->g.x = wc.x = gg.x;
 			win->g.y = wc.y = gg.y;
 			if (bar_enabled){
-				wc.border_width = 1;
+				wc.border_width = border_width;
 				win->g.w = wc.width = gg.w;
 				win->g.h = wc.height = gg.h;
 			} else {
 				wc.border_width = 0;
-				win->g.w = wc.width = gg.w + 2;
-				win->g.h = wc.height = gg.h + 2;
+				win->g.w = wc.width = gg.w + 2 * border_width;
+				win->g.h = wc.height = gg.h + 2 * border_width;
 			}
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 			XConfigureWindow(display, win->id, mask, &wc);
@@ -2881,12 +2882,12 @@ resize_window(struct ws_win *win, int center)
 	r = root_to_region(win->wa.root);
 	bzero(&wc, sizeof wc);
 	mask = CWBorderWidth | CWWidth | CWHeight;
-	wc.border_width = 1;
+	wc.border_width = border_width;
 	wc.width = win->g.w;
 	wc.height = win->g.h;
 	if (center == SWM_ARG_ID_CENTER) {
-		wc.x = (WIDTH(r) - win->g.w) / 2;
-		wc.y = (HEIGHT(r) - win->g.h) / 2;
+		wc.x = (WIDTH(r) - win->g.w) / 2 - border_width;
+		wc.y = (HEIGHT(r) - win->g.h) / 2 - border_width;
 		mask |= CWX | CWY;
 	}
 
@@ -2931,14 +2932,14 @@ resize(struct ws_win *win, union arg *args)
 
 	/* place pointer at bottom left corner or nearest point inside r */
 	if ( win->g.x + win->g.w < r->g.x + r->g.w - 1)
-		relx = win->g.w;
+		relx = win->g.w - 1;
 	else
-		relx = r->g.x + r->g.w - win->g.x - 2;
+		relx = r->g.x + r->g.w - win->g.x - 1;
 
 	if ( win->g.y + win->g.h < r->g.y + r->g.h - 1)
-		rely = win->g.h;
+		rely = win->g.h - 1;
 	else
-		rely = r->g.y + r->g.h - win->g.y - 2;
+		rely = r->g.y + r->g.h - win->g.y - 1;
 
 	XWarpPointer(display, None, win->id, 0, 0, 0, 0, relx, rely);
 	do {
@@ -2962,11 +2963,11 @@ resize(struct ws_win *win, union arg *args)
 				ev.xmotion.x = 1;
 			if (ev.xmotion.y <= 1)
 				ev.xmotion.y = 1;
-			win->g.w = ev.xmotion.x;
-			win->g.h = ev.xmotion.y;
+			win->g.w = ev.xmotion.x + 1;
+			win->g.h = ev.xmotion.y + 1;
 
-			/* not free, don't sync more than 60 times / second */
-			if ((ev.xmotion.time - time) > (1000 / 60) ) {
+			/* not free, don't sync more than 120 times / second */
+			if ((ev.xmotion.time - time) > (1000 / 120) ) {
 				time = ev.xmotion.time;
 				XSync(display, False);
 				resize_window(win, args->id);
@@ -3040,7 +3041,7 @@ move(struct ws_win *win, union arg *args)
 	if (XGrabPointer(display, win->id, False, MOUSEMASK, GrabModeAsync,
 	    GrabModeAsync, None, None /* cursor */, CurrentTime) != GrabSuccess)
 		return;
-	XWarpPointer(display, None, win->id, 0, 0, 0, 0, -1, -1);
+	XWarpPointer(display, None, win->id, 0, 0, 0, 0, 0, 0);
 	do {
 		XMaskEvent(display, MOUSEMASK | ExposureMask |
 		    SubstructureRedirectMask, &ev);
@@ -3058,11 +3059,11 @@ move(struct ws_win *win, union arg *args)
 				ev.xmotion.y_root > r->g.y + r->g.h - 1)
 				continue;
 
-			win->g.x = ev.xmotion.x_root;
-			win->g.y = ev.xmotion.y_root;
+			win->g.x = ev.xmotion.x_root - border_width;
+			win->g.y = ev.xmotion.y_root - border_width;
 
-			/* not free, don't sync more than 60 times / second */
-			if ((ev.xmotion.time - time) > (1000 / 60) ) {
+			/* not free, don't sync more than 120 times / second */
+			if ((ev.xmotion.time - time) > (1000 / 120) ) {
 				time = ev.xmotion.time;
 				XSync(display, False);
 				move_window(win);
@@ -3969,7 +3970,7 @@ enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_STACK_ENABLED,
 	  SWM_S_CLOCK_ENABLED, SWM_S_CLOCK_FORMAT, SWM_S_CYCLE_EMPTY,
 	  SWM_S_CYCLE_VISIBLE, SWM_S_SS_ENABLED, SWM_S_TERM_WIDTH,
 	  SWM_S_TITLE_CLASS_ENABLED, SWM_S_TITLE_NAME_ENABLED, SWM_S_WINDOW_NAME_ENABLED,
-	  SWM_S_FOCUS_MODE, SWM_S_DISABLE_BORDER, SWM_S_BAR_FONT,
+	  SWM_S_FOCUS_MODE, SWM_S_DISABLE_BORDER, SWM_S_BORDER_WIDTH, SWM_S_BAR_FONT,
 	  SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM, SWM_S_SS_APP, SWM_S_DIALOG_RATIO,
 	  SWM_S_BAR_AT_BOTTOM
 	};
@@ -4033,6 +4034,9 @@ setconfvalue(char *selector, char *value, int flags)
 		break;
 	case SWM_S_DISABLE_BORDER:
 		disable_border = atoi(value);
+		break;
+	case SWM_S_BORDER_WIDTH:
+		border_width = atoi(value);
 		break;
 	case SWM_S_BAR_FONT:
 		free(bar_fonts[0]);
@@ -4129,6 +4133,7 @@ struct config_option configopt[] = {
 	{ "title_name_enabled",		setconfvalue,	SWM_S_TITLE_NAME_ENABLED },
 	{ "focus_mode",			setconfvalue,   SWM_S_FOCUS_MODE },
 	{ "disable_border",		setconfvalue,   SWM_S_DISABLE_BORDER },
+	{ "border_width",		setconfvalue,   SWM_S_BORDER_WIDTH },
 };
 
 
@@ -4411,7 +4416,7 @@ manage_window(Window id)
 	/* border me */
 	if (border_me) {
 		bzero(&wc, sizeof wc);
-		wc.border_width = 1;
+		wc.border_width = border_width;
 		mask = CWBorderWidth;
 		XConfigureWindow(display, win->id, mask, &wc);
 		configreq_win(win);
