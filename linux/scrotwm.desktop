@@ -1,0 +1,7 @@
+
+[Desktop Entry]
+Name=ScrotWM
+Comment=The ScrotWM window manager
+Type=Application
+Exec=/usr/bin/scrotwm
+TryExec=/usr/bin/scrotwm
