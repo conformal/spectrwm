@@ -77,6 +77,14 @@ MyRoot(Display * dpy)
 	return root;
 }
 
+
+typedef Atom	(XIA) (Display *display, char *atom_name, Bool
+		    only_if_exists);
+
+typedef int	(XCP) (Display *display, Window w, Atom property,
+		    Atom type, int format, int mode, unsigned char *data,
+		    int nelements);
+
 #define SWM_PROPLEN	(16)
 void
 set_property(Display *dpy, Window id, char *name, char *val)
@@ -84,11 +92,22 @@ set_property(Display *dpy, Window id, char *name, char *val)
 	Atom			atom = 0;
 	char			prop[SWM_PROPLEN];
 
+	static XIA         	*xia = NULL;
+	static XCP         	*xcp = NULL;
+
+	/* find the real Xlib and the real X function */
+	if (!lib_xlib)
+		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
+	if (!xia)
+		xia = (XIA *) dlsym(lib_xlib, "XInternAtom");
+	if (!xcp)
+		xcp = (XCP *) dlsym(lib_xlib, "XChangeProperty");
+
 	/* Try to update the window's workspace property */
-	atom = XInternAtom(dpy, name, False);
+	atom = (*xia)(dpy, name, False);
 	if (atom) 
 		if (snprintf(prop, SWM_PROPLEN, "%s", val) < SWM_PROPLEN)
-			XChangeProperty(dpy, id, atom, XA_STRING,
+			(*xcp)(dpy, id, atom, XA_STRING,
 			    8, PropModeReplace, prop, SWM_PROPLEN);
 }
 
