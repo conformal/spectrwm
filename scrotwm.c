@@ -268,7 +268,6 @@ struct ws_win {
 	int			can_delete;
 	int			take_focus;
 	int			java;
-	int			init_configreq_tweak_done;
 	unsigned long		quirks;
 	struct workspace	*ws;	/* always valid */
 	struct swm_screen	*s;	/* always valid, never changes */
@@ -404,10 +403,6 @@ struct quirk {
 #define SWM_Q_ANYWHERE		(1<<2)	/* don't position this window */
 #define SWM_Q_XTERM_FONTADJ	(1<<3)	/* adjust xterm fonts when resizing */
 #define SWM_Q_FULLSCREEN	(1<<4)	/* remove border */
-#define SWM_Q_HONOR_CONFREQ	(1<<5)	/* Accomodate applications that
-					   need the dimensions in configuration
-					   requests to be honored.
-					*/
 };
 int				quirks_size = 0, quirks_length = 0;
 struct quirk			*quirks = NULL;
@@ -1382,56 +1377,44 @@ client_msg(struct ws_win *win, Atom a)
 }
 
 void
-configreq_win(struct ws_win *win)
-{
-	XConfigureRequestEvent	cr;
-
-	/* This function may be of dubious value; it is always called
-	   immediately after a call to XConfigureWindow, which generates a
-	   ConfigureRequestEvent of its own. The event generated here seems
-           redundant and prevents XEmacs from completely filling the window
-           frame. Simply eliminating confreq_win appeared to have no ill
-           effects, but my testing was limited. As such, I've retained it.
-	*/
-	if (win == NULL || (win->quirks & SWM_Q_HONOR_CONFREQ))
-		return;
-
-	bzero(&cr, sizeof cr);
-	cr.type = ConfigureRequest;
-	cr.display = display;
-	cr.parent = win->id;
-	cr.window = win->id;
-	cr.x = win->g.x;
-	cr.y = win->g.y;
-	cr.width = win->g.w;
-	cr.height = win->g.h;
-	cr.border_width = border_width;
-
-	XSendEvent(display, win->id, False, StructureNotifyMask, (XEvent *)&cr);
-}
-
-void
-config_win(struct ws_win *win)
+config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 {
 	XConfigureEvent		ce;
 
+	fprintf(stderr, "config_win: win %lu x %d y %d w %d h %d\n",
+	    win->id, win->g.x, win->g.y, win->g.w, win->g.h);
 	DNPRINTF(SWM_D_MISC, "config_win: win %lu x %d y %d w %d h %d\n",
 	    win->id, win->g.x, win->g.y, win->g.w, win->g.h);
 
 	if (win == NULL)
 		return;
 
-	ce.type = ConfigureNotify;
-	ce.display = display;
-	ce.event = win->id;
-	ce.window = win->id;
-	ce.x = win->g.x;
-	ce.y = win->g.y;
-	ce.width = win->g.w;
-	ce.height = win->g.h;
-	ce.border_width = border_width; /* XXX store this! */
-	ce.above = None;
-	ce.override_redirect = False;
+	if (ev == NULL) {
+		ce.type = ConfigureNotify;
+		ce.display = display;
+		ce.event = win->id;
+		ce.window = win->id;
+		ce.x = win->g.x;
+		ce.y = win->g.y;
+		ce.width = win->g.w;
+		ce.height = win->g.h;
+		ce.border_width = border_width;
+		ce.above = None;
+		ce.override_redirect = False;
+	} else {
+		ce.type = ConfigureNotify;
+		ce.display = ev->display;
+		ce.event = ev->window;
+		ce.window = ev->window;
+		ce.x = ev->x;
+		ce.y = ev->y;
+		ce.width = ev->width;
+		ce.height = ev->height;
+		ce.border_width = ev->border_width;
+		ce.above = ev->above;
+		ce.override_redirect = False;
+	}
+
 	XSendEvent(display, win->id, False, StructureNotifyMask, (XEvent *)&ce);
 }
 
@@ -2367,7 +2350,6 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 	    win->id, wc.x, wc.y, wc.width, wc.height);
 
 	XConfigureWindow(display, win->id, mask, &wc);
-	configreq_win(win);
 }
 
 /*
@@ -2570,7 +2552,6 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			adjust_font(win);
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 			XConfigureWindow(display, win->id, mask, &wc);
-			configreq_win(win);
 		}
 
 		if (XGetWindowAttributes(display, win->id, &wa))
@@ -2749,7 +2730,6 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 			}
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 			XConfigureWindow(display, win->id, mask, &wc);
-			configreq_win(win);
 		}
 		/* unmap only if we don't have multi screen */
 		if (win != ws->focus)
@@ -2908,7 +2888,6 @@ resize_window(struct ws_win *win, int center)
 	    win->id, wc.x, wc.y, wc.width, wc.height);
 
 	XConfigureWindow(display, win->id, mask, &wc);
-	configreq_win(win);
 }
 
 void
@@ -3019,7 +2998,6 @@ move_window(struct ws_win *win)
 	    win->id, wc.x, wc.y, wc.width, wc.height);
 
 	XConfigureWindow(display, win->id, mask, &wc);
-	configreq_win(win);
 }
 
 void
@@ -3828,7 +3806,6 @@ const char *quirkname[] = {
 	"ANYWHERE",
 	"XTERM_FONTADJ",
 	"FULLSCREEN",
-	"HONOR_CONFREQ",
 };
 
 /* SWM_Q_WS: retain '|' for back compat for now (2009-08-11) */
@@ -3975,8 +3952,6 @@ setup_quirks(void)
 	setquirk("Xitk",		"Xine Window",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
 	setquirk("xine",		"xine Video Fullscreen Window",	SWM_Q_FULLSCREEN | SWM_Q_FLOAT);
 	setquirk("pcb",			"pcb",		SWM_Q_FLOAT);
-	setquirk("Emacs",		"emacs",	SWM_Q_HONOR_CONFREQ);
-	setquirk("Emacs",		"Ediff",	SWM_Q_FLOAT);
 }
 
 /* conf file stuff */
@@ -4367,7 +4342,6 @@ manage_window(Window id)
 	win->g_floatvalid = 0;
 	win->floatmaxed = 0;
 	win->ewmh_flags = 0;
-	win->init_configreq_tweak_done = 0;
 
 	/* Set window properties so we can remember this after reincarnation */
 	if (ws_idx_atom && prop == NULL &&
@@ -4440,7 +4414,6 @@ manage_window(Window id)
 		wc.border_width = border_width;
 		mask = CWBorderWidth;
 		XConfigureWindow(display, win->id, mask, &wc);
-		configreq_win(win);
 	}
 
 	XSelectInput(display, id, EnterWindowMask | FocusChangeMask |
@@ -4601,55 +4574,6 @@ buttonpress(XEvent *e)
 			buttons[i].func(win, &buttons[i].args);
 }
 
-/*
- * honor_configreq:	allow fussy windows to work in scrotwm
- *
- *	XEmacs (and maybe other applications) expects ConfigureNotify
- *	events that exactly match the ConfigureRequests that it generates.
- *	Because Scrotwm specifies both the location *and* size of new
- *	windows, these applications will not be satisfied and will repeat
- *	the request forever. This bogs down the system and makes the
- *	application unusable.
- *
- *	To resolve this conflict, this function responds to ConfigureRequest
- *	by sending a ConfigureNotify that contains the requested dimensions.
- *	It then resizes the window to the dimensions computed by scrotwm.
- *	And then it gets stranger still: after the initial response, the
- *	height stored in window manager's dimensions needs to be different
- *	than the value initially computed. If it's not, the window contents
- *	aren't resized to fill the frame.
- *
- */
-void honor_configreq (
-    	struct ws_win*		win,
-	XConfigureRequestEvent*	ev
-    )
-{
-	XConfigureEvent		ce;
-
-	ce.type			= ConfigureNotify;
-	ce.display		= ev->display;
-	ce.event		= ev->window;
-	ce.window		= ev->window;
-	ce.x			= ev->x;
-	ce.y 			= ev->y;
-	ce.width		= ev->width;
-	ce.height		= ev->height;
-	ce.border_width		= ev->border_width;
-	ce.above		= ev->above;
-	ce.override_redirect	= False;
-
-	XSendEvent(ev->display, ev->window, False, StructureNotifyMask,
-		   (XEvent *)&ce);
-
-	XResizeWindow(display, ev->window, win->g.w, win->g.h);
-
-	if (win->init_configreq_tweak_done == 0) {
-		win->init_configreq_tweak_done = 1;
-		win->g.h--;
-	}
-}
-
 void
 configurerequest(XEvent *e)
 {
@@ -4677,6 +4601,7 @@ configurerequest(XEvent *e)
 	} else {
 		DNPRINTF(SWM_D_EVENT, "configurerequest: change window: %lu\n",
 		    ev->window);
+#if 0
 		if (win->floating) {
 			if (ev->value_mask & CWX)
 				win->g.x = ev->x;
@@ -4686,12 +4611,9 @@ configurerequest(XEvent *e)
 				win->g.w = ev->width;
 			if (ev->value_mask & CWHeight)
 				win->g.h = ev->height;
-			config_win(win);
-		} else if (win->quirks & SWM_Q_HONOR_CONFREQ) {
-			honor_configreq(win, ev);
-		} else {
-			config_win(win);
 		}
+#endif
+		config_win(win, ev);
 	}
 }
 
@@ -4982,10 +4904,6 @@ propertynotify(XEvent *e)
 		if (window_name_enabled)
 			bar_update();
 		break;
-	case XA_WM_NAME:
-		/* Be responsive to clients that change the application name. */
-		bar_update();
-		break;
 	default:
 		break;
 	}
@@ -5065,7 +4983,7 @@ clientmessage(XEvent *e)
 		else {
 			/* TODO: Change stack sizes */
 		}
-		config_win(win);
+		config_win(win, NULL);
 	}
 	if (ev->message_type == ewmh[_NET_WM_STATE].atom) {
 		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_WM_STATE \n");
@@ -5128,7 +5046,7 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 		    (X(r) + WIDTH(r)) > x &&
 		    Y(r) < (y + h) &&
 		    (Y(r) + HEIGHT(r)) > y) {
-		    	if (r->ws->r != NULL)
+			if (r->ws->r != NULL)
 				r->ws->old_r = r->ws->r;
 			r->ws->r = NULL;
 			XDestroyWindow(display, r->bar_window);
