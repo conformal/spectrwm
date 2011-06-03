@@ -52,7 +52,7 @@
 
 static const char	*cvstag = "$scrotwm$";
 
-#define	SWM_VERSION	"0.9.29"
+#define	SWM_VERSION	"0.9.30"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1381,13 +1381,13 @@ config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 {
 	XConfigureEvent		ce;
 
-	DNPRINTF(SWM_D_MISC, "config_win: win %lu x %d y %d w %d h %d\n",
-	    win->id, win->g.x, win->g.y, win->g.w, win->g.h);
-
 	if (win == NULL)
 		return;
 
 	if (ev == NULL) {
+		DNPRINTF(SWM_D_MISC, "config_win: win %lu x %d y %d w %d h %d\n",
+		    win->id, win->g.x, win->g.y, win->g.w, win->g.h);
+
 		ce.type = ConfigureNotify;
 		ce.display = display;
 		ce.event = win->id;
@@ -1400,6 +1400,8 @@ config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 		ce.above = None;
 		ce.override_redirect = False;
 	} else {
+		DNPRINTF(SWM_D_MISC, "config_win: ev win %lu x %d y %d w %d h %d\n",
+		    ev->window, ev->x, ev->y, ev->width, ev->height);
 		ce.type = ConfigureNotify;
 		ce.display = ev->display;
 		ce.event = ev->window;
@@ -2991,6 +2993,7 @@ move_window(struct ws_win *win)
 	mask = CWX | CWY;
 	wc.x = win->g.x;
 	wc.y = win->g.y;
+	wc.border_width = border_width;
 
 	DNPRINTF(SWM_D_STACK, "move_window: win %lu x %d y %d w %d h %d\n",
 	    win->id, wc.x, wc.y, wc.width, wc.height);
@@ -4599,18 +4602,6 @@ configurerequest(XEvent *e)
 	} else {
 		DNPRINTF(SWM_D_EVENT, "configurerequest: change window: %lu\n",
 		    ev->window);
-#if 0
-		if (win->floating) {
-			if (ev->value_mask & CWX)
-				win->g.x = ev->x;
-			if (ev->value_mask & CWY)
-				win->g.y = ev->y;
-			if (ev->value_mask & CWWidth)
-				win->g.w = ev->width;
-			if (ev->value_mask & CWHeight)
-				win->g.h = ev->height;
-		}
-#endif
 		config_win(win, ev);
 	}
 }
