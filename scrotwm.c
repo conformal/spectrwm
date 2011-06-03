@@ -1381,8 +1381,6 @@ config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 {
 	XConfigureEvent		ce;
 
-	fprintf(stderr, "config_win: win %lu x %d y %d w %d h %d\n",
-	    win->id, win->g.x, win->g.y, win->g.w, win->g.h);
 	DNPRINTF(SWM_D_MISC, "config_win: win %lu x %d y %d w %d h %d\n",
 	    win->id, win->g.x, win->g.y, win->g.w, win->g.h);
 
