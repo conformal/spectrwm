@@ -168,6 +168,10 @@ Atom			astate;
 Atom			aprot;
 Atom			adelete;
 Atom			takefocus;
+Atom			a_wmname;
+Atom			a_utf8_string;
+Atom			a_string;
+Atom			a_swm_iconic;
 volatile sig_atomic_t   running = 1;
 volatile sig_atomic_t   restart_wm = 0;
 int			outputs = 0;
@@ -185,6 +189,13 @@ int			cycle_visible = 0;
 int			term_width = 0;
 int			font_adjusted = 0;
 unsigned int		mod_key = MODKEY;
+
+/* dmenu search */
+struct swm_region	*search_r;
+int			select_list_pipe[2];
+int			select_resp_pipe[2];
+pid_t			searchpid;
+volatile sig_atomic_t	search_resp;
 
 /* dialog windows */
 double			dialog_ratio = .6;
@@ -261,6 +272,7 @@ struct ws_win {
 	int			floatmaxed;	/* flag: floater was maxed in max_stack */
 	int			floating;
 	int			manual;
+	int			iconic;
 	unsigned int		ewmh_flags;
 	int			font_size_boundary[SWM_MAX_FONT_STEPS];
 	int			font_steps;
@@ -456,6 +468,7 @@ struct ewmh_hint {
 
 void	store_float_geom(struct ws_win *win, struct swm_region *r);
 int	floating_toggle_win(struct ws_win *win);
+void	spawn_select(struct swm_region *, union arg *, char *, int *);
 
 int
 get_property(Window id, Atom atom, long count, Atom type,
@@ -476,6 +489,52 @@ get_property(Window id, Atom atom, long count, Atom type,
 		return False;
 
 	return True;
+}
+
+void
+update_iconic(struct ws_win *win, int newv)
+{
+	int32_t v = newv;
+	Atom iprop;
+
+	win->iconic = newv;
+
+	iprop = XInternAtom(display, "_SWM_ICONIC", False);
+	if (!iprop)
+		return;
+	if (newv)
+		XChangeProperty(display, win->id, iprop, XA_INTEGER, 32,
+		    PropModeReplace, (unsigned char *)&v, 1);
+	else
+		XDeleteProperty(display, win->id, iprop);
+}
+
+int
+get_iconic(struct ws_win *win)
+{
+	int32_t v = 0;
+	int retfmt, status;
+	Atom iprop, rettype;
+	unsigned long nitems, extra;
+	unsigned char *prop = NULL;
+
+	iprop = XInternAtom(display, "_SWM_ICONIC", False);
+	if (!iprop)
+		goto out;
+	status = XGetWindowProperty(display, win->id, iprop, 0L, 1L,
+	    False, XA_INTEGER, &rettype, &retfmt, &nitems, &extra, &prop);
+	if (status != Success)
+		goto out;
+	if (rettype != XA_INTEGER || retfmt != 32)
+		goto out;
+	if (nitems != 1)
+		goto out;
+	v = *((int32_t *)prop);
+
+out:
+	if (prop != NULL)
+		XFree(prop);
+	return (v);
 }
 
 void
@@ -953,6 +1012,8 @@ sighdlr(int sig)
 #endif /* SWM_DEBUG */
 				break;
 			}
+			if (pid == searchpid)
+				search_resp = 1;
 
 #ifdef SWM_DEBUG
 			if (WIFEXITED(status)) {
@@ -1429,6 +1490,8 @@ count_win(struct workspace *ws, int count_transient)
 			continue;
 		if (count_transient == 0 && win->transient)
 			continue;
+		if (win->iconic)
+			continue;
 		count++;
 	}
 	DNPRINTF(SWM_D_MISC, "count_win: %d\n", count);
@@ -1600,40 +1663,40 @@ find_window(Window id)
 }
 
 void
-spawn(struct swm_region *r, union arg *args)
+spawn(struct swm_region *r, union arg *args, int close_fd)
 {
 	int			fd;
 	char			*ret = NULL;
 
 	DNPRINTF(SWM_D_MISC, "spawn: %s\n", args->argv[0]);
 
-	if (fork() == 0) {
-		if (display)
-			close(ConnectionNumber(display));
+	if (display)
+		close(ConnectionNumber(display));
 
-		setenv("LD_PRELOAD", SWM_LIB, 1);
+	setenv("LD_PRELOAD", SWM_LIB, 1);
 
-		if (asprintf(&ret, "%d", r->ws->idx) == -1) {
-			perror("_SWM_WS");
-			_exit(1);
-		}
-		setenv("_SWM_WS", ret, 1);
-		free(ret);
-		ret = NULL;
+	if (asprintf(&ret, "%d", r->ws->idx) == -1) {
+		perror("_SWM_WS");
+		_exit(1);
+	}
+	setenv("_SWM_WS", ret, 1);
+	free(ret);
+	ret = NULL;
 
-		if (asprintf(&ret, "%d", getpid()) == -1) {
-			perror("_SWM_PID");
-			_exit(1);
-		}
-		setenv("_SWM_PID", ret, 1);
-		free(ret);
-		ret = NULL;
+	if (asprintf(&ret, "%d", getpid()) == -1) {
+		perror("_SWM_PID");
+		_exit(1);
+	}
+	setenv("_SWM_PID", ret, 1);
+	free(ret);
+	ret = NULL;
 
-		if (setsid() == -1) {
-			perror("setsid");
-			_exit(1);
-		}
+	if (setsid() == -1) {
+		perror("setsid");
+		_exit(1);
+	}
 
+	if (close_fd) {
 		/*
 		 * close stdin and stdout to prevent interaction between apps
 		 * and the baraction script
@@ -1647,12 +1710,12 @@ spawn(struct swm_region *r, union arg *args)
 		dup2(fd, STDOUT_FILENO);
 		if (fd > 2)
 			close(fd);
-
-		execvp(args->argv[0], args->argv);
-
-		perror("execvp");
-		_exit(1);
 	}
+
+	execvp(args->argv[0], args->argv);
+
+	perror("execvp");
+	_exit(1);
 }
 
 void
@@ -1662,7 +1725,8 @@ spawnterm(struct swm_region *r, union arg *args)
 
 	if (term_width)
 		setenv("_SWM_XTERM_FONTADJ", "", 1);
-	spawn(r, args);
+	if (fork() == 0)
+		spawn(r, args, 1);
 }
 
 void
@@ -2128,7 +2192,7 @@ done:
 void
 focus(struct swm_region *r, union arg *args)
 {
-	struct ws_win		*winfocus = NULL, *winlostfocus = NULL;
+	struct ws_win		*winfocus = NULL, *winlostfocus = NULL, *head;
 	struct ws_win		*cur_focus = NULL;
 	struct ws_win_list	*wl = NULL;
 	struct workspace	*ws = NULL;
@@ -2140,12 +2204,14 @@ focus(struct swm_region *r, union arg *args)
 
 	/* treat FOCUS_CUR special */
 	if (args->id == SWM_ARG_ID_FOCUSCUR) {
-		if (r->ws->focus)
+		if (r->ws->focus && r->ws->focus->iconic == 0)
 			winfocus = r->ws->focus;
-		else if (r->ws->focus_prev)
+		else if (r->ws->focus_prev && r->ws->focus_prev->iconic == 0)
 			winfocus = r->ws->focus_prev;
 		else
-			winfocus = TAILQ_FIRST(&r->ws->winlist);
+			TAILQ_FOREACH(winfocus, &r->ws->winlist, entry)
+				if (winfocus->iconic == 0)
+					break;
 
 		focus_magic(winfocus, SWM_F_GENERIC);
 		return;
@@ -2160,15 +2226,43 @@ focus(struct swm_region *r, union arg *args)
 
 	switch (args->id) {
 	case SWM_ARG_ID_FOCUSPREV:
-		winfocus = TAILQ_PREV(cur_focus, ws_win_list, entry);
-		if (winfocus == NULL)
-			winfocus = TAILQ_LAST(wl, ws_win_list);
+		head = TAILQ_PREV(cur_focus, ws_win_list, entry);
+		if (head == NULL)
+			head = TAILQ_LAST(wl, ws_win_list);
+		winfocus = head;
+		for (;;) {
+			if (winfocus == NULL)
+				break;
+			if (!winfocus->iconic)
+				break;
+			winfocus = TAILQ_PREV(winfocus, ws_win_list, entry);
+			if (winfocus == NULL)
+				winfocus = TAILQ_LAST(wl, ws_win_list);
+			if (winfocus == head) {
+				winfocus = NULL;
+				break;
+			}
+		}
 		break;
 
 	case SWM_ARG_ID_FOCUSNEXT:
-		winfocus = TAILQ_NEXT(cur_focus, entry);
-		if (winfocus == NULL)
-			winfocus = TAILQ_FIRST(wl);
+		head = TAILQ_NEXT(cur_focus, entry);
+		if (head == NULL)
+			head = TAILQ_FIRST(wl);
+		winfocus = head;
+		for (;;) {
+			if (winfocus == NULL)
+				break;
+			if (!winfocus->iconic)
+				break;
+			winfocus = TAILQ_NEXT(winfocus, entry);
+			if (winfocus == NULL)
+				winfocus = TAILQ_FIRST(wl);
+			if (winfocus == head) {
+				winfocus = NULL;
+				break;
+			}
+		}
 		break;
 
 	case SWM_ARG_ID_FOCUSMAIN:
@@ -2408,7 +2502,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		return;
 
 	TAILQ_FOREACH(win, &ws->winlist, entry)
-		if (win->transient == 0 && win->floating == 0)
+		if (win->transient == 0 && win->floating == 0 && win->iconic == 0)
 			break;
 
 	if (win == NULL)
@@ -2467,6 +2561,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	i = j = 0, s = stacks;
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
 		if (win->transient != 0 || win->floating != 0)
+			continue;
+		if (win->iconic != 0)
 			continue;
 
 		if (win->ewmh_flags & EWMH_F_FULLSCREEN) {
@@ -2567,6 +2663,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	/* now, stack all the floaters and transients */
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
 		if (win->transient == 0 && win->floating == 0)
+			continue;
+		if (win->iconic == 0)
 			continue;
 
 		if (win->ewmh_flags & EWMH_F_FULLSCREEN) {
@@ -2788,6 +2886,151 @@ send_to_ws(struct swm_region *r, union arg *args)
 	}
 
 	stack();
+}
+
+void
+iconify(struct swm_region *r, union arg *args)
+{
+	union arg a;
+
+	if (r->ws->focus == NULL)
+		return;
+	unmap_window(r->ws->focus);
+	update_iconic(r->ws->focus, 1);
+	stack();
+	r->ws->focus = NULL;
+	a.id = SWM_ARG_ID_FOCUSCUR;
+	focus(r, &a);
+}
+
+unsigned char *
+get_win_name(Display *dpy, Window win, Atom wname, Atom stype,
+    unsigned long *slen)
+{
+	int			status, retfmt;
+	unsigned long		nitems, nbytes, nextra;
+	unsigned char		*prop = NULL;
+	Atom			rettype;
+
+	status = XGetWindowProperty(dpy, win, wname, 0L, 0L, False, stype,
+	    &rettype, &retfmt,  &nitems, &nbytes, &prop);
+	if (status != Success)
+		return (NULL);
+	XFree(prop);
+
+	status = XGetWindowProperty(dpy, win, wname, 0L, nbytes, False,
+	    stype, &rettype, &retfmt, &nitems, &nextra, &prop);
+	if (status != Success) {
+		XFree(prop);
+		return (NULL);
+	}
+	if (rettype != stype) {
+		XFree(prop);
+		return (NULL);
+	}
+	*slen = nitems;
+	return (prop);
+}
+
+void
+uniconify(struct swm_region *r, union arg *args)
+{
+	struct ws_win		*win;
+	FILE			*lfile;
+	char			*name;
+	int			count = 0;
+	unsigned long		len;
+
+	DNPRINTF(SWM_D_MISC, "uniconify\n");
+
+	if (r && r->ws == NULL)
+		return;
+
+	/* make sure we have anything to uniconify */
+	TAILQ_FOREACH(win, &r->ws->winlist, entry) {
+		if (win->ws == NULL)
+			continue; /* should never happen */
+		if (win->iconic == 0)
+			continue;
+		count++;
+	}
+	if (count == 0)
+		return;
+
+	search_r = r;
+
+	spawn_select(r, args, "uniconify", &searchpid);
+
+	if ((lfile = fdopen(select_list_pipe[1], "w")) == NULL)
+		return;
+
+	TAILQ_FOREACH(win, &r->ws->winlist, entry) {
+		if (win->ws == NULL)
+			continue; /* should never happen */
+		if (win->iconic == 0)
+			continue;
+
+		name = get_win_name(display, win->id, a_wmname, a_string,
+		    &len);
+		if (name == NULL)
+			continue;
+		fprintf(lfile, "%s.%lu\n", name, win->id);
+		XFree(name);
+	}
+
+	fclose(lfile);
+}
+
+#define MAX_RESP_LEN	1024
+
+void
+search_do_resp(void)
+{
+	ssize_t			rbytes;
+	struct ws_win		*win;
+	char			*name, *resp, *s;
+	unsigned long		len;
+
+	DNPRINTF(SWM_D_MISC, "search_do_resp:\n");
+
+	search_resp = 0;
+	searchpid = 0;
+
+	if ((resp = calloc(1, MAX_RESP_LEN + 1)) == NULL) {
+		fprintf(stderr, "search: calloc\n");
+		return;
+	}
+
+	rbytes = read(select_resp_pipe[0], resp, MAX_RESP_LEN);
+	if (rbytes <= 0) {
+		fprintf(stderr, "search: read error: %s\n", strerror(errno));
+		goto done;
+	}
+	resp[rbytes] = '\0';
+	len = strlen(resp);
+
+	DNPRINTF(SWM_D_MISC, "search_do_resp: resp %s\n", resp);
+	TAILQ_FOREACH(win, &search_r->ws->winlist, entry) {
+		if (win->iconic == 0)
+			continue;
+		name = get_win_name(display, win->id, a_wmname, a_string, &len);
+		if (name == NULL)
+			continue;
+		if (asprintf(&s, "%s.%lu", name, win->id) == -1) {
+			XFree(name);
+			continue;
+		}
+		XFree(name);
+		if (strncmp(s, resp, len) == 0) {
+			/* XXX this should be a callback to generalize */
+			update_iconic(win, 0);
+			free(s);
+			break;
+		}
+		free(s);
+	}
+done:
+	free(resp);
 }
 
 void
@@ -3130,7 +3373,9 @@ enum keyfuncid {
 	kf_spawn_lock,
 	kf_spawn_initscr,
 	kf_spawn_custom,
-	kf_dumpwins,
+	kf_iconify,
+	kf_uniconify,
+	kf_dumpwins, /* MUST BE LAST */
 	kf_invalid
 };
 
@@ -3204,7 +3449,9 @@ struct keyfunc {
 	{ "spawn_lock",		legacyfunc,	{0} },
 	{ "spawn_initscr",	legacyfunc,	{0} },
 	{ "spawn_custom",	dummykeyfunc,	{0} },
-	{ "dumpwins",		dumpwins,	{0} },
+	{ "iconify",		iconify,	{0} },
+	{ "uniconify",		uniconify,	{0} },
+	{ "dumpwins",		dumpwins,	{0} }, /* MUST BE LAST */
 	{ "invalid key func",	NULL,		{0} },
 };
 struct key {
@@ -3260,15 +3507,15 @@ struct spawn_prog {
 int				spawns_size = 0, spawns_length = 0;
 struct spawn_prog		*spawns = NULL;
 
-void
-spawn_custom(struct swm_region *r, union arg *args, char *spawn_name)
+int
+spawn_expand(struct swm_region *r, union arg *args, char *spawn_name,
+    char ***ret_args)
 {
-	union arg		a;
 	struct spawn_prog	*prog = NULL;
 	int			i;
 	char			*ap, **real_args;
 
-	DNPRINTF(SWM_D_SPAWN, "spawn_custom %s\n", spawn_name);
+	DNPRINTF(SWM_D_SPAWN, "spawn_expand %s\n", spawn_name);
 
 	/* find program */
 	for (i = 0; i < spawns_length; i++) {
@@ -3278,7 +3525,7 @@ spawn_custom(struct swm_region *r, union arg *args, char *spawn_name)
 	if (prog == NULL) {
 		fprintf(stderr, "spawn_custom: program %s not found\n",
 		    spawn_name);
-		return;
+		return (-1);
 	}
 
 	/* make room for expanded args */
@@ -3335,10 +3582,66 @@ spawn_custom(struct swm_region *r, union arg *args, char *spawn_name)
 		fprintf(stderr, "\n");
 	}
 #endif
+	*ret_args = real_args;
+	return (prog->argc);
+}
 
+void
+spawn_custom(struct swm_region *r, union arg *args, char *spawn_name)
+{
+	union arg		a;
+	char			**real_args;
+	int			spawn_argc, i;
+
+	if ((spawn_argc = spawn_expand(r, args, spawn_name, &real_args)) < 0)
+		return;
 	a.argv = real_args;
-	spawn(r, &a);
-	for (i = 0; i < prog->argc; i++)
+	if (fork() == 0)
+		spawn(r, &a, 1);
+
+	for (i = 0; i < spawn_argc; i++)
+		free(real_args[i]);
+	free(real_args);
+}
+
+void
+spawn_select(struct swm_region *r, union arg *args, char *spawn_name, int *pid)
+{
+	union arg		a;
+	char			**real_args;
+	int			i, spawn_argc;
+
+	if ((spawn_argc = spawn_expand(r, args, spawn_name, &real_args)) < 0)
+		return;
+	a.argv = real_args;
+
+	if (pipe(select_list_pipe) == -1)
+		err(1, "pipe error");
+	if (pipe(select_resp_pipe) == -1)
+		err(1, "pipe error");
+
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
+		err(1, "could not disable SIGPIPE");
+	switch (*pid = fork()) {
+	case -1:
+		err(1, "cannot fork");
+		break;
+	case 0: /* child */
+		if (dup2(select_list_pipe[0], 0) == -1)
+			errx(1, "dup2");
+		if (dup2(select_resp_pipe[1], 1) == -1)
+			errx(1, "dup2");
+		close(select_list_pipe[1]);
+		close(select_resp_pipe[0]);
+		spawn(r, &a, 0);
+		break;
+	default: /* parent */
+		close(select_list_pipe[0]);
+		close(select_resp_pipe[1]);
+		break;
+	}
+
+	for (i = 0; i < spawn_argc; i++)
 		free(real_args[i]);
 	free(real_args);
 }
@@ -3474,6 +3777,13 @@ setup_spawn(void)
 	setconfspawn("lock",		"xlock",		0);
 	setconfspawn("initscr",		"initscreen.sh",	0);
 	setconfspawn("menu",		"dmenu_run"
+					" -fn $bar_font"
+					" -nb $bar_color"
+					" -nf $bar_font_color"
+					" -sb $bar_border"
+					" -sf $bar_color",	0);
+	setconfspawn("uniconify",	"dmenu"
+					" -i"
 					" -fn $bar_font"
 					" -nb $bar_color"
 					" -nf $bar_font_color"
@@ -3728,6 +4038,8 @@ setup_keys(void)
 	setkeybinding(MODKEY|ShiftMask,	XK_v,		kf_version,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_Delete,	kf_spawn_custom,	"lock");
 	setkeybinding(MODKEY|ShiftMask,	XK_i,		kf_spawn_custom,	"initscr");
+	setkeybinding(MODKEY,		XK_w,		kf_iconify,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_w,		kf_uniconify,	NULL);
 #ifdef SWM_DEBUG
 	setkeybinding(MODKEY|ShiftMask,	XK_d,		kf_dumpwins,	NULL);
 #endif
@@ -4273,6 +4585,8 @@ manage_window(Window id)
 	if ((win = calloc(1, sizeof(struct ws_win))) == NULL)
 		errx(1, "calloc: failed to allocate memory for new window");
 
+	win->id = id;
+
 	/* Get all the window data in one shot */
 	ws_idx_atom = XInternAtom(display, "_SWM_WS", False);
 	if (ws_idx_atom)
@@ -4299,6 +4613,8 @@ manage_window(Window id)
 		if (prot)
 			XFree(prot);
 	}
+
+	win->iconic = get_iconic(win);
 
 	/*
 	 * Figure out where to put the window. If it was previously assigned to
@@ -4419,8 +4735,10 @@ manage_window(Window id)
 
 	XSelectInput(display, id, EnterWindowMask | FocusChangeMask |
 	    PropertyChangeMask | StructureNotifyMask);
-
-	set_win_state(win, NormalState);
+	if (win->iconic)
+		set_win_state(win, IconicState);
+	else
+		set_win_state(win, NormalState);
 
 	/* floaters need to be mapped if they are in the current workspace */
 	if ((win->floating || win->transient) && (ws->idx == r->ws->idx))
@@ -4870,11 +5188,17 @@ propertynotify(XEvent *e)
 	DNPRINTF(SWM_D_EVENT, "propertynotify: window: %lu\n",
 	    ev->window);
 
-	if (ev->state == PropertyDelete)
-		return; /* ignore */
 	win = find_window(ev->window);
 	if (win == NULL)
 		return;
+
+	if (ev->state == PropertyDelete && ev->atom == a_swm_iconic) {
+		update_iconic(win, 0);
+		XMapRaised(display, win->id);
+		stack();
+		focus_win(win);
+		return;
+	}
 
 	switch (ev->atom) {
 	case XA_WM_NORMAL_HINTS:
@@ -5377,6 +5701,10 @@ main(int argc, char *argv[])
 	aprot = XInternAtom(display, "WM_PROTOCOLS", False);
 	adelete = XInternAtom(display, "WM_DELETE_WINDOW", False);
 	takefocus = XInternAtom(display, "WM_TAKE_FOCUS", False);
+	a_wmname = XInternAtom(display, "WM_NAME", False);
+	a_utf8_string = XInternAtom(display, "UTF8_STRING", False);
+	a_string = XInternAtom(display, "STRING", False);
+	a_swm_iconic = XInternAtom(display, "_SWM_ICONIC", False);
 
 	/* look for local and global conf file */
 	pwd = getpwuid(getuid());
@@ -5481,6 +5809,8 @@ main(int argc, char *argv[])
 				DNPRINTF(SWM_D_MISC, "select failed");
 		if (restart_wm == 1)
 			restart(NULL, NULL);
+		if (search_resp == 1)
+			search_do_resp();
 		if (running == 0)
 			goto done;
 		if (bar_alarm) {

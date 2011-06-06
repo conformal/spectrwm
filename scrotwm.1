@@ -352,10 +352,14 @@ screenshot_wind
 version
 .It Cm M-t
 float_toggle
-.It Cm M-S Aq Cm Delete
+.It Cm M-S- Ns Aq Cm Delete
 lock
 .It Cm M-S-i
 initscr
+.It Cm M-w
+iconify
+.It Cm M-S-w
+uniconify
 .El
 .Pp
 The action names and descriptions are listed below:
@@ -457,6 +461,10 @@ Reinitialize physical screens
 (see
 .Sx PROGRAMS
 above)
+.It Cm iconify
+Minimize (unmap) currently focused window.
+.It Cm uniconify
+Maximize (map) window returned by dmenu selection.
 .El
 .Pp
 Custom bindings in the configuration file are specified as follows:
