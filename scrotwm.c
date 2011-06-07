@@ -403,9 +403,8 @@ union arg {
 };
 
 void	focus(struct swm_region *, union arg *);
-void	focus_magic(struct ws_win *, int);
-#define SWM_F_GENERIC		(0)
-#define SWM_F_TRANSIENT		(1)
+void	focus_magic(struct ws_win *);
+
 /* quirks */
 struct quirk {
 	char			*class;
@@ -1899,6 +1898,7 @@ focus_win(struct ws_win *win)
 		if (win->java == 0)
 			XSetInputFocus(display, win->id,
 			    RevertToParent, CurrentTime);
+		XMapRaised(display, win->id);
 		grabbuttons(win, 1);
 		XSetWindowBorder(display, win->id,
 		    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
@@ -2187,7 +2187,7 @@ done:
 	if (winfocus == winlostfocus || winfocus == NULL)
 		return;
 
-	focus_magic(winfocus, SWM_F_GENERIC);
+	focus_magic(winfocus);
 }
 
 void
@@ -2214,7 +2214,7 @@ focus(struct swm_region *r, union arg *args)
 				if (winfocus->iconic == 0)
 					break;
 
-		focus_magic(winfocus, SWM_F_GENERIC);
+		focus_magic(winfocus);
 		return;
 	}
 
@@ -2231,18 +2231,11 @@ focus(struct swm_region *r, union arg *args)
 		if (head == NULL)
 			head = TAILQ_LAST(wl, ws_win_list);
 		winfocus = head;
-		for (;;) {
-			if (winfocus == NULL)
-				break;
-			if (!winfocus->iconic)
-				break;
-			winfocus = TAILQ_PREV(winfocus, ws_win_list, entry);
-			if (winfocus == NULL)
-				winfocus = TAILQ_LAST(wl, ws_win_list);
-			if (winfocus == head) {
-				winfocus = NULL;
-				break;
-			}
+		if (WINID(winfocus) == cur_focus->transient) {
+			head = TAILQ_PREV(winfocus, ws_win_list, entry);
+			if (head == NULL)
+				head = TAILQ_LAST(wl, ws_win_list);
+			winfocus = head;
 		}
 		break;
 
@@ -2251,19 +2244,6 @@ focus(struct swm_region *r, union arg *args)
 		if (head == NULL)
 			head = TAILQ_FIRST(wl);
 		winfocus = head;
-		for (;;) {
-			if (winfocus == NULL)
-				break;
-			if (!winfocus->iconic)
-				break;
-			winfocus = TAILQ_NEXT(winfocus, entry);
-			if (winfocus == NULL)
-				winfocus = TAILQ_FIRST(wl);
-			if (winfocus == head) {
-				winfocus = NULL;
-				break;
-			}
-		}
 		break;
 
 	case SWM_ARG_ID_FOCUSMAIN:
@@ -2279,7 +2259,7 @@ focus(struct swm_region *r, union arg *args)
 	if (winfocus == winlostfocus || winfocus == NULL)
 		return;
 
-	focus_magic(winfocus, SWM_F_GENERIC);
+	focus_magic(winfocus);
 }
 
 void
@@ -2841,7 +2821,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		if (parent)
 			XMapRaised(display, parent->id);
 		stack_floater(wintrans, ws->r);
-		focus_magic(wintrans, SWM_F_TRANSIENT);
+		focus_magic(wintrans);
 	}
 }
 
@@ -4576,9 +4556,12 @@ manage_window(Window id)
 		DNPRINTF(SWM_D_MISC, "manage previously unmanaged window "
 		    "%lu\n", win->id);
 		TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
-		TAILQ_INSERT_TAIL(&win->ws->winlist, win, entry);
 		if (win->transient)
 			set_child_transient(win);
+		if (trans && (ww = find_window(trans)))
+			TAILQ_INSERT_AFTER(&win->ws->winlist, ww, win, entry);
+		else
+			TAILQ_INSERT_TAIL(&win->ws->winlist, win, entry);
 		ewmh_update_actions(win);
 		return (win);
 	}
@@ -4651,7 +4634,10 @@ manage_window(Window id)
 	win->id = id;
 	win->ws = ws;
 	win->s = r->s;	/* this never changes */
-	TAILQ_INSERT_TAIL(&ws->winlist, win, entry);
+	if (trans && (ww = find_window(trans)))
+		TAILQ_INSERT_AFTER(&ws->winlist, ww, win, entry);
+	else
+		TAILQ_INSERT_TAIL(&ws->winlist, win, entry);
 
 	win->g.w = win->wa.width;
 	win->g.h = win->wa.height;
@@ -4793,8 +4779,7 @@ unmanage_window(struct ws_win *win)
 	/* focus on root just in case */
 	XSetInputFocus(display, PointerRoot, PointerRoot, CurrentTime);
 
-	if (!win->floating)
-		focus_prev(win);
+	focus_prev(win);
 
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
 	TAILQ_INSERT_TAIL(&win->ws->unmanagedlist, win, entry);
@@ -4803,14 +4788,14 @@ unmanage_window(struct ws_win *win)
 }
 
 void
-focus_magic(struct ws_win *win, int do_trans)
+focus_magic(struct ws_win *win)
 {
-	DNPRINTF(SWM_D_FOCUS, "focus_magic: %lu %d\n", WINID(win), do_trans);
+	DNPRINTF(SWM_D_FOCUS, "focus_magic: %lu\n", WINID(win));
 
 	if (win == NULL)
 		return;
 
-	if (do_trans == SWM_F_TRANSIENT && win->child_trans) {
+	if (win->child_trans) {
 		/* win = parent & has a transient so focus on that */
 		if (win->java) {
 			focus_win(win->child_trans);
@@ -4884,7 +4869,7 @@ buttonpress(XEvent *e)
 	if ((win = find_window(ev->window)) == NULL)
 		return;
 
-	focus_magic(win, SWM_F_TRANSIENT);
+	focus_magic(win);
 	action = client_click;
 
 	for (i = 0; i < LENGTH(buttons); i++)
@@ -5079,7 +5064,7 @@ enternotify(XEvent *e)
 		return;
 	}
 
-	focus_magic(win, SWM_F_TRANSIENT);
+	focus_magic(win);
 }
 
 /* lets us use one switch statement for arbitrary mode/detail combinations */
@@ -5177,7 +5162,7 @@ maprequest(XEvent *e)
 	/* make new win focused */
 	r = root_to_region(win->wa.root);
 	if (win->ws == r->ws)
-		focus_magic(win, SWM_F_GENERIC);
+		focus_magic(win);
 }
 
 void
