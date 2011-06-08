@@ -2406,22 +2406,22 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 		 * floaters and transients are auto-centred unless moved
 		 * or resized
 		 */
-		win->g.x = r->g.x + (WIDTH(r) - win->g.w) / 2 - border_width;
-		win->g.y = r->g.y + (HEIGHT(r) - win->g.h) / 2 - border_width;
+		win->g.x = r->g.x + (WIDTH(r) - win->g.w) / 2 - wc.border_width;
+		win->g.y = r->g.y + (HEIGHT(r) - win->g.h) / 2 - wc.border_width;
 	}
 
 	/* win can be outside r if new r smaller than old r */
 	/* Ensure top left corner inside r (move probs otherwise) */
-	if (win->g.x < r->g.x - border_width)
-		win->g.x = r->g.x - border_width;
+	if (win->g.x < r->g.x - wc.border_width)
+		win->g.x = r->g.x - wc.border_width;
 	if (win->g.x > r->g.x + r->g.w - 1)
 		win->g.x = (win->g.w > r->g.w) ? r->g.x :
-		    (r->g.x + r->g.w - win->g.w - 2 * border_width);
-	if (win->g.y < r->g.y - border_width)
-		win->g.y = r->g.y - border_width;
+		    (r->g.x + r->g.w - win->g.w - 2 * wc.border_width);
+	if (win->g.y < r->g.y - wc.border_width)
+		win->g.y = r->g.y - wc.border_width;
 	if (win->g.y > r->g.y + r->g.h - 1)
 		win->g.y = (win->g.h > r->g.h) ? r->g.y :
-		    (r->g.y + r->g.h - win->g.h - 2 * border_width);
+		    (r->g.y + r->g.h - win->g.h - 2 * wc.border_width);
 
 	wc.x = win->g.x;
 	wc.y = win->g.y;
