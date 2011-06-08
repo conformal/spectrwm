@@ -2132,9 +2132,9 @@ swapwin(struct swm_region *r, union arg *args)
 		return;
 	}
 
+	/* keep transients after the parent */
 	if (source && source->transient) {
 		t = find_window(source->transient);
-		fprintf(stderr, "source migrate trans %p\n", t);
 		if (t) {
 			TAILQ_REMOVE(wl, t, entry);
 			TAILQ_INSERT_AFTER(wl, source, t, entry);
@@ -2142,7 +2142,6 @@ swapwin(struct swm_region *r, union arg *args)
 	}
 	if (target && target->transient) {
 		t = find_window(target->transient);
-		fprintf(stderr, "target migrate trans\n");
 		if (t) {
 			TAILQ_REMOVE(wl, t, entry);
 			TAILQ_INSERT_AFTER(wl, target, t, entry);
