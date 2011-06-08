@@ -2237,6 +2237,13 @@ focus(struct swm_region *r, union arg *args)
 				head = TAILQ_LAST(wl, ws_win_list);
 			winfocus = head;
 		}
+
+		/* skip iconics */
+		if (winfocus && winfocus->iconic) {
+			TAILQ_FOREACH_REVERSE(winfocus, wl, ws_win_list, entry)
+				if (winfocus->iconic == 0)
+					break;
+		}
 		break;
 
 	case SWM_ARG_ID_FOCUSNEXT:
@@ -2244,6 +2251,13 @@ focus(struct swm_region *r, union arg *args)
 		if (head == NULL)
 			head = TAILQ_FIRST(wl);
 		winfocus = head;
+
+		/* skip iconics */
+		if (winfocus && winfocus->iconic) {
+			TAILQ_FOREACH(winfocus, wl, entry)
+				if (winfocus->iconic == 0)
+					break;
+		}
 		break;
 
 	case SWM_ARG_ID_FOCUSMAIN:
