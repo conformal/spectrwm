@@ -100,7 +100,7 @@ static const char	*cvstag = "$scrotwm$";
 #endif
 #endif
 
-/* #define SWM_DEBUG */
+/*#define SWM_DEBUG*/
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while (0)
 #define DNPRINTF(n,x...)	do { if (swm_debug & n) fprintf(stderr, x); } while (0)
@@ -656,7 +656,7 @@ ewmh_set_win_fullscreen(struct ws_win *win, int fs)
 		win->g.y = rg.y;
 		win->g.w = rg.w;
 		win->g.h = rg.h;
-	}	else {
+	} else {
 		if (win->g_floatvalid) {
 			/* refloat at last floating relative position */
 			win->g.x = win->g_float.x - win->rg_float.x + rg.x;
@@ -2640,14 +2640,13 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		j++;
 	}
 
- notiles:
+notiles:
 	/* now, stack all the floaters and transients */
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
 		if (win->transient == 0 && win->floating == 0)
 			continue;
-		if (win->iconic == 0)
+		if (win->iconic == 1)
 			continue;
-
 		if (win->ewmh_flags & EWMH_F_FULLSCREEN) {
 			fs_win = win;
 			continue;
