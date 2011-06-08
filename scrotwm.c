@@ -2875,7 +2875,7 @@ void
 send_to_ws(struct swm_region *r, union arg *args)
 {
 	int			wsid = args->id;
-	struct ws_win		*win = win;
+	struct ws_win		*win = NULL, *parent;
 	struct workspace	*ws, *nws;
 	Atom			ws_idx_atom = 0;
 	unsigned char		ws_idx_str[SWM_PROPLEN];
@@ -2897,6 +2897,15 @@ send_to_ws(struct swm_region *r, union arg *args)
 
 	a.id = SWM_ARG_ID_FOCUSPREV;
 	focus(r, &a);
+	if (win->transient) {
+		parent = find_window(win->transient);
+		if (parent) {
+			unmap_window(parent);
+			TAILQ_REMOVE(&ws->winlist, parent, entry);
+			TAILQ_INSERT_TAIL(&nws->winlist, parent, entry);
+			parent->ws = nws;
+		}
+	}
 	unmap_window(win);
 	TAILQ_REMOVE(&ws->winlist, win, entry);
 	TAILQ_INSERT_TAIL(&nws->winlist, win, entry);
