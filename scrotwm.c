@@ -2068,7 +2068,7 @@ void
 swapwin(struct swm_region *r, union arg *args)
 {
 	struct ws_win		*target, *source;
-	struct ws_win		*cur_focus;
+	struct ws_win		*cur_focus, *t;
 	struct ws_win_list	*wl;
 
 
@@ -2080,13 +2080,18 @@ swapwin(struct swm_region *r, union arg *args)
 	if (cur_focus == NULL)
 		return;
 
-	source = cur_focus;
+	if (cur_focus->transient) {
+		source = find_window(cur_focus->transient);
+		if (source == NULL)
+			return;
+	} else
+		source = cur_focus;
 	wl = &source->ws->winlist;
 
 	switch (args->id) {
 	case SWM_ARG_ID_SWAPPREV:
 		target = TAILQ_PREV(source, ws_win_list, entry);
-		TAILQ_REMOVE(wl, cur_focus, entry);
+		TAILQ_REMOVE(wl, source, entry);
 		if (target == NULL)
 			TAILQ_INSERT_TAIL(wl, source, entry);
 		else
@@ -2125,6 +2130,23 @@ swapwin(struct swm_region *r, union arg *args)
 	default:
 		DNPRINTF(SWM_D_MOVE, "invalid id: %d\n", args->id);
 		return;
+	}
+
+	if (source && source->transient) {
+		t = find_window(source->transient);
+		fprintf(stderr, "source migrate trans %p\n", t);
+		if (t) {
+			TAILQ_REMOVE(wl, t, entry);
+			TAILQ_INSERT_AFTER(wl, source, t, entry);
+		}
+	}
+	if (target && target->transient) {
+		t = find_window(target->transient);
+		fprintf(stderr, "target migrate trans\n");
+		if (t) {
+			TAILQ_REMOVE(wl, t, entry);
+			TAILQ_INSERT_AFTER(wl, target, t, entry);
+		}
 	}
 
 	stack();
@@ -2269,7 +2291,6 @@ focus(struct swm_region *r, union arg *args)
 	default:
 		return;
 	}
-
 	if (winfocus == winlostfocus || winfocus == NULL)
 		return;
 
