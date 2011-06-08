@@ -933,8 +933,9 @@ dumpwins(struct swm_region *r, union arg *args)
 		if (!XGetWindowAttributes(display, win->id, &wa))
 			fprintf(stderr, "window: %lu failed "
 			    "XGetWindowAttributes\n", win->id);
-		fprintf(stderr, "window: %lu map_state: %d state: %d\n",
-		    win->id, wa.map_state, state);
+		fprintf(stderr, "window: %lu map_state: %d state: %d "
+		    "transient: %lu\n",
+		    win->id, wa.map_state, state, win->transient);
 	}
 
 	fprintf(stderr, "===== unmanaged window list =====\n");
@@ -943,8 +944,9 @@ dumpwins(struct swm_region *r, union arg *args)
 		if (!XGetWindowAttributes(display, win->id, &wa))
 			fprintf(stderr, "window: %lu failed "
 			    "XGetWindowAttributes\n", win->id);
-		fprintf(stderr, "window: %lu map_state: %d state: %d\n",
-		    win->id, wa.map_state, state);
+		fprintf(stderr, "window: %lu map_state: %d state: %d "
+		    "transient: %lu\n",
+		    win->id, wa.map_state, state, win->transient);
 	}
 
 	fprintf(stderr, "=================================\n");
@@ -2065,10 +2067,33 @@ cyclescr(struct swm_region *r, union arg *args)
 }
 
 void
+sort_windows(struct ws_win_list *wl)
+{
+	struct ws_win		*win, *parent, *nxt;
+
+	if (wl == NULL)
+		return;
+
+	for (win = TAILQ_FIRST(wl); win != TAILQ_END(wl); win = nxt) {
+		nxt = TAILQ_NEXT(win, entry);
+		if (win->transient) {
+			parent = find_window(win->transient);
+			if (parent == NULL) {
+				fprintf(stderr, "not possible bug\n");
+				continue;
+			}
+			TAILQ_REMOVE(wl, win, entry);
+			TAILQ_INSERT_AFTER(wl, parent, win, entry);
+		}
+	}
+
+}
+
+void
 swapwin(struct swm_region *r, union arg *args)
 {
 	struct ws_win		*target, *source;
-	struct ws_win		*cur_focus, *t;
+	struct ws_win		*cur_focus;
 	struct ws_win_list	*wl;
 
 
@@ -2080,17 +2105,16 @@ swapwin(struct swm_region *r, union arg *args)
 	if (cur_focus == NULL)
 		return;
 
-	if (cur_focus->transient) {
-		source = find_window(cur_focus->transient);
-		if (source == NULL)
-			return;
-	} else
-		source = cur_focus;
+	source = cur_focus;
 	wl = &source->ws->winlist;
 
 	switch (args->id) {
 	case SWM_ARG_ID_SWAPPREV:
+		if (source->transient)
+			source = find_window(source->transient);
 		target = TAILQ_PREV(source, ws_win_list, entry);
+		if (target && target->transient)
+			target = find_window(target->transient);
 		TAILQ_REMOVE(wl, source, entry);
 		if (target == NULL)
 			TAILQ_INSERT_TAIL(wl, source, entry);
@@ -2099,6 +2123,9 @@ swapwin(struct swm_region *r, union arg *args)
 		break;
 	case SWM_ARG_ID_SWAPNEXT:
 		target = TAILQ_NEXT(source, entry);
+		/* move the parent and let the sort handle the move */
+		if (source->transient)
+			source = find_window(source->transient);
 		TAILQ_REMOVE(wl, source, entry);
 		if (target == NULL)
 			TAILQ_INSERT_HEAD(wl, source, entry);
@@ -2132,21 +2159,7 @@ swapwin(struct swm_region *r, union arg *args)
 		return;
 	}
 
-	/* keep transients after the parent */
-	if (source && source->transient) {
-		t = find_window(source->transient);
-		if (t) {
-			TAILQ_REMOVE(wl, t, entry);
-			TAILQ_INSERT_AFTER(wl, source, t, entry);
-		}
-	}
-	if (target && target->transient) {
-		t = find_window(target->transient);
-		if (t) {
-			TAILQ_REMOVE(wl, t, entry);
-			TAILQ_INSERT_AFTER(wl, target, t, entry);
-		}
-	}
+	sort_windows(wl);
 
 	stack();
 }
