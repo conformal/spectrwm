@@ -1381,6 +1381,18 @@ bar_setup(struct swm_region *r)
 }
 
 void
+drain_enter_notify(void)
+{
+	int			i = 0;
+	XEvent			cne;
+
+	while (XCheckMaskEvent(display, EnterWindowMask, &cne))
+		i++;
+
+	DNPRINTF(SWM_D_MISC, "drain_enter_notify: drained %d\n", i);
+}
+
+void
 set_win_state(struct ws_win *win, long state)
 {
 	long			data[] = {state, None};
@@ -1959,12 +1971,16 @@ switchws(struct swm_region *r, union arg *args)
 	stack();
 	a.id = SWM_ARG_ID_FOCUSCUR;
 	focus(new_ws->r, &a);
+
 	bar_update();
 
 	/* unmap old windows */
 	if (unmap_old)
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
 			unmap_window(win);
+
+	if (focus_mode == SWM_FOCUS_DEFAULT)
+		drain_enter_notify();
 }
 
 void
@@ -2375,6 +2391,9 @@ stack(void) {
 	}
 	if (font_adjusted)
 		font_adjusted--;
+
+	if (focus_mode == SWM_FOCUS_DEFAULT)
+		drain_enter_notify();
 }
 
 void
@@ -3257,7 +3276,7 @@ resize(struct ws_win *win, union arg *args)
 	XUngrabPointer(display, CurrentTime);
 
 	/* drain events */
-	while (XCheckMaskEvent(display, EnterWindowMask, &ev));
+	drain_enter_notify();
 }
 
 void
@@ -3351,7 +3370,7 @@ move(struct ws_win *win, union arg *args)
 	XUngrabPointer(display, CurrentTime);
 
 	/* drain events */
-	while (XCheckMaskEvent(display, EnterWindowMask, &ev));
+	drain_enter_notify();
 }
 
 /* user/key callable function IDs */
@@ -5020,11 +5039,6 @@ enternotify(XEvent *e)
 
 	switch (focus_mode) {
 	case SWM_FOCUS_DEFAULT:
-		if (QLength(display)) {
-			DNPRINTF(SWM_D_EVENT, "ignore enternotify %d\n",
-			    QLength(display));
-			return;
-		}
 		break;
 	case SWM_FOCUS_FOLLOW:
 		break;
