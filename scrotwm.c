@@ -4320,6 +4320,7 @@ setup_quirks(void)
 	setquirk("Xitk",		"Xine Window",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
 	setquirk("xine",		"xine Video Fullscreen Window",	SWM_Q_FULLSCREEN | SWM_Q_FLOAT);
 	setquirk("pcb",			"pcb",		SWM_Q_FLOAT);
+	setquirk("SDL_App",		"SDL_App",	SWM_Q_FLOAT | SWM_Q_FULLSCREEN);
 }
 
 /* conf file stuff */
