@@ -100,6 +100,7 @@ static const char	*cvstag = "$scrotwm$";
 #endif
 #endif
 
+#define SWM_DEBUG
 /*#define SWM_DEBUG*/
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while (0)
@@ -1518,7 +1519,7 @@ unmap_window(struct ws_win *win)
 	if (getstate(win->id) == IconicState)
 		return;
 
-	set_win_state(win, IconicState);
+	set_win_state(win, InactiveState);
 
 	XUnmapWindow(display, win->id);
 	XSetWindowBorder(display, win->id,
@@ -5564,7 +5565,7 @@ grab_windows(void)
 				continue;
 
 			state = getstate(wins[j]);
-			manage = state == IconicState;
+			manage = state == IconicState || InactiveState;
 			if (wa.map_state == IsViewable || manage)
 				manage_window(wins[j]);
 		}
@@ -5575,7 +5576,7 @@ grab_windows(void)
 				continue;
 
 			state = getstate(wins[j]);
-			manage = state == IconicState;
+			manage = state == IconicState || InactiveState;
 			if (XGetTransientForHint(display, wins[j], &d1) &&
 			    manage)
 				manage_window(wins[j]);
