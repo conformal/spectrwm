@@ -4,7 +4,7 @@
 PREFIX?=/usr/local
 
 BINDIR=${PREFIX}/bin
-SUBDIR= lib
+SUBDIR= lib unicon
 
 PROG=scrotwm
 MAN=scrotwm.1 scrotwm_es.1 scrotwm_it.1 scrotwm_pt.1 scrotwm_ru.1

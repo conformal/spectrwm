@@ -100,7 +100,6 @@ static const char	*cvstag = "$scrotwm$";
 #endif
 #endif
 
-#define SWM_DEBUG
 /*#define SWM_DEBUG*/
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while (0)
@@ -1519,7 +1518,7 @@ unmap_window(struct ws_win *win)
 	if (getstate(win->id) == IconicState)
 		return;
 
-	set_win_state(win, InactiveState);
+	set_win_state(win, IconicState);
 
 	XUnmapWindow(display, win->id);
 	XSetWindowBorder(display, win->id,
@@ -4778,10 +4777,6 @@ manage_window(Window id)
 
 	XSelectInput(display, id, EnterWindowMask | FocusChangeMask |
 	    PropertyChangeMask | StructureNotifyMask);
-	if (win->iconic)
-		set_win_state(win, IconicState);
-	else
-		set_win_state(win, NormalState);
 
 	/* floaters need to be mapped if they are in the current workspace */
 	if ((win->floating || win->transient) && (ws->idx == r->ws->idx))
@@ -5279,6 +5274,21 @@ unmapnotify(XEvent *e)
 	if (getstate(e->xunmap.window) == NormalState) {
 		unmanage_window(win);
 		stack();
+
+		/* giant hack for apps that don't destroy transient windows */
+		/* eat a bunch of events to prevent remanaging the window */
+		XEvent			cne;
+		while (XCheckWindowEvent(display, e->xunmap.window,
+		    EnterWindowMask, &cne))
+			;
+		while (XCheckWindowEvent(display, e->xunmap.window,
+		    StructureNotifyMask, &cne))
+			;
+		while (XCheckWindowEvent(display, e->xunmap.window,
+		    SubstructureNotifyMask, &cne))
+			;
+		/* resend unmap because we ated it */
+		XUnmapWindow(display, e->xunmap.window);
 	}
 }
 
@@ -5565,7 +5575,7 @@ grab_windows(void)
 				continue;
 
 			state = getstate(wins[j]);
-			manage = state == IconicState || InactiveState;
+			manage = state == IconicState;
 			if (wa.map_state == IsViewable || manage)
 				manage_window(wins[j]);
 		}
@@ -5576,7 +5586,7 @@ grab_windows(void)
 				continue;
 
 			state = getstate(wins[j]);
-			manage = state == IconicState || InactiveState;
+			manage = state == IconicState;
 			if (XGetTransientForHint(display, wins[j], &d1) &&
 			    manage)
 				manage_window(wins[j]);
