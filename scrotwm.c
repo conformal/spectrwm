@@ -2342,6 +2342,8 @@ cycle_layout(struct swm_region *r, union arg *args)
 		ws->cur_layout = &layouts[0];
 
 	stack();
+	if (focus_mode == SWM_FOCUS_DEFAULT)
+		drain_enter_notify();
 	a.id = SWM_ARG_ID_FOCUSCUR;
 	focus(r, &a);
 	bar_update();
@@ -2954,6 +2956,8 @@ iconify(struct swm_region *r, union arg *args)
 	unmap_window(r->ws->focus);
 	update_iconic(r->ws->focus, 1);
 	stack();
+	if (focus_mode == SWM_FOCUS_DEFAULT)
+		drain_enter_notify();
 	r->ws->focus = NULL;
 	a.id = SWM_ARG_ID_FOCUSCUR;
 	focus(r, &a);
@@ -3157,6 +3161,8 @@ floating_toggle(struct swm_region *r, union arg *args)
 	    _NET_WM_STATE_TOGGLE);
 
 	stack();
+	if (focus_mode == SWM_FOCUS_DEFAULT)
+		drain_enter_notify();
 
 	if (win == win->ws->focus) {
 		a.id = SWM_ARG_ID_FOCUSCUR;
@@ -3216,6 +3222,8 @@ resize(struct ws_win *win, union arg *args)
 	a.id = SWM_ARG_ID_MOVELAST;
 	swapwin(r, &a);
 	stack();
+	if (focus_mode == SWM_FOCUS_DEFAULT)
+		drain_enter_notify();
 
 	if (XGrabPointer(display, win->id, False, MOUSEMASK, GrabModeAsync,
 	    GrabModeAsync, None, None /* cursor */, CurrentTime) != GrabSuccess)
@@ -5037,6 +5045,8 @@ configurenotify(XEvent *e)
 		adjust_font(win);
 		if (font_adjusted)
 			stack();
+		if (focus_mode == SWM_FOCUS_DEFAULT)
+			drain_enter_notify();
 	}
 }
 
@@ -5060,6 +5070,8 @@ destroynotify(XEvent *e)
 
 	unmanage_window(win);
 	stack();
+	if (focus_mode == SWM_FOCUS_DEFAULT)
+		drain_enter_notify();
 	free_window(win);
 }
 
@@ -5607,6 +5619,8 @@ screenchange(XEvent *e) {
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			bar_setup(r);
 	stack();
+	if (focus_mode == SWM_FOCUS_DEFAULT)
+		drain_enter_notify();
 }
 
 void
@@ -5859,6 +5873,8 @@ main(int argc, char *argv[])
 
 	grabkeys();
 	stack();
+	if (focus_mode == SWM_FOCUS_DEFAULT)
+		drain_enter_notify();
 
 	xfd = ConnectionNumber(display);
 	while (running) {
