@@ -287,6 +287,7 @@ struct ws_win {
 	XWindowAttributes	wa;
 	XSizeHints		sh;
 	XClassHint		ch;
+	XWMHints		*hints;
 };
 TAILQ_HEAD(ws_win_list, ws_win);
 
@@ -4598,13 +4599,52 @@ conf_load(char *filename)
 }
 
 void
-set_child_transient(struct ws_win *win)
+set_child_transient(struct ws_win *win, Window *trans)
 {
-	struct ws_win		*parent;
+	struct ws_win		*parent, *w;
+	XWMHints		*wmh = NULL;
+	struct swm_region	*r;
+	struct workspace	*ws;
 
 	parent = find_window(win->transient);
 	if (parent)
 		parent->child_trans = win;
+	else {
+		DNPRINTF(SWM_D_MISC, "set_child_transient: parent doesn't exist"
+		    " for %lu trans %lu\n", win->id, win->transient);
+
+		if (win->hints == NULL) {
+			fprintf(stderr, "no hints for %lu\n", win->id);
+			return;
+		}
+
+		r = root_to_region(win->wa.root);
+		ws = r->ws;
+		/* parent doen't exist in our window list */
+		TAILQ_FOREACH(w, &ws->winlist, entry) {
+			if (wmh)
+				XFree(wmh);
+
+			if ((wmh = XGetWMHints(display, w->id)) == NULL) {
+				fprintf(stderr, "can't get hints for %lu\n",
+				    w->id);
+				continue;
+			}
+
+			if (win->hints->window_group != wmh->window_group)
+				continue;
+
+			w->child_trans = win;
+			win->transient = w->id;
+			*trans = w->id;
+			DNPRINTF(SWM_D_MISC, "set_child_transient: asjusting "
+			    "transient to %lu\n", win->transient);
+			break;
+		}
+	}
+
+	if (wmh)
+		XFree(wmh);
 }
 
 struct ws_win *
@@ -4631,9 +4671,9 @@ manage_window(Window id)
 		DNPRINTF(SWM_D_MISC, "manage previously unmanaged window "
 		    "%lu\n", win->id);
 		TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
-		if (win->transient)
-			set_child_transient(win);
-		if (trans && (ww = find_window(trans)))
+		if (win->transient) {
+			set_child_transient(win, &trans);
+		} if (trans && (ww = find_window(trans)))
 			TAILQ_INSERT_AFTER(&win->ws->winlist, ww, win, entry);
 		else
 			TAILQ_INSERT_TAIL(&win->ws->winlist, win, entry);
@@ -4653,10 +4693,11 @@ manage_window(Window id)
 		    False, XA_STRING, &type, &format, &nitems, &bytes, &prop);
 	XGetWindowAttributes(display, id, &win->wa);
 	XGetWMNormalHints(display, id, &win->sh, &mask);
+	win->hints = XGetWMHints(display, id);
 	XGetTransientForHint(display, id, &trans);
 	if (trans) {
 		win->transient = trans;
-		set_child_transient(win);
+		set_child_transient(win, &trans);
 		DNPRINTF(SWM_D_MISC, "manage_window: win %lu transient %lu\n",
 		    win->id, win->transient);
 	}
