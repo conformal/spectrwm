@@ -310,7 +310,6 @@ struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
 	void		(*l_config)(struct workspace *, int);
 	u_int32_t	flags;
-#define SWM_L_FOCUSPREV		(1<<0)
 #define SWM_L_MAPONFOCUS	(1<<1)
 	char		*name;
 } layouts[] =  {
@@ -318,7 +317,7 @@ struct layout {
 	{ vertical_stack,	vertical_config,	0,	"[|]" },
 	{ horizontal_stack,	horizontal_config,	0,	"[-]" },
 	{ max_stack,		NULL,
-	  SWM_L_MAPONFOCUS | SWM_L_FOCUSPREV,			"[ ]"},
+	  SWM_L_MAPONFOCUS,					"[ ]"},
 	{ NULL,			NULL,			0,	NULL },
 };
 
@@ -2216,24 +2215,17 @@ focus_prev(struct ws_win *win)
 		goto done;
 	}
 
-	/* if in max_stack try harder */
-	if (ws->cur_layout->flags & SWM_L_FOCUSPREV) {
-		if (cur_focus != ws->focus_prev)
-			winfocus = ws->focus_prev;
-		else if (cur_focus != ws->focus)
-			winfocus = ws->focus;
-		else
-			winfocus = TAILQ_PREV(win, ws_win_list, entry);
-		if (winfocus)
-			goto done;
+	/* try to focus on previously focused app */
+	if (cur_focus != ws->focus_prev)
+		winfocus = ws->focus_prev;
+	else if (cur_focus != ws->focus)
+		winfocus = ws->focus;
+	else {
+		winfocus = TAILQ_PREV(win, ws_win_list, entry);
+		if (winfocus == NULL)
+			winfocus = TAILQ_LAST(wl, ws_win_list);
 	}
 
-	if (cur_focus == win)
-		winfocus = TAILQ_PREV(win, ws_win_list, entry);
-	if (winfocus == NULL)
-		winfocus = TAILQ_LAST(wl, ws_win_list);
-	if (winfocus == NULL || winfocus == win)
-		winfocus = TAILQ_NEXT(cur_focus, entry);
 done:
 	if (winfocus == winlostfocus || winfocus == NULL)
 		return;
@@ -5358,6 +5350,9 @@ unmapnotify(XEvent *e)
 		/* resend unmap because we ated it */
 		XUnmapWindow(display, e->xunmap.window);
 	}
+
+	if (focus_mode == SWM_FOCUS_DEFAULT)
+		drain_enter_notify();
 }
 
 void
