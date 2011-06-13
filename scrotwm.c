@@ -310,6 +310,7 @@ struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
 	void		(*l_config)(struct workspace *, int);
 	u_int32_t	flags;
+#define SWM_L_FOCUSPREV		(1<<0)
 #define SWM_L_MAPONFOCUS	(1<<1)
 	char		*name;
 } layouts[] =  {
@@ -317,7 +318,7 @@ struct layout {
 	{ vertical_stack,	vertical_config,	0,	"[|]" },
 	{ horizontal_stack,	horizontal_config,	0,	"[-]" },
 	{ max_stack,		NULL,
-	  SWM_L_MAPONFOCUS,					"[ ]"},
+	  SWM_L_MAPONFOCUS | SWM_L_FOCUSPREV,			"[ ]"},
 	{ NULL,			NULL,			0,	NULL },
 };
 
@@ -415,6 +416,7 @@ struct quirk {
 #define SWM_Q_ANYWHERE		(1<<2)	/* don't position this window */
 #define SWM_Q_XTERM_FONTADJ	(1<<3)	/* adjust xterm fonts when resizing */
 #define SWM_Q_FULLSCREEN	(1<<4)	/* remove border */
+#define SWM_Q_FOCUSPREV		(1<<5)	/* focus on caller */
 };
 int				quirks_size = 0, quirks_length = 0;
 struct quirk			*quirks = NULL;
@@ -2215,17 +2217,25 @@ focus_prev(struct ws_win *win)
 		goto done;
 	}
 
-	/* try to focus on previously focused app */
-	if (cur_focus != ws->focus_prev)
-		winfocus = ws->focus_prev;
-	else if (cur_focus != ws->focus)
-		winfocus = ws->focus;
-	else {
-		winfocus = TAILQ_PREV(win, ws_win_list, entry);
-		if (winfocus == NULL)
-			winfocus = TAILQ_LAST(wl, ws_win_list);
+	/* if in max_stack try harder */
+	if ((win->quirks & SWM_Q_FOCUSPREV) ||
+	    (ws->cur_layout->flags & SWM_L_FOCUSPREV)) {
+		if (cur_focus != ws->focus_prev)
+			winfocus = ws->focus_prev;
+		else if (cur_focus != ws->focus)
+			winfocus = ws->focus;
+		else
+			winfocus = TAILQ_PREV(win, ws_win_list, entry);
+		if (winfocus)
+			goto done;
 	}
 
+	if (cur_focus == win)
+		winfocus = TAILQ_PREV(win, ws_win_list, entry);
+	if (winfocus == NULL)
+		winfocus = TAILQ_LAST(wl, ws_win_list);
+	if (winfocus == NULL || winfocus == win)
+		winfocus = TAILQ_NEXT(cur_focus, entry);
 done:
 	if (winfocus == winlostfocus || winfocus == NULL)
 		return;
@@ -4309,7 +4319,7 @@ setconfquirk(char *selector, char *value, int flags)
 void
 setup_quirks(void)
 {
-	setquirk("MPlayer",		"xv",		SWM_Q_FLOAT | SWM_Q_FULLSCREEN);
+	setquirk("MPlayer",		"xv",		SWM_Q_FLOAT | SWM_Q_FULLSCREEN | SWM_Q_FOCUSPREV);
 	setquirk("OpenOffice.org 3.2",	"VCLSalFrame",	SWM_Q_FLOAT);
 	setquirk("Firefox-bin",		"firefox-bin",	SWM_Q_TRANSSZ);
 	setquirk("Firefox",		"Dialog",	SWM_Q_FLOAT);
