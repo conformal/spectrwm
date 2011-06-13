@@ -1903,6 +1903,12 @@ focus_win(struct ws_win *win)
 	XGetInputFocus(display, &cur_focus, &rr);
 	if ((cfw = find_window(cur_focus)) != NULL)
 		unfocus_win(cfw);
+	else {
+		/* use larger hammer since the window was killed somehow */
+		TAILQ_FOREACH(cfw, &win->ws->winlist, entry)
+			XSetWindowBorder(display, cfw->id,
+			    cfw->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
+	}
 
 	win->ws->focus = win;
 
