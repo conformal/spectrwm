@@ -499,7 +499,7 @@ FLOAT
 .It Gimp:gimp
 FLOAT + ANYWHERE
 .It MPlayer:xv
-FLOAT + FULLSCREEN
+FLOAT + FULLSCREEN + FOCUSPREV
 .It OpenOffice.org 2.4:VCLSalFrame
 FLOAT
 .It OpenOffice.org 3.1:VCLSalFrame
@@ -535,6 +535,9 @@ Allow window to position itself, uncentered.
 Adjust xterm fonts when resizing.
 .It FULLSCREEN
 Remove border to allow window to use full screen size.
+.It FOCUSPREV
+On exit force focus on previously focused application not previous application
+in the stack.
 .El
 .Pp
 Custom quirks in the configuration file are specified as follows:
@@ -549,7 +552,7 @@ specify the window to which the quirk(s) apply, and
 is one of the quirks from the list above.
 For example:
 .Bd -literal -offset indent
-quirk[MPlayer:xv] = FLOAT + FULLSCREEN # let mplayer play
+quirk[MPlayer:xv] = FLOAT + FULLSCREEN + FOCUSPREV
 quirk[pcb:pcb] = NONE  # remove existing quirk
 .Ed
 .Pp

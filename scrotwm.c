@@ -4186,6 +4186,7 @@ const char *quirkname[] = {
 	"ANYWHERE",
 	"XTERM_FONTADJ",
 	"FULLSCREEN",
+	"FOCUSPREV",
 };
 
 /* SWM_Q_WS: retain '|' for back compat for now (2009-08-11) */
