@@ -51,7 +51,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-static const char	*cvstag = "$scrotwm$";
+static const char	*cvstag =
+    "$scrotwm$";
 
 #define	SWM_VERSION	"0.9.30"
 
@@ -318,8 +319,8 @@ struct layout {
 	{ vertical_stack,	vertical_config,	0,	"[|]" },
 	{ horizontal_stack,	horizontal_config,	0,	"[-]" },
 	{ max_stack,		NULL,
-	  SWM_L_MAPONFOCUS | SWM_L_FOCUSPREV,			"[ ]"},
-	{ NULL,			NULL,			0,	NULL },
+	  SWM_L_MAPONFOCUS | SWM_L_FOCUSPREV,			"[ ]" },
+	{ NULL,			NULL,			0,	NULL  },
 };
 
 /* position of max_stack mode in the layouts array */
@@ -556,7 +557,8 @@ setup_ewmh(void)
 		/* Report supported atoms */
 		XDeleteProperty(display, screens[i].root, sup_list);
 		for (j = 0; j < LENGTH(ewmh); j++)
-			XChangeProperty(display, screens[i].root, sup_list, XA_ATOM, 32,
+			XChangeProperty(display, screens[i].root,
+			    sup_list, XA_ATOM, 32,
 			    PropModeAppend, (unsigned char *)&ewmh[j].atom,1);
 	}
 }
@@ -742,7 +744,8 @@ ewmh_update_win_state(struct ws_win *win, long state, long action)
 			win->manual = (win->ewmh_flags & SWM_F_MANUAL) != 0;
 	if (state == ewmh[_NET_WM_STATE_FULLSCREEN].atom)
 		if (changed)
-			if (!ewmh_set_win_fullscreen(win, win->ewmh_flags & EWMH_F_FULLSCREEN))
+			if (!ewmh_set_win_fullscreen(win,
+			    win->ewmh_flags & EWMH_F_FULLSCREEN))
 				win->ewmh_flags = orig_flags; /* revert */
 
 	XDeleteProperty(display, win->id, ewmh[_NET_WM_STATE].atom);
@@ -785,8 +788,8 @@ ewmh_get_win_state(struct ws_win *win)
 	if (win->manual)
 		win->ewmh_flags |= SWM_F_MANUAL;
 
-	success = get_property(win->id, ewmh[_NET_WM_STATE].atom, (~0L), XA_ATOM,
-	    &n, (unsigned char **)&states);
+	success = get_property(win->id, ewmh[_NET_WM_STATE].atom,
+	    (~0L), XA_ATOM, &n, (unsigned char **)&states);
 
 	if (!success)
 		return;
@@ -1109,7 +1112,8 @@ custom_region(char *val)
 	    y < 0 || y > DisplayHeight(display, sidx) ||
 	    w + x > DisplayWidth(display, sidx) ||
 	    h + y > DisplayHeight(display, sidx)) {
-		fprintf(stderr, "ignoring region %ux%u+%u+%u - not within screen boundaries "
+		fprintf(stderr, "ignoring region %ux%u+%u+%u "
+		    "- not within screen boundaries "
 		    "(%ux%u)\n", w, h, x, y,
 		    DisplayWidth(display, sidx), DisplayHeight(display, sidx));
 		return;
@@ -1362,12 +1366,14 @@ bar_setup(struct swm_region *r)
 	if (bar_fs == NULL)
 		errx(1, "couldn't create font structure");
 
-	bar_height = bar_fs->ascent + bar_fs->descent + 1 + 2 * bar_border_width;
+	bar_height = bar_fs->ascent + bar_fs->descent + 1 +
+	    2 * bar_border_width;
 	x = X(r);
 	y = bar_at_bottom ? (Y(r) + HEIGHT(r) - bar_height) : Y(r);
 
 	r->bar_window = XCreateSimpleWindow(display,
-	    r->s->root, x, y, WIDTH(r) - 2 * bar_border_width, bar_height - 2 * bar_border_width,
+	    r->s->root, x, y, WIDTH(r) - 2 * bar_border_width,
+	    bar_height - 2 * bar_border_width,
 	    bar_border_width, r->s->c[SWM_S_COLOR_BAR_BORDER].color,
 	    r->s->c[SWM_S_COLOR_BAR].color);
 	bar_gc = XCreateGC(display, r->bar_window, 0, &bar_gcv);
@@ -1462,7 +1468,8 @@ config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 		return;
 
 	if (ev == NULL) {
-		DNPRINTF(SWM_D_MISC, "config_win: win %lu x %d y %d w %d h %d\n",
+		DNPRINTF(SWM_D_MISC,
+		    "config_win: win %lu x %d y %d w %d h %d\n",
 		    win->id, win->g.x, win->g.y, win->g.w, win->g.h);
 
 		ce.type = ConfigureNotify;
@@ -1477,7 +1484,8 @@ config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 		ce.above = None;
 		ce.override_redirect = False;
 	} else {
-		DNPRINTF(SWM_D_MISC, "config_win: ev win %lu x %d y %d w %d h %d\n",
+		DNPRINTF(SWM_D_MISC,
+		    "config_win: ev win %lu x %d y %d w %d h %d\n",
 		    ev->window, ev->x, ev->y, ev->width, ev->height);
 		ce.type = ConfigureNotify;
 		ce.display = ev->display;
@@ -1775,7 +1783,7 @@ validate_win(struct ws_win *testwin)
 	int			i, x, foundit = 0;
 
 	if (testwin == NULL)
-		return(0);
+		return (0);
 
 	for (i = 0, foundit = 0; i < ScreenCount(display); i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
@@ -2168,7 +2176,7 @@ swapwin(struct swm_region *r, union arg *args)
 				source = source->ws->focus_prev;
 			else
 				return;
-                }
+		}
 		if (target == NULL || source == NULL)
 			return;
 		source->ws->focus_prev = target;
@@ -2472,8 +2480,10 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 		 * floaters and transients are auto-centred unless moved
 		 * or resized
 		 */
-		win->g.x = r->g.x + (WIDTH(r) - win->g.w) / 2 - wc.border_width;
-		win->g.y = r->g.y + (HEIGHT(r) - win->g.h) / 2 - wc.border_width;
+		win->g.x = r->g.x + (WIDTH(r) - win->g.w) /
+		    2 - wc.border_width;
+		win->g.y = r->g.y + (HEIGHT(r) - win->g.h) /
+		    2 - wc.border_width;
 	}
 
 	/* win can be outside r if new r smaller than old r */
@@ -2563,7 +2573,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		return;
 
 	TAILQ_FOREACH(win, &ws->winlist, entry)
-		if (win->transient == 0 && win->floating == 0 && win->iconic == 0)
+		if (win->transient == 0 && win->floating == 0
+		    && win->iconic == 0)
 			break;
 
 	if (win == NULL)
@@ -2612,7 +2623,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	} else {
 		msize = -2;
 		colno = split = winno / stacks;
-		win_g.w = ((r_g.w - (stacks * 2 * border_width) + 2 * border_width) / stacks);
+		win_g.w = ((r_g.w - (stacks * 2 * border_width) +
+		    2 * border_width) / stacks);
 	}
 	hrh = r_g.h / colno;
 	extra = r_g.h - (colno * hrh);
@@ -2642,10 +2654,11 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 				win_g.x = r_g.x;
 			else
 				win_g.x += win_g.w + 2 * border_width;
-			win_g.w = (r_g.w - msize - (stacks * 2 * border_width)) / stacks;
+			win_g.w = (r_g.w - msize -
+			    (stacks * 2 * border_width)) / stacks;
 			if (s == 1)
-				win_g.w += (r_g.w - msize - (stacks * 2 * border_width)) %
-				    stacks;
+				win_g.w += (r_g.w - msize -
+				    (stacks * 2 * border_width)) % stacks;
 			s--;
 			j = 0;
 		}
@@ -3252,7 +3265,7 @@ resize(struct ws_win *win, union arg *args)
 	do {
 		XMaskEvent(display, MOUSEMASK | ExposureMask |
 		    SubstructureRedirectMask, &ev);
-		switch(ev.type) {
+		switch (ev.type) {
 		case ConfigureRequest:
 		case Expose:
 		case MapRequest:
@@ -3347,7 +3360,7 @@ move(struct ws_win *win, union arg *args)
 	do {
 		XMaskEvent(display, MOUSEMASK | ExposureMask |
 		    SubstructureRedirectMask, &ev);
-		switch(ev.type) {
+		switch (ev.type) {
 		case ConfigureRequest:
 		case Expose:
 		case MapRequest:
@@ -3921,7 +3934,8 @@ strdupsafe(char *str)
 }
 
 void
-setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid, char *spawn_name)
+setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid,
+    char *spawn_name)
 {
 	int			i, j;
 	DNPRINTF(SWM_D_KEY, "setkeybinding: enter %s [%s]\n",
@@ -4124,7 +4138,7 @@ updatenumlockmask(void)
 	for (i = 0; i < 8; i++)
 		for (j = 0; j < modmap->max_keypermod; j++)
 			if (modmap->modifiermap[i * modmap->max_keypermod + j]
-			  == XKeysymToKeycode(display, XK_Num_Lock))
+			    == XKeysymToKeycode(display, XK_Num_Lock))
 				numlockmask = (1 << i);
 
 	XFreeModifiermap(modmap);
@@ -4207,7 +4221,8 @@ parsequirks(char *qstr, unsigned long *quirk)
 			cp += (long)strspn(cp, SWM_Q_WS);
 		for (i = 0; i < LENGTH(quirkname); i++) {
 			if (!strncasecmp(name, quirkname[i], SWM_QUIRK_LEN)) {
-				DNPRINTF(SWM_D_QUIRK, "parsequirks: %s\n", name);
+				DNPRINTF(SWM_D_QUIRK,
+				    "parsequirks: %s\n", name);
 				if (i == 0) {
 					*quirk = 0;
 					return (0);
@@ -4278,7 +4293,8 @@ setquirk(const char *class, const char *name, const int quirk)
 	} else if (quirks_length == quirks_size) {
 		quirks_size *= 2;
 		DNPRINTF(SWM_D_QUIRK, "setquirk: grow list %d\n", quirks_size);
-		quirks = realloc(quirks, (size_t)quirks_size * sizeof(struct quirk));
+		quirks = realloc(quirks,
+		    (size_t)quirks_size * sizeof(struct quirk));
 		if (!quirks) {
 			fprintf(stderr, "setquirk: realloc failed\n");
 			perror(" failed");
@@ -4339,13 +4355,14 @@ setup_quirks(void)
 /* conf file stuff */
 #define SWM_CONF_FILE	"scrotwm.conf"
 
-enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_BAR_BORDER_WIDTH, SWM_S_STACK_ENABLED,
-	  SWM_S_CLOCK_ENABLED, SWM_S_CLOCK_FORMAT, SWM_S_CYCLE_EMPTY,
-	  SWM_S_CYCLE_VISIBLE, SWM_S_SS_ENABLED, SWM_S_TERM_WIDTH,
-	  SWM_S_TITLE_CLASS_ENABLED, SWM_S_TITLE_NAME_ENABLED, SWM_S_WINDOW_NAME_ENABLED,
-	  SWM_S_FOCUS_MODE, SWM_S_DISABLE_BORDER, SWM_S_BORDER_WIDTH, SWM_S_BAR_FONT,
-	  SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM, SWM_S_SS_APP, SWM_S_DIALOG_RATIO,
-	  SWM_S_BAR_AT_BOTTOM
+enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_BAR_BORDER_WIDTH,
+	  SWM_S_STACK_ENABLED, SWM_S_CLOCK_ENABLED, SWM_S_CLOCK_FORMAT,
+	  SWM_S_CYCLE_EMPTY, SWM_S_CYCLE_VISIBLE, SWM_S_SS_ENABLED,
+	  SWM_S_TERM_WIDTH, SWM_S_TITLE_CLASS_ENABLED,
+	  SWM_S_TITLE_NAME_ENABLED, SWM_S_WINDOW_NAME_ENABLED,
+	  SWM_S_FOCUS_MODE, SWM_S_DISABLE_BORDER, SWM_S_BORDER_WIDTH,
+	  SWM_S_BAR_FONT, SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM,
+	  SWM_S_SS_APP, SWM_S_DIALOG_RATIO, SWM_S_BAR_AT_BOTTOM
 	};
 
 int
@@ -4964,8 +4981,8 @@ keypress(XEvent *e)
 	keysym = XKeycodeToKeysym(display, (KeyCode)ev->keycode, 0);
 	for (i = 0; i < keys_length; i++)
 		if (keysym == keys[i].keysym
-		   && CLEANMASK(keys[i].mod) == CLEANMASK(ev->state)
-		   && keyfuncs[keys[i].funcid].func) {
+		    && CLEANMASK(keys[i].mod) == CLEANMASK(ev->state)
+		    && keyfuncs[keys[i].funcid].func) {
 			if (keys[i].funcid == kf_spawn_custom)
 				spawn_custom(
 				    root_to_region(ev->root),
@@ -5409,7 +5426,8 @@ clientmessage(XEvent *e)
 			XKillClient(display, win->id);
 	}
 	if (ev->message_type == ewmh[_NET_MOVERESIZE_WINDOW].atom) {
-		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_MOVERESIZE_WINDOW \n");
+		DNPRINTF(SWM_D_EVENT,
+		    "clientmessage: _NET_MOVERESIZE_WINDOW \n");
 		if (win->floating) {
 			if (ev->data.l[0] & (1<<8)) /* x */
 				win->g.x = ev->data.l[1];
@@ -5429,7 +5447,8 @@ clientmessage(XEvent *e)
 		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_WM_STATE \n");
 		ewmh_update_win_state(win, ev->data.l[1], ev->data.l[0]);
 		if (ev->data.l[2])
-			ewmh_update_win_state(win, ev->data.l[2], ev->data.l[0]);
+			ewmh_update_win_state(win, ev->data.l[2],
+			    ev->data.l[0]);
 
 		stack();
 	}
