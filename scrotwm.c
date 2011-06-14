@@ -1976,6 +1976,9 @@ switchws(struct swm_region *r, union arg *args)
 	this_r->ws = new_ws;
 	new_ws->r = this_r;
 
+	/* this is needed so that we can click on a window after a restart */
+	unfocus_all();
+
 	stack();
 	a.id = SWM_ARG_ID_FOCUSCUR;
 	focus(new_ws->r, &a);
@@ -3210,7 +3213,6 @@ resize(struct ws_win *win, union arg *args)
 	Time			time = 0;
 	struct swm_region	*r = win->ws->r;
 	int			relx, rely;
-	union arg		a;
 
 
 	DNPRINTF(SWM_D_MOUSE, "resize: win %lu floating %d trans %lu\n",
@@ -3226,9 +3228,7 @@ resize(struct ws_win *win, union arg *args)
 	win->manual = 1;
 	ewmh_update_win_state(win, ewmh[_SWM_WM_STATE_MANUAL].atom,
 	    _NET_WM_STATE_ADD);
-	/* raise the window = move to last in window list */
-	a.id = SWM_ARG_ID_MOVELAST;
-	swapwin(r, &a);
+
 	stack();
 	if (focus_mode == SWM_FOCUS_DEFAULT)
 		drain_enter_notify();
@@ -3322,7 +3322,6 @@ move(struct ws_win *win, union arg *args)
 	XEvent			ev;
 	Time			time = 0;
 	struct swm_region	*r = win->ws->r;
-	union arg		a;
 
 	DNPRINTF(SWM_D_MOUSE, "move: win %lu floating %d trans %lu\n",
 	    win->id, win->floating, win->transient);
@@ -3333,16 +3332,12 @@ move(struct ws_win *win, union arg *args)
 
 	win->manual = 1;
 	if (win->floating == 0 && !win->transient) {
-		win->floating = 1;
 		ewmh_update_win_state(win, ewmh[_NET_WM_STATE_ABOVE].atom,
 		    _NET_WM_STATE_ADD);
 	}
 	ewmh_update_win_state(win, ewmh[_SWM_WM_STATE_MANUAL].atom,
 	    _NET_WM_STATE_ADD);
 
-	/* raise the window = move to last in window list */
-	a.id = SWM_ARG_ID_MOVELAST;
-	swapwin(r, &a);
 	stack();
 
 	if (XGrabPointer(display, win->id, False, MOUSEMASK, GrabModeAsync,
