@@ -1914,8 +1914,9 @@ focus_win(struct ws_win *win)
 	else {
 		/* use larger hammer since the window was killed somehow */
 		TAILQ_FOREACH(cfw, &win->ws->winlist, entry)
-			XSetWindowBorder(display, cfw->id,
-			    cfw->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
+			if (cfw->ws && cfw->ws->r && cfw->ws->r->s)
+				XSetWindowBorder(display, cfw->id,
+				    cfw->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
 	}
 
 	win->ws->focus = win;
