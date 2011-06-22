@@ -5882,8 +5882,6 @@ main(int argc, char *argv[])
 	if (cfile)
 		conf_load(cfile);
 
-	custom_region("screen[1]:1280x1009+0+15");
-
 	setup_ewmh();
 	/* set some values to work around bad programs */
 	workaround();
