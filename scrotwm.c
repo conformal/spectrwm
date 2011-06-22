@@ -3835,8 +3835,9 @@ setconfspawn(char *selector, char *value, int flags)
 			cp += (long)strspn(cp, " \t");
 		if (strlen(word) > 0) {
 			prog->argc++;
-			prog->argv = realloc(prog->argv,
-			    prog->argc * sizeof(char *));
+			if ((prog->argv = realloc(prog->argv,
+			    prog->argc * sizeof(char *))) == NULL)
+				err(1, "setconfspawn: realloc");
 			if ((prog->argv[prog->argc - 1] = strdup(word)) == NULL)
 				err(1, "setconfspawn: strdup");
 		}
@@ -3983,7 +3984,7 @@ setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid,
 		keys_size = 4;
 		DNPRINTF(SWM_D_KEY, "setkeybinding: init list %d\n", keys_size);
 		keys = malloc((size_t)keys_size * sizeof(struct key));
-		if (!keys) {
+		if (keys == NULL) {
 			fprintf(stderr, "malloc failed\n");
 			perror(" failed");
 			quit(NULL, NULL);
@@ -3992,7 +3993,7 @@ setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid,
 		keys_size *= 2;
 		DNPRINTF(SWM_D_KEY, "setkeybinding: grow list %d\n", keys_size);
 		keys = realloc(keys, (size_t)keys_size * sizeof(struct key));
-		if (!keys) {
+		if (keys == NULL) {
 			fprintf(stderr, "realloc failed\n");
 			perror(" failed");
 			quit(NULL, NULL);
@@ -4008,7 +4009,7 @@ setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid,
 		keys[j].spawn_name = strdupsafe(spawn_name);
 	} else {
 		fprintf(stderr, "keys array problem?\n");
-		if (!keys) {
+		if (keys == NULL) {
 			fprintf(stderr, "keys array problem\n");
 			quit(NULL, NULL);
 		}
@@ -4286,7 +4287,7 @@ setquirk(const char *class, const char *name, const int quirk)
 		quirks_size = 4;
 		DNPRINTF(SWM_D_QUIRK, "setquirk: init list %d\n", quirks_size);
 		quirks = malloc((size_t)quirks_size * sizeof(struct quirk));
-		if (!quirks) {
+		if (quirks == NULL) {
 			fprintf(stderr, "setquirk: malloc failed\n");
 			perror(" failed");
 			quit(NULL, NULL);
@@ -4296,7 +4297,7 @@ setquirk(const char *class, const char *name, const int quirk)
 		DNPRINTF(SWM_D_QUIRK, "setquirk: grow list %d\n", quirks_size);
 		quirks = realloc(quirks,
 		    (size_t)quirks_size * sizeof(struct quirk));
-		if (!quirks) {
+		if (quirks == NULL) {
 			fprintf(stderr, "setquirk: realloc failed\n");
 			perror(" failed");
 			quit(NULL, NULL);
@@ -4310,7 +4311,7 @@ setquirk(const char *class, const char *name, const int quirk)
 		quirks[j].quirk = quirk;
 	} else {
 		fprintf(stderr, "quirks array problem?\n");
-		if (!quirks) {
+		if (quirks == NULL) {
 			fprintf(stderr, "quirks array problem!\n");
 			quit(NULL, NULL);
 		}
@@ -5880,6 +5881,8 @@ main(int argc, char *argv[])
 	}
 	if (cfile)
 		conf_load(cfile);
+
+	custom_region("screen[1]:1280x1009+0+15");
 
 	setup_ewmh();
 	/* set some values to work around bad programs */
