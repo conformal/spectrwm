@@ -2380,7 +2380,7 @@ stack_config(struct swm_region *r, union arg *args)
 	if (ws->cur_layout->l_config != NULL)
 		ws->cur_layout->l_config(ws, args->id);
 
-	if (args->id != SWM_ARG_ID_STACKINIT);
+	if (args->id != SWM_ARG_ID_STACKINIT)
 		stack();
 }
 
