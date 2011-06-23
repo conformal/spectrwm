@@ -54,7 +54,7 @@
 static const char	*cvstag =
     "$scrotwm$";
 
-#define	SWM_VERSION	"0.9.31"
+#define	SWM_VERSION	"0.9.32"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -4766,20 +4766,39 @@ window_get_pid(Window win)
 	unsigned long		bytes_after_return = 0;
 	long			*pid = NULL;
 	long			ret = 0;
+	const char		*errstr;
+	unsigned char		*prop = NULL;
 
 	if (XGetWindowProperty(display, win,
 	    XInternAtom(display, "_NET_WM_PID", False), 0, 1, False,
 	    XA_CARDINAL, &actual_type_return, &actual_format_return,
 	    &nitems_return, &bytes_after_return,
 	    (unsigned char**)(void*)&pid) != Success)
-		return (0);
+		goto tryharder;
 	if (actual_type_return != XA_CARDINAL)
-		return (0);
+		goto tryharder;
 	if (pid == NULL)
-		return (0);
+		goto tryharder;
 
 	ret = *pid;
 	XFree(pid);
+
+	return (ret);
+
+tryharder:
+	if (XGetWindowProperty(display, win,
+	    XInternAtom(display, "_SWM_PID", False), 0, SWM_PROPLEN, False,
+	    XA_STRING, &actual_type_return, &actual_format_return,
+	    &nitems_return, &bytes_after_return, &prop) != Success)
+		return (0);
+	if (actual_type_return != XA_STRING)
+		return (0);
+	if (prop == NULL)
+		return (0);
+
+	ret = strtonum(prop, 0, UINT_MAX, &errstr);
+	/* ignore error because strtonum returns 0 anyway */
+	XFree(prop);
 
 	return (ret);
 }
