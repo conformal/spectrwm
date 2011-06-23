@@ -4524,8 +4524,9 @@ setautorun(char *selector, char *value, int flags)
 {
 	int			ws_id;
 	char			s[1024];
+	char			*ap, *sp = s;
 	union arg		a;
-	char			*real_args[] = { NULL, NULL };
+	int			argc = 0;
 	long			pid;
 	struct pid_e		*p;
 
@@ -4533,7 +4534,7 @@ setautorun(char *selector, char *value, int flags)
 		return (0);
 
 	bzero(s, sizeof s);
-	if (sscanf(value, "ws[%d]:%1023s", &ws_id, s) != 2)
+	if (sscanf(value, "ws[%d]:%1023c", &ws_id, s) != 2)
 		errx(1, "invalid autorun entry, should be 'ws:command'\n");
 	ws_id--;
 	if (ws_id < 0 || ws_id >= SWM_WS_MAX)
@@ -4546,13 +4547,27 @@ setautorun(char *selector, char *value, int flags)
 	 * used before AND not claimed by manage_window.  We get away with
 	 * altering it in the parent after INSERT because this can not be a race
 	 */
-	real_args[0] = s;
-	a.argv = real_args; /* XXX this sucks and should have args for real */
+	a.argv = NULL;
+	while ((ap = strsep(&sp, " \t")) != NULL) {
+		if (*ap == '\0')
+			continue;
+		DNPRINTF(SWM_D_SPAWN, "setautorun: arg [%s]\n", ap);
+		argc++;
+		if ((a.argv = realloc(a.argv, argc * sizeof(char *))) == NULL)
+			err(1, "setautorun: realloc");
+		a.argv[argc - 1] = ap;
+	}
+
+	if ((a.argv = realloc(a.argv, (argc + 1) * sizeof(char *))) == NULL)
+		err(1, "setautorun: realloc");
+	a.argv[argc] = NULL;
+
 	if ((pid = fork()) == 0) {
 		spawn(ws_id, &a, 1);
 		/* NOTREACHED */
 		_exit(1);
 	}
+	free(a.argv);
 
 	/* parent */
 	p = find_pid(pid);
