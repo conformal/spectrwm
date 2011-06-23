@@ -4589,7 +4589,7 @@ setautorun(char *selector, char *value, int flags)
 int
 setlayout(char *selector, char *value, int flags)
 {
-	int			ws_id, st, i;
+	int			ws_id, st, i, x, mg, ma, si;
 	char			s[1024];
 	struct workspace	*ws;
 
@@ -4597,7 +4597,8 @@ setlayout(char *selector, char *value, int flags)
 		return (0);
 
 	bzero(s, sizeof s);
-	if (sscanf(value, "ws[%d]:%1023c", &ws_id, s) != 2)
+	if (sscanf(value, "ws[%d]:%d:%d:%d:%1023c",
+	    &ws_id, &mg, &ma, &si, s) != 5)
 		errx(1, "invalid layout entry, should be 'ws[<idx>]:<type>'\n");
 	ws_id--;
 	if (ws_id < 0 || ws_id >= SWM_WS_MAX)
@@ -4615,6 +4616,30 @@ setlayout(char *selector, char *value, int flags)
 	for (i = 0; i < ScreenCount(display); i++) {
 		ws = (struct workspace *)&screens[i].ws;
 		ws[ws_id].cur_layout = &layouts[st];
+		if (st == SWM_MAX_STACK)
+			continue;
+
+		/* master grow */
+		for (x = 0; x < abs(mg); x++) {
+			ws[ws_id].cur_layout->l_config(&ws[ws_id],
+			    mg >= 0 ?  SWM_ARG_ID_MASTERGROW :
+			    SWM_ARG_ID_MASTERSHRINK);
+			stack();
+		}
+		/* master add */
+		for (x = 0; x < abs(ma); x++) {
+			ws[ws_id].cur_layout->l_config(&ws[ws_id],
+			    ma >= 0 ?  SWM_ARG_ID_MASTERADD :
+			    SWM_ARG_ID_MASTERDEL);
+			stack();
+		}
+		/* stack inc */
+		for (x = 0; x < abs(si); x++) {
+			ws[ws_id].cur_layout->l_config(&ws[ws_id],
+			    si >= 0 ?  SWM_ARG_ID_STACKINC :
+			    SWM_ARG_ID_STACKDEC);
+			stack();
+		}
 	}
 
 	return (0);
