@@ -292,6 +292,15 @@ struct ws_win {
 };
 TAILQ_HEAD(ws_win_list, ws_win);
 
+/* pid goo */
+struct pid_e {
+	TAILQ_ENTRY(pid_e)	entry;
+	long			pid;
+	int			ws;
+};
+TAILQ_HEAD(pid_list, pid_e);
+struct pid_list			pidlist = TAILQ_HEAD_INITIALIZER(pidlist);
+
 /* layout handlers */
 void	stack(void);
 void	vertical_config(struct workspace *, int);
@@ -1047,6 +1056,21 @@ sighdlr(int sig)
 	errno = saved_errno;
 }
 
+struct pid_e *
+find_pid(long pid)
+{
+	struct pid_e		*p = NULL;
+
+	DNPRINTF(SWM_D_MISC, "find_pid: %lu\n", pid);
+
+	TAILQ_FOREACH(p, &pidlist, entry) {
+		if (p->pid == pid)
+			return (p);
+	}
+
+	return (NULL);
+}
+
 unsigned long
 name_to_color(char *colorname)
 {
@@ -1687,7 +1711,7 @@ find_window(Window id)
 }
 
 void
-spawn(struct swm_region *r, union arg *args, int close_fd)
+spawn(int ws_idx, union arg *args, int close_fd)
 {
 	int			fd;
 	char			*ret = NULL;
@@ -1699,7 +1723,7 @@ spawn(struct swm_region *r, union arg *args, int close_fd)
 
 	setenv("LD_PRELOAD", SWM_LIB, 1);
 
-	if (asprintf(&ret, "%d", r->ws->idx) == -1) {
+	if (asprintf(&ret, "%d", ws_idx) == -1) {
 		perror("_SWM_WS");
 		_exit(1);
 	}
@@ -1747,10 +1771,11 @@ spawnterm(struct swm_region *r, union arg *args)
 {
 	DNPRINTF(SWM_D_MISC, "spawnterm\n");
 
-	if (term_width)
-		setenv("_SWM_XTERM_FONTADJ", "", 1);
-	if (fork() == 0)
-		spawn(r, args, 1);
+	if (fork() == 0) {
+		if (term_width)
+			setenv("_SWM_XTERM_FONTADJ", "", 1);
+		spawn(r->ws->idx, args, 1);
+	}
 }
 
 void
@@ -3678,7 +3703,7 @@ spawn_custom(struct swm_region *r, union arg *args, char *spawn_name)
 		return;
 	a.argv = real_args;
 	if (fork() == 0)
-		spawn(r, &a, 1);
+		spawn(r->ws->idx, &a, 1);
 
 	for (i = 0; i < spawn_argc; i++)
 		free(real_args[i]);
@@ -3714,7 +3739,7 @@ spawn_select(struct swm_region *r, union arg *args, char *spawn_name, int *pid)
 			errx(1, "dup2");
 		close(select_list_pipe[1]);
 		close(select_resp_pipe[0]);
-		spawn(r, &a, 0);
+		spawn(r->ws->idx, &a, 0);
 		break;
 	default: /* parent */
 		close(select_list_pipe[0]);
@@ -4491,6 +4516,56 @@ setconfregion(char *selector, char *value, int flags)
 	return (0);
 }
 
+int
+setautorun(char *selector, char *value, int flags)
+{
+	int			ws_id;
+	char			s[1024];
+	union arg		a;
+	char			*real_args[] = { NULL, NULL };
+	long			pid;
+	struct pid_e		*p;
+
+	if (getenv("SWM_STARTED"))
+		return (0);
+
+	bzero(s, sizeof s);
+	if (sscanf(value, "ws[%d]:%1023s", &ws_id, s) != 2)
+		errx(1, "invalid autorun entry, should be 'ws:command'\n");
+	ws_id--;
+	if (ws_id < 0 || ws_id >= SWM_WS_MAX)
+		errx(1, "invalid workspace %d\n", ws_id + 1);
+
+	/*
+	 * This is a little intricate
+	 *
+	 * If the pid already exists we simply reuse it because it means it was
+	 * used before AND not claimed by manage_window.  We get away with
+	 * altering it in the parent after INSERT because this can not be a race
+	 */
+	real_args[0] = s;
+	a.argv = real_args; /* XXX this sucks and should have args for real */
+	if ((pid = fork()) == 0) {
+		spawn(ws_id, &a, 1);
+		/* NOTREACHED */
+		_exit(1);
+	}
+
+	/* parent */
+	p = find_pid(pid);
+	if (p == NULL) {
+		p = calloc(1, sizeof *p);
+		if (p == NULL)
+			return (1);
+		TAILQ_INSERT_TAIL(&pidlist, p, entry);
+	}
+
+	p->pid = pid;
+	p->ws = ws_id;
+
+	return (0);
+}
+
 /* config options */
 struct config_option {
 	char			*optname;
@@ -4501,7 +4576,7 @@ struct config_option configopt[] = {
 	{ "bar_enabled",		setconfvalue,	SWM_S_BAR_ENABLED },
 	{ "bar_at_bottom",		setconfvalue,	SWM_S_BAR_AT_BOTTOM },
 	{ "bar_border",			setconfcolor,	SWM_S_COLOR_BAR_BORDER },
-	{ "bar_border_width",			setconfvalue,	SWM_S_BAR_BORDER_WIDTH },
+	{ "bar_border_width",		setconfvalue,	SWM_S_BAR_BORDER_WIDTH },
 	{ "bar_color",			setconfcolor,	SWM_S_COLOR_BAR },
 	{ "bar_font_color",		setconfcolor,	SWM_S_COLOR_BAR_FONT },
 	{ "bar_font",			setconfvalue,	SWM_S_BAR_FONT },
@@ -4527,9 +4602,10 @@ struct config_option configopt[] = {
 	{ "term_width",			setconfvalue,	SWM_S_TERM_WIDTH },
 	{ "title_class_enabled",	setconfvalue,	SWM_S_TITLE_CLASS_ENABLED },
 	{ "title_name_enabled",		setconfvalue,	SWM_S_TITLE_NAME_ENABLED },
-	{ "focus_mode",			setconfvalue,   SWM_S_FOCUS_MODE },
-	{ "disable_border",		setconfvalue,   SWM_S_DISABLE_BORDER },
-	{ "border_width",		setconfvalue,   SWM_S_BORDER_WIDTH },
+	{ "focus_mode",			setconfvalue,	SWM_S_FOCUS_MODE },
+	{ "disable_border",		setconfvalue,	SWM_S_DISABLE_BORDER },
+	{ "border_width",		setconfvalue,	SWM_S_BORDER_WIDTH },
+	{ "autorun",			setautorun,	0 },
 };
 
 
@@ -4678,6 +4754,29 @@ set_child_transient(struct ws_win *win, Window *trans)
 		XFree(wmh);
 }
 
+long
+window_get_pid(Window win)
+{
+	Atom			actual_type_return;
+	int			actual_format_return = 0;
+	unsigned long		nitems_return = 0;
+	unsigned long		bytes_after_return = 0;
+	long			*pid = 0;
+	long			ret = 0;
+
+	if (XGetWindowProperty(display, win,
+	    XInternAtom(display, "_NET_WM_PID", False), 0, 1, False,
+	    XA_CARDINAL, &actual_type_return, &actual_format_return,
+	    &nitems_return, &bytes_after_return,
+	    (unsigned char**)(void*)&pid) != Success)
+		return (0);
+
+	ret = pid[0];
+	XFree(pid);
+
+	return (ret);
+}
+
 struct ws_win *
 manage_window(Window id)
 {
@@ -4693,6 +4792,7 @@ manage_window(Window id)
 	long			mask;
 	const char		*errstr;
 	XWindowChanges		wc;
+	struct pid_e		*p;
 
 	if ((win = find_window(id)) != NULL)
 		return (win);	/* already being managed */
@@ -4717,11 +4817,15 @@ manage_window(Window id)
 
 	win->id = id;
 
+	/* see if we need to override the workspace */
+	p = find_pid(window_get_pid(id));
+
 	/* Get all the window data in one shot */
 	ws_idx_atom = XInternAtom(display, "_SWM_WS", False);
-	if (ws_idx_atom)
+	if (ws_idx_atom) {
 		XGetWindowProperty(display, id, ws_idx_atom, 0, SWM_PROPLEN,
 		    False, XA_STRING, &type, &format, &nitems, &bytes, &prop);
+	}
 	XGetWindowAttributes(display, id, &win->wa);
 	XGetWMNormalHints(display, id, &win->sh, &mask);
 	win->hints = XGetWMHints(display, id);
@@ -4753,7 +4857,12 @@ manage_window(Window id)
 	 * transient, * put it in the same workspace
 	 */
 	r = root_to_region(win->wa.root);
-	if (prop && win->transient == 0) {
+	if (p) {
+		ws = &r->s->ws[p->ws];
+		TAILQ_REMOVE(&pidlist, p, entry);
+		free(p);
+		p = NULL;
+	} else if (prop && win->transient == 0) {
 		DNPRINTF(SWM_D_PROP, "got property _SWM_WS=%s\n", prop);
 		ws_idx = strtonum(prop, 0, 9, &errstr);
 		if (errstr) {
@@ -5702,13 +5811,10 @@ setup_screens(void)
 	int			i, j, k;
 	int			errorbase, major, minor;
 	struct workspace	*ws;
-	int			ws_idx_atom;
 
 	if ((screens = calloc(ScreenCount(display),
 	     sizeof(struct swm_screen))) == NULL)
 		errx(1, "calloc: screens");
-
-	ws_idx_atom = XInternAtom(display, "_SWM_WS", False);
 
 	/* initial Xrandr setup */
 	xrandr_support = XRRQueryExtension(display,
@@ -5888,6 +5994,9 @@ main(int argc, char *argv[])
 
 	/* grab existing windows (before we build the bars) */
 	grab_windows();
+
+	if (getenv("SWM_STARTED") == NULL)
+		setenv("SWM_STARTED", "YES", 1);
 
 	/* setup all bars */
 	for (i = 0; i < ScreenCount(display); i++)
