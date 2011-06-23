@@ -120,6 +120,16 @@ so a custom clock could be used in the bar_action script.
 Some applications have dialogue windows that are too small to be useful.
 This ratio is the screen size to what they will be resized.
 For example, 0.6 is 60% of the physical screen size.
+.It Cm layout
+select layout to use at start-of-day.
+Defined in the format ws[<idx>]:<layout>, e.g. ws[2]:horizontal sets worskspace
+2 to the horizontal stack mode.
+This setting is not retained at restart.
+Possible values are
+.Pa vertical ,
+.Pa horizontal
+and
+.Pa fullscreen .
 .It Cm region
 Allocates a custom region, removing any autodetected regions which occupy the same
 space on the screen.

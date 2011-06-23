@@ -332,8 +332,10 @@ struct layout {
 	{ NULL,			NULL,			0,	NULL  },
 };
 
-/* position of max_stack mode in the layouts array */
-#define SWM_MAX_STACK		2
+/* position of max_stack mode in the layouts array, index into layouts! */
+#define SWM_V_STACK		(0)
+#define SWM_H_STACK		(1)
+#define SWM_MAX_STACK		(2)
 
 #define SWM_H_SLICE		(32)
 #define SWM_V_SLICE		(32)
@@ -4535,10 +4537,10 @@ setautorun(char *selector, char *value, int flags)
 
 	bzero(s, sizeof s);
 	if (sscanf(value, "ws[%d]:%1023c", &ws_id, s) != 2)
-		errx(1, "invalid autorun entry, should be 'ws:command'\n");
+		errx(1, "invalid autorun entry, should be 'ws[<idx>]:command'\n");
 	ws_id--;
 	if (ws_id < 0 || ws_id >= SWM_WS_MAX)
-		errx(1, "invalid workspace %d\n", ws_id + 1);
+		errx(1, "autorun: invalid workspace %d\n", ws_id + 1);
 
 	/*
 	 * This is a little intricate
@@ -4584,11 +4586,45 @@ setautorun(char *selector, char *value, int flags)
 	return (0);
 }
 
+int
+setlayout(char *selector, char *value, int flags)
+{
+	int			ws_id, st, i;
+	char			s[1024];
+	struct workspace	*ws;
+
+	if (getenv("SWM_STARTED"))
+		return (0);
+
+	bzero(s, sizeof s);
+	if (sscanf(value, "ws[%d]:%1023c", &ws_id, s) != 2)
+		errx(1, "invalid layout entry, should be 'ws[<idx>]:<type>'\n");
+	ws_id--;
+	if (ws_id < 0 || ws_id >= SWM_WS_MAX)
+		errx(1, "layout: invalid workspace %d\n", ws_id + 1);
+
+	if (!strcasecmp(s, "vertical"))
+		st = SWM_V_STACK;
+	else if (!strcasecmp(s, "horizontal"))
+		st = SWM_H_STACK;
+	else if (!strcasecmp(s, "fullscreen"))
+		st = SWM_MAX_STACK;
+	else
+		errx(1, "invalid layout entry, should be 'ws[<idx>]:<type>'\n");
+
+	for (i = 0; i < ScreenCount(display); i++) {
+		ws = (struct workspace *)&screens[i].ws;
+		ws[ws_id].cur_layout = &layouts[st];
+	}
+
+	return (0);
+}
+
 /* config options */
 struct config_option {
 	char			*optname;
-	int (*func)(char*, char*, int);
-	int funcflags;
+	int			(*func)(char*, char*, int);
+	int			funcflags;
 };
 struct config_option configopt[] = {
 	{ "bar_enabled",		setconfvalue,	SWM_S_BAR_ENABLED },
@@ -4624,6 +4660,7 @@ struct config_option configopt[] = {
 	{ "disable_border",		setconfvalue,	SWM_S_DISABLE_BORDER },
 	{ "border_width",		setconfvalue,	SWM_S_BORDER_WIDTH },
 	{ "autorun",			setautorun,	0 },
+	{ "layout",			setlayout,	0 },
 };
 
 
