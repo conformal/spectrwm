@@ -1063,6 +1063,9 @@ find_pid(long pid)
 
 	DNPRINTF(SWM_D_MISC, "find_pid: %lu\n", pid);
 
+	if (pid == 0)
+		return (NULL);
+
 	TAILQ_FOREACH(p, &pidlist, entry) {
 		if (p->pid == pid)
 			return (p);
@@ -4761,7 +4764,7 @@ window_get_pid(Window win)
 	int			actual_format_return = 0;
 	unsigned long		nitems_return = 0;
 	unsigned long		bytes_after_return = 0;
-	long			*pid = 0;
+	long			*pid = NULL;
 	long			ret = 0;
 
 	if (XGetWindowProperty(display, win,
@@ -4770,8 +4773,12 @@ window_get_pid(Window win)
 	    &nitems_return, &bytes_after_return,
 	    (unsigned char**)(void*)&pid) != Success)
 		return (0);
+	if (actual_type_return != XA_CARDINAL)
+		return (0);
+	if (pid == NULL)
+		return (0);
 
-	ret = pid[0];
+	ret = *pid;
 	XFree(pid);
 
 	return (ret);
