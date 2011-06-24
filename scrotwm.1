@@ -390,6 +390,8 @@ initscr
 iconify
 .It Cm M-S-w
 uniconify
+.It Cm M-S-r
+toggle always_raised
 .El
 .Pp
 The action names and descriptions are listed below:
@@ -495,6 +497,8 @@ above)
 Minimize (unmap) currently focused window.
 .It Cm uniconify
 Maximize (map) window returned by dmenu selection.
+.It Cm always_raise
+When set tiled windows are allowed to obscure floating windows.
 .El
 .Pp
 Custom bindings in the configuration file are specified as follows:

@@ -343,6 +343,7 @@ struct layout {
 /* define work spaces */
 struct workspace {
 	int			idx;		/* workspace index */
+	int			always_raise;	/* raise windows on focus */
 	struct layout		*cur_layout;	/* current layout handlers */
 	struct ws_win		*focus;		/* may be NULL */
 	struct ws_win		*focus_prev;	/* may be NULL */
@@ -1959,11 +1960,11 @@ focus_win(struct ws_win *win)
 		if (win->java == 0)
 			XSetInputFocus(display, win->id,
 			    RevertToParent, CurrentTime);
-		XMapRaised(display, win->id);
 		grabbuttons(win, 1);
 		XSetWindowBorder(display, win->id,
 		    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
-		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS)
+		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS ||
+		    win->ws->always_raise)
 			XMapRaised(display, win->id);
 
 		XChangeProperty(display, win->s->root,
@@ -3002,6 +3003,19 @@ send_to_ws(struct swm_region *r, union arg *args)
 }
 
 void
+raise_toggle(struct swm_region *r, union arg *args)
+{
+	if (r && r->ws == NULL)
+		return;
+
+	r->ws->always_raise = !r->ws->always_raise;
+
+	/* bring floaters back to top */
+	if (r->ws->always_raise == 0)
+		stack();
+}
+
+void
 iconify(struct swm_region *r, union arg *args)
 {
 	union arg a;
@@ -3486,6 +3500,7 @@ enum keyfuncid {
 	kf_spawn_custom,
 	kf_iconify,
 	kf_uniconify,
+	kf_raise_toggle,
 	kf_dumpwins, /* MUST BE LAST */
 	kf_invalid
 };
@@ -3562,6 +3577,7 @@ struct keyfunc {
 	{ "spawn_custom",	dummykeyfunc,	{0} },
 	{ "iconify",		iconify,	{0} },
 	{ "uniconify",		uniconify,	{0} },
+	{ "raise_toggle",	raise_toggle,	{0} },
 	{ "dumpwins",		dumpwins,	{0} }, /* MUST BE LAST */
 	{ "invalid key func",	NULL,		{0} },
 };
@@ -4153,6 +4169,7 @@ setup_keys(void)
 	setkeybinding(MODKEY|ShiftMask,	XK_i,		kf_spawn_custom,	"initscr");
 	setkeybinding(MODKEY,		XK_w,		kf_iconify,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_w,		kf_uniconify,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_r,		kf_raise_toggle,NULL);
 #ifdef SWM_DEBUG
 	setkeybinding(MODKEY|ShiftMask,	XK_d,		kf_dumpwins,	NULL);
 #endif
@@ -4589,7 +4606,7 @@ setautorun(char *selector, char *value, int flags)
 int
 setlayout(char *selector, char *value, int flags)
 {
-	int			ws_id, st, i, x, mg, ma, si;
+	int			ws_id, st, i, x, mg, ma, si, raise;
 	char			s[1024];
 	struct workspace	*ws;
 
@@ -4597,9 +4614,11 @@ setlayout(char *selector, char *value, int flags)
 		return (0);
 
 	bzero(s, sizeof s);
-	if (sscanf(value, "ws[%d]:%d:%d:%d:%1023c",
-	    &ws_id, &mg, &ma, &si, s) != 5)
-		errx(1, "invalid layout entry, should be 'ws[<idx>]:<type>'\n");
+	if (sscanf(value, "ws[%d]:%d:%d:%d:%d:%1023c",
+	    &ws_id, &mg, &ma, &si, &raise, s) != 6)
+		errx(1, "invalid layout entry, should be 'ws[<idx>]:"
+		    "<master_grow>:<master_add>:<stack_inc>:<always_raise>:"
+		    "<type>'\n");
 	ws_id--;
 	if (ws_id < 0 || ws_id >= SWM_WS_MAX)
 		errx(1, "layout: invalid workspace %d\n", ws_id + 1);
@@ -4611,11 +4630,15 @@ setlayout(char *selector, char *value, int flags)
 	else if (!strcasecmp(s, "fullscreen"))
 		st = SWM_MAX_STACK;
 	else
-		errx(1, "invalid layout entry, should be 'ws[<idx>]:<type>'\n");
+		errx(1, "invalid layout entry, should be 'ws[<idx>]:"
+		    "<master_grow>:<master_add>:<stack_inc>:<always_raise>:"
+		    "<type>'\n");
 
 	for (i = 0; i < ScreenCount(display); i++) {
 		ws = (struct workspace *)&screens[i].ws;
 		ws[ws_id].cur_layout = &layouts[st];
+
+		ws[ws_id].always_raise = raise;
 		if (st == SWM_MAX_STACK)
 			continue;
 
