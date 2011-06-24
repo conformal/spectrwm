@@ -122,10 +122,12 @@ This ratio is the screen size to what they will be resized.
 For example, 0.6 is 60% of the physical screen size.
 .It Cm layout
 select layout to use at start-of-day.
-Defined in the format ws[idx]:master_grow:master_add:stack_inc:layout, e.g.
-ws[2]:-4:0:1:horizontal sets worskspace 2 to the horizontal stack mode and
-shrinks the master area by 4 ticks and adds one window to the stack.
-Possible layout values are
+Defined in the format
+ws[idx]:master_grow:master_add:stack_inc:layout:always_raise:stack_mode, e.g.
+ws[2]:-4:0:1:0:horizontal sets worskspace 2 to the horizontal stack mode and
+shrinks the master area by 4 ticks and adds one window to the stack, while
+maintaining default floating window behavior.
+Possible stack_mode values are
 .Pa vertical ,
 .Pa horizontal
 and
@@ -137,8 +139,9 @@ See
 .Pa master_add ,
 .Pa master_del ,
 .Pa stack_inc ,
+.Pa stack_del ,
 and
-.Pa stack_del
+.Pa always_raise
 for more information.
 Note that the stacking options are complicated and have side-effects.
 One should familiarize oneself with these commands before experimenting with the
