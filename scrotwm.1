@@ -609,6 +609,81 @@ In the example above the quirk entry would be:
 .Bd -literal -offset indent
 quirk[Firefox:Navigator] = FLOAT
 .Ed
+.Pp
+.Nm
+also automatically assigns quirks to windows based on the value 
+of the window's _NET_WM_WINDOW_TYPE property as follows:
+.Pp
+.Bl -tag -width "_NET_WM_WINDOW_TYPE_TOOLBAR<TAB>XXX" -offset indent -compact
+.It _NET_WM_WINDOW_TYPE_DOCK
+FLOAT + ANYWHERE
+.It _NET_WM_WINDOW_TYPE_TOOLBAR
+FLOAT + ANYWHERE
+.It _NET_WM_WINDOW_TYPE_UTILITY
+FLOAT + ANYWHERE
+.It _NET_WM_WINDOW_TYPE_SPLASH
+FLOAT
+.It _NET_WM_WINDOW_TYPE_DIALOG
+FLOAT
+.El
+.Pp
+In all other cases, no automatic quirks are assigned to the window. 
+Quirks specified in the configuration file override the automatic quirks.
+.Sh EWMH
+.Nm
+partially implements the Extended Window Manager Hints (EWMH) specification. 
+This enables controlling windows as well as
+.Nm
+itself from external scripts and programs. This is achieved by 
+.Nm
+responding to certain ClientMessage events. From the terminal these events 
+can be conveniently sent using tools such as wmctrl and xdotool. For the 
+actual format of these ClientMessage events, see the EWMH specification.
+.Pp
+The id of the currently focused window is stored in the _NET_ACTIVE_WINDOW 
+property of the root window. This can be used for example to retrieve the 
+title of the currently active window with xprop(1) and grep(1):
+.Bd -literal -offset indent
+$ WINDOWID=`xprop -root _NET_ACTIVE_WINDOW | grep -o "0x.*"`
+$ xprop -id $WINDOWID WM_NAME | grep -o "\\".*\\""
+.Ed
+.Pp
+A window can be focused by sending a _NET_ACTIVE_WINDOW client message 
+to the root window. For example, using wmctrl to send the message 
+(assuming 0x4a0000b is the id of the window to be focused):
+.Bd -literal -offset indent
+$ wmctrl -i -a 0x4a0000b
+.Ed
+.Pp
+Windows can be closed by sending a _NET_CLOSE_WINDOW client message 
+to the root window. For example, using wmctrl to send the message 
+(assuming 0x4a0000b is the id of the window to be closed):
+.Bd -literal -offset indent
+$ wmctrl -i -c 0x4a0000b
+.Ed
+.Pp
+Windows can be floated and un-floated by adding or removing the 
+_NET_WM_STATE_ABOVE atom from the _NET_WM_STATE property of the window. 
+This can be achieved by sending a _NET_WM_STATE client message to the 
+root window. For example, the following toggles the floating state of 
+a window using wmctrl to send the message (assuming 0x4a0000b is the 
+id of the window floated or un-floated):
+.Bd -literal -offset indent
+$ wmctrl -i -r 0x4a0000b -b toggle,_NET_WM_STATE_ABOVE
+.Ed
+.Pp
+Floating windows can also be resized and moved by sending a 
+_NET_MOVERESIZE_WINDOW client message to the root window. For example, 
+using wmctrl to send the message (assuming 0x4a0000b is the id of 
+the window to be resize/moved):
+.Bd -literal -offset indent
+$ wmctrl -i -r 0x4a0000b -e 0,100,50,640,480
+.Ed
+.Pp
+This moves the window to (100,50) and resizes it to 640x480.
+.Pp
+Any _NET_MOVERESIZE_WINDOW events received for stacked windows are ignored.
+.Pp
 .Sh SIGNALS
 Sending
 .Nm
