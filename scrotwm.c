@@ -227,6 +227,7 @@ int			window_name_enabled = 0;
 int			focus_mode = SWM_FOCUS_DEFAULT;
 int			disable_border = 0;
 int			border_width = 1;
+int			verbose_layout = 0;
 pid_t			bar_pid;
 GC			bar_gc;
 XGCValues		bar_gcv;
@@ -309,6 +310,8 @@ void	vertical_stack(struct workspace *, struct swm_geometry *);
 void	horizontal_config(struct workspace *, int);
 void	horizontal_stack(struct workspace *, struct swm_geometry *);
 void	max_stack(struct workspace *, struct swm_geometry *);
+void	plain_stacker(struct workspace *);
+void	fancy_stacker(struct workspace *);
 
 struct ws_win *find_window(Window);
 
@@ -323,13 +326,13 @@ struct layout {
 	u_int32_t	flags;
 #define SWM_L_FOCUSPREV		(1<<0)
 #define SWM_L_MAPONFOCUS	(1<<1)
-	char		*name;
+	void		(*l_string)(struct workspace *);
 } layouts[] =  {
 	/* stack,		configure */
-	{ vertical_stack,	vertical_config,	0,	"[|]" },
-	{ horizontal_stack,	horizontal_config,	0,	"[-]" },
+	{ vertical_stack,	vertical_config,	0,	fancy_stacker },
+	{ horizontal_stack,	horizontal_config,	0,	fancy_stacker },
 	{ max_stack,		NULL,
-	  SWM_L_MAPONFOCUS | SWM_L_FOCUSPREV,			"[ ]" },
+	  SWM_L_MAPONFOCUS | SWM_L_FOCUSPREV,			fancy_stacker },
 	{ NULL,			NULL,			0,	NULL  },
 };
 
@@ -352,6 +355,7 @@ struct workspace {
 	struct swm_region	*old_r;		/* may be NULL */
 	struct ws_win_list	winlist;	/* list of windows in ws */
 	struct ws_win_list	unmanagedlist;	/* list of dead windows in ws */
+	char			stacker[10];	/* display stacker and layout */
 
 	/* stacker state */
 	struct {
@@ -1124,6 +1128,28 @@ setscreencolor(char *val, int i, int c)
 }
 
 void
+fancy_stacker(struct workspace *ws)
+{
+	strcpy(ws->stacker, "[   ]");
+	if (ws->cur_layout->l_stack == vertical_stack)
+		snprintf(ws->stacker, sizeof ws->stacker, "[%d|%d]",
+		    ws->l_state.vertical_mwin, ws->l_state.vertical_stacks);
+	if (ws->cur_layout->l_stack == horizontal_stack)
+		snprintf(ws->stacker, sizeof ws->stacker, "[%d-%d]",
+		    ws->l_state.horizontal_mwin, ws->l_state.horizontal_stacks);
+}
+
+void
+plain_stacker(struct workspace *ws)
+{
+	strcpy(ws->stacker, "[ ]");
+	if (ws->cur_layout->l_stack == vertical_stack)
+		strcpy(ws->stacker, "[|]");
+	if (ws->cur_layout->l_stack == horizontal_stack)
+		strcpy(ws->stacker, "[-]");
+}
+
+void
 custom_region(char *val)
 {
 	unsigned int			sidx, x, y, w, h;
@@ -1247,7 +1273,6 @@ bar_update(void)
 	char			cn[SWM_BAR_MAX];
 	char			loc[SWM_BAR_MAX];
 	char			*b;
-	char			*stack = "";
 
 	if (bar_enabled == 0)
 		return;
@@ -1284,11 +1309,8 @@ bar_update(void)
 				bar_window_name(cn, sizeof cn, r->ws->focus);
 			}
 
-			if (stack_enabled)
-				stack = r->ws->cur_layout->name;
-
 			snprintf(loc, sizeof loc, "%d:%d %s   %s%s    %s    %s",
-			    x++, r->ws->idx + 1, stack, s, cn, bar_ext,
+			    x++, r->ws->idx + 1, r->ws->stacker, s, cn, bar_ext,
 			    bar_vertext);
 			bar_print(r, loc);
 		}
@@ -2414,6 +2436,7 @@ stack_config(struct swm_region *r, union arg *args)
 
 	if (args->id != SWM_ARG_ID_STACKINIT)
 		stack();
+	bar_update();
 }
 
 void
@@ -2440,6 +2463,7 @@ stack(void) {
 				g.h -= bar_height;
 			}
 			r->ws->cur_layout->l_stack(r->ws, &g);
+			r->ws->cur_layout->l_string(r->ws);
 			/* save r so we can track region changes */
 			r->ws->old_r = r;
 		}
@@ -4412,12 +4436,14 @@ enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_BAR_BORDER_WIDTH,
 	  SWM_S_TITLE_NAME_ENABLED, SWM_S_WINDOW_NAME_ENABLED,
 	  SWM_S_FOCUS_MODE, SWM_S_DISABLE_BORDER, SWM_S_BORDER_WIDTH,
 	  SWM_S_BAR_FONT, SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM,
-	  SWM_S_SS_APP, SWM_S_DIALOG_RATIO, SWM_S_BAR_AT_BOTTOM
+	  SWM_S_SS_APP, SWM_S_DIALOG_RATIO, SWM_S_BAR_AT_BOTTOM,
+	  SWM_S_VERBOSE_LAYOUT
 	};
 
 int
 setconfvalue(char *selector, char *value, int flags)
 {
+	int i;
 	switch (flags) {
 	case SWM_S_BAR_DELAY:
 		bar_delay = atoi(value);
@@ -4502,6 +4528,15 @@ setconfvalue(char *selector, char *value, int flags)
 		dialog_ratio = atof(value);
 		if (dialog_ratio > 1.0 || dialog_ratio <= .3)
 			dialog_ratio = .6;
+		break;
+	case SWM_S_VERBOSE_LAYOUT:
+		verbose_layout = atoi(value);
+		for (i=0; layouts[i].l_stack != NULL; i++) {
+			if (verbose_layout)
+				layouts[i].l_string = fancy_stacker;
+			else
+				layouts[i].l_string = plain_stacker;
+		}
 		break;
 	default:
 		return (1);
@@ -4694,6 +4729,7 @@ struct config_option configopt[] = {
 	{ "cycle_empty",		setconfvalue,	SWM_S_CYCLE_EMPTY },
 	{ "cycle_visible",		setconfvalue,	SWM_S_CYCLE_VISIBLE },
 	{ "dialog_ratio",		setconfvalue,	SWM_S_DIALOG_RATIO },
+	{ "verbose_layout",		setconfvalue,	SWM_S_VERBOSE_LAYOUT },
 	{ "modkey",			setconfmodkey,	0 },
 	{ "program",			setconfspawn,	0 },
 	{ "quirk",			setconfquirk,	0 },
@@ -5985,6 +6021,7 @@ setup_screens(void)
 					layouts[k].l_config(ws,
 					    SWM_ARG_ID_STACKINIT);
 			ws->cur_layout = &layouts[0];
+			ws->cur_layout->l_string(ws);
 		}
 
 		scan_xrandr(i);
