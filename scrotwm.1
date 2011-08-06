@@ -177,6 +177,13 @@ Enable by setting to 1
 .It Cm title_name_enabled
 Enable or disable displaying the window title in the status bar.
 Enable by setting to 1
+.It Cm urgent_enabled
+Enable or disable the urgency hint.
+Note that many terminal emulators require this to be enabled for it to
+propagate.  In xterm, for example, one needs to add the following line
+.Pa xterm.urgentOnBell: true
+to
+.Pa .Xdefaults .
 .It Cm window_name_enabled
 Enable or disable displaying the window name in the status bar.
 Enable by setting to 1

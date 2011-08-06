@@ -220,6 +220,7 @@ int			bar_verbose = 1;
 int			bar_height = 0;
 int			stack_enabled = 1;
 int			clock_enabled = 1;
+int			urgent_enabled = 0;
 char			*clock_format = NULL;
 int			title_name_enabled = 0;
 int			title_class_enabled = 0;
@@ -329,10 +330,10 @@ struct layout {
 	void		(*l_string)(struct workspace *);
 } layouts[] =  {
 	/* stack,		configure */
-	{ vertical_stack,	vertical_config,	0,	fancy_stacker },
-	{ horizontal_stack,	horizontal_config,	0,	fancy_stacker },
+	{ vertical_stack,	vertical_config,	0,	plain_stacker },
+	{ horizontal_stack,	horizontal_config,	0,	plain_stacker },
 	{ max_stack,		NULL,
-	  SWM_L_MAPONFOCUS | SWM_L_FOCUSPREV,			fancy_stacker },
+	  SWM_L_MAPONFOCUS | SWM_L_FOCUSPREV,			plain_stacker },
 	{ NULL,			NULL,			0,	NULL  },
 };
 
@@ -1262,6 +1263,40 @@ bar_window_name(char *s, ssize_t sz, struct ws_win *cur_focus)
 }
 
 void
+bar_urgent(char *s, ssize_t sz)
+{
+	XWMHints		*wmh = NULL;
+	struct ws_win		*win;
+	int			i, j, got_some = 0;
+	char			a[32], b[8];
+
+	if (urgent_enabled == 0)
+		return;
+
+	a[0] = '\0';
+	for (i = 0; i < ScreenCount(display); i++)
+		for (j = 0; j < SWM_WS_MAX; j++)
+			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry) {
+				wmh = XGetWMHints(display, win->id);
+				if (wmh == NULL)
+					continue;
+
+				if (wmh->flags & XUrgencyHint) {
+					snprintf(b, sizeof b, "%d ", j + 1);
+					strlcat(a, b, sizeof a);
+					got_some = 1;
+				}
+				XFree(wmh);
+			}
+
+	if (got_some) {
+		strlcat(s, a, sz);
+		strlcat(s, "   ", sz);
+	 } else
+		strlcat(s, "    ", sz);
+}
+
+void
 bar_update(void)
 {
 	time_t			tmt;
@@ -1305,6 +1340,7 @@ bar_update(void)
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
 			strlcpy(cn, "", sizeof cn);
 			if (r && r->ws) {
+				bar_urgent(cn, sizeof cn);
 				bar_class_name(cn, sizeof cn, r->ws->focus);
 				bar_window_name(cn, sizeof cn, r->ws->focus);
 			}
@@ -4433,7 +4469,7 @@ enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_BAR_BORDER_WIDTH,
 	  SWM_S_STACK_ENABLED, SWM_S_CLOCK_ENABLED, SWM_S_CLOCK_FORMAT,
 	  SWM_S_CYCLE_EMPTY, SWM_S_CYCLE_VISIBLE, SWM_S_SS_ENABLED,
 	  SWM_S_TERM_WIDTH, SWM_S_TITLE_CLASS_ENABLED,
-	  SWM_S_TITLE_NAME_ENABLED, SWM_S_WINDOW_NAME_ENABLED,
+	  SWM_S_TITLE_NAME_ENABLED, SWM_S_WINDOW_NAME_ENABLED, SWM_S_URGENT_ENABLED,
 	  SWM_S_FOCUS_MODE, SWM_S_DISABLE_BORDER, SWM_S_BORDER_WIDTH,
 	  SWM_S_BAR_FONT, SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM,
 	  SWM_S_SS_APP, SWM_S_DIALOG_RATIO, SWM_S_BAR_AT_BOTTOM,
@@ -4491,6 +4527,9 @@ setconfvalue(char *selector, char *value, int flags)
 	case SWM_S_TITLE_NAME_ENABLED:
 		title_name_enabled = atoi(value);
 		break;
+	case SWM_S_URGENT_ENABLED:
+		urgent_enabled = atoi(value);
+		break;
 	case SWM_S_FOCUS_MODE:
 		if (!strcmp(value, "default"))
 			focus_mode = SWM_FOCUS_DEFAULT;
@@ -4531,7 +4570,7 @@ setconfvalue(char *selector, char *value, int flags)
 		break;
 	case SWM_S_VERBOSE_LAYOUT:
 		verbose_layout = atoi(value);
-		for (i=0; layouts[i].l_stack != NULL; i++) {
+		for (i = 0; layouts[i].l_stack != NULL; i++) {
 			if (verbose_layout)
 				layouts[i].l_string = fancy_stacker;
 			else
@@ -4738,6 +4777,7 @@ struct config_option configopt[] = {
 	{ "screenshot_enabled",		setconfvalue,	SWM_S_SS_ENABLED },
 	{ "screenshot_app",		setconfvalue,	SWM_S_SS_APP },
 	{ "window_name_enabled",	setconfvalue,	SWM_S_WINDOW_NAME_ENABLED },
+	{ "urgent_enabled",		setconfvalue,	SWM_S_URGENT_ENABLED },
 	{ "term_width",			setconfvalue,	SWM_S_TERM_WIDTH },
 	{ "title_class_enabled",	setconfvalue,	SWM_S_TITLE_CLASS_ENABLED },
 	{ "title_name_enabled",		setconfvalue,	SWM_S_TITLE_NAME_ENABLED },
