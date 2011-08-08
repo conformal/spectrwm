@@ -405,7 +405,9 @@ iconify
 .It Cm M-S-w
 uniconify
 .It Cm M-S-r
-toggle always_raised
+always_raise
+.It Cm M-v
+button2
 .El
 .Pp
 The action names and descriptions are listed below:
@@ -513,6 +515,8 @@ Minimize (unmap) currently focused window.
 Maximize (map) window returned by dmenu selection.
 .It Cm always_raise
 When set tiled windows are allowed to obscure floating windows.
+.It Cm button2
+Fake a middle mouse button click (mouse button 2).
 .El
 .Pp
 Custom bindings in the configuration file are specified as follows:

@@ -87,6 +87,7 @@ static const char	*cvstag =
 #include <X11/Xproto.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/Xrandr.h>
+#include <X11/extensions/XTest.h>
 
 #ifdef __OSX__
 #include <osx.h>
@@ -3064,6 +3065,14 @@ send_to_ws(struct swm_region *r, union arg *args)
 }
 
 void
+pressbutton(struct swm_region *r, union arg *args)
+{
+fprintf(stderr, "%d\n", args->id);
+	XTestFakeButtonEvent(display, args->id, True, CurrentTime);
+	XTestFakeButtonEvent(display, args->id, False, CurrentTime);
+}
+
+void
 raise_toggle(struct swm_region *r, union arg *args)
 {
 	if (r && r->ws == NULL)
@@ -3562,6 +3571,7 @@ enum keyfuncid {
 	kf_iconify,
 	kf_uniconify,
 	kf_raise_toggle,
+	kf_button2,
 	kf_dumpwins, /* MUST BE LAST */
 	kf_invalid
 };
@@ -3639,6 +3649,7 @@ struct keyfunc {
 	{ "iconify",		iconify,	{0} },
 	{ "uniconify",		uniconify,	{0} },
 	{ "raise_toggle",	raise_toggle,	{0} },
+	{ "button2",		pressbutton,	{2} },
 	{ "dumpwins",		dumpwins,	{0} }, /* MUST BE LAST */
 	{ "invalid key func",	NULL,		{0} },
 };
@@ -4231,6 +4242,7 @@ setup_keys(void)
 	setkeybinding(MODKEY,		XK_w,		kf_iconify,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_w,		kf_uniconify,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_r,		kf_raise_toggle,NULL);
+	setkeybinding(MODKEY,		XK_v,		kf_button2,	NULL);
 #ifdef SWM_DEBUG
 	setkeybinding(MODKEY|ShiftMask,	XK_d,		kf_dumpwins,	NULL);
 #endif
@@ -6195,7 +6207,6 @@ main(int argc, char *argv[])
 	setup_ewmh();
 	/* set some values to work around bad programs */
 	workaround();
-
 	/* grab existing windows (before we build the bars) */
 	grab_windows();
 
