@@ -3067,7 +3067,6 @@ send_to_ws(struct swm_region *r, union arg *args)
 void
 pressbutton(struct swm_region *r, union arg *args)
 {
-fprintf(stderr, "%d\n", args->id);
 	XTestFakeButtonEvent(display, args->id, True, CurrentTime);
 	XTestFakeButtonEvent(display, args->id, False, CurrentTime);
 }
