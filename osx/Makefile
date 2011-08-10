@@ -2,7 +2,7 @@
 
 CFLAGS+= -O2 -Wall -ggdb -D_GNU_SOURCE -D__OSX__ -I.
 CFLAGS+= -DSWM_LIB=\"$(LIBDIR)/libswmhack.so.$(LVERS)\"
-LDADD+=  -L/usr/X11/lib/ -lX11 -lXrandr
+LDADD+=  -L/usr/X11/lib/ -lX11 -lXrandr -lXtst
 
 PREFIX?= /usr/local
 BINDIR?= $(PREFIX)/bin
