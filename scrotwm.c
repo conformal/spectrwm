@@ -1263,18 +1263,21 @@ bar_window_name(char *s, ssize_t sz, struct ws_win *cur_focus)
 	}
 }
 
+int		urgent[SWM_WS_MAX];
 void
 bar_urgent(char *s, ssize_t sz)
 {
 	XWMHints		*wmh = NULL;
 	struct ws_win		*win;
-	int			i, j, got_some = 0;
-	char			a[32], b[8];
+	int			i, j;
+	char			b[8];
 
 	if (urgent_enabled == 0)
 		return;
 
-	a[0] = '\0';
+	for (i = 0; i < SWM_WS_MAX; i++)
+		urgent[i] = 0;
+
 	for (i = 0; i < ScreenCount(display); i++)
 		for (j = 0; j < SWM_WS_MAX; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry) {
@@ -1282,19 +1285,20 @@ bar_urgent(char *s, ssize_t sz)
 				if (wmh == NULL)
 					continue;
 
-				if (wmh->flags & XUrgencyHint) {
-					snprintf(b, sizeof b, "%d ", j + 1);
-					strlcat(a, b, sizeof a);
-					got_some = 1;
-				}
+				if (wmh->flags & XUrgencyHint)
+					urgent[j] = 1;
 				XFree(wmh);
 			}
 
-	if (got_some) {
-		strlcat(s, a, sz);
-		strlcat(s, "   ", sz);
-	 } else
-		strlcat(s, "    ", sz);
+	strlcat(s, "* ", sz);
+	for (i = 0; i < SWM_WS_MAX; i++) {
+		if (urgent[i])
+			snprintf(b, sizeof b, "%d ", i + 1);
+		else
+			snprintf(b, sizeof b, "- ");
+		strlcat(s, b, sz);
+	}
+	strlcat(s, "*    ", sz);
 }
 
 void
