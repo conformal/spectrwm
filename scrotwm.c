@@ -614,12 +614,11 @@ void
 ewmh_autoquirk(struct ws_win *win)
 {
 	int			success, i;
-	unsigned long		*data = NULL;
-	unsigned long		n;
+	unsigned long		*data = NULL, n;
 	Atom			type;
 
 	success = get_property(win->id, ewmh[_NET_WM_WINDOW_TYPE].atom, (~0L),
-	    XA_ATOM, &n, (unsigned char **)&data);
+	    XA_ATOM, &n, (void *)&data);
 
 	if (!success) {
 		XFree(data);
@@ -808,7 +807,7 @@ ewmh_get_win_state(struct ws_win *win)
 		win->ewmh_flags |= SWM_F_MANUAL;
 
 	success = get_property(win->id, ewmh[_NET_WM_STATE].atom,
-	    (~0L), XA_ATOM, &n, (unsigned char **)&states);
+	    (~0L), XA_ATOM, &n, (void *)&states);
 
 	if (!success)
 		return;
@@ -3058,7 +3057,8 @@ send_to_ws(struct swm_region *r, union arg *args)
 	/* Try to update the window's workspace property */
 	ws_idx_atom = XInternAtom(display, "_SWM_WS", False);
 	if (ws_idx_atom &&
-	    snprintf(ws_idx_str, SWM_PROPLEN, "%d", nws->idx) < SWM_PROPLEN) {
+	    snprintf((char *)ws_idx_str, SWM_PROPLEN, "%d", nws->idx) <
+	        SWM_PROPLEN) {
 		DNPRINTF(SWM_D_PROP, "setting property _SWM_WS to %s\n",
 		    ws_idx_str);
 		XChangeProperty(display, win->id, ws_idx_atom, XA_STRING, 8,
@@ -3139,7 +3139,7 @@ uniconify(struct swm_region *r, union arg *args)
 {
 	struct ws_win		*win;
 	FILE			*lfile;
-	char			*name;
+	unsigned char		*name;
 	int			count = 0;
 	unsigned long		len;
 
@@ -3190,7 +3190,8 @@ search_do_resp(void)
 {
 	ssize_t			rbytes;
 	struct ws_win		*win;
-	char			*name, *resp, *s;
+	unsigned char		*name;
+	char			*resp, *s;
 	unsigned long		len;
 
 	DNPRINTF(SWM_D_MISC, "search_do_resp:\n");
@@ -4988,7 +4989,7 @@ tryharder:
 	if (prop == NULL)
 		return (0);
 
-	ret = strtonum(prop, 0, UINT_MAX, &errstr);
+	ret = strtonum((const char *)prop, 0, UINT_MAX, &errstr);
 	/* ignore error because strtonum returns 0 anyway */
 	XFree(prop);
 
@@ -5082,7 +5083,7 @@ manage_window(Window id)
 		p = NULL;
 	} else if (prop && win->transient == 0) {
 		DNPRINTF(SWM_D_PROP, "got property _SWM_WS=%s\n", prop);
-		ws_idx = strtonum(prop, 0, 9, &errstr);
+		ws_idx = strtonum((const char *)prop, 0, 9, &errstr);
 		if (errstr) {
 			DNPRINTF(SWM_D_EVENT, "window idx is %s: %s",
 			    errstr, prop);
@@ -5123,7 +5124,8 @@ manage_window(Window id)
 
 	/* Set window properties so we can remember this after reincarnation */
 	if (ws_idx_atom && prop == NULL &&
-	    snprintf(ws_idx_str, SWM_PROPLEN, "%d", ws->idx) < SWM_PROPLEN) {
+	    snprintf((char *)ws_idx_str, SWM_PROPLEN, "%d", ws->idx) <
+	        SWM_PROPLEN) {
 		DNPRINTF(SWM_D_PROP, "setting property _SWM_WS to %s\n",
 		    ws_idx_str);
 		XChangeProperty(display, win->id, ws_idx_atom, XA_STRING, 8,
