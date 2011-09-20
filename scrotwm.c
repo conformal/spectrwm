@@ -1166,8 +1166,8 @@ custom_region(char *val)
 	if (w < 1 || h < 1)
 		errx(1, "region %ux%u+%u+%u too small\n", w, h, x, y);
 
-	if (x  < 0 || x > DisplayWidth(display, sidx) ||
-	    y < 0 || y > DisplayHeight(display, sidx) ||
+	if (x > DisplayWidth(display, sidx) ||
+	    y > DisplayHeight(display, sidx) ||
 	    w + x > DisplayWidth(display, sidx) ||
 	    h + y > DisplayHeight(display, sidx)) {
 		fprintf(stderr, "ignoring region %ux%u+%u+%u "
