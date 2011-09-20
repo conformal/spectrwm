@@ -81,8 +81,8 @@ The file supports the following keywords:
 .Bl -tag -width "title_class_enabledXXX" -offset indent -compact
 .It Cm autorun
 Launch an application in a specified workspace at start-of-day.
-Defined in the format ws[<idx>]:application, e.g. ws[2]:xterm launches and
-xterm in workspace 2
+Defined in the format ws[<idx>]:application, e.g. ws[2]:xterm launches an
+xterm in workspace 2.
 .It Cm color_focus
 Border color of the currently focussed window.
 .It Cm color_unfocus
@@ -91,10 +91,10 @@ Border color of unfocussed windows.
 Enable or disable status bar.
 .It Cm bar_border Ns Bq Ar x
 Color of the status bar border in screen
+.Ar x .
 .It Cm bar_border_width
 Set status bar border thickness in pixels.
-Disable border by setting to 0
-.Ar x .
+Disable border by setting to 0.
 .It Cm bar_color Ns Bq Ar x
 Color of the status bar window in screen
 .Ar x .
@@ -115,13 +115,15 @@ Enable or disable displaying the current stacking algorithm in the status bar.
 .It Cm clock_enabled
 Enable or disable displaying the clock in the status bar.
 Disable by setting to 0
-so a custom clock could be used in the bar_action script.
+so a custom clock could be used in the
+.Pa bar_action
+script.
 .It Cm dialog_ratio
 Some applications have dialogue windows that are too small to be useful.
 This ratio is the screen size to what they will be resized.
 For example, 0.6 is 60% of the physical screen size.
 .It Cm layout
-select layout to use at start-of-day.
+Select layout to use at start-of-day.
 Defined in the format
 ws[idx]:master_grow:master_add:stack_inc:layout:always_raise:stack_mode, e.g.
 ws[2]:-4:0:1:0:horizontal sets worskspace 2 to the horizontal stack mode and
@@ -154,8 +156,12 @@ Allocates a custom region, removing any autodetected regions which occupy the sa
 space on the screen.
 Defined in the format screen[<idx>]:WIDTHxHEIGHT+X+Y,
 e.g.\& screen[1]:800x1200+0+0.
+.Pp
+To make a screen span multiple monitors, create a region big enough to cover
+them all, e.g. screen[1]:2048x768+0+0 makes the screen span two monitors with
+1024x768 resolution sitting one next to the other.
 .It Cm term_width
-Set a preferred minimum width for the terminal
+Set a preferred minimum width for the terminal.
 If this value is greater than 0,
 .Nm
 will attempt to adjust the font sizes in the terminal to keep the terminal
@@ -173,10 +179,10 @@ section) to use an alternate copy of the
 binary without the setgid bit set.
 .It Cm title_class_enabled
 Enable or disable displaying the window class in the status bar.
-Enable by setting to 1
+Enable by setting to 1.
 .It Cm title_name_enabled
 Enable or disable displaying the window title in the status bar.
-Enable by setting to 1
+Enable by setting to 1.
 .It Cm urgent_enabled
 Enable or disable the urgency hint.
 Note that many terminal emulators require this to be enabled for it to
@@ -186,22 +192,24 @@ to
 .Pa .Xdefaults .
 .It Cm window_name_enabled
 Enable or disable displaying the window name in the status bar.
-Enable by setting to 1
+Enable by setting to 1.
 .It Cm verbose_layout
 Enable or disable displaying the current master and stack values in the status
 bar.
-Enable by setting to 1
+Enable by setting to 1.
 .It Cm modkey
 Change mod key.
 Mod1 is generally the ALT key and Mod4 is the windows key on a PC.
 .It Cm focus_mode
-Using a value of follow_cursor will make the window manager focus the window
+Using a value of
+.Pa follow_cursor
+will make the window manager focus the window
 under the mouse when switching workspaces and creating windows.
 .It Cm disable_border
 Remove border when bar is disabled and there is only one window on the screen.
 .It Cm border_width
 Set window border thickness in pixels.
-Disable all borders by setting to 0
+Disable all borders by setting to 0.
 .It Cm program Ns Bq Ar p
 Define new action to spawn a program
 .Ar p .
@@ -238,7 +246,8 @@ manpages.
 The 
 .Xr xfontsel 1
 application can help you to show the X Logical Font Description ("XLFD") used
-as setting in the keyword bar_font.
+as setting in the keyword
+.Pa bar_font .
 .Sh PROGRAMS
 .Nm
 allows you to define custom actions to launch programs of your choice and then
@@ -333,7 +342,6 @@ menu
 quit
 .It Cm M-q
 restart
-.Nm
 .It Cm M- Ns Aq Cm Space
 cycle_layout
 .It Cm M-S- Ns Aq Cm Space
@@ -417,98 +425,98 @@ The action names and descriptions are listed below:
 Spawn a new terminal
 (see
 .Sx PROGRAMS
-above)
+above).
 .It Cm menu
 Menu
 (see
 .Sx PROGRAMS
-above)
+above).
 .It Cm quit
 Quit
-.Nm
+.Nm .
 .It Cm restart
 Restart
-.Nm
+.Nm .
 .It Cm cycle_layout
-Cycle layout
+Cycle layout.
 .It Cm reset_layout
-Reset layout
+Reset layout.
 .It Cm master_shrink
-Shrink master area
+Shrink master area.
 .It Cm master_grow
-Grow master area
+Grow master area.
 .It Cm master_add
-Add windows to master area
+Add windows to master area.
 .It Cm master_del
-Remove windows from master area
+Remove windows from master area.
 .It Cm stack_inc
-Add columns/rows to stacking area
+Add columns/rows to stacking area.
 .It Cm stack_del
-Remove columns/rows from stacking area
+Remove columns/rows from stacking area.
 .It Cm swap_main
-Move current window to master area
+Move current window to master area.
 .It Cm focus_next
-Focus next window in workspace
+Focus next window in workspace.
 .It Cm focus_prev
-Focus previous window in workspace
+Focus previous window in workspace.
 .It Cm focus_main
-Focus on main window in workspace
+Focus on main window in workspace.
 .It Cm swap_next
-Swap with next window in workspace
+Swap with next window in workspace.
 .It Cm swap_prev
-Swap with previous window in workspace
+Swap with previous window in workspace.
 .It Cm bar_toggle
-Toggle status bar in all workspaces
+Toggle status bar in all workspaces.
 .It Cm wind_del
-Delete current window in workspace
+Delete current window in workspace.
 .It Cm wind_kill
-Destroy current window in workspace
+Destroy current window in workspace.
 .It Cm ws_ Ns Ar n
 Switch to workspace
 .Ar n ,
 where
 .Ar n
-is 1 through 10
+is 1 through 10.
 .It Cm mvws_ Ns Ar n
 Move current window to workspace
 .Ar n ,
 where
 .Ar n
-is 1 through 10
+is 1 through 10.
 .It Cm ws_next
-Switch to next workspace with a window in it
+Switch to next workspace with a window in it.
 .It Cm ws_prev
-Switch to previous workspace with a window in it
+Switch to previous workspace with a window in it.
 .It Cm ws_prior
-Switch to last visited workspace
+Switch to last visited workspace.
 .It Cm screen_next
-Move pointer to next region
+Move pointer to next region.
 .It Cm screen_prev
-Move pointer to previous region
+Move pointer to previous region.
 .It Cm screenshot_all
 Take screenshot of entire screen (if enabled)
 (see
 .Sx PROGRAMS
-above)
+above).
 .It Cm screenshot_wind
 Take screenshot of selected window (if enabled)
 (see
 .Sx PROGRAMS
-above)
+above).
 .It Cm version
-Toggle version in status bar
+Toggle version in status bar.
 .It Cm float_toggle
-Toggle focused window between tiled and floating
+Toggle focused window between tiled and floating.
 .It Cm lock
 Lock screen
 (see
 .Sx PROGRAMS
-above)
+above).
 .It Cm initscr
 Reinitialize physical screens
 (see
 .Sx PROGRAMS
-above)
+above).
 .It Cm iconify
 Minimize (unmap) currently focused window.
 .It Cm uniconify
@@ -652,47 +660,62 @@ This enables controlling windows as well as
 itself from external scripts and programs. This is achieved by 
 .Nm
 responding to certain ClientMessage events. From the terminal these events 
-can be conveniently sent using tools such as wmctrl and xdotool. For the 
+can be conveniently sent using tools such as
+.Xr wmctrl 1
+and
+.Xr xdotool 1 .
+For the
 actual format of these ClientMessage events, see the EWMH specification.
 .Pp
 The id of the currently focused window is stored in the _NET_ACTIVE_WINDOW 
 property of the root window. This can be used for example to retrieve the 
-title of the currently active window with xprop(1) and grep(1):
+title of the currently active window with
+.Xr xprop 1
+and
+.Xr grep 1 :
 .Bd -literal -offset indent
-$ WINDOWID=`xprop -root _NET_ACTIVE_WINDOW | grep -o "0x.*"`
-$ xprop -id $WINDOWID WM_NAME | grep -o "\\".*\\""
+$ WINDOWID=`xprop \-root _NET_ACTIVE_WINDOW | grep \-o "0x.*"`
+$ xprop \-id $WINDOWID WM_NAME | grep \-o "\\".*\\""
 .Ed
 .Pp
 A window can be focused by sending a _NET_ACTIVE_WINDOW client message 
-to the root window. For example, using wmctrl to send the message 
+to the root window. For example, using
+.Xr wmctrl 1
+to send the message
 (assuming 0x4a0000b is the id of the window to be focused):
 .Bd -literal -offset indent
-$ wmctrl -i -a 0x4a0000b
+$ wmctrl \-i \-a 0x4a0000b
 .Ed
 .Pp
 Windows can be closed by sending a _NET_CLOSE_WINDOW client message 
-to the root window. For example, using wmctrl to send the message 
+to the root window. For example, using
+.Xr wmctrl 1
+to send the message
 (assuming 0x4a0000b is the id of the window to be closed):
 .Bd -literal -offset indent
-$ wmctrl -i -c 0x4a0000b
+$ wmctrl \-i \-c 0x4a0000b
 .Ed
 .Pp
 Windows can be floated and un-floated by adding or removing the 
 _NET_WM_STATE_ABOVE atom from the _NET_WM_STATE property of the window. 
 This can be achieved by sending a _NET_WM_STATE client message to the 
 root window. For example, the following toggles the floating state of 
-a window using wmctrl to send the message (assuming 0x4a0000b is the 
-id of the window floated or un-floated):
+a window using
+.Xr wmctrl 1
+to send the message (assuming 0x4a0000b is the  id of the window floated
+or un-floated):
 .Bd -literal -offset indent
-$ wmctrl -i -r 0x4a0000b -b toggle,_NET_WM_STATE_ABOVE
+$ wmctrl \-i \-r 0x4a0000b \-b toggle,_NET_WM_STATE_ABOVE
 .Ed
 .Pp
 Floating windows can also be resized and moved by sending a 
 _NET_MOVERESIZE_WINDOW client message to the root window. For example, 
-using wmctrl to send the message (assuming 0x4a0000b is the id of 
+using
+.Xr wmctrl 1
+to send the message (assuming 0x4a0000b is the id of
 the window to be resize/moved):
 .Bd -literal -offset indent
-$ wmctrl -i -r 0x4a0000b -e 0,100,50,640,480
+$ wmctrl \-i \-r 0x4a0000b \-e 0,100,50,640,480
 .Ed
 .Pp
 This moves the window to (100,50) and resizes it to 640x480.
