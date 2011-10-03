@@ -416,6 +416,22 @@ uniconify
 always_raise
 .It Cm M-v
 button2
+.It Cm M--
+width_shrink
+.It Cm M-=
+width_grow
+.It Cm M-S-
+height_shrink
+.It Cm M-S-=
+height_grow
+.It Cm M-[
+move_left
+.It Cm M-]
+move_right
+.It Cm M-S-[
+move_up
+.It Cm M-S-]
+move_down
 .El
 .Pp
 The action names and descriptions are listed below:
@@ -525,6 +541,22 @@ Maximize (map) window returned by dmenu selection.
 When set tiled windows are allowed to obscure floating windows.
 .It Cm button2
 Fake a middle mouse button click (mouse button 2).
+.It Cm width_shrink
+Shrink the width of a floating window.
+.It Cm width_grow
+Grow the width of a floating window.
+.It Cm height_shrink
+Shrink the height of a floating window.
+.It Cm height_grow
+Grow the height of a floating window.
+.It Cm move_left
+Move a floating window a step to the left.
+.It Cm move_right
+Move a floating window a step to the right.
+.It Cm move_up
+Move a floating window a step upwards.
+.It Cm move_down
+Move a floating window a step downwards.
 .El
 .Pp
 Custom bindings in the configuration file are specified as follows:

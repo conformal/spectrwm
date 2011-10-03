@@ -420,6 +420,14 @@ union arg {
 #define SWM_ARG_ID_CENTER	(71)
 #define SWM_ARG_ID_KILLWINDOW	(80)
 #define SWM_ARG_ID_DELETEWINDOW	(81)
+#define SWM_ARG_ID_WIDTHGROW	(90)
+#define SWM_ARG_ID_WIDTHSHRINK	(91)
+#define SWM_ARG_ID_HEIGHTGROW	(92)
+#define SWM_ARG_ID_HEIGHTSHRINK	(93)
+#define SWM_ARG_ID_MOVEUP	(100)
+#define SWM_ARG_ID_MOVEDOWN	(101)
+#define SWM_ARG_ID_MOVELEFT	(102)
+#define SWM_ARG_ID_MOVERIGHT	(103)
 	char			**argv;
 };
 
@@ -3338,6 +3346,8 @@ resize_window(struct ws_win *win, int center)
 	XConfigureWindow(display, win->id, mask, &wc);
 }
 
+#define SWM_RESIZE_STEPS	(50)
+
 void
 resize(struct ws_win *win, union arg *args)
 {
@@ -3345,6 +3355,7 @@ resize(struct ws_win *win, union arg *args)
 	Time			time = 0;
 	struct swm_region	*r = win->ws->r;
 	int			relx, rely;
+	int			resize_step = 0;
 
 
 	DNPRINTF(SWM_D_MOUSE, "resize: win %lu floating %d trans %lu\n",
@@ -3362,6 +3373,33 @@ resize(struct ws_win *win, union arg *args)
 	    _NET_WM_STATE_ADD);
 
 	stack();
+
+	switch (args->id) {
+	case SWM_ARG_ID_WIDTHSHRINK:
+		win->g.w -= SWM_RESIZE_STEPS;
+		resize_step = 1;
+		break;
+	case SWM_ARG_ID_WIDTHGROW:
+		win->g.w += SWM_RESIZE_STEPS;
+		resize_step = 1;
+		break;
+	case SWM_ARG_ID_HEIGHTSHRINK:
+		win->g.h -= SWM_RESIZE_STEPS;
+		resize_step = 1;
+		break;
+	case SWM_ARG_ID_HEIGHTGROW:
+		win->g.h += SWM_RESIZE_STEPS;
+		resize_step = 1;
+		break;
+	default:
+		break;
+	}
+	if (resize_step) {
+		resize_window(win, 0);
+		store_float_geom(win,r);
+		return;
+	}
+
 	if (focus_mode == SWM_FOCUS_DEFAULT)
 		drain_enter_notify();
 
@@ -3429,6 +3467,20 @@ resize(struct ws_win *win, union arg *args)
 }
 
 void
+resize_step(struct swm_region *r, union arg *args)
+{
+	struct ws_win		*win = NULL;
+
+	if (r && r->ws)
+		win = r->ws->focus;
+	else
+		return;
+
+	resize(win, args);
+}
+
+
+void
 move_window(struct ws_win *win)
 {
 	unsigned int		mask;
@@ -3448,11 +3500,14 @@ move_window(struct ws_win *win)
 	XConfigureWindow(display, win->id, mask, &wc);
 }
 
+#define SWM_MOVE_STEPS	(50)
+
 void
 move(struct ws_win *win, union arg *args)
 {
 	XEvent			ev;
 	Time			time = 0;
+	int			move_step = 0;
 	struct swm_region	*r = win->ws->r;
 
 	DNPRINTF(SWM_D_MOUSE, "move: win %lu floating %d trans %lu\n",
@@ -3471,6 +3526,34 @@ move(struct ws_win *win, union arg *args)
 	    _NET_WM_STATE_ADD);
 
 	stack();
+
+	move_step = 0;
+	switch (args->id) {
+	case SWM_ARG_ID_MOVELEFT:
+		win->g.x -= (SWM_MOVE_STEPS - border_width);
+		move_step = 1;
+		break;
+	case SWM_ARG_ID_MOVERIGHT:
+		win->g.x += (SWM_MOVE_STEPS - border_width);
+		move_step = 1;
+		break;
+	case SWM_ARG_ID_MOVEUP:
+		win->g.y -= (SWM_MOVE_STEPS - border_width);
+		move_step = 1;
+		break;
+	case SWM_ARG_ID_MOVEDOWN:
+		win->g.y += (SWM_MOVE_STEPS - border_width);
+		move_step = 1;
+		break;
+	default:
+		break;
+	}
+	if (move_step) {
+		move_window(win);
+		store_float_geom(win,r);
+		return;
+	}
+
 
 	if (XGrabPointer(display, win->id, False, MOUSEMASK, GrabModeAsync,
 	    GrabModeAsync, None, None /* cursor */, CurrentTime) != GrabSuccess)
@@ -3516,6 +3599,23 @@ move(struct ws_win *win, union arg *args)
 	/* drain events */
 	drain_enter_notify();
 }
+
+void
+move_step(struct swm_region *r, union arg *args)
+{
+	struct ws_win		*win = NULL;
+
+	if (r && r->ws)
+		win = r->ws->focus;
+	else
+		return;
+
+	if (!(win->transient != 0 || win->floating != 0))
+		return;
+
+	move(win, args);
+}
+
 
 /* user/key callable function IDs */
 enum keyfuncid {
@@ -3576,6 +3676,14 @@ enum keyfuncid {
 	kf_uniconify,
 	kf_raise_toggle,
 	kf_button2,
+	kf_width_shrink,
+	kf_width_grow,
+	kf_height_shrink,
+	kf_height_grow,
+	kf_move_left,
+	kf_move_right,
+	kf_move_up,
+	kf_move_down,
 	kf_dumpwins, /* MUST BE LAST */
 	kf_invalid
 };
@@ -3654,6 +3762,14 @@ struct keyfunc {
 	{ "uniconify",		uniconify,	{0} },
 	{ "raise_toggle",	raise_toggle,	{0} },
 	{ "button2",		pressbutton,	{2} },
+	{ "width_shrink",	resize_step,	{.id = SWM_ARG_ID_WIDTHSHRINK} },
+	{ "width_grow",		resize_step,	{.id = SWM_ARG_ID_WIDTHGROW} },
+	{ "height_shrink",	resize_step,	{.id = SWM_ARG_ID_HEIGHTSHRINK} },
+	{ "height_grow",	resize_step,	{.id = SWM_ARG_ID_HEIGHTGROW} },
+	{ "move_left",		move_step,	{.id = SWM_ARG_ID_MOVELEFT} },
+	{ "move_right",		move_step,	{.id = SWM_ARG_ID_MOVERIGHT} },
+	{ "move_up",		move_step,	{.id = SWM_ARG_ID_MOVEUP} },
+	{ "move_down",		move_step,	{.id = SWM_ARG_ID_MOVEDOWN} },
 	{ "dumpwins",		dumpwins,	{0} }, /* MUST BE LAST */
 	{ "invalid key func",	NULL,		{0} },
 };
@@ -4203,7 +4319,7 @@ setup_keys(void)
 	setkeybinding(MODKEY|ShiftMask,	XK_j,		kf_swap_next,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_k,		kf_swap_prev,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_Return,	kf_spawn_term,	NULL);
-	setkeybinding(MODKEY,		XK_p,		kf_spawn_custom,	"menu");
+	setkeybinding(MODKEY,		XK_p,		kf_spawn_custom,"menu");
 	setkeybinding(MODKEY|ShiftMask,	XK_q,		kf_quit,	NULL);
 	setkeybinding(MODKEY,		XK_q,		kf_restart,	NULL);
 	setkeybinding(MODKEY,		XK_m,		kf_focus_main,	NULL);
@@ -4237,16 +4353,24 @@ setup_keys(void)
 	setkeybinding(MODKEY|ShiftMask,	XK_Tab,		kf_focus_prev,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_x,		kf_wind_kill,	NULL);
 	setkeybinding(MODKEY,		XK_x,		kf_wind_del,	NULL);
-	setkeybinding(MODKEY,		XK_s,		kf_spawn_custom,	"screenshot_all");
-	setkeybinding(MODKEY|ShiftMask,	XK_s,		kf_spawn_custom,	"screenshot_wind");
+	setkeybinding(MODKEY,		XK_s,		kf_spawn_custom,"screenshot_all");
+	setkeybinding(MODKEY|ShiftMask,	XK_s,		kf_spawn_custom,"screenshot_wind");
 	setkeybinding(MODKEY,		XK_t,		kf_float_toggle,NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_v,		kf_version,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_Delete,	kf_spawn_custom,	"lock");
-	setkeybinding(MODKEY|ShiftMask,	XK_i,		kf_spawn_custom,	"initscr");
+	setkeybinding(MODKEY|ShiftMask,	XK_Delete,	kf_spawn_custom,"lock");
+	setkeybinding(MODKEY|ShiftMask,	XK_i,		kf_spawn_custom,"initscr");
 	setkeybinding(MODKEY,		XK_w,		kf_iconify,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_w,		kf_uniconify,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_r,		kf_raise_toggle,NULL);
 	setkeybinding(MODKEY,		XK_v,		kf_button2,	NULL);
+	setkeybinding(MODKEY,		XK_equal,	kf_width_grow,	NULL);
+	setkeybinding(MODKEY,		XK_minus,	kf_width_shrink,NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_equal,	kf_height_grow,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_minus,	kf_height_shrink,NULL);
+	setkeybinding(MODKEY,		XK_bracketleft,	kf_move_left,	NULL);
+	setkeybinding(MODKEY,		XK_bracketright,kf_move_right,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_bracketleft,	kf_move_up,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_bracketright,kf_move_down,	NULL);
 #ifdef SWM_DEBUG
 	setkeybinding(MODKEY|ShiftMask,	XK_d,		kf_dumpwins,	NULL);
 #endif
