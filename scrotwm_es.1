@@ -79,6 +79,10 @@ Habilitamos o deshabilitamos la opción usando 1 o 0 respectivamente.
 El archivo soporta las siguientes palabras clave:
 .Pp
 .Bl -tag -width "title_class_enabledXXX" -offset indent -compact
+.It Cm autorun
+Inicia una aplicacion en un escritorio en particular al primer inicio.
+Definido por el formato ws[<idx>]:aplicacion, ej. ws[2]:xterm lanza
+xterm en el escritorio 2.
 .It Cm color_focus
 Color del borde de la ventana en foco.
 .It Cm color_unfocus
@@ -88,6 +92,9 @@ Habilitar o deshabilitar la barra de estado.
 .It Cm bar_border Ns Bq Ar x
 Color del borde de la barra de estado en pantalla.
 .Ar x .
+.It Cm bar_border_width
+Setea el grosor de la barra de estado en pixels.
+Deshabilitado seteando 0.
 .It Cm bar_color Ns Bq Ar x
 Color de la ventana de la barra de estado en pantalla.
 .Ar x .
@@ -111,10 +118,43 @@ de estado.
 Habilitar o deshabilitar el reloj en la barra de estado, deshabilitado 
 por defecto con un 0, para usar el reloj de la barra de estado 
 (bar_action)
+.Pa bar_action
+script.
 .It Cm dialog_ratio
 Algunas aplicaciones tienen ventanas de dialogo muy pequeñas como para 
 ser usables. Este relación (ratio) es el tamaño de la pantalla, por 
 ejemplo 0.6 es 60% del tamaño físico de la pantalla.
+.It Cm layout
+Selecciona una disposicion para usar en el primer inicio.
+Definido con el formato
+ws[idx]:master_grow:master_add:stack_inc:layout:always_raise:stack_mode, 
+ej.
+ws[2]:-4:0:1:0:horizontal setea el escritorio 2 en horizontal, el stack 
+principal y reduce 4 puntos agregando una ventana al stack, mientras
+mantiene el comportamiento de ventanas flotantes.
+Modos posible de stack_mode
+.Pa vertical ,
+.Pa horizontal
+and
+.Pa fullscreen .
+.Pp
+Ver
+.Pa master_grow ,
+.Pa master_shrink ,  
+.Pa master_add ,  
+.Pa master_del ,
+.Pa stack_inc ,
+.Pa stack_del ,
+y
+.Pa always_raise
+para mas informacion.
+Tenga en cuenta que las opciones de stack son complicados y tienen 
+efectos secundarios.
+Uno debe familiarizarse con estos comandos antes de experimentar con la
+opcion
+.Pa layout
+.Pp
+Esta opcion no necesita un reinicio.
 .It Cm region
 Acomodar una region personalizada, removiendo cualquier autodeteción de 
 regiones que ocupe el espacio en la pantalla. 
@@ -144,18 +184,35 @@ Habilitado seteando 1
 .It Cm title_name_enabled
 Habilitar o deshabilita el titulo de la ventana en la barra de estado.
 Habilitado seteando 1
+.It Cm urgent_enabled
+Habilitar o deshabilitar el aviso de urgencia.
+Tenga en cuenta que muchos emuladores de terminal requieren de este
+parametro habilitado para que funcione.
+En xterm, por ejemplo, hay que agregar la siguiente linea
+.Pa xterm.urgentOnBell: true
+to
+.Pa .Xdefaults .
 .It Cm window_name_enabled
 Habilitar o deshabilita el nombre de la ventana en la barra de estado.
 Habilitado seteando 1
+.It Cm verbose_layout
+Habilitar o deshabilita la notificacion del area principal y el
+stack en la barra de estado.
+Habilitado seteandolo a 1.
 .It Cm modkey
 Cambiar mod key.
 Mod1 generalmente es la tecla ALT y Mod4 la tecla de windows en una PC.
 .It Cm focus_mode
-Usando el valor de follow_cursor puedes hacer que el manejador de ventanas
+Usando el valor de 
+.Pa follow_cursor 
+puedes hacer que el manejador de ventanas
 se enfoque en la ventana cuando el cursor pase por arriba de las mismas o
 bien cambiando de estacion de trabajo.
 .It Cm disable_border
 Remueve el borde de una sola ventana cuando la barra de estado esta desactivada.
+.It Cm border_width
+Setea el grosor del borde de la ventana en pixels.
+Deshabilitar todos los bordes seteandolo a 0.
 .It Cm program Ns Bq Ar p
 Definir una nueva accion para ejecutar un programa.
 .Ar p .
@@ -245,11 +302,6 @@ Para deshacer lo anterior:
 bind[] = Mod+f
 program[ff] =
 .Ed
-.Sh SIGNALS
-Enviando
-.Nm
-una se?al de HUP reinicia scrotwm.
-.Pp
 .Sh BINDINGS
 .Nm
 provee muchas funciones (o acciones) accesibles por medio de la 
@@ -346,6 +398,30 @@ float_toggle
 lock
 .It Cm M-S-i
 initscr
+.It Cm M-w                    
+iconify
+.It Cm M-S-w
+uniconify
+.It Cm M-S-r
+always_raise
+.It Cm M-v
+button2
+.It Cm M--
+width_shrink
+.It Cm M-=
+width_grow
+.It Cm M-S-
+height_shrink
+.It Cm M-S-=
+height_grow
+.It Cm M-[
+move_left
+.It Cm M-]
+move_right
+.It Cm M-S-[
+move_up
+.It Cm M-S-]
+move_down
 .El
 .Pp
 El nombre de las acciónes descripta a continuación:
@@ -445,6 +521,31 @@ Reiniciar la pantalla
 (ver
 .Sx PROGRAMAS
 )
+.It Cm iconify
+Minimiza (unmap) la ventana en foco.
+.It Cm uniconify
+Maximiza (map) la ventana seleccionada por dmenu.
+.It Cm always_raise
+Cuando se establece las ventanas en cascada se esconden las 
+ventanas flotantes.
+.It Cm button2
+Falsifica el boton del medio del mouse.
+.It Cm width_shrink
+Reducir el ancho de una ventana flotante.
+.It Cm width_grow  
+Agranda el ancho de una ventana flotante.
+.It Cm height_shrink
+Reducir la altura de una ventana flotante.
+.It Cm height_grow
+Agranda la altura de una ventana flotante.
+.It Cm move_left
+Mueve la ventana flotante un paso a la izquierda.
+.It Cm move_right
+Mueve la ventana flotante un paso a la derecha.
+.It Cm move_up
+Mueve la ventana flotante un paso arriba.
+.It Cm move_down
+Mueve la ventana flotante un paso abajo.
 .El
 .Pp
 Personalizar mapeos (bindings) en el archivo de configuración:
@@ -515,6 +616,9 @@ Permite que la ventana se ponga donde quiera.
 Ajusta las fuentes de xterm cuando se redimenciona.
 .It FULLSCREEN
 Quita el borde para permitir las ventanas en pantalla completa.
+.It FOCUSPREV
+El enfoque de salida fuerza la solicitud de aplicacisn que 
+anteriormente se centraba en la aplicacion anterior del stack.
 .El
 .Pp
 Las configuraciones de "quirks" (o forzados) en el archivo de configuración se ven a continuación:
@@ -543,6 +647,80 @@ En el proximo ejemplo, podremos verlo en acción con una ventana de Firefox:
 $ xprop | grep WM_CLASS
 WM_CLASS(STRING) = "Navigator", "Firefox"
 .Ed
+.Sh EWMH
+.Nm
+parcialmente implementa los Consejos de ventana extendido Manager (EWMH) especificacion.
+Esto permite el control de las ventanas, asi como
+.Nm
+si a partir de scripts y programas externos. Esto se logra mediante
+.Nm
+responder a ciertos eventos ClientMessage. Desde la terminal de estos eventos
+se puede enviar facilmente el uso de herramientas tales como
+.Xr wmctrl 1
+y
+.Xr xdotool 1 .
+para el
+formato real de estos eventos ClientMessage, consulte la especificacion EWMH.
+.Pp
+La Identificacion de la ventana actualmente enfocada se almacena en el _NET_ACTIVE_WINDOW
+propiedad de la ventana raiz. Esto puede ser usado por ejemplo para recuperar el
+titulo de la ventana activa con
+.Xr xprop 1
+y
+.Xr grep 1 :
+.Bd -literal -offset indent
+$ WINDOWID=`xprop \-root _NET_ACTIVE_WINDOW | grep \-o "0x.*"`
+$ xprop \-id $WINDOWID WM_NAME | grep \-o "\\".*\\""
+.Ed
+.Pp
+Una ventana se puede enfocar mediante el envio de un mensaje del cliente _NET_ACTIVE_WINDOW
+a la ventana principal. Por ejemplo, usando
+.Xr wmctrl 1
+para enviar el mensaje
+(suponiendo que 0x4a0000b es el ID de la ventana para ser especifico):
+.Bd -literal -offset indent
+$ wmctrl \-i \-a 0x4a0000b
+.Ed
+.Pp
+Ventanas se pueden cerrar mediante el envmo de un mensaje del cliente _NET_CLOSE_WINDOW
+a la ventana principal. Por ejemplo, usando
+.Xr wmctrl 1
+para enviar el mensaje
+(suponiendo que 0x4a0000b es el ID de la ventana se cierre):
+.Bd -literal -offset indent
+$ wmctrl \-i \-c 0x4a0000b
+.Ed
+.Pp
+Las ventanas se pueden flotar y flotar sin-mediante la adicion o eliminacion de la
+_NET_WM_STATE_ABOVE atom desde _NET_WM_STATE la propiedad de la ventana
+Esto se puede lograr mediante el envio de un mensaje a los clientes _NET_WM_STATE
+raiz de la ventana. Por ejemplo, el siguiente cambia el estado de la flota.
+.Xr wmctrl 1
+para enviar el mensaje (suponiendo que 0x4a0000b es el ID de la ventana flotante
+o no-flotante):
+.Bd -literal -offset indent
+$ wmctrl \-i \-r 0x4a0000b \-b toggle,_NET_WM_STATE_ABOVE
+.Ed
+.Pp
+Ventanas flotantes tambien se puede cambiar el tamano y movido por el envio de un
+_NET_MOVERESIZE_WINDOW Mensaje del cliente de la ventana raiz. Por ejemplo,
+uso
+.Xr wmctrl 1
+para enviar el mensaje (suponiendo que 0x4a0000b es el ID de
+la ventana a redimensionar / mover):
+.Bd -literal -offset indent
+$ wmctrl \-i \-r 0x4a0000b \-e 0,100,50,640,480
+.Ed
+.Pp
+Esto mueve la ventana de (100,50) y cambia el tamaqo a 640x480.
+.Pp
+Todos los eventos _NET_MOVERESIZE_WINDOW recibido por las ventanas apiladas se ignoran.
+.Pp
+.Sh SIGNALS
+Enviando
+.Nm
+una senal de HUP reinicia scrotwm.
+.Pp
 .Sh ARCHIVOS
 .Bl -tag -width "/etc/scrotwm.confXXX" -compact
 .It Pa ~/.scrotwm.conf
