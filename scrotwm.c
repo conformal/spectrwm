@@ -5428,15 +5428,14 @@ void
 keypress(XEvent *e)
 {
 	unsigned int		i;
-	KeySym			keysym, skeysym;
+	KeySym			keysym;
 	XKeyEvent		*ev = &e->xkey;
 
 	DNPRINTF(SWM_D_EVENT, "keypress: window: %lu\n", ev->window);
 
 	keysym = XKeycodeToKeysym(display, (KeyCode)ev->keycode, 0);
-	skeysym = XKeycodeToKeysym(display, (KeyCode)ev->keycode, 1);
 	for (i = 0; i < keys_length; i++)
-		if ((keysym == keys[i].keysym || skeysym == keys[i].keysym)
+		if (keysym == keys[i].keysym
 		    && CLEANMASK(keys[i].mod) == CLEANMASK(ev->state)
 		    && keyfuncs[keys[i].funcid].func) {
 			if (keys[i].funcid == kf_spawn_custom)
