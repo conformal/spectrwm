@@ -3353,10 +3353,13 @@ resize(struct ws_win *win, union arg *args)
 {
 	XEvent			ev;
 	Time			time = 0;
-	struct swm_region	*r = win->ws->r;
+	struct swm_region	*r = NULL;
 	int			relx, rely;
 	int			resize_step = 0;
 
+	if (win == NULL)
+		return;
+	r = win->ws->r;
 
 	DNPRINTF(SWM_D_MOUSE, "resize: win %lu floating %d trans %lu\n",
 	    win->id, win->floating, win->transient);
@@ -3471,7 +3474,7 @@ resize_step(struct swm_region *r, union arg *args)
 {
 	struct ws_win		*win = NULL;
 
-	if (r && r->ws)
+	if (r && r->ws && r->ws->focus)
 		win = r->ws->focus;
 	else
 		return;
@@ -3508,7 +3511,11 @@ move(struct ws_win *win, union arg *args)
 	XEvent			ev;
 	Time			time = 0;
 	int			move_step = 0;
-	struct swm_region	*r = win->ws->r;
+	struct swm_region	*r = NULL;
+
+	if (win == NULL)
+		return;
+	r = win->ws->r;
 
 	DNPRINTF(SWM_D_MOUSE, "move: win %lu floating %d trans %lu\n",
 	    win->id, win->floating, win->transient);
@@ -3605,7 +3612,7 @@ move_step(struct swm_region *r, union arg *args)
 {
 	struct ws_win		*win = NULL;
 
-	if (r && r->ws)
+	if (r && r->ws && r->ws->focus)
 		win = r->ws->focus;
 	else
 		return;
