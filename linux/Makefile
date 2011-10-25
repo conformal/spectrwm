@@ -1,5 +1,3 @@
-# $scrotwm$ 
-
 CFLAGS+= -Wall -ggdb -D_GNU_SOURCE -I.
 CFLAGS+= -DSWM_LIB=\"$(LIBDIR)/libswmhack.so.$(LVERS)\"
 LDADD+= -lX11 -lXrandr -lXtst

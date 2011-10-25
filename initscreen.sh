@@ -1,5 +1,4 @@
 #!/bin/sh
-# $scrotwm$
 #
 # Example xrandr multiscreen init
 

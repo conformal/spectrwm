@@ -1,4 +1,3 @@
-/* $scrotwm$ */
 /*
  * Copyright (c) 2009-2010-2011 Marco Peereboom <marco@peereboom.us>
  * Copyright (c) 2009-2010-2011 Ryan McBride <mcbride@countersiege.com>

@@ -1,5 +1,3 @@
-/* $scrotwm$ */
-
 #define FPARSELN_UNESCESC	0x01
 #define FPARSELN_UNESCCONT	0x02
 #define FPARSELN_UNESCCOMM	0x04

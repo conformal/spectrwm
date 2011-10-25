@@ -1,5 +1,3 @@
-/* $scrotwm$ */
-
 #include <sys/types.h>
 #include <sys/cdefs.h>
 

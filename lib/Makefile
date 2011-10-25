@@ -1,5 +1,3 @@
-#	$scrotwm$
-
 .include <bsd.xconf.mk>
 
 PREFIX?=/usr/local

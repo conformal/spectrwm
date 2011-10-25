@@ -1,6 +1,5 @@
 #!/bin/ksh
 #
-# $scrotwm$
 
 PREFIX=scrotwm-
 DIRS="lib linux osx"
