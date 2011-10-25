@@ -4821,7 +4821,8 @@ setautorun(char *selector, char *value, int flags)
 int
 setlayout(char *selector, char *value, int flags)
 {
-	int			ws_id, st, i, x, mg, ma, si, raise;
+	int			ws_id, i, x, mg, ma, si, raise;
+	int			st = SWM_V_STACK;
 	char			s[1024];
 	struct workspace	*ws;
 
@@ -5461,7 +5462,6 @@ buttonpress(XEvent *e)
 
 	DNPRINTF(SWM_D_EVENT, "buttonpress: window: %lu\n", ev->window);
 
-	action = root_click;
 	if ((win = find_window(ev->window)) == NULL)
 		return;
 
