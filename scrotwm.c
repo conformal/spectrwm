@@ -162,6 +162,9 @@ u_int32_t		swm_debug = 0
 #define SWM_FOCUS_SYNERGY	(1)
 #define SWM_FOCUS_FOLLOW	(2)
 
+#define SWM_CONF_DEFAULT	(0)
+#define SWM_CONF_KEYMAPPING	(1)
+
 #ifndef SWM_LIB
 #define SWM_LIB			"/usr/local/lib/libswmhack.so"
 #endif
@@ -236,6 +239,7 @@ int			bar_fidx = 0;
 XFontStruct		*bar_fs;
 char			*bar_fonts[] = { NULL, NULL, NULL, NULL };/* XXX Make fully dynamic */
 char			*spawn_term[] = { NULL, NULL };		/* XXX Make fully dynamic */
+struct passwd		*pwd;
 
 #define SWM_MENU_FN	(2)
 #define SWM_MENU_NB	(4)
@@ -320,6 +324,8 @@ void	grabbuttons(struct ws_win *, int);
 void	new_region(struct swm_screen *, int, int, int, int);
 void	unmanage_window(struct ws_win *);
 long	getstate(Window);
+
+int	conf_load(char *, int);
 
 struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
@@ -4383,6 +4389,37 @@ setup_keys(void)
 }
 
 void
+clear_keys(void)
+{
+	int			i;
+
+	/* clear all key bindings, if any */
+	for (i = 0; i < keys_length; i++)
+		free(keys[i].spawn_name);
+	keys_length = 0;
+}
+
+int
+setkeymapping(char *selector, char *value, int flags)
+{
+	char			keymapping_file[PATH_MAX];
+	DNPRINTF(SWM_D_KEY, "setkeymapping: enter\n");
+	if (value[0] == '~')
+		snprintf(keymapping_file, sizeof keymapping_file, "%s/%s",
+		    pwd->pw_dir, &value[1]);
+	else
+		strlcpy(keymapping_file, value, sizeof keymapping_file);
+	clear_keys();
+	/* load new key bindings; if it fails, revert to default bindings */
+	if (conf_load(keymapping_file, SWM_CONF_KEYMAPPING)) {
+		clear_keys();
+		setup_keys();
+	}
+	DNPRINTF(SWM_D_KEY, "setkeymapping: leave\n");
+	return (0);
+}
+
+void
 updatenumlockmask(void)
 {
 	unsigned int		i, j;
@@ -4906,6 +4943,7 @@ struct config_option configopt[] = {
 	{ "bar_font",			setconfvalue,	SWM_S_BAR_FONT },
 	{ "bar_action",			setconfvalue,	SWM_S_BAR_ACTION },
 	{ "bar_delay",			setconfvalue,	SWM_S_BAR_DELAY },
+	{ "keyboard_mapping",		setkeymapping,	0 },
 	{ "bind",			setconfbinding,	0 },
 	{ "stack_enabled",		setconfvalue,	SWM_S_STACK_ENABLED },
 	{ "clock_enabled",		setconfvalue,	SWM_S_CLOCK_ENABLED },
@@ -4937,7 +4975,7 @@ struct config_option configopt[] = {
 
 
 int
-conf_load(char *filename)
+conf_load(char *filename, int keymapping)
 {
 	FILE			*config;
 	char			*line, *cp, *optsub, *optval;
@@ -4952,7 +4990,7 @@ conf_load(char *filename)
 		return (1);
 	}
 	if ((config = fopen(filename, "r")) == NULL) {
-		warn("conf_load: fopen");
+		warn("conf_load: fopen: %s", filename);
 		return (1);
 	}
 
@@ -4989,6 +5027,11 @@ conf_load(char *filename)
 		}
 		if (optind == -1) {
 			warnx("%s: line %zd: unknown option %.*s",
+			    filename, lineno, wordlen, cp);
+			return (1);
+		}
+		if (keymapping && strcmp(opt->optname, "bind")) {
+			warnx("%s: line %zd: invalid option %.*s",
 			    filename, lineno, wordlen, cp);
 			return (1);
 		}
@@ -6266,7 +6309,6 @@ workaround(void)
 int
 main(int argc, char *argv[])
 {
-	struct passwd		*pwd;
 	struct swm_region	*r, *rr;
 	struct ws_win		*winfocus = NULL;
 	struct timeval		tv;
@@ -6337,7 +6379,7 @@ main(int argc, char *argv[])
 				cfile = conf;
 	}
 	if (cfile)
-		conf_load(cfile);
+		conf_load(cfile, SWM_CONF_DEFAULT);
 
 	setup_ewmh();
 	/* set some values to work around bad programs */
