@@ -1,67 +1,126 @@
-#!/bin/ksh
+#!/bin/sh
 #
+# Prepares a release:
+#   - Bumps version according to specified level (major, minor, or patch)
+#   - Updates all necessary headers with new version
+#   - Commits the changes
+#   - Tags the release
+#   - Creates a release tarball
 
-PREFIX=scrotwm-
-DIRS="lib linux osx"
-FILES="Makefile baraction.sh initscreen.sh screenshot.sh scrotwm.1 scrotwm_es.1 scrotwm_it.1 scrotwm_pt.1 scrotwm_ru.1 scrotwm.c scrotwm.conf linux/Makefile linux/linux.c linux/util.h linux/scrotwm.desktop lib/Makefile lib/shlib_version lib/swm_hack.c osx/Makefile osx/osx.h osx/osx.c"
+PROJECT=scrotwm
+PROJECT_UC=$(echo $PROJECT | tr '[:lower:]' '[:upper:]')
+SCRIPT=$(basename $0)
+HEADER=version.h
 
-if [ -z "$1" ]; then
-	echo "usage: release.sh <version>"
+# verify params
+if [ $# -lt 1 ]; then
+	echo "usage: $SCRIPT {major | minor | patch}"
 	exit 1
 fi
 
-if [ -d "$PREFIX$1" ]; then
-	echo "$PREFIX$1 already exists"
+report_err()
+{
+	echo "$SCRIPT: error: $1" 1>&2
 	exit 1
+}
+
+
+cd "$(dirname $0)"
+
+# verify header exists
+if [ ! -f "$HEADER" ]; then
+	report_err "$HEADER does not exist"
 fi
 
-if [ -d "$PREFIX$1-port" ]; then
-	echo "$PREFIX$1 already exists"
-	exit 1
+# verify valid release type
+RTYPE="$1"
+if [ "$RTYPE" != "major" -a "$RTYPE" != "minor" -a "$RTYPE" != "patch" ]; then
+	report_err "release type must be major, minor, or patch"
 fi
 
-TARGET="$PREFIX$1"
-mkdir $TARGET
+# verify git is available
+if ! type git >/dev/null 2>&1; then
+	report_err "unable to find 'git' in the system path"
+fi
 
-for i in $DIRS; do
-	mkdir "$TARGET/$i"
-done
+# verify the git repository is on the master branch
+BRANCH=$(git branch | grep '\*' | cut -c3-)
+if [ "$BRANCH" != "master" ]; then
+	report_err "git repository must be on the master branch"
+fi
 
-for i in $FILES; do
-	cp $i "$TARGET/$i"
-done
+# verify there are no uncommitted modifications prior to release modifications
+NUM_MODIFIED=$(git diff 2>/dev/null | wc -l | sed 's/^[ \t]*//')
+NUM_STAGED=$(git diff --cached 2>/dev/null | wc -l | sed 's/^[ \t]*//')
+if [ "$NUM_MODIFIED" != "0" -o "$NUM_STAGED" != "0" ]; then
+	report_err "the working directory contains uncommitted modifications"
+fi
 
-tar zcf $TARGET.tgz $TARGET
+# get version
+PAT_PREFIX="(^#define[[:space:]]+${PROJECT_UC}"
+PAT_SUFFIX='[[:space:]]+)[0-9]+$'
+MAJOR=$(egrep "${PAT_PREFIX}_MAJOR${PAT_SUFFIX}" $HEADER | awk '{print $3}')
+MINOR=$(egrep "${PAT_PREFIX}_MINOR${PAT_SUFFIX}" $HEADER | awk '{print $3}')
+PATCH=$(egrep "${PAT_PREFIX}_PATCH${PAT_SUFFIX}" $HEADER | awk '{print $3}')
+if [ -z "$MAJOR" -o -z "$MINOR" -o -z "$PATCH" ]; then
+	report_err "unable to get version from $HEADER"
+fi
 
-# make port
-sudo rm -rf ports
-sudo cvs -d /cvs co ports/x11/scrotwm
-PORT="$PREFIX$1-port"
-mkdir $PORT
+# bump version according to level
+if [ "$RTYPE" = "major" ]; then
+	MAJOR=$(expr $MAJOR + 1)
+	MINOR=0
+	PATCH=0
+elif [ "$RTYPE" = "minor" ]; then
+	MINOR=$(expr $MINOR + 1)
+	PATCH=0
+elif [ "$RTYPE" = "patch" ]; then
+	PATCH=$(expr $PATCH + 1)
+fi
+PROJ_VER="$MAJOR.$MINOR.$PATCH"
 
-# Makefile
-cat port/Makefile | sed "s/SCROTWMVERSION/$1/g" > $PORT/Makefile
+# update header with new version
+sed -E "
+    s/${PAT_PREFIX}_MAJOR${PAT_SUFFIX}/\1${MAJOR}/;
+    s/${PAT_PREFIX}_MINOR${PAT_SUFFIX}/\1${MINOR}/;
+    s/${PAT_PREFIX}_PATCH${PAT_SUFFIX}/\1${PATCH}/;
+" <"$HEADER" >"${HEADER}.tmp"
 
-# distinfo
-cksum -b -a md5 $TARGET.tgz > $PORT/distinfo
-cksum -b -a rmd160 $TARGET.tgz >> $PORT/distinfo
-cksum -b -a sha1 $TARGET.tgz >> $PORT/distinfo
-cksum -b -a sha256 $TARGET.tgz >> $PORT/distinfo
-wc -c $TARGET.tgz 2>/dev/null | awk '{print "SIZE (" $2 ") = " $1}' >> $PORT/distinfo
+# apply changes
+mv "${HEADER}.tmp" "$HEADER"
 
-# pkg
-mkdir $PORT/pkg
-cp port/pkg/DESCR $PORT/pkg/
-cp port/pkg/PFRAG.shared $PORT/pkg/
-cp port/pkg/PLIST $PORT/pkg/
+# commit and tag
+TAG="${PROJECT_UC}_${MAJOR}_${MINOR}_${PATCH}"
+git commit -am "Prepare for release ${PROJ_VER}." ||
+    report_err "unable to commit changes"
+git tag -a "$TAG" -m "Release ${PROJ_VER}" || report_err "unable to create tag"
 
-# patches
-mkdir $PORT/patches
-cp port/patches/patch-scrotwm_c $PORT/patches/
-cp port/patches/patch-scrotwm_conf $PORT/patches/
+# create temp working space and copy repo over
+TD=$(mktemp -d /tmp/release.XXXXXXXXXX)
+if [ ! -d "$TD" ]; then
+	report_err "unable to create temp directory"
+fi
+RELEASE_DIR="$PROJECT-$PROJ_VER"
+RELEASE_TAR="$PROJECT-$PROJ_VER.tgz"
+git clone . "$TD/$RELEASE_DIR" ||
+    report_err "unable to copy to $TD/$RELEASE_DIR"
 
-# make diff
-diff -ruNp -x CVS ports/x11/scrotwm/ $PORT > $TARGET.diff
+# cleanup repository files
+cd "$TD"
+if [ -d "$RELEASE_DIR" -a -d "$RELEASE_DIR/.git" ]; then
+        rm -rf "$RELEASE_DIR/.git"
+fi
+if [ -d "$RELEASE_DIR" -a -f "$RELEASE_DIR/.gitignore" ]; then
+        rm -f "$RELEASE_DIR/.gitignore"
+fi
 
-# kill ports dir or cvs will be angry
-sudo rm -rf ports
+# make snap
+tar -zcf "$RELEASE_TAR" "$RELEASE_DIR" ||
+    report_err "unable to create $RELEASE_TAR"
+
+
+echo "Release tarball:"
+echo "  $TD/$RELEASE_TAR"
+echo ""
+echo "If everything is accurate, use the following command to push the changes:"
+echo "  git push --tags origin master"

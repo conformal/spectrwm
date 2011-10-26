@@ -14,6 +14,10 @@ CFLAGS+=-std=c89 -Wall -Wno-uninitialized -ggdb3
 #CFLAGS+=-DSWM_DENY_CLOCK_FORMAT
 CPPFLAGS+= -I${X11BASE}/include
 LDADD+=-lutil -L${X11BASE}/lib -lX11 -lXrandr -lXtst
+BUILDVERSION != sh "${.CURDIR}/buildver.sh"
+.if !${BUILDVERSION} == ""
+CPPFLAGS+= -DSCROTWM_BUILDSTR=\"$(BUILDVERSION)\"
+.endif
 
 MANDIR= ${PREFIX}/man/man
 

@@ -51,11 +51,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-static const char	*cvstag =
-    "$scrotwm$";
-
-#define	SWM_VERSION	"0.9.34"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <err.h>
@@ -90,6 +85,14 @@ static const char	*cvstag =
 
 #ifdef __OSX__
 #include <osx.h>
+#endif
+
+#include "version.h"
+
+#ifdef SCROTWM_BUILDSTR
+static const char	*buildstr = SCROTWM_BUILDSTR;
+#else
+static const char	*buildstr = SCROTWM_VERSION;
 #endif
 
 #if RANDR_MAJOR < 1
@@ -1540,8 +1543,8 @@ version(struct swm_region *r, union arg *args)
 {
 	bar_version = !bar_version;
 	if (bar_version)
-		snprintf(bar_vertext, sizeof bar_vertext, "Version: %s CVS: %s",
-		    SWM_VERSION, cvstag);
+		snprintf(bar_vertext, sizeof bar_vertext, "Version: %s Build: %s",
+		    SCROTWM_VERSION, buildstr);
 	else
 		strlcpy(bar_vertext, "", sizeof bar_vertext);
 	bar_update();
@@ -6321,8 +6324,8 @@ main(int argc, char *argv[])
 	struct sigaction	sact;
 
 	start_argv = argv;
-	fprintf(stderr, "Welcome to scrotwm V%s cvs tag: %s\n",
-	    SWM_VERSION, cvstag);
+	fprintf(stderr, "Welcome to scrotwm V%s Build: %s\n",
+	    SCROTWM_VERSION, buildstr);
 	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
 		warnx("no locale support");
 
