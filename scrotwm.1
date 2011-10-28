@@ -13,7 +13,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate$
+.Dd $Mdocdate: October 27 2011 $
 .Dt SCROTWM 1
 .Os
 .Sh NAME
@@ -246,7 +246,7 @@ To list the available fonts in your system see
 or
 .Xr xlsfonts 1
 manpages.
-The 
+The
 .Xr xfontsel 1
 application can help you to show the X Logical Font Description ("XLFD") used
 as setting in the keyword
@@ -316,7 +316,6 @@ To undo the previous:
 bind[] = Mod+f
 program[ff] =
 .Ed
-.Pp
 .Sh BINDINGS
 .Nm
 provides many functions (or actions) accessed via key or mouse bindings.
@@ -386,9 +385,9 @@ wind_del
 .It Cm M-S-x
 wind_kill
 .It Cm M- Ns Aq Ar n
-.Ns ws_ Ns Ar n
+ws_ Ns Ar n
 .It Cm M-S- Ns Aq Ar n
-.Ns mvws_ Ns Ar n
+mvws_ Ns Ar n
 .It Cm M- Ns Aq Cm Right
 ws_next
 .It Cm M- Ns Aq Cm Left
@@ -669,7 +668,7 @@ quirk[Firefox:Navigator] = FLOAT
 .Ed
 .Pp
 .Nm
-also automatically assigns quirks to windows based on the value 
+also automatically assigns quirks to windows based on the value
 of the window's _NET_WM_WINDOW_TYPE property as follows:
 .Pp
 .Bl -tag -width "_NET_WM_WINDOW_TYPE_TOOLBAR<TAB>XXX" -offset indent -compact
@@ -685,16 +684,16 @@ FLOAT
 FLOAT
 .El
 .Pp
-In all other cases, no automatic quirks are assigned to the window. 
+In all other cases, no automatic quirks are assigned to the window.
 Quirks specified in the configuration file override the automatic quirks.
 .Sh EWMH
 .Nm
-partially implements the Extended Window Manager Hints (EWMH) specification. 
+partially implements the Extended Window Manager Hints (EWMH) specification.
 This enables controlling windows as well as
 .Nm
-itself from external scripts and programs. This is achieved by 
+itself from external scripts and programs. This is achieved by
 .Nm
-responding to certain ClientMessage events. From the terminal these events 
+responding to certain ClientMessage events. From the terminal these events
 can be conveniently sent using tools such as
 .Xr wmctrl 1
 and
@@ -702,8 +701,8 @@ and
 For the
 actual format of these ClientMessage events, see the EWMH specification.
 .Pp
-The id of the currently focused window is stored in the _NET_ACTIVE_WINDOW 
-property of the root window. This can be used for example to retrieve the 
+The id of the currently focused window is stored in the _NET_ACTIVE_WINDOW
+property of the root window. This can be used for example to retrieve the
 title of the currently active window with
 .Xr xprop 1
 and
@@ -713,7 +712,7 @@ $ WINDOWID=`xprop \-root _NET_ACTIVE_WINDOW | grep \-o "0x.*"`
 $ xprop \-id $WINDOWID WM_NAME | grep \-o "\\".*\\""
 .Ed
 .Pp
-A window can be focused by sending a _NET_ACTIVE_WINDOW client message 
+A window can be focused by sending a _NET_ACTIVE_WINDOW client message
 to the root window. For example, using
 .Xr wmctrl 1
 to send the message
@@ -722,7 +721,7 @@ to send the message
 $ wmctrl \-i \-a 0x4a0000b
 .Ed
 .Pp
-Windows can be closed by sending a _NET_CLOSE_WINDOW client message 
+Windows can be closed by sending a _NET_CLOSE_WINDOW client message
 to the root window. For example, using
 .Xr wmctrl 1
 to send the message
@@ -731,10 +730,10 @@ to send the message
 $ wmctrl \-i \-c 0x4a0000b
 .Ed
 .Pp
-Windows can be floated and un-floated by adding or removing the 
-_NET_WM_STATE_ABOVE atom from the _NET_WM_STATE property of the window. 
-This can be achieved by sending a _NET_WM_STATE client message to the 
-root window. For example, the following toggles the floating state of 
+Windows can be floated and un-floated by adding or removing the
+_NET_WM_STATE_ABOVE atom from the _NET_WM_STATE property of the window.
+This can be achieved by sending a _NET_WM_STATE client message to the
+root window. For example, the following toggles the floating state of
 a window using
 .Xr wmctrl 1
 to send the message (assuming 0x4a0000b is the  id of the window floated
@@ -743,8 +742,8 @@ or un-floated):
 $ wmctrl \-i \-r 0x4a0000b \-b toggle,_NET_WM_STATE_ABOVE
 .Ed
 .Pp
-Floating windows can also be resized and moved by sending a 
-_NET_MOVERESIZE_WINDOW client message to the root window. For example, 
+Floating windows can also be resized and moved by sending a
+_NET_MOVERESIZE_WINDOW client message to the root window. For example,
 using
 .Xr wmctrl 1
 to send the message (assuming 0x4a0000b is the id of
@@ -756,7 +755,6 @@ $ wmctrl \-i \-r 0x4a0000b \-e 0,100,50,640,480
 This moves the window to (100,50) and resizes it to 640x480.
 .Pp
 Any _NET_MOVERESIZE_WINDOW events received for stacked windows are ignored.
-.Pp
 .Sh SIGNALS
 Sending
 .Nm
