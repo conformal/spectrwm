@@ -15,6 +15,7 @@ all: scrotwm libswmhack.so.$(LVERS)
 
 scrotwm.c:
 	ln -sf ../scrotwm.c
+	ln -sf ../version.h
 
 swm_hack.c:
 	ln -sf ../lib/swm_hack.c
