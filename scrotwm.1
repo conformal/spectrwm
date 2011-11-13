@@ -123,9 +123,10 @@ For example, 0.6 is 60% of the physical screen size.
 .It Cm keyboard_mapping
 Clear all key bindings and load new key bindings from the specified file.
 This allows you to load pre-defined key bindings for your keyboard layout.
-At present, keyboard mapping files for the US, Czech Republic, French and
-Spanish keyboards are provided in scrotwm_us.conf, scrotwm_cz.conf,
-scrotwm_fr.conf and scrotwm_es.conf respectively.
+See the
+.Sx KEYBOARD MAPPING FILES
+section below for a list of keyboard mapping files that have been provided
+for several keyboard layouts.
 .It Cm layout
 Select layout to use at start-of-day.
 Defined in the format
@@ -579,6 +580,23 @@ bind[] = Mod1+q # unbind Alt + q
 .Ed
 .Pp
 Multiple key combinations may be bound to the same action.
+.Sh KEYBOARD MAPPING FILES
+Keyboard mapping files for several keyboard layouts are listed
+below. These files can be used with the
+.Pa keyboard_mapping
+setting to load pre-defined key bindings for the specified
+keyboard layout.
+.Pp
+.Bl -tag -width "scrotwm_XX.confXXX" -offset indent -compact
+.It Cm scrotwm_cz.conf
+Czech Republic keyboard layout
+.It Cm scrotwm_es.conf
+Spanish keyboard layout
+.It Cm scrotwm_fr.conf
+French keyboard layout
+.It Cm scrotwm_us.conf
+United States keyboard layout
+.El
 .Sh QUIRKS
 .Nm
 provides "quirks" which handle windows that must be treated specially
