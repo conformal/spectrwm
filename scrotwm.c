@@ -1147,7 +1147,7 @@ setscreencolor(char *val, int i, int c)
 void
 fancy_stacker(struct workspace *ws)
 {
-	strcpy(ws->stacker, "[   ]");
+	strlcpy(ws->stacker, "[   ]", sizeof ws->stacker);
 	if (ws->cur_layout->l_stack == vertical_stack)
 		snprintf(ws->stacker, sizeof ws->stacker, "[%d|%d]",
 		    ws->l_state.vertical_mwin, ws->l_state.vertical_stacks);
@@ -1159,11 +1159,11 @@ fancy_stacker(struct workspace *ws)
 void
 plain_stacker(struct workspace *ws)
 {
-	strcpy(ws->stacker, "[ ]");
+	strlcpy(ws->stacker, "[ ]", sizeof ws->stacker);
 	if (ws->cur_layout->l_stack == vertical_stack)
-		strcpy(ws->stacker, "[|]");
+		strlcpy(ws->stacker, "[|]", sizeof ws->stacker);
 	if (ws->cur_layout->l_stack == horizontal_stack)
-		strcpy(ws->stacker, "[-]");
+		strlcpy(ws->stacker, "[-]", sizeof ws->stacker);
 }
 
 void
@@ -1327,7 +1327,7 @@ bar_update(void)
 	char			s[SWM_BAR_MAX];
 	char			cn[SWM_BAR_MAX];
 	char			loc[SWM_BAR_MAX];
-	char			*b;
+	char			*b, *stack = "";
 
 	if (bar_enabled == 0)
 		return;
@@ -1364,10 +1364,11 @@ bar_update(void)
 				bar_class_name(cn, sizeof cn, r->ws->focus);
 				bar_window_name(cn, sizeof cn, r->ws->focus);
 			}
+			if (stack_enabled)
+				stack = r->ws->stacker;
 
 			snprintf(loc, sizeof loc, "%d:%d %s   %s%s    %s    %s",
-			    x++, r->ws->idx + 1, r->ws->stacker, s, cn, bar_ext,
-			    bar_vertext);
+			    x++, r->ws->idx + 1, stack, s, cn, bar_ext, bar_vertext);
 			bar_print(r, loc);
 		}
 	}
@@ -4665,7 +4666,8 @@ enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_BAR_BORDER_WIDTH,
 int
 setconfvalue(char *selector, char *value, int flags)
 {
-	int i;
+	int	i;
+
 	switch (flags) {
 	case SWM_S_BAR_DELAY:
 		bar_delay = atoi(value);
