@@ -3217,7 +3217,7 @@ search_do_resp(void)
 
 	if ((resp = calloc(1, MAX_RESP_LEN + 1)) == NULL) {
 		fprintf(stderr, "search: calloc\n");
-		return;
+		goto done;
 	}
 
 	rbytes = read(select_resp_pipe[0], resp, MAX_RESP_LEN);
@@ -3249,6 +3249,7 @@ search_do_resp(void)
 		free(s);
 	}
 done:
+	close(select_resp_pipe[0]);
 	free(resp);
 }
 
