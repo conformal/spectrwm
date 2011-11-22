@@ -146,7 +146,7 @@ See
 .Pa master_add ,
 .Pa master_del ,
 .Pa stack_inc ,
-.Pa stack_del ,
+.Pa stack_dec ,
 and
 .Pa always_raise
 for more information.
@@ -361,7 +361,7 @@ master_del
 .It Cm M-S-,
 stack_inc
 .It Cm M-S-.
-stack_del
+stack_dec
 .It Cm M- Ns Aq Cm Return
 swap_main
 .It Xo
@@ -471,7 +471,7 @@ Add windows to master area.
 Remove windows from master area.
 .It Cm stack_inc
 Add columns/rows to stacking area.
-.It Cm stack_del
+.It Cm stack_dec
 Remove columns/rows from stacking area.
 .It Cm swap_main
 Move current window to master area.
