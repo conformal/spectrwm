@@ -191,7 +191,8 @@ Enable by setting to 1.
 .It Cm urgent_enabled
 Enable or disable the urgency hint.
 Note that many terminal emulators require this to be enabled for it to
-propagate.  In xterm, for example, one needs to add the following line
+propagate.
+In xterm, for example, one needs to add the following line
 .Pa xterm.urgentOnBell: true
 to
 .Pa .Xdefaults .
@@ -582,7 +583,8 @@ bind[] = Mod1+q # unbind Alt + q
 Multiple key combinations may be bound to the same action.
 .Sh KEYBOARD MAPPING FILES
 Keyboard mapping files for several keyboard layouts are listed
-below. These files can be used with the
+below.
+These files can be used with the
 .Pa keyboard_mapping
 setting to load pre-defined key bindings for the specified
 keyboard layout.
@@ -710,9 +712,11 @@ Quirks specified in the configuration file override the automatic quirks.
 partially implements the Extended Window Manager Hints (EWMH) specification.
 This enables controlling windows as well as
 .Nm
-itself from external scripts and programs. This is achieved by
+itself from external scripts and programs.
+This is achieved by
 .Nm
-responding to certain ClientMessage events. From the terminal these events
+responding to certain ClientMessage events.
+From the terminal these events
 can be conveniently sent using tools such as
 .Xr wmctrl 1
 and
@@ -721,7 +725,8 @@ For the
 actual format of these ClientMessage events, see the EWMH specification.
 .Pp
 The id of the currently focused window is stored in the _NET_ACTIVE_WINDOW
-property of the root window. This can be used for example to retrieve the
+property of the root window.
+This can be used for example to retrieve the
 title of the currently active window with
 .Xr xprop 1
 and
@@ -732,7 +737,8 @@ $ xprop \-id $WINDOWID WM_NAME | grep \-o "\\".*\\""
 .Ed
 .Pp
 A window can be focused by sending a _NET_ACTIVE_WINDOW client message
-to the root window. For example, using
+to the root window.
+For example, using
 .Xr wmctrl 1
 to send the message
 (assuming 0x4a0000b is the id of the window to be focused):
@@ -741,7 +747,8 @@ $ wmctrl \-i \-a 0x4a0000b
 .Ed
 .Pp
 Windows can be closed by sending a _NET_CLOSE_WINDOW client message
-to the root window. For example, using
+to the root window.
+For example, using
 .Xr wmctrl 1
 to send the message
 (assuming 0x4a0000b is the id of the window to be closed):
@@ -752,7 +759,8 @@ $ wmctrl \-i \-c 0x4a0000b
 Windows can be floated and un-floated by adding or removing the
 _NET_WM_STATE_ABOVE atom from the _NET_WM_STATE property of the window.
 This can be achieved by sending a _NET_WM_STATE client message to the
-root window. For example, the following toggles the floating state of
+root window.
+For example, the following toggles the floating state of
 a window using
 .Xr wmctrl 1
 to send the message (assuming 0x4a0000b is the  id of the window floated
@@ -762,7 +770,8 @@ $ wmctrl \-i \-r 0x4a0000b \-b toggle,_NET_WM_STATE_ABOVE
 .Ed
 .Pp
 Floating windows can also be resized and moved by sending a
-_NET_MOVERESIZE_WINDOW client message to the root window. For example,
+_NET_MOVERESIZE_WINDOW client message to the root window.
+For example,
 using
 .Xr wmctrl 1
 to send the message (assuming 0x4a0000b is the id of
