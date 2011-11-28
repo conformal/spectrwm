@@ -6329,7 +6329,8 @@ main(int argc, char *argv[])
 	start_argv = argv;
 	fprintf(stderr, "Welcome to scrotwm V%s Build: %s\n",
 	    SCROTWM_VERSION, buildstr);
-	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
+	if (!setlocale(LC_CTYPE, "") || !setlocale(LC_TIME, "") ||
+	    !XSupportsLocale())
 		warnx("no locale support");
 
 	if (!(display = XOpenDisplay(0)))
