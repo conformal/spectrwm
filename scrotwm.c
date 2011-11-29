@@ -209,7 +209,11 @@ volatile sig_atomic_t	search_resp;
 /* dialog windows */
 double			dialog_ratio = .6;
 /* status bar */
-#define SWM_BAR_MAX	(256)
+#define SWM_BAR_MAX		(256)
+#define SWM_BAR_JUSTIFY_LEFT	(0)
+#define SWM_BAR_JUSTIFY_CENTER	(1)
+#define SWM_BAR_JUSTIFY_RIGHT	(2)
+#define SWM_BAR_OFFSET		(4)
 char			*bar_argv[] = { NULL, NULL };
 int			bar_pipe[2];
 char			bar_ext[SWM_BAR_MAX];
@@ -224,6 +228,7 @@ int			bar_extra = 1;
 int			bar_extra_running = 0;
 int			bar_verbose = 1;
 int			bar_height = 0;
+int			bar_justify = SWM_BAR_JUSTIFY_LEFT;
 int			stack_enabled = 1;
 int			clock_enabled = 1;
 int			urgent_enabled = 0;
@@ -1211,10 +1216,31 @@ socket_setnonblock(int fd)
 void
 bar_print(struct swm_region *r, char *s)
 {
+	int			textwidth, x;
+	size_t		len;
+
 	XClearWindow(display, r->bar_window);
 	XSetForeground(display, bar_gc, r->s->c[SWM_S_COLOR_BAR_FONT].color);
-	XDrawString(display, r->bar_window, bar_gc, 4, bar_fs->ascent, s,
-	    strlen(s));
+
+	len = strlen(s);
+	textwidth = XTextWidth(bar_fs, s, len);
+
+	switch (bar_justify) {
+	case SWM_BAR_JUSTIFY_LEFT:
+		x = SWM_BAR_OFFSET;
+		break;
+	case SWM_BAR_JUSTIFY_CENTER:
+		x = (WIDTH(r) - textwidth) / 2;
+		break;
+	case SWM_BAR_JUSTIFY_RIGHT:
+		x = WIDTH(r) - textwidth - SWM_BAR_OFFSET;
+		break;
+	}
+
+	if (x < SWM_BAR_OFFSET)
+		x = SWM_BAR_OFFSET;
+
+	XDrawString(display, r->bar_window, bar_gc, x, bar_fs->ascent, s, len);
 }
 
 void
@@ -4661,7 +4687,7 @@ enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_BAR_BORDER_WIDTH,
 	  SWM_S_FOCUS_MODE, SWM_S_DISABLE_BORDER, SWM_S_BORDER_WIDTH,
 	  SWM_S_BAR_FONT, SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM,
 	  SWM_S_SS_APP, SWM_S_DIALOG_RATIO, SWM_S_BAR_AT_BOTTOM,
-	  SWM_S_VERBOSE_LAYOUT
+	  SWM_S_VERBOSE_LAYOUT, SWM_S_BAR_JUSTIFY
 	};
 
 int
@@ -4681,6 +4707,16 @@ setconfvalue(char *selector, char *value, int flags)
 		break;
 	case SWM_S_BAR_AT_BOTTOM:
 		bar_at_bottom = atoi(value);
+		break;
+	case SWM_S_BAR_JUSTIFY:
+		if (!strcmp(value, "left"))
+			bar_justify = SWM_BAR_JUSTIFY_LEFT;
+		else if (!strcmp(value, "center"))
+			bar_justify = SWM_BAR_JUSTIFY_CENTER;
+		else if (!strcmp(value, "right"))
+			bar_justify = SWM_BAR_JUSTIFY_RIGHT;
+		else
+			errx(1, "invalid bar_justify");
 		break;
 	case SWM_S_STACK_ENABLED:
 		stack_enabled = atoi(value);
@@ -4949,6 +4985,7 @@ struct config_option configopt[] = {
 	{ "bar_font",			setconfvalue,	SWM_S_BAR_FONT },
 	{ "bar_action",			setconfvalue,	SWM_S_BAR_ACTION },
 	{ "bar_delay",			setconfvalue,	SWM_S_BAR_DELAY },
+	{ "bar_justify",		setconfvalue,	SWM_S_BAR_JUSTIFY },
 	{ "keyboard_mapping",		setkeymapping,	0 },
 	{ "bind",			setconfbinding,	0 },
 	{ "stack_enabled",		setconfvalue,	SWM_S_STACK_ENABLED },
