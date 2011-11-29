@@ -205,6 +205,13 @@ int			select_list_pipe[2];
 int			select_resp_pipe[2];
 pid_t			searchpid;
 volatile sig_atomic_t	search_resp;
+int			search_resp_action;
+
+/* search actions */
+enum {
+	SWM_SEARCH_NONE,
+	SWM_SEARCH_UNICONIFY
+};
 
 /* dialog windows */
 double			dialog_ratio = .6;
@@ -3213,8 +3220,9 @@ uniconify(struct swm_region *r, union arg *args)
 		return;
 
 	search_r = r;
+	search_resp_action = SWM_SEARCH_UNICONIFY;
 
-	spawn_select(r, args, "uniconify", &searchpid);
+	spawn_select(r, args, "search", &searchpid);
 
 	if ((lfile = fdopen(select_list_pipe[1], "w")) == NULL)
 		return;
@@ -3236,15 +3244,43 @@ uniconify(struct swm_region *r, union arg *args)
 	fclose(lfile);
 }
 
+void
+search_resp_uniconify(char *resp, unsigned long len)
+{
+	unsigned char		*name;
+	struct ws_win		*win;
+	char			*s;
+
+	DNPRINTF(SWM_D_MISC, "search_resp_uniconify: resp %s\n", resp);
+
+	TAILQ_FOREACH(win, &search_r->ws->winlist, entry) {
+		if (win->iconic == 0)
+			continue;
+		name = get_win_name(display, win->id, a_wmname, a_string, &len);
+		if (name == NULL)
+			continue;
+		if (asprintf(&s, "%s.%lu", name, win->id) == -1) {
+			XFree(name);
+			continue;
+		}
+		XFree(name);
+		if (strncmp(s, resp, len) == 0) {
+			/* XXX this should be a callback to generalize */
+			update_iconic(win, 0);
+			free(s);
+			break;
+		}
+		free(s);
+	}
+}
+
 #define MAX_RESP_LEN	1024
 
 void
 search_do_resp(void)
 {
 	ssize_t			rbytes;
-	struct ws_win		*win;
-	unsigned char		*name;
-	char			*resp, *s;
+	char			*resp;
 	unsigned long		len;
 
 	DNPRINTF(SWM_D_MISC, "search_do_resp:\n");
@@ -3265,27 +3301,14 @@ search_do_resp(void)
 	resp[rbytes] = '\0';
 	len = strlen(resp);
 
-	DNPRINTF(SWM_D_MISC, "search_do_resp: resp %s\n", resp);
-	TAILQ_FOREACH(win, &search_r->ws->winlist, entry) {
-		if (win->iconic == 0)
-			continue;
-		name = get_win_name(display, win->id, a_wmname, a_string, &len);
-		if (name == NULL)
-			continue;
-		if (asprintf(&s, "%s.%lu", name, win->id) == -1) {
-			XFree(name);
-			continue;
-		}
-		XFree(name);
-		if (strncmp(s, resp, len) == 0) {
-			/* XXX this should be a callback to generalize */
-			update_iconic(win, 0);
-			free(s);
-			break;
-		}
-		free(s);
+	switch (search_resp_action) {
+	case SWM_SEARCH_UNICONIFY:
+		search_resp_uniconify(resp, len);
+		break;
 	}
+
 done:
+	search_resp_action = SWM_SEARCH_NONE;
 	close(select_resp_pipe[0]);
 	free(resp);
 }
@@ -4159,7 +4182,7 @@ setup_spawn(void)
 					" -nf $bar_font_color"
 					" -sb $bar_border"
 					" -sf $bar_color",	0);
-	setconfspawn("uniconify",	"dmenu"
+	setconfspawn("search",		"dmenu"
 					" -i"
 					" -fn $bar_font"
 					" -nb $bar_color"
