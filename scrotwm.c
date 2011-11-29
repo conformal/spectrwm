@@ -210,7 +210,9 @@ int			search_resp_action;
 /* search actions */
 enum {
 	SWM_SEARCH_NONE,
-	SWM_SEARCH_UNICONIFY
+	SWM_SEARCH_UNICONIFY,
+	SWM_SEARCH_NAME_WORKSPACE,
+	SWM_SEARCH_SEARCH_WORKSPACE
 };
 
 /* dialog windows */
@@ -369,6 +371,7 @@ struct layout {
 /* define work spaces */
 struct workspace {
 	int			idx;		/* workspace index */
+	char			*name;		/* workspace name */
 	int			always_raise;	/* raise windows on focus */
 	struct layout		*cur_layout;	/* current layout handlers */
 	struct ws_win		*focus;		/* may be NULL */
@@ -1359,6 +1362,7 @@ bar_update(void)
 	struct swm_region	*r;
 	int			i, x;
 	size_t			len;
+	char			ws[SWM_BAR_MAX];
 	char			s[SWM_BAR_MAX];
 	char			cn[SWM_BAR_MAX];
 	char			loc[SWM_BAR_MAX];
@@ -1394,16 +1398,20 @@ bar_update(void)
 		x = 1;
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
 			strlcpy(cn, "", sizeof cn);
+			strlcpy(ws, "", sizeof ws);
 			if (r && r->ws) {
 				bar_urgent(cn, sizeof cn);
 				bar_class_name(cn, sizeof cn, r->ws->focus);
 				bar_window_name(cn, sizeof cn, r->ws->focus);
+				if (r->ws->name)
+					snprintf(ws, sizeof ws, "<%s>", r->ws->name);
 			}
 			if (stack_enabled)
 				stack = r->ws->stacker;
 
-			snprintf(loc, sizeof loc, "%d:%d %s   %s%s    %s    %s",
-			    x++, r->ws->idx + 1, stack, s, cn, bar_ext, bar_vertext);
+			snprintf(loc, sizeof loc, "%d:%d %s %s   %s%s    %s    %s",
+			    x++, r->ws->idx + 1, stack, ws, s, cn, bar_ext,
+			    bar_vertext);
 			bar_print(r, loc);
 		}
 	}
@@ -3245,6 +3253,62 @@ uniconify(struct swm_region *r, union arg *args)
 }
 
 void
+name_workspace(struct swm_region *r, union arg *args)
+{
+	struct workspace	*ws;
+	FILE			*lfile;
+
+	DNPRINTF(SWM_D_MISC, "name_workspace\n");
+
+	if (r && r->ws)
+		ws = r->ws;
+	else
+		return;
+
+	search_r = r;
+	search_resp_action = SWM_SEARCH_NAME_WORKSPACE;
+
+	spawn_select(r, args, "name_workspace", &searchpid);
+
+	if ((lfile = fdopen(select_list_pipe[1], "w")) == NULL)
+		return;
+
+	fprintf(lfile, "%s", "");
+	fclose(lfile);
+}
+
+void
+search_workspace(struct swm_region *r, union arg *args)
+{
+	int			i;
+	struct workspace	*ws;
+	FILE			*lfile;
+
+	DNPRINTF(SWM_D_MISC, "search_workspace\n");
+
+	if (r == NULL)
+		return;
+
+	search_r = r;
+	search_resp_action = SWM_SEARCH_SEARCH_WORKSPACE;
+
+	spawn_select(r, args, "search", &searchpid);
+
+	if ((lfile = fdopen(select_list_pipe[1], "w")) == NULL)
+		return;
+
+	for (i = 0; i < SWM_WS_MAX; i++) {
+		ws = &r->s->ws[i];
+		if (ws == NULL)
+			continue;
+		fprintf(lfile, "%d%s%s\n", ws->idx + 1,
+		    (ws->name ? ":" : ""), (ws->name ? ws->name : ""));
+	}
+
+	fclose(lfile);
+}
+
+void
 search_resp_uniconify(char *resp, unsigned long len)
 {
 	unsigned char		*name;
@@ -3272,6 +3336,65 @@ search_resp_uniconify(char *resp, unsigned long len)
 		}
 		free(s);
 	}
+}
+
+void
+search_resp_name_workspace(char *resp, unsigned long len)
+{
+	struct workspace	*ws;
+
+	DNPRINTF(SWM_D_MISC, "search_resp_name_workspace: resp %s\n", resp);
+
+	if (search_r->ws == NULL)
+		return;
+	ws = search_r->ws;
+
+	if (ws->name) {
+		free(search_r->ws->name);
+		search_r->ws->name = NULL;
+	}
+
+	if (len > 1) {
+		ws->name = strdup(resp);
+		if (ws->name == NULL) {
+			DNPRINTF(SWM_D_MISC, "search_resp_name_workspace: strdup: %s",
+			    strerror(errno));
+			return;
+		}
+		ws->name[len - 1] = '\0';
+	}
+}
+
+void
+search_resp_search_workspace(char *resp, unsigned long len)
+{
+	char			*p, *q;
+	int			ws_idx;
+	const char		*errstr;
+	union arg		a;
+
+	DNPRINTF(SWM_D_MISC, "search_resp_search_workspace: resp %s\n", resp);
+
+	q = strdup(resp);
+	if (!q) {
+		DNPRINTF(SWM_D_MISC, "search_resp_search_workspace: strdup: %s",
+		    strerror(errno));
+		return;
+	}
+	q[len - 1] = '\0';
+	p = strchr(q, ':');
+	if (p != NULL)
+		*p = '\0';
+	ws_idx = strtonum(q, 1, SWM_WS_MAX, &errstr);
+	if (errstr) {
+		DNPRINTF(SWM_D_MISC, "workspace idx is %s: %s",
+		    errstr, q);
+		free(q);
+		return;
+	}
+	free(q);
+	a.id = ws_idx - 1;
+	switchws(search_r, &a);
 }
 
 #define MAX_RESP_LEN	1024
@@ -3304,6 +3427,12 @@ search_do_resp(void)
 	switch (search_resp_action) {
 	case SWM_SEARCH_UNICONIFY:
 		search_resp_uniconify(resp, len);
+		break;
+	case SWM_SEARCH_NAME_WORKSPACE:
+		search_resp_name_workspace(resp, len);
+		break;
+	case SWM_SEARCH_SEARCH_WORKSPACE:
+		search_resp_search_workspace(resp, len);
 		break;
 	}
 
@@ -3762,6 +3891,8 @@ enum keyfuncid {
 	kf_move_right,
 	kf_move_up,
 	kf_move_down,
+	kf_name_workspace,
+	kf_search_workspace,
 	kf_dumpwins, /* MUST BE LAST */
 	kf_invalid
 };
@@ -3850,6 +3981,8 @@ struct keyfunc {
 	{ "move_right",		move_step,	{.id = SWM_ARG_ID_MOVERIGHT} },
 	{ "move_up",		move_step,	{.id = SWM_ARG_ID_MOVEUP} },
 	{ "move_down",		move_step,	{.id = SWM_ARG_ID_MOVEDOWN} },
+	{ "name_workspace",	name_workspace,	{0} },
+	{ "search_workspace",	search_workspace,	{0} },
 	{ "dumpwins",		dumpwins,	{0} }, /* MUST BE LAST */
 	{ "invalid key func",	NULL,		{0} },
 };
@@ -4189,6 +4322,13 @@ setup_spawn(void)
 					" -nf $bar_font_color"
 					" -sb $bar_border"
 					" -sf $bar_color",	0);
+	setconfspawn("name_workspace",	"dmenu"
+					" -p Workspace"
+					" -fn $bar_font"
+					" -nb $bar_color"
+					" -nf $bar_font_color"
+					" -sb $bar_border"
+					" -sf $bar_color",	0);
 }
 
 /* key bindings */
@@ -4453,6 +4593,8 @@ setup_keys(void)
 	setkeybinding(MODKEY,		XK_bracketright,kf_move_right,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_bracketleft,	kf_move_up,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_bracketright,kf_move_down,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_slash,	kf_name_workspace,NULL);
+	setkeybinding(MODKEY,		XK_slash,	kf_search_workspace,NULL);
 #ifdef SWM_DEBUG
 	setkeybinding(MODKEY|ShiftMask,	XK_d,		kf_dumpwins,	NULL);
 #endif
@@ -6322,6 +6464,7 @@ setup_screens(void)
 		for (j = 0; j < SWM_WS_MAX; j++) {
 			ws = &screens[i].ws[j];
 			ws->idx = j;
+			ws->name = NULL;
 			ws->focus = NULL;
 			ws->r = NULL;
 			ws->old_r = NULL;

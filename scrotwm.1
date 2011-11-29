@@ -447,11 +447,15 @@ move_right
 move_up
 .It Cm M-S-]
 move_down
+.It Cm M-S-/
+name_workspace
+.It Cm M-/
+search_workspace
 .El
 .Pp
 The action names and descriptions are listed below:
 .Pp
-.Bl -tag -width "M-j, M-<TAB>XXX" -offset indent -compact
+.Bl -tag -width "M-j, M-<TAB>XXXX" -offset indent -compact
 .It Cm term
 Spawn a new terminal
 (see
@@ -576,6 +580,10 @@ Move a floating window a step to the right.
 Move a floating window a step upwards.
 .It Cm move_down
 Move a floating window a step downwards.
+.It Cm name_workspace
+Name the current workspace.
+.It Cm search_workspace
+Search for a workspace.
 .El
 .Pp
 Custom bindings in the configuration file are specified as follows:
