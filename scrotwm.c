@@ -3452,7 +3452,6 @@ search_resp_name_workspace(char *resp, unsigned long len)
 			    strerror(errno));
 			return;
 		}
-		ws->name[len - 1] = '\0';
 	}
 }
 
@@ -3472,7 +3471,6 @@ search_resp_search_workspace(char *resp, unsigned long len)
 		    strerror(errno));
 		return;
 	}
-	q[len - 1] = '\0';
 	p = strchr(q, ':');
 	if (p != NULL)
 		*p = '\0';
@@ -3504,7 +3502,7 @@ search_resp_search_window(char *resp, unsigned long len)
 		    strerror(errno));
 		return;
 	}
-	s[len - 1] = '\0';
+
 	idx = strtonum(s, 1, INT_MAX, &errstr);
 	if (errstr) {
 		DNPRINTF(SWM_D_MISC, "window idx is %s: %s",
@@ -3546,6 +3544,12 @@ search_do_resp(void)
 		goto done;
 	}
 	resp[rbytes] = '\0';
+
+	/* XXX:
+	 * Older versions of dmenu (Atleast pre 4.4.1) do not send a
+	 * newline, so work around that by sanitizing the resp now.
+	 */
+	resp[strcspn(resp, "\n")] = '\0';
 	len = strlen(resp);
 
 	switch (search_resp_action) {
