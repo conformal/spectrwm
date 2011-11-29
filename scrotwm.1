@@ -13,7 +13,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: November 11 2011 $
+.Dd $Mdocdate: November 28 2011 $
 .Dt SCROTWM 1
 .Os
 .Sh NAME
@@ -451,6 +451,8 @@ move_down
 name_workspace
 .It Cm M-/
 search_workspace
+.It Cm M-s
+search_win
 .El
 .Pp
 The action names and descriptions are listed below:
@@ -584,6 +586,8 @@ Move a floating window a step downwards.
 Name the current workspace.
 .It Cm search_workspace
 Search for a workspace.
+.It Cm search_win
+Search the windows in the current workspace.
 .El
 .Pp
 Custom bindings in the configuration file are specified as follows:

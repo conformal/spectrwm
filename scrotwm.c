@@ -207,12 +207,23 @@ pid_t			searchpid;
 volatile sig_atomic_t	search_resp;
 int			search_resp_action;
 
+struct search_window {
+	TAILQ_ENTRY(search_window)	entry;
+	int					idx;
+	struct ws_win		*win;
+	Window				indicator;
+};
+TAILQ_HEAD(search_winlist, search_window);
+
+struct search_winlist search_wl;
+
 /* search actions */
 enum {
 	SWM_SEARCH_NONE,
 	SWM_SEARCH_UNICONIFY,
 	SWM_SEARCH_NAME_WORKSPACE,
-	SWM_SEARCH_SEARCH_WORKSPACE
+	SWM_SEARCH_SEARCH_WORKSPACE,
+	SWM_SEARCH_SEARCH_WINDOW
 };
 
 /* dialog windows */
@@ -3309,6 +3320,86 @@ search_workspace(struct swm_region *r, union arg *args)
 }
 
 void
+search_win_cleanup(void)
+{
+	struct search_window	*sw = NULL;
+
+	while ((sw = TAILQ_FIRST(&search_wl)) != NULL) {
+		XDestroyWindow(display, sw->indicator);
+		TAILQ_REMOVE(&search_wl, sw, entry);
+		free(sw);
+	}
+}
+
+void
+search_win(struct swm_region *r, union arg *args)
+{
+	struct ws_win		*win = NULL;
+	struct search_window	*sw = NULL;
+	Window			w;
+	GC			gc;
+	XGCValues		gcv;
+	int			i;
+	char			s[8];
+	FILE			*lfile;
+	size_t			len;
+	int			textwidth;
+
+	DNPRINTF(SWM_D_MISC, "search_win\n");
+
+	search_r = r;
+	search_resp_action = SWM_SEARCH_SEARCH_WINDOW;
+
+	spawn_select(r, args, "search", &searchpid);
+
+	if ((lfile = fdopen(select_list_pipe[1], "w")) == NULL)
+		return;
+
+	TAILQ_INIT(&search_wl);
+
+	i = 1;
+	TAILQ_FOREACH(win, &r->ws->winlist, entry) {
+		if (win->iconic == 1)
+			continue;
+
+		sw = calloc(1, sizeof(struct search_window));
+		if (sw == NULL) {
+			fprintf(stderr, "search_win: calloc: %s", strerror(errno));
+			fclose(lfile);
+			search_win_cleanup();
+			return;
+		}
+		sw->idx = i;
+		sw->win = win;
+
+		snprintf(s, sizeof s, "%d", i);
+		len = strlen(s);
+		textwidth = XTextWidth(bar_fs, s, len);
+
+		w = XCreateSimpleWindow(display,
+		    win->id, 0, 0, textwidth + 12,
+		    bar_fs->ascent + bar_fs->descent + 4, 1,
+		    r->s->c[SWM_S_COLOR_UNFOCUS].color,
+		    r->s->c[SWM_S_COLOR_FOCUS].color);
+
+		sw->indicator = w;
+		TAILQ_INSERT_TAIL(&search_wl, sw, entry);
+
+		gc = XCreateGC(display, w, 0, &gcv);
+		XSetFont(display, gc, bar_fs->fid);
+		XMapRaised(display, w);
+		XSetForeground(display, gc, r->s->c[SWM_S_COLOR_BAR].color);
+
+		XDrawString(display, w, gc, 6, bar_fs->ascent + 2, s, len);
+
+		fprintf(lfile, "%d\n", i);
+		i++;
+	}
+
+	fclose(lfile);
+}
+
+void
 search_resp_uniconify(char *resp, unsigned long len)
 {
 	unsigned char		*name;
@@ -3397,6 +3488,39 @@ search_resp_search_workspace(char *resp, unsigned long len)
 	switchws(search_r, &a);
 }
 
+void
+search_resp_search_window(char *resp, unsigned long len)
+{
+	char			*s;
+	int			idx;
+	const char		*errstr;
+	struct search_window	*sw;
+
+	DNPRINTF(SWM_D_MISC, "search_resp_search_window: resp %s\n", resp);
+
+	s = strdup(resp);
+	if (!s) {
+		DNPRINTF(SWM_D_MISC, "search_resp_search_window: strdup: %s",
+		    strerror(errno));
+		return;
+	}
+	s[len - 1] = '\0';
+	idx = strtonum(s, 1, INT_MAX, &errstr);
+	if (errstr) {
+		DNPRINTF(SWM_D_MISC, "window idx is %s: %s",
+		    errstr, s);
+		free(s);
+		return;
+	}
+	free(s);
+
+	TAILQ_FOREACH(sw, &search_wl, entry)
+		if (idx == sw->idx) {
+			focus_win(sw->win);
+			break;
+		}
+}
+
 #define MAX_RESP_LEN	1024
 
 void
@@ -3434,9 +3558,15 @@ search_do_resp(void)
 	case SWM_SEARCH_SEARCH_WORKSPACE:
 		search_resp_search_workspace(resp, len);
 		break;
+	case SWM_SEARCH_SEARCH_WINDOW:
+		search_resp_search_window(resp, len);
+		break;
 	}
 
 done:
+	if (search_resp_action == SWM_SEARCH_SEARCH_WINDOW)
+		search_win_cleanup();
+
 	search_resp_action = SWM_SEARCH_NONE;
 	close(select_resp_pipe[0]);
 	free(resp);
@@ -3893,6 +4023,7 @@ enum keyfuncid {
 	kf_move_down,
 	kf_name_workspace,
 	kf_search_workspace,
+	kf_search_win,
 	kf_dumpwins, /* MUST BE LAST */
 	kf_invalid
 };
@@ -3983,6 +4114,7 @@ struct keyfunc {
 	{ "move_down",		move_step,	{.id = SWM_ARG_ID_MOVEDOWN} },
 	{ "name_workspace",	name_workspace,	{0} },
 	{ "search_workspace",	search_workspace,	{0} },
+	{ "search_win",		search_win,	{0} },
 	{ "dumpwins",		dumpwins,	{0} }, /* MUST BE LAST */
 	{ "invalid key func",	NULL,		{0} },
 };
@@ -4595,6 +4727,7 @@ setup_keys(void)
 	setkeybinding(MODKEY|ShiftMask,	XK_bracketright,kf_move_down,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_slash,	kf_name_workspace,NULL);
 	setkeybinding(MODKEY,		XK_slash,	kf_search_workspace,NULL);
+	setkeybinding(MODKEY,		XK_s,		kf_search_win,	NULL);
 #ifdef SWM_DEBUG
 	setkeybinding(MODKEY|ShiftMask,	XK_d,		kf_dumpwins,	NULL);
 #endif
