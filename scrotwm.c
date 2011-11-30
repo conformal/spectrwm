@@ -4731,7 +4731,7 @@ setup_keys(void)
 	setkeybinding(MODKEY|ShiftMask,	XK_bracketright,kf_move_down,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_slash,	kf_name_workspace,NULL);
 	setkeybinding(MODKEY,		XK_slash,	kf_search_workspace,NULL);
-	setkeybinding(MODKEY,		XK_s,		kf_search_win,	NULL);
+	setkeybinding(MODKEY,		XK_f,		kf_search_win,	NULL);
 #ifdef SWM_DEBUG
 	setkeybinding(MODKEY|ShiftMask,	XK_d,		kf_dumpwins,	NULL);
 #endif

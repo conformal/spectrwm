@@ -13,7 +13,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: November 28 2011 $
+.Dd $Mdocdate: November 29 2011 $
 .Dt SCROTWM 1
 .Os
 .Sh NAME
@@ -317,12 +317,12 @@ fields and will be substituted for values at the time the program is spawned:
 Example:
 .Bd -literal -offset indent
 program[ff] = /usr/local/bin/firefox http://scrotwm.org/
-bind[ff] = Mod+f # Now Mod+F launched firefox
+bind[ff] = Mod+Shift+b # Now Mod+Shift+B launches firefox
 .Ed
 .Pp
 To undo the previous:
 .Bd -literal -offset indent
-bind[] = Mod+f
+bind[] = Mod+Shift+b
 program[ff] =
 .Ed
 .Sh BINDINGS
