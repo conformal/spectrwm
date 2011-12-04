@@ -1945,12 +1945,12 @@ validate_win(struct ws_win *testwin)
 	struct ws_win		*win;
 	struct workspace	*ws;
 	struct swm_region	*r;
-	int			i, x, foundit = 0;
+	int			i, x;
 
 	if (testwin == NULL)
 		return (0);
 
-	for (i = 0, foundit = 0; i < ScreenCount(display); i++)
+	for (i = 0; i < ScreenCount(display); i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			for (x = 0; x < SWM_WS_MAX; x++) {
 				ws = &r->s->ws[x];
@@ -1966,10 +1966,10 @@ validate_ws(struct workspace *testws)
 {
 	struct swm_region	*r;
 	struct workspace	*ws;
-	int			foundit, i, x;
+	int			i, x;
 
 	/* validate all ws */
-	for (i = 0, foundit = 0; i < ScreenCount(display); i++)
+	for (i = 0; i < ScreenCount(display); i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			for (x = 0; x < SWM_WS_MAX; x++) {
 				ws = &r->s->ws[x];
@@ -2523,12 +2523,9 @@ void
 cycle_layout(struct swm_region *r, union arg *args)
 {
 	struct workspace	*ws = r->ws;
-	struct ws_win		*winfocus;
 	union arg		a;
 
 	DNPRINTF(SWM_D_EVENT, "cycle_layout: workspace: %d\n", ws->idx);
-
-	winfocus = ws->focus;
 
 	ws->cur_layout++;
 	if (ws->cur_layout->l_stack == NULL)
@@ -2562,12 +2559,11 @@ void
 stack(void) {
 	struct swm_geometry	g;
 	struct swm_region	*r;
-	int			i, j;
+	int			i;
 
 	DNPRINTF(SWM_D_STACK, "stack\n");
 
 	for (i = 0; i < ScreenCount(display); i++) {
-		j = 0;
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
 			DNPRINTF(SWM_D_STACK, "stacking workspace %d "
 			    "(screen %d, region %d)\n", r->ws->idx, i, j++);
@@ -3266,14 +3262,11 @@ uniconify(struct swm_region *r, union arg *args)
 void
 name_workspace(struct swm_region *r, union arg *args)
 {
-	struct workspace	*ws;
 	FILE			*lfile;
 
 	DNPRINTF(SWM_D_MISC, "name_workspace\n");
 
-	if (r && r->ws)
-		ws = r->ws;
-	else
+	if (r == NULL)
 		return;
 
 	search_r = r;
@@ -3820,9 +3813,7 @@ move_window(struct ws_win *win)
 {
 	unsigned int		mask;
 	XWindowChanges		wc;
-	struct swm_region	*r;
 
-	r = root_to_region(win->wa.root);
 	bzero(&wc, sizeof wc);
 	mask = CWX | CWY;
 	wc.x = win->g.x;
