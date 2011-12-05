@@ -2559,11 +2559,12 @@ void
 stack(void) {
 	struct swm_geometry	g;
 	struct swm_region	*r;
-	int			i;
+	int			i, j;
 
 	DNPRINTF(SWM_D_STACK, "stack\n");
 
 	for (i = 0; i < ScreenCount(display); i++) {
+		j = 0;
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
 			DNPRINTF(SWM_D_STACK, "stacking workspace %d "
 			    "(screen %d, region %d)\n", r->ws->idx, i, j++);
