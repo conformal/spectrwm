@@ -1,0 +1,10 @@
+*.manlint
+*.o
+*.orig
+*.rej
+lib/libswmhack.a
+lib/libswmhack.so.*
+lib/libswmhack_pic.a
+lib/swm_hack.so
+scrotwm
+tags
