@@ -1159,16 +1159,16 @@ setscreencolor(char *val, int i, int c)
 		screens[i - 1].c[c].color = name_to_color(val);
 		free(screens[i - 1].c[c].name);
 		if ((screens[i - 1].c[c].name = strdup(val)) == NULL)
-			errx(1, "strdup");
+			err(1, "strdup");
 	} else if (i == -1) {
 		for (i = 0; i < ScreenCount(display); i++) {
 			screens[i].c[c].color = name_to_color(val);
 			free(screens[i].c[c].name);
 			if ((screens[i].c[c].name = strdup(val)) == NULL)
-				errx(1, "strdup");
+				err(1, "strdup");
 		}
 	} else
-		errx(1, "invalid screen index: %d out of bounds (maximum %d)\n",
+		errx(1, "invalid screen index: %d out of bounds (maximum %d)",
 		    i, ScreenCount(display));
 }
 
@@ -1201,14 +1201,14 @@ custom_region(char *val)
 
 	if (sscanf(val, "screen[%u]:%ux%u+%u+%u", &sidx, &w, &h, &x, &y) != 5)
 		errx(1, "invalid custom region, "
-		    "should be 'screen[<n>]:<n>x<n>+<n>+<n>\n");
+		    "should be 'screen[<n>]:<n>x<n>+<n>+<n>");
 	if (sidx < 1 || sidx > ScreenCount(display))
-		errx(1, "invalid screen index: %d out of bounds (maximum %d)\n",
+		errx(1, "invalid screen index: %d out of bounds (maximum %d)",
 		    sidx, ScreenCount(display));
 	sidx--;
 
 	if (w < 1 || h < 1)
-		errx(1, "region %ux%u+%u+%u too small\n", w, h, x, y);
+		errx(1, "region %ux%u+%u+%u too small", w, h, x, y);
 
 	if (x > DisplayWidth(display, sidx) ||
 	    y > DisplayHeight(display, sidx) ||
@@ -1475,9 +1475,9 @@ bar_refresh(void)
 		socket_setnonblock(bar_pipe[0]);
 		socket_setnonblock(bar_pipe[1]); /* XXX hmmm, really? */
 		if (dup2(bar_pipe[0], 0) == -1)
-			errx(1, "dup2");
+			err(1, "dup2");
 		if (dup2(bar_pipe[1], 1) == -1)
-			errx(1, "dup2");
+			err(1, "dup2");
 		if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
 			err(1, "could not disable SIGPIPE");
 		switch (bar_pid = fork()) {
@@ -1526,7 +1526,7 @@ bar_setup(struct swm_region *r)
 		}
 	}
 	if (bar_fonts[i] == NULL)
-			errx(1, "couldn't load font");
+		errx(1, "couldn't load font");
 	if (bar_fs == NULL)
 		errx(1, "couldn't create font structure");
 
@@ -1762,7 +1762,7 @@ restart(struct swm_region *r, union arg *args)
 	/* disable alarm because the following code may not be interrupted */
 	alarm(0);
 	if (signal(SIGALRM, SIG_IGN) == SIG_ERR)
-		errx(1, "can't disable alarm");
+		err(1, "can't disable alarm");
 
 	bar_extra_stop();
 	bar_extra = 1;
@@ -4288,9 +4288,9 @@ spawn_select(struct swm_region *r, union arg *args, char *spawn_name, int *pid)
 		break;
 	case 0: /* child */
 		if (dup2(select_list_pipe[0], 0) == -1)
-			errx(1, "dup2");
+			err(1, "dup2");
 		if (dup2(select_resp_pipe[1], 1) == -1)
-			errx(1, "dup2");
+			err(1, "dup2");
 		close(select_list_pipe[1]);
 		close(select_resp_pipe[0]);
 		spawn(r->ws->idx, &a, 0);
@@ -5073,7 +5073,7 @@ setconfvalue(char *selector, char *value, int flags)
 		else if (!strcmp(value, "synergy"))
 			focus_mode = SWM_FOCUS_SYNERGY;
 		else
-			err(1, "focus_mode");
+			errx(1, "focus_mode");
 		break;
 	case SWM_S_DISABLE_BORDER:
 		disable_border = atoi(value);
@@ -5164,10 +5164,10 @@ setautorun(char *selector, char *value, int flags)
 
 	bzero(s, sizeof s);
 	if (sscanf(value, "ws[%d]:%1023c", &ws_id, s) != 2)
-		errx(1, "invalid autorun entry, should be 'ws[<idx>]:command'\n");
+		errx(1, "invalid autorun entry, should be 'ws[<idx>]:command'");
 	ws_id--;
 	if (ws_id < 0 || ws_id >= SWM_WS_MAX)
-		errx(1, "autorun: invalid workspace %d\n", ws_id + 1);
+		errx(1, "autorun: invalid workspace %d", ws_id + 1);
 
 	/*
 	 * This is a little intricate
@@ -5229,10 +5229,10 @@ setlayout(char *selector, char *value, int flags)
 	    &ws_id, &mg, &ma, &si, &raise, s) != 6)
 		errx(1, "invalid layout entry, should be 'ws[<idx>]:"
 		    "<master_grow>:<master_add>:<stack_inc>:<always_raise>:"
-		    "<type>'\n");
+		    "<type>'");
 	ws_id--;
 	if (ws_id < 0 || ws_id >= SWM_WS_MAX)
-		errx(1, "layout: invalid workspace %d\n", ws_id + 1);
+		errx(1, "layout: invalid workspace %d", ws_id + 1);
 
 	if (!strcasecmp(s, "vertical"))
 		st = SWM_V_STACK;
@@ -5243,7 +5243,7 @@ setlayout(char *selector, char *value, int flags)
 	else
 		errx(1, "invalid layout entry, should be 'ws[<idx>]:"
 		    "<master_grow>:<master_add>:<stack_inc>:<always_raise>:"
-		    "<type>'\n");
+		    "<type>'");
 
 	for (i = 0; i < ScreenCount(display); i++) {
 		ws = (struct workspace *)&screens[i].ws;
@@ -5559,7 +5559,7 @@ manage_window(Window id)
 	}
 
 	if ((win = calloc(1, sizeof(struct ws_win))) == NULL)
-		errx(1, "calloc: failed to allocate memory for new window");
+		err(1, "calloc: failed to allocate memory for new window");
 
 	win->id = id;
 
@@ -6391,7 +6391,7 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 			ws = r->ws;
 	} else
 		if ((r = calloc(1, sizeof(struct swm_region))) == NULL)
-			errx(1, "calloc: failed to allocate memory for screen");
+			err(1, "calloc: failed to allocate memory for screen");
 
 	/* if we don't have a workspace already, find one */
 	if (ws == NULL) {
@@ -6403,7 +6403,7 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 	}
 
 	if (ws == NULL)
-		errx(1, "no free workspaces\n");
+		errx(1, "no free workspaces");
 
 	X(r) = x;
 	Y(r) = y;
@@ -6492,7 +6492,7 @@ screenchange(XEvent *e) {
 		if (screens[i].root == xe->root)
 			break;
 	if (i >= ScreenCount(display))
-		errx(1, "screenchange: screen not found\n");
+		errx(1, "screenchange: screen not found");
 
 	/* brute force for now, just re-enumerate the regions */
 	scan_xrandr(i);
@@ -6560,7 +6560,7 @@ setup_screens(void)
 
 	if ((screens = calloc(ScreenCount(display),
 	     sizeof(struct swm_screen))) == NULL)
-		errx(1, "calloc: screens");
+		err(1, "calloc: screens");
 
 	/* initial Xrandr setup */
 	xrandr_support = XRRQueryExtension(display,
@@ -6631,7 +6631,7 @@ setup_globals(void)
 	if ((spawn_term[0] = strdup("xterm")) == NULL)
 		err(1, "setup_globals: strdup");
 	if ((clock_format = strdup("%a %b %d %R %Z %Y")) == NULL)
-		errx(1, "strdup");
+		err(1, "strdup");
 }
 
 void
