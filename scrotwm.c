@@ -2428,8 +2428,13 @@ focus_prev(struct ws_win *win)
 	if (winfocus == NULL || winfocus == win)
 		winfocus = TAILQ_NEXT(cur_focus, entry);
 done:
-	if (winfocus == winlostfocus || winfocus == NULL)
+	if (winfocus == winlostfocus || winfocus == NULL) {
+		/* update the bar so that title/class/name will be cleared. */
+		if (window_name_enabled || title_name_enabled || title_class_enabled)
+			bar_update();
+		
 		return;
+	}
 
 	focus_magic(winfocus);
 }
@@ -2513,8 +2518,13 @@ focus(struct swm_region *r, union arg *args)
 	default:
 		return;
 	}
-	if (winfocus == winlostfocus || winfocus == NULL)
+	if (winfocus == winlostfocus || winfocus == NULL) {
+		/* update the bar so that title/class/name will be cleared. */
+		if (window_name_enabled || title_name_enabled || title_class_enabled)
+			bar_update();
+
 		return;
+	}
 
 	focus_magic(winfocus);
 }
@@ -6184,8 +6194,8 @@ propertynotify(XEvent *e)
 	}
 
 	switch (ev->atom) {
-	case XA_WM_NORMAL_HINTS:
 #if 0
+	case XA_WM_NORMAL_HINTS:
 		long		mask;
 		XGetWMNormalHints(display, win->id, &win->sh, &mask);
 		fprintf(stderr, "normal hints: flag 0x%x\n", win->sh.flags);
@@ -6197,6 +6207,11 @@ propertynotify(XEvent *e)
 		XMoveResizeWindow(display, win->id,
 		    win->g.x, win->g.y, win->g.w, win->g.h);
 #endif
+	case XA_WM_CLASS:
+		if (title_name_enabled || title_class_enabled)
+			bar_update();
+		break;
+	case XA_WM_NAME:
 		if (window_name_enabled)
 			bar_update();
 		break;
