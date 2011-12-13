@@ -13,7 +13,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: December 6 2011 $
+.Dd $Mdocdate: December 12 2011 $
 .Dt SCROTWM 1
 .Os
 .Sh NAME
@@ -75,65 +75,64 @@ For example:
 Enabling or disabling an option is done by using 1 or 0 respectively.
 .Pp
 The file supports the following keywords:
-.Pp
-.Bl -tag -width "title_class_enabledXXX" -offset indent -compact
-.It Cm autorun
+.Bl -tag -width 2m
+.It Ic autorun
 Launch an application in a specified workspace at start-of-day.
 Defined in the format ws[<idx>]:application, e.g. ws[2]:xterm launches an
 xterm in workspace 2.
-.It Cm color_focus
+.It Ic color_focus
 Border color of the currently focussed window.
-.It Cm color_unfocus
+.It Ic color_unfocus
 Border color of unfocussed windows.
-.It Cm bar_enabled
+.It Ic bar_enabled
 Enable or disable status bar.
-.It Cm bar_border Ns Bq Ar x
+.It Ic bar_border Ns Bq Ar x
 Color of the status bar border in screen
 .Ar x .
-.It Cm bar_border_width
+.It Ic bar_border_width
 Set status bar border thickness in pixels.
 Disable border by setting to 0.
-.It Cm bar_color Ns Bq Ar x
+.It Ic bar_color Ns Bq Ar x
 Color of the status bar window in screen
 .Ar x .
-.It Cm bar_font_color Ns Bq Ar x
+.It Ic bar_font_color Ns Bq Ar x
 Color of the font in status bar in screen
 .Ar x .
-.It Cm bar_font
+.It Ic bar_font
 Status bar font.
-.It Cm bar_action
+.It Ic bar_action
 External script that populates additional information in the status bar,
 such as battery life.
-.It Cm bar_delay
+.It Ic bar_delay
 Update frequency, in seconds, of external script that populates the status bar.
-.It Cm bar_at_bottom
+.It Ic bar_at_bottom
 Place the statusbar at the bottom of each region instead of the top.
-.It Cm bar_justify
+.It Ic bar_justify
 Justify the status bar text. Possible values are
 .Pa left ,
 .Pa center ,
 and
 .Pa right .
-.It Cm stack_enabled
+.It Ic stack_enabled
 Enable or disable displaying the current stacking algorithm in the status bar.
-.It Cm clock_enabled
+.It Ic clock_enabled
 Enable or disable displaying the clock in the status bar.
 Disable by setting to 0
 so a custom clock could be used in the
 .Pa bar_action
 script.
-.It Cm dialog_ratio
+.It Ic dialog_ratio
 Some applications have dialogue windows that are too small to be useful.
 This ratio is the screen size to what they will be resized.
 For example, 0.6 is 60% of the physical screen size.
-.It Cm keyboard_mapping
+.It Ic keyboard_mapping
 Clear all key bindings and load new key bindings from the specified file.
 This allows you to load pre-defined key bindings for your keyboard layout.
 See the
 .Sx KEYBOARD MAPPING FILES
 section below for a list of keyboard mapping files that have been provided
 for several keyboard layouts.
-.It Cm layout
+.It Ic layout
 Select layout to use at start-of-day.
 Defined in the format
 ws[idx]:master_grow:master_add:stack_inc:layout:always_raise:stack_mode, e.g.
@@ -162,7 +161,7 @@ One should familiarize oneself with these commands before experimenting with the
 option.
 .Pp
 This setting is not retained at restart.
-.It Cm region
+.It Ic region
 Allocates a custom region, removing any autodetected regions which occupy the same
 space on the screen.
 Defined in the format screen[<idx>]:WIDTHxHEIGHT+X+Y,
@@ -171,7 +170,7 @@ e.g.\& screen[1]:800x1200+0+0.
 To make a screen span multiple monitors, create a region big enough to cover
 them all, e.g. screen[1]:2048x768+0+0 makes the screen span two monitors with
 1024x768 resolution sitting one next to the other.
-.It Cm term_width
+.It Ic term_width
 Set a preferred minimum width for the terminal.
 If this value is greater than 0,
 .Nm
@@ -188,13 +187,13 @@ Users may need to set program[term] (see the
 section) to use an alternate copy of the
 .Xr xterm 1
 binary without the setgid bit set.
-.It Cm title_class_enabled
+.It Ic title_class_enabled
 Enable or disable displaying the window class in the status bar.
 Enable by setting to 1.
-.It Cm title_name_enabled
+.It Ic title_name_enabled
 Enable or disable displaying the window title in the status bar.
 Enable by setting to 1.
-.It Cm urgent_enabled
+.It Ic urgent_enabled
 Enable or disable the urgency hint.
 Note that many terminal emulators require this to be enabled for it to
 propagate.
@@ -202,39 +201,39 @@ In xterm, for example, one needs to add the following line
 .Pa xterm.urgentOnBell: true
 to
 .Pa .Xdefaults .
-.It Cm window_name_enabled
+.It Ic window_name_enabled
 Enable or disable displaying the window name in the status bar.
 Enable by setting to 1.
-.It Cm verbose_layout
+.It Ic verbose_layout
 Enable or disable displaying the current master and stack values in the status
 bar.
 Enable by setting to 1.
-.It Cm modkey
+.It Ic modkey
 Change mod key.
 Mod1 is generally the ALT key and Mod4 is the windows key on a PC.
-.It Cm focus_mode
+.It Ic focus_mode
 Using a value of
 .Pa follow_cursor
 will make the window manager focus the window
 under the mouse when switching workspaces and creating windows.
-.It Cm disable_border
+.It Ic disable_border
 Remove border when bar is disabled and there is only one window on the screen.
-.It Cm border_width
+.It Ic border_width
 Set window border thickness in pixels.
 Disable all borders by setting to 0.
-.It Cm program Ns Bq Ar p
+.It Ic program Ns Bq Ar p
 Define new action to spawn a program
 .Ar p .
 See the
 .Sx PROGRAMS
 section below.
-.It Cm bind Ns Bq Ar x
+.It Ic bind Ns Bq Ar x
 Bind key combo to action
 .Ar x .
 See the
 .Sx BINDINGS
 section below.
-.It Cm quirk Ns Bq Ar c:n
+.It Ic quirk Ns Bq Ar c:n
 Add "quirk" for windows with class
 .Ar c
 and name
