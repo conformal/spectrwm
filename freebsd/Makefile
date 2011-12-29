@@ -2,13 +2,10 @@ BINDIR?= $(PREFIX)/bin
 LIBDIR?= $(PREFIX)/lib
 MANDIR?= $(PREFIX)/share/man
 
-#MAJOR!=grep "major" ../lib/shlib_version | cut -d "=" -f2
-#MINOR!=grep "minor" ../lib/shlib_version | cut -d "=" -f2
-#LVERS=${MAJOR}.${MINOR}
 LVERS!=	awk -F = '/major/ { printf( "%s.", $$2 ) } /minor/ { printf( "%s", $$2 ) }' ${.CURDIR}/../lib/shlib_version
 BUILDVERSION!= sh "${.CURDIR}/../buildver.sh"
 .if !${BUILDVERSION} == ""
-CPPFLAGS+= -DSCROTWM_BUILDSTR=\"$(BUILDVERSION)\"
+CFLAGS+= -DSCROTWM_BUILDSTR=\"$(BUILDVERSION)\"
 .endif
 
 CFLAGS+= -Wall -Wno-uninitialized -I. -I${X11BASE}/include
