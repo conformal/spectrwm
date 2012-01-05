@@ -2489,9 +2489,13 @@ focus(struct swm_region *r, union arg *args)
 
 		/* skip iconics */
 		if (winfocus && winfocus->iconic) {
-			TAILQ_FOREACH_REVERSE(winfocus, wl, ws_win_list, entry)
+			while (winfocus != cur_focus) {
+				if (winfocus == NULL)
+					winfocus = TAILQ_LAST(wl, ws_win_list);
 				if (winfocus->iconic == 0)
 					break;
+				winfocus = TAILQ_PREV(winfocus, ws_win_list, entry);
+			}
 		}
 		break;
 
@@ -2503,9 +2507,13 @@ focus(struct swm_region *r, union arg *args)
 
 		/* skip iconics */
 		if (winfocus && winfocus->iconic) {
-			TAILQ_FOREACH(winfocus, wl, entry)
+			while (winfocus != cur_focus) {
+				if (winfocus == NULL)
+					winfocus = TAILQ_FIRST(wl);
 				if (winfocus->iconic == 0)
 					break;
+				winfocus = TAILQ_NEXT(winfocus, entry);
+			}
 		}
 		break;
 
