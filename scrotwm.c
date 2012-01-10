@@ -2446,6 +2446,7 @@ focus(struct swm_region *r, union arg *args)
 	struct ws_win		*cur_focus = NULL;
 	struct ws_win_list	*wl = NULL;
 	struct workspace	*ws = NULL;
+	int			all_iconics;
 
 	if (!(r && r->ws))
 		return;
@@ -2471,6 +2472,17 @@ focus(struct swm_region *r, union arg *args)
 		return;
 	ws = r->ws;
 	wl = &ws->winlist;
+	if (TAILQ_EMPTY(wl))
+		return;
+	/* make sure there is at least one uniconified window */
+	all_iconics = 1;
+	TAILQ_FOREACH(winfocus, wl, entry)
+		if (winfocus->iconic == 0) {
+			all_iconics = 0;
+			break;
+		}
+	if (all_iconics)
+		return;
 
 	winlostfocus = cur_focus;
 
@@ -3118,7 +3130,7 @@ send_to_ws(struct swm_region *r, union arg *args)
 	unsigned char		ws_idx_str[SWM_PROPLEN];
 	union arg		a;
 
-	if (r && r->ws)
+	if (r && r->ws && r->ws->focus)
 		win = r->ws->focus;
 	else
 		return;
@@ -3146,6 +3158,8 @@ send_to_ws(struct swm_region *r, union arg *args)
 	unmap_window(win);
 	TAILQ_REMOVE(&ws->winlist, win, entry);
 	TAILQ_INSERT_TAIL(&nws->winlist, win, entry);
+	if (TAILQ_EMPTY(&ws->winlist))
+		r->ws->focus = NULL;
 	win->ws = nws;
 
 	/* Try to update the window's workspace property */
