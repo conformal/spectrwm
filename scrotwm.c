@@ -178,6 +178,7 @@ Atom			aprot;
 Atom			adelete;
 Atom			takefocus;
 Atom			a_wmname;
+Atom			a_netwmname;
 Atom			a_utf8_string;
 Atom			a_string;
 Atom			a_swm_iconic;
@@ -3281,7 +3282,7 @@ uniconify(struct swm_region *r, union arg *args)
 		if (win->iconic == 0)
 			continue;
 
-		name = get_win_name(display, win->id, a_wmname, a_string,
+		name = get_win_name(display, win->id, a_netwmname, a_utf8_string,
 		    &len);
 		if (name == NULL)
 			continue;
@@ -3437,7 +3438,7 @@ search_resp_uniconify(char *resp, unsigned long len)
 	TAILQ_FOREACH(win, &search_r->ws->winlist, entry) {
 		if (win->iconic == 0)
 			continue;
-		name = get_win_name(display, win->id, a_wmname, a_string, &len);
+		name = get_win_name(display, win->id, a_netwmname, a_utf8_string, &len);
 		if (name == NULL)
 			continue;
 		if (asprintf(&s, "%s.%lu", name, win->id) == -1) {
@@ -6743,6 +6744,7 @@ main(int argc, char *argv[])
 	adelete = XInternAtom(display, "WM_DELETE_WINDOW", False);
 	takefocus = XInternAtom(display, "WM_TAKE_FOCUS", False);
 	a_wmname = XInternAtom(display, "WM_NAME", False);
+	a_netwmname = XInternAtom(display, "_NET_WM_NAME", False);
 	a_utf8_string = XInternAtom(display, "UTF8_STRING", False);
 	a_string = XInternAtom(display, "STRING", False);
 	a_swm_iconic = XInternAtom(display, "_SWM_ICONIC", False);
