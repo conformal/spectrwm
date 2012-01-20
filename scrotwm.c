@@ -5400,7 +5400,7 @@ conf_load(char *filename, int keymapping)
 		if (wordlen == 0) {
 			warnx("%s: line %zd: no option found",
 			    filename, lineno);
-			return (1);
+			goto out;
 		}
 		optind = -1;
 		for (i = 0; i < LENGTH(configopt); i++) {
@@ -5414,12 +5414,12 @@ conf_load(char *filename, int keymapping)
 		if (optind == -1) {
 			warnx("%s: line %zd: unknown option %.*s",
 			    filename, lineno, wordlen, cp);
-			return (1);
+			goto out;
 		}
 		if (keymapping && strcmp(opt->optname, "bind")) {
 			warnx("%s: line %zd: invalid option %.*s",
 			    filename, lineno, wordlen, cp);
-			return (1);
+			goto out;
 		}
 		cp += wordlen;
 		cp += strspn(cp, " \t\n"); /* eat whitespace */
@@ -5432,7 +5432,7 @@ conf_load(char *filename, int keymapping)
 				if (wordlen == 0) {
 					warnx("%s: line %zd: syntax error",
 					    filename, lineno);
-					return (1);
+					goto out;
 				}
 				asprintf(&optsub, "%.*s", wordlen, cp);
 			}
@@ -5459,6 +5459,12 @@ conf_load(char *filename, int keymapping)
 	DNPRINTF(SWM_D_CONF, "conf_load end\n");
 
 	return (0);
+
+out:
+	free(line);
+	fclose(config);
+
+	return (1);
 }
 
 void
