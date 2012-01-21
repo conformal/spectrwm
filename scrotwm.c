@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2009-2010-2011 Marco Peereboom <marco@peereboom.us>
- * Copyright (c) 2009-2010-2011 Ryan McBride <mcbride@countersiege.com>
+ * Copyright (c) 2009-2012 Marco Peereboom <marco@peereboom.us>
+ * Copyright (c) 2009-2011 Ryan McBride <mcbride@countersiege.com>
  * Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
  * Copyright (c) 2009 Pierre-Yves Ritschard <pyr@spootnik.org>
  * Copyright (c) 2010 Tuukka Kataja <stuge@xor.fi>
  * Copyright (c) 2011 Jason L. Wright <jason@thought.net>
+ * Copyright (c) 2011-2012 Reginald Kennedy <rk@rejii.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1240,7 +1241,7 @@ socket_setnonblock(int fd)
 void
 bar_print(struct swm_region *r, char *s)
 {
-	int			textwidth, x;
+	int			textwidth, x = 0;
 	size_t		len;
 
 	XClearWindow(display, r->bar_window);
@@ -2431,7 +2432,8 @@ focus_prev(struct ws_win *win)
 done:
 	if (winfocus == winlostfocus || winfocus == NULL) {
 		/* update the bar so that title/class/name will be cleared. */
-		if (window_name_enabled || title_name_enabled || title_class_enabled)
+		if (window_name_enabled || title_name_enabled ||
+		    title_class_enabled)
 			bar_update();
 		
 		return;
@@ -2541,7 +2543,8 @@ focus(struct swm_region *r, union arg *args)
 	}
 	if (winfocus == winlostfocus || winfocus == NULL) {
 		/* update the bar so that title/class/name will be cleared. */
-		if (window_name_enabled || title_name_enabled || title_class_enabled)
+		if (window_name_enabled || title_name_enabled ||
+		    title_class_enabled)
 			bar_update();
 
 		return;
@@ -2590,12 +2593,17 @@ void
 stack(void) {
 	struct swm_geometry	g;
 	struct swm_region	*r;
-	int			i, j;
+	int			i;
+#ifdef SWM_DEBUG
+	int j;
+#endif
 
 	DNPRINTF(SWM_D_STACK, "stack\n");
 
 	for (i = 0; i < ScreenCount(display); i++) {
+#ifdef SWM_DEBUG
 		j = 0;
+#endif
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
 			DNPRINTF(SWM_D_STACK, "stacking workspace %d "
 			    "(screen %d, region %d)\n", r->ws->idx, i, j++);
@@ -3681,25 +3689,57 @@ floating_toggle(struct swm_region *r, union arg *args)
 }
 
 void
-resize_window(struct ws_win *win, int center)
+constrain_window(struct ws_win *win, struct swm_region *r, int resizable)
+{
+	if (win->g.x + win->g.w > r->g.x + r->g.w - border_width) {
+		if (resizable) 
+			win->g.w = r->g.x + r->g.w - win->g.x - border_width;
+		else
+			win->g.x = r->g.x + r->g.w - win->g.w - border_width;
+	}
+	
+	if (win->g.x < r->g.x - border_width) {
+		if (resizable)
+			win->g.w -= r->g.x - win->g.x - border_width;
+
+		win->g.x = r->g.x - border_width;
+	}
+
+	if (win->g.y + win->g.h > r->g.y + r->g.h - border_width) {
+		if (resizable)
+			win->g.h = r->g.y + r->g.h - win->g.y - border_width;
+		else
+			win->g.y = r->g.y + r->g.h - win->g.h - border_width;
+	}
+	
+	if (win->g.y < r->g.y - border_width) {
+		if (resizable)
+			win->g.h -= r->g.y - win->g.y - border_width;
+
+		win->g.y = r->g.y - border_width;
+	}
+
+	if (win->g.w < 1)
+		win->g.w = 1;
+	if (win->g.h < 1)
+		win->g.h = 1;
+}
+
+void
+update_window(struct ws_win *win)
 {
 	unsigned int		mask;
 	XWindowChanges		wc;
-	struct swm_region	*r;
 
-	r = root_to_region(win->wa.root);
 	bzero(&wc, sizeof wc);
-	mask = CWBorderWidth | CWWidth | CWHeight;
+	mask = CWBorderWidth | CWWidth | CWHeight | CWX | CWY;
 	wc.border_width = border_width;
+	wc.x = win->g.x;
+	wc.y = win->g.y;
 	wc.width = win->g.w;
 	wc.height = win->g.h;
-	if (center == SWM_ARG_ID_CENTER) {
-		wc.x = (WIDTH(r) - win->g.w) / 2 - border_width;
-		wc.y = (HEIGHT(r) - win->g.h) / 2 - border_width;
-		mask |= CWX | CWY;
-	}
 
-	DNPRINTF(SWM_D_STACK, "resize_window: win %lu x %d y %d w %d h %d\n",
+	DNPRINTF(SWM_D_STACK, "update_window: win %lu x %d y %d w %d h %d\n",
 	    win->id, wc.x, wc.y, wc.width, wc.height);
 
 	XConfigureWindow(display, win->id, mask, &wc);
@@ -3713,8 +3753,15 @@ resize(struct ws_win *win, union arg *args)
 	XEvent			ev;
 	Time			time = 0;
 	struct swm_region	*r = NULL;
-	int			relx, rely;
 	int			resize_step = 0;
+	Window			rr, cr;
+	int			x, y, wx, wy;
+	unsigned int		mask;
+	struct swm_geometry	g;
+	int			top = 0, left = 0;
+	int 			dx, dy;
+	Cursor			cursor;
+	unsigned int		shape; /* cursor style */
 
 	if (win == NULL)
 		return;
@@ -3757,7 +3804,8 @@ resize(struct ws_win *win, union arg *args)
 		break;
 	}
 	if (resize_step) {
-		resize_window(win, 0);
+		constrain_window(win, r, 1);
+		update_window(win);
 		store_float_geom(win,r);
 		return;
 	}
@@ -3765,22 +3813,33 @@ resize(struct ws_win *win, union arg *args)
 	if (focus_mode == SWM_FOCUS_DEFAULT)
 		drain_enter_notify();
 
+	/* get cursor offset from window root */
+	if (!XQueryPointer(display, win->id, &rr, &cr, &x, &y, &wx, &wy, &mask))
+	    return;
+
+	g = win->g;
+
+	if (wx < win->g.w / 2) 
+		left = 1;
+
+	if (wy < win->g.h / 2)
+		top = 1;
+
+	if (args->id == SWM_ARG_ID_CENTER)
+		shape = XC_sizing;
+	else if (top)
+		shape = (left) ? XC_top_left_corner : XC_top_right_corner;
+	else 
+		shape = (left) ? XC_bottom_left_corner : XC_bottom_right_corner;
+
+	cursor = XCreateFontCursor(display, shape);
+
 	if (XGrabPointer(display, win->id, False, MOUSEMASK, GrabModeAsync,
-	    GrabModeAsync, None, None /* cursor */, CurrentTime) != GrabSuccess)
+	    GrabModeAsync, None, cursor, CurrentTime) != GrabSuccess) {
+	    	XFreeCursor(display, cursor);
 		return;
+	}
 
-	/* place pointer at bottom left corner or nearest point inside r */
-	if ( win->g.x + win->g.w < r->g.x + r->g.w - 1)
-		relx = win->g.w - 1;
-	else
-		relx = r->g.x + r->g.w - win->g.x - 1;
-
-	if ( win->g.y + win->g.h < r->g.y + r->g.h - 1)
-		rely = win->g.h - 1;
-	else
-		rely = r->g.y + r->g.h - win->g.y - 1;
-
-	XWarpPointer(display, None, win->id, 0, 0, 0, 0, relx, rely);
 	do {
 		XMaskEvent(display, MOUSEMASK | ExposureMask |
 		    SubstructureRedirectMask, &ev);
@@ -3791,38 +3850,69 @@ resize(struct ws_win *win, union arg *args)
 			handler[ev.type](&ev);
 			break;
 		case MotionNotify:
-			/* do not allow resize outside of region */
-			if (	ev.xmotion.x_root < r->g.x ||
-				ev.xmotion.x_root > r->g.x + r->g.w - 1 ||
-				ev.xmotion.y_root < r->g.y ||
-				ev.xmotion.y_root > r->g.y + r->g.h - 1)
-				continue;
+			/* cursor offset/delta from start of the operation */
+			dx = ev.xmotion.x_root - x;
+			dy = ev.xmotion.y_root - y;
 
-			if (ev.xmotion.x <= 1)
-				ev.xmotion.x = 1;
-			if (ev.xmotion.y <= 1)
-				ev.xmotion.y = 1;
-			win->g.w = ev.xmotion.x + 1;
-			win->g.h = ev.xmotion.y + 1;
+			/* vertical */
+			if (top)
+				dy = -dy;
+
+			if (args->id == SWM_ARG_ID_CENTER) {
+				if (g.h / 2 + dy < 1)
+					dy = 1 - g.h / 2;
+
+				win->g.y = g.y - dy;
+				win->g.h = g.h + 2 * dy;
+			} else {
+				if (g.h + dy < 1)
+					dy = 1 - g.h;
+
+				if (top)
+					win->g.y = g.y - dy;
+
+				win->g.h = g.h + dy;
+			}
+
+			/* horizontal */
+			if (left) 
+				dx = -dx;
+
+			if (args->id == SWM_ARG_ID_CENTER) {
+				if (g.w / 2 + dx < 1)
+					dx = 1 - g.w / 2;
+
+				win->g.x = g.x - dx;
+				win->g.w = g.w + 2 * dx;
+			} else {
+				if (g.w + dx < 1)
+					dx = 1 - g.w;
+
+				if (left)
+					win->g.x = g.x - dx;
+
+				win->g.w = g.w + dx;
+			}
+
+			constrain_window(win, r, 1);
 
 			/* not free, don't sync more than 120 times / second */
 			if ((ev.xmotion.time - time) > (1000 / 120) ) {
 				time = ev.xmotion.time;
 				XSync(display, False);
-				resize_window(win, args->id);
+				update_window(win);
 			}
 			break;
 		}
 	} while (ev.type != ButtonRelease);
 	if (time) {
 		XSync(display, False);
-		resize_window(win, args->id);
+		update_window(win);
 	}
 	store_float_geom(win,r);
 
-	XWarpPointer(display, None, win->id, 0, 0, 0, 0, win->g.w - 1,
-	    win->g.h - 1);
 	XUngrabPointer(display, CurrentTime);
+	XFreeCursor(display, cursor);
 
 	/* drain events */
 	drain_enter_notify();
@@ -3841,25 +3931,6 @@ resize_step(struct swm_region *r, union arg *args)
 	resize(win, args);
 }
 
-
-void
-move_window(struct ws_win *win)
-{
-	unsigned int		mask;
-	XWindowChanges		wc;
-
-	bzero(&wc, sizeof wc);
-	mask = CWX | CWY;
-	wc.x = win->g.x;
-	wc.y = win->g.y;
-	wc.border_width = border_width;
-
-	DNPRINTF(SWM_D_STACK, "move_window: win %lu x %d y %d w %d h %d\n",
-	    win->id, wc.x, wc.y, wc.width, wc.height);
-
-	XConfigureWindow(display, win->id, mask, &wc);
-}
-
 #define SWM_MOVE_STEPS	(50)
 
 void
@@ -3869,6 +3940,10 @@ move(struct ws_win *win, union arg *args)
 	Time			time = 0;
 	int			move_step = 0;
 	struct swm_region	*r = NULL;
+
+	Window			rr, cr;
+	int			x, y, wx, wy;
+	unsigned int		mask;
 
 	if (win == NULL)
 		return;
@@ -3913,16 +3988,21 @@ move(struct ws_win *win, union arg *args)
 		break;
 	}
 	if (move_step) {
-		move_window(win);
+		constrain_window(win, r, 0);
+		update_window(win);
 		store_float_geom(win,r);
 		return;
 	}
 
-
 	if (XGrabPointer(display, win->id, False, MOUSEMASK, GrabModeAsync,
-	    GrabModeAsync, None, None /* cursor */, CurrentTime) != GrabSuccess)
+	    GrabModeAsync, None, XCreateFontCursor(display, XC_fleur),
+	    CurrentTime) != GrabSuccess)
 		return;
-	XWarpPointer(display, None, win->id, 0, 0, 0, 0, 0, 0);
+
+	/* get cursor offset from window root */
+	if (!XQueryPointer(display, win->id, &rr, &cr, &x, &y, &wx, &wy, &mask))
+	    return;
+
 	do {
 		XMaskEvent(display, MOUSEMASK | ExposureMask |
 		    SubstructureRedirectMask, &ev);
@@ -3933,31 +4013,25 @@ move(struct ws_win *win, union arg *args)
 			handler[ev.type](&ev);
 			break;
 		case MotionNotify:
-			/* don't allow to move window origin out of region */
-			if (	ev.xmotion.x_root < r->g.x ||
-				ev.xmotion.x_root > r->g.x + r->g.w - 1 ||
-				ev.xmotion.y_root < r->g.y ||
-				ev.xmotion.y_root > r->g.y + r->g.h - 1)
-				continue;
+			win->g.x = ev.xmotion.x_root - wx - border_width;
+			win->g.y = ev.xmotion.y_root - wy - border_width;
 
-			win->g.x = ev.xmotion.x_root - border_width;
-			win->g.y = ev.xmotion.y_root - border_width;
+			constrain_window(win, r, 0);
 
 			/* not free, don't sync more than 120 times / second */
 			if ((ev.xmotion.time - time) > (1000 / 120) ) {
 				time = ev.xmotion.time;
 				XSync(display, False);
-				move_window(win);
+				update_window(win);
 			}
 			break;
 		}
 	} while (ev.type != ButtonRelease);
 	if (time) {
 		XSync(display, False);
-		move_window(win);
+		update_window(win);
 	}
 	store_float_geom(win,r);
-	XWarpPointer(display, None, win->id, 0, 0, 0, 0, 0, 0);
 	XUngrabPointer(display, CurrentTime);
 
 	/* drain events */
@@ -5434,7 +5508,14 @@ conf_load(char *filename, int keymapping)
 					    filename, lineno);
 					goto out;
 				}
-				asprintf(&optsub, "%.*s", wordlen, cp);
+
+				if(asprintf(&optsub, "%.*s", wordlen, cp) ==
+				    -1) {
+					warnx("%s: line %zd: unable to allocate"
+					    "memory for selector", filename,
+					    lineno);
+					return (1);
+				}
 			}
 			cp += wordlen;
 			cp += strspn(cp, "] \t\n"); /* eat trailing */
