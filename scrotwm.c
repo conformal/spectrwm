@@ -3692,12 +3692,12 @@ void
 constrain_window(struct ws_win *win, struct swm_region *r, int resizable)
 {
 	if (win->g.x + win->g.w > r->g.x + r->g.w - border_width) {
-		if (resizable) 
+		if (resizable)
 			win->g.w = r->g.x + r->g.w - win->g.x - border_width;
 		else
 			win->g.x = r->g.x + r->g.w - win->g.w - border_width;
 	}
-	
+
 	if (win->g.x < r->g.x - border_width) {
 		if (resizable)
 			win->g.w -= r->g.x - win->g.x - border_width;
@@ -3711,7 +3711,7 @@ constrain_window(struct ws_win *win, struct swm_region *r, int resizable)
 		else
 			win->g.y = r->g.y + r->g.h - win->g.h - border_width;
 	}
-	
+
 	if (win->g.y < r->g.y - border_width) {
 		if (resizable)
 			win->g.h -= r->g.y - win->g.y - border_width;
@@ -3759,7 +3759,7 @@ resize(struct ws_win *win, union arg *args)
 	unsigned int		mask;
 	struct swm_geometry	g;
 	int			top = 0, left = 0;
-	int 			dx, dy;
+	int			dx, dy;
 	Cursor			cursor;
 	unsigned int		shape; /* cursor style */
 
@@ -3819,7 +3819,7 @@ resize(struct ws_win *win, union arg *args)
 
 	g = win->g;
 
-	if (wx < win->g.w / 2) 
+	if (wx < win->g.w / 2)
 		left = 1;
 
 	if (wy < win->g.h / 2)
@@ -3829,14 +3829,14 @@ resize(struct ws_win *win, union arg *args)
 		shape = XC_sizing;
 	else if (top)
 		shape = (left) ? XC_top_left_corner : XC_top_right_corner;
-	else 
+	else
 		shape = (left) ? XC_bottom_left_corner : XC_bottom_right_corner;
 
 	cursor = XCreateFontCursor(display, shape);
 
 	if (XGrabPointer(display, win->id, False, MOUSEMASK, GrabModeAsync,
 	    GrabModeAsync, None, cursor, CurrentTime) != GrabSuccess) {
-	    	XFreeCursor(display, cursor);
+		XFreeCursor(display, cursor);
 		return;
 	}
 
