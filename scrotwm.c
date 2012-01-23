@@ -5509,12 +5509,12 @@ conf_load(char *filename, int keymapping)
 					goto out;
 				}
 
-				if(asprintf(&optsub, "%.*s", wordlen, cp) ==
+				if (asprintf(&optsub, "%.*s", wordlen, cp) ==
 				    -1) {
 					warnx("%s: line %zd: unable to allocate"
 					    "memory for selector", filename,
 					    lineno);
-					return (1);
+					goto out;
 				}
 			}
 			cp += wordlen;
