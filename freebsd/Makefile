@@ -1,6 +1,11 @@
+.sinclude <bsd.port.pre.mk>
+
+PREFIX?= /usr/local
+LOCALBASE?= /usr/local
+
 BINDIR?= $(PREFIX)/bin
 LIBDIR?= $(PREFIX)/lib
-MANDIR?= $(PREFIX)/share/man
+MANDIR?= $(PREFIX)/man
 
 LVERS!=	awk -F = '/major/ { printf( "%s.", $$2 ) } /minor/ { printf( "%s", $$2 ) }' ${.CURDIR}/../lib/shlib_version
 BUILDVERSION!= sh "${.CURDIR}/../buildver.sh"
@@ -8,9 +13,9 @@ BUILDVERSION!= sh "${.CURDIR}/../buildver.sh"
 CFLAGS+= -DSCROTWM_BUILDSTR=\"$(BUILDVERSION)\"
 .endif
 
-CFLAGS+= -Wall -Wno-uninitialized -I. -I${X11BASE}/include
+CFLAGS+= -Wall -Wno-uninitialized -I. -I${LOCALBASE}/include
 CFLAGS+= -DSWM_LIB=\"$(LIBDIR)/libswmhack.so.$(LVERS)\"
-LDADD+= -lutil -L${X11BASE}/lib -lX11 -lXrandr -lXtst
+LDADD+= -lutil -L${LOCALBASE}/lib -lX11 -lXrandr -lXtst
 
 
 all: scrotwm libswmhack.so.$(LVERS)
@@ -46,4 +51,4 @@ install: all
 clean:
 	rm -f scrotwm *.o *.so libswmhack.so.* scrotwm.c swm_hack.c version.h
 
-.include <bsd.port.mk>
+.sinclude <bsd.port.post.mk>
