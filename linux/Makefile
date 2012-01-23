@@ -42,6 +42,6 @@ install: all
 	install -m 644 ../scrotwm_ru.1 $(DESTDIR)$(MANDIR)/man1/scrotwm_ru.1
 
 clean:
-	rm -f scrotwm *.o *.so libswmhack.so.* scrotwm.c swm_hack.c
+	rm -f scrotwm *.o *.so libswmhack.so.* scrotwm.c swm_hack.c version.h
 
 .PHONY: all install clean
