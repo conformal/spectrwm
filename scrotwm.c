@@ -3958,6 +3958,7 @@ move(struct ws_win *win, union arg *args)
 
 	win->manual = 1;
 	if (win->floating == 0 && !win->transient) {
+		store_float_geom(win,r);
 		ewmh_update_win_state(win, ewmh[_NET_WM_STATE_ABOVE].atom,
 		    _NET_WM_STATE_ADD);
 	}
