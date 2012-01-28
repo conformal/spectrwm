@@ -161,6 +161,7 @@ u_int32_t		swm_debug = 0
 #define HEIGHT(r)		(r)->g.h
 #define SWM_MAX_FONT_STEPS	(3)
 #define WINID(w)		(w ? w->id : 0)
+#define YESNO(x)		(x ? "yes" : "no")
 
 #define SWM_FOCUS_DEFAULT	(0)
 #define SWM_FOCUS_SYNERGY	(1)
@@ -211,8 +212,8 @@ int			search_resp_action;
 
 struct search_window {
 	TAILQ_ENTRY(search_window)	entry;
-	int					idx;
-	struct ws_win		*win;
+	int				idx;
+	struct ws_win			*win;
 	Window				indicator;
 };
 TAILQ_HEAD(search_winlist, search_window);
@@ -307,8 +308,8 @@ struct ws_win {
 	struct swm_geometry	g;		/* current geometry */
 	struct swm_geometry	g_float;	/* geometry when floating */
 	struct swm_geometry	rg_float;	/* region geom when floating */
-	int			g_floatvalid;	/* flag: geometry in g_float is valid */
-	int			floatmaxed;	/* flag: floater was maxed in max_stack */
+	int			g_floatvalid;	/* g_float geometry validity */
+	int			floatmaxed;	/* whether maxed by max_stack */
 	int			floating;
 	int			manual;
 	int			iconic;
@@ -534,8 +535,8 @@ struct ewmh_hint {
     {"_NET_WM_ACTION_CLOSE", None},
 };
 
-void	store_float_geom(struct ws_win *win, struct swm_region *r);
-int	floating_toggle_win(struct ws_win *win);
+void	store_float_geom(struct ws_win *, struct swm_region *);
+int	floating_toggle_win(struct ws_win *);
 void	spawn_select(struct swm_region *, union arg *, char *, int *);
 
 int
@@ -712,25 +713,22 @@ ewmh_set_win_fullscreen(struct ws_win *win, int fs)
 	if (!win->floating)
 		return 0;
 
-	DNPRINTF(SWM_D_MISC, "ewmh_set_win_fullscreen: win 0x%lx fs: %d\n",
-	    win->id, fs);
+	DNPRINTF(SWM_D_MISC, "ewmh_set_win_fullscreen: window: 0x%lx, "
+	    "fullscreen %s\n", win->id, YESNO(fs));
 
 	rg = win->ws->r->g;
 
 	if (fs) {
 		store_float_geom(win, win->ws->r);
 
-		win->g.x = rg.x;
-		win->g.y = rg.y;
-		win->g.w = rg.w;
-		win->g.h = rg.h;
+		win->g = rg;
 	} else {
 		if (win->g_floatvalid) {
 			/* refloat at last floating relative position */
-			win->g.x = win->g_float.x - win->rg_float.x + rg.x;
-			win->g.y = win->g_float.y - win->rg_float.y + rg.y;
-			win->g.w = win->g_float.w;
-			win->g.h = win->g_float.h;
+			X(win) = win->g_float.x - win->rg_float.x + rg.x;
+			Y(win) = win->g_float.y - win->rg_float.y + rg.y;
+			WIDTH(win) = win->g_float.w;
+			HEIGHT(win) = win->g_float.h;
 		}
 	}
 
@@ -866,8 +864,8 @@ ewmh_get_win_state(struct ws_win *win)
 
 /* events */
 #ifdef SWM_DEBUG
-void
-dumpevent(XEvent *e)
+char *
+geteventname(XEvent *e)
 {
 	char			*name = NULL;
 
@@ -971,16 +969,27 @@ dumpevent(XEvent *e)
 	case MappingNotify:
 		name = "MappingNotify";
 		break;
+	default:
+		name = "Unknown";
 	}
 
-	if (name)
-		DNPRINTF(SWM_D_EVENTQ ,"window: %lu event: %s (%d), %d "
-		    "remaining\n",
-		    e->xany.window, name, e->type, QLength(display));
-	else
-		DNPRINTF(SWM_D_EVENTQ, "window: %lu unknown event %d, %d "
-		    "remaining\n",
-		    e->xany.window, e->type, QLength(display));
+	return name;
+}
+
+char *
+xrandr_geteventname(XEvent *e)
+{
+	char 			*name = NULL;
+
+	switch(e->type - xrandr_eventbase) {
+	case RRScreenChangeNotify:
+		name = "RRScreenChangeNotify";
+		break;
+	default:
+		name = "Unknown";
+	}
+
+	return name;
 }
 
 void
@@ -991,7 +1000,7 @@ dumpwins(struct swm_region *r, union arg *args)
 	XWindowAttributes	wa;
 
 	if (r->ws == NULL) {
-		fprintf(stderr, "invalid workspace\n");
+		fprintf(stderr, "dumpwins: invalid workspace\n");
 		return;
 	}
 
@@ -1000,10 +1009,10 @@ dumpwins(struct swm_region *r, union arg *args)
 	TAILQ_FOREACH(win, &r->ws->winlist, entry) {
 		state = getstate(win->id);
 		if (!XGetWindowAttributes(display, win->id, &wa))
-			fprintf(stderr, "window: %lu failed "
+			fprintf(stderr, "window: 0x%lx, failed "
 			    "XGetWindowAttributes\n", win->id);
-		fprintf(stderr, "window: %lu map_state: %d state: %d "
-		    "transient: %lu\n",
+		fprintf(stderr, "window: 0x%lx, map_state: %d, state: %d, "
+		    "transient: 0x%lx\n",
 		    win->id, wa.map_state, state, win->transient);
 	}
 
@@ -1011,17 +1020,16 @@ dumpwins(struct swm_region *r, union arg *args)
 	TAILQ_FOREACH(win, &r->ws->unmanagedlist, entry) {
 		state = getstate(win->id);
 		if (!XGetWindowAttributes(display, win->id, &wa))
-			fprintf(stderr, "window: %lu failed "
+			fprintf(stderr, "window: 0x%lx, failed "
 			    "XGetWindowAttributes\n", win->id);
-		fprintf(stderr, "window: %lu map_state: %d state: %d "
-		    "transient: %lu\n",
+		fprintf(stderr, "window: 0x%lx, map_state: %d, state: %d, "
+		    "transient: 0x%lx\n",
 		    win->id, wa.map_state, state, win->transient);
 	}
 
 	fprintf(stderr, "=================================\n");
 }
 #else
-#define dumpevent(e)
 void
 dumpwins(struct swm_region *r, union arg *args)
 {
@@ -1391,8 +1399,8 @@ bar_update(void)
 				strlcpy(bar_ext, b, sizeof bar_ext);
 			}
 		if (b == NULL && errno != EAGAIN) {
-			fprintf(stderr, "bar_extra failed: errno: %d %s\n",
-			    errno, strerror(errno));
+			fprintf(stderr, "bar_update: bar_extra failed: "
+			    "errno: %d %s\n", errno, strerror(errno));
 			bar_extra_stop();
 		}
 	} else
@@ -1417,14 +1425,15 @@ bar_update(void)
 				bar_class_name(cn, sizeof cn, r->ws->focus);
 				bar_window_name(cn, sizeof cn, r->ws->focus);
 				if (r->ws->name)
-					snprintf(ws, sizeof ws, "<%s>", r->ws->name);
+					snprintf(ws, sizeof ws, "<%s>",
+					    r->ws->name);
 			}
 			if (stack_enabled)
 				stack = r->ws->stacker;
 
-			snprintf(loc, sizeof loc, "%d:%d %s %s   %s%s    %s    %s",
-			    x++, r->ws->idx + 1, stack, ws, s, cn, bar_ext,
-			    bar_vertext);
+			snprintf(loc, sizeof loc, "%d:%d %s %s   %s%s    %s    "
+			    "%s", x++, r->ws->idx + 1, stack, ws, s, cn,
+			    bar_ext, bar_vertext);
 			bar_print(r, loc);
 		}
 	}
@@ -1547,7 +1556,7 @@ bar_setup(struct swm_region *r)
 	XSelectInput(display, r->bar_window, VisibilityChangeMask);
 	if (bar_enabled)
 		XMapRaised(display, r->bar_window);
-	DNPRINTF(SWM_D_MISC, "bar_setup: bar_window %lu\n", r->bar_window);
+	DNPRINTF(SWM_D_MISC, "bar_setup: bar_window: 0x%lx\n", r->bar_window);
 
 	if (signal(SIGALRM, bar_signal) == SIG_ERR)
 		err(1, "could not install bar_signal");
@@ -1563,7 +1572,7 @@ drain_enter_notify(void)
 	while (XCheckMaskEvent(display, EnterWindowMask, &cne))
 		i++;
 
-	DNPRINTF(SWM_D_MISC, "drain_enter_notify: drained %d\n", i);
+	DNPRINTF(SWM_D_MISC, "drain_enter_notify: drained: %d\n", i);
 }
 
 void
@@ -1571,7 +1580,7 @@ set_win_state(struct ws_win *win, long state)
 {
 	long			data[] = {state, None};
 
-	DNPRINTF(SWM_D_EVENT, "set_win_state: window: %lu\n", win->id);
+	DNPRINTF(SWM_D_EVENT, "set_win_state: window: 0x%lx\n", win->id);
 
 	if (win == NULL)
 		return;
@@ -1600,8 +1609,8 @@ version(struct swm_region *r, union arg *args)
 {
 	bar_version = !bar_version;
 	if (bar_version)
-		snprintf(bar_vertext, sizeof bar_vertext, "Version: %s Build: %s",
-		    SCROTWM_VERSION, buildstr);
+		snprintf(bar_vertext, sizeof bar_vertext,
+		    "Version: %s Build: %s", SCROTWM_VERSION, buildstr);
 	else
 		strlcpy(bar_vertext, "", sizeof bar_vertext);
 	bar_update();
@@ -1625,6 +1634,7 @@ client_msg(struct ws_win *win, Atom a)
 	XSendEvent(display, win->id, False, 0L, (XEvent *)&cm);
 }
 
+/* synthetic response to a ConfigureRequest when not making a change */
 void
 config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 {
@@ -1633,26 +1643,22 @@ config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 	if (win == NULL)
 		return;
 
-	if (ev == NULL) {
-		DNPRINTF(SWM_D_MISC,
-		    "config_win: win %lu x %d y %d w %d h %d\n",
-		    win->id, win->g.x, win->g.y, win->g.w, win->g.h);
 
+	if (ev == NULL) {
+		/* EWMH */
 		ce.type = ConfigureNotify;
 		ce.display = display;
 		ce.event = win->id;
 		ce.window = win->id;
-		ce.x = win->g.x;
-		ce.y = win->g.y;
-		ce.width = win->g.w;
-		ce.height = win->g.h;
+		ce.x = X(win);
+		ce.y = Y(win);
+		ce.width = WIDTH(win);
+		ce.height = HEIGHT(win);
 		ce.border_width = border_width;
 		ce.above = None;
 		ce.override_redirect = False;
 	} else {
-		DNPRINTF(SWM_D_MISC,
-		    "config_win: ev win %lu x %d y %d w %d h %d\n",
-		    ev->window, ev->x, ev->y, ev->width, ev->height);
+		/* normal */
 		ce.type = ConfigureNotify;
 		ce.display = ev->display;
 		ce.event = ev->window;
@@ -1665,6 +1671,10 @@ config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 		ce.above = ev->above;
 		ce.override_redirect = False;
 	}
+
+	DNPRINTF(SWM_D_MISC, "config_win: ewmh: %s, window: 0x%lx, (x,y) w x h: "
+	    "(%d,%d) %d x %d, border: %d\n", YESNO(ev == NULL), win->id, ce.x,
+	    ce.y, ce.width, ce.height, ce.border_width);
 
 	XSendEvent(display, win->id, False, StructureNotifyMask, (XEvent *)&ce);
 }
@@ -1738,8 +1748,8 @@ fake_keypress(struct ws_win *win, int keysym, int modifiers)
 	event.root = win->s->root;
 	event.subwindow = None;
 	event.time = CurrentTime;
-	event.x = win->g.x;
-	event.y = win->g.y;
+	event.x = X(win);
+	event.y = Y(win);
 	event.x_root = 1;
 	event.y_root = 1;
 	event.same_screen = True;
@@ -1987,7 +1997,7 @@ unfocus_win(struct ws_win *win)
 	XEvent			cne;
 	Window			none = None;
 
-	DNPRINTF(SWM_D_FOCUS, "unfocus_win: id: %lu\n", WINID(win));
+	DNPRINTF(SWM_D_FOCUS, "unfocus_win: window: 0x%lx\n", WINID(win));
 
 	if (win == NULL)
 		return;
@@ -2055,7 +2065,7 @@ focus_win(struct ws_win *win)
 	struct ws_win		*cfw = NULL;
 
 
-	DNPRINTF(SWM_D_FOCUS, "focus_win: id: %lu\n", win ? win->id : 0);
+	DNPRINTF(SWM_D_FOCUS, "focus_win: window: 0x%lx\n", WINID(win));
 
 	if (win == NULL)
 		return;
@@ -2128,9 +2138,8 @@ switchws(struct swm_region *r, union arg *args)
 	old_ws = this_r->ws;
 	new_ws = &this_r->s->ws[wsid];
 
-	DNPRINTF(SWM_D_WS, "switchws screen[%d]:%dx%d+%d+%d: "
-	    "%d -> %d\n", r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r),
-	    old_ws->idx, wsid);
+	DNPRINTF(SWM_D_WS, "switchws: screen[%d]:%dx%d+%d+%d: %d -> %d\n",
+	    r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), old_ws->idx, wsid);
 
 	if (new_ws == NULL || old_ws == NULL)
 		return;
@@ -2177,9 +2186,8 @@ cyclews(struct swm_region *r, union arg *args)
 	struct swm_screen	*s = r->s;
 	int			cycle_all = 0;
 
-	DNPRINTF(SWM_D_WS, "cyclews id %d "
-	    "in screen[%d]:%dx%d+%d+%d ws %d\n", args->id,
-	    r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
+	DNPRINTF(SWM_D_WS, "cyclews: id: %d, screen[%d]:%dx%d+%d+%d, ws: %d\n",
+	    args->id, r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
 
 	a.id = r->ws->idx;
 	do {
@@ -2221,9 +2229,8 @@ priorws(struct swm_region *r, union arg *args)
 {
 	union arg		a;
 
-	DNPRINTF(SWM_D_WS, "priorws id %d "
-	    "in screen[%d]:%dx%d+%d+%d ws %d\n", args->id,
-	    r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
+	DNPRINTF(SWM_D_WS, "priorws: id: %d, screen[%d]:%dx%d+%d+%d, ws: %d\n",
+	    args->id, r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
 
 	if (r->ws_prior == NULL)
 		return;
@@ -2262,8 +2269,8 @@ cyclescr(struct swm_region *r, union arg *args)
 		return;
 
 	/* move mouse to region */
-	x = rr->g.x + 1;
-	y = rr->g.y + 1 + (bar_enabled ? bar_height : 0);
+	x = X(rr) + 1;
+	y = Y(rr) + 1 + (bar_enabled ? bar_height : 0);
 	XWarpPointer(display, None, rr->s[i].root, 0, 0, 0, 0, x, y);
 
 	a.id = SWM_ARG_ID_FOCUSCUR;
@@ -2271,8 +2278,8 @@ cyclescr(struct swm_region *r, union arg *args)
 
 	if (rr->ws->focus) {
 		/* move to focus window */
-		x = rr->ws->focus->g.x + 1;
-		y = rr->ws->focus->g.y + 1;
+		x = X(rr->ws->focus) + 1;
+		y = Y(rr->ws->focus) + 1;
 		XWarpPointer(display, None, rr->s[i].root, 0, 0, 0, 0, x, y);
 	}
 }
@@ -2308,9 +2315,8 @@ swapwin(struct swm_region *r, union arg *args)
 	struct ws_win_list	*wl;
 
 
-	DNPRINTF(SWM_D_WS, "swapwin id %d "
-	    "in screen %d region %dx%d+%d+%d ws %d\n", args->id,
-	    r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
+	DNPRINTF(SWM_D_WS, "swapwin: id: %d, screen[%d]:%dx%d+%d+%d, ws: %d\n",
+	    args->id, r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
 
 	cur_focus = r->ws->focus;
 	if (cur_focus == NULL)
@@ -2366,7 +2372,7 @@ swapwin(struct swm_region *r, union arg *args)
 		TAILQ_INSERT_TAIL(wl, source, entry);
 		break;
 	default:
-		DNPRINTF(SWM_D_MOVE, "invalid id: %d\n", args->id);
+		DNPRINTF(SWM_D_MOVE, "swapwin: invalid id: %d\n", args->id);
 		return;
 	}
 
@@ -2383,7 +2389,7 @@ focus_prev(struct ws_win *win)
 	struct ws_win_list	*wl = NULL;
 	struct workspace	*ws = NULL;
 
-	DNPRINTF(SWM_D_FOCUS, "focus_prev: id %lu\n", WINID(win));
+	DNPRINTF(SWM_D_FOCUS, "focus_prev: window: 0x%lx\n", WINID(win));
 
 	if (!(win && win->ws))
 		return;
@@ -2454,7 +2460,7 @@ focus(struct swm_region *r, union arg *args)
 	if (!(r && r->ws))
 		return;
 
-	DNPRINTF(SWM_D_FOCUS, "focus: id %d\n", args->id);
+	DNPRINTF(SWM_D_FOCUS, "focus: id: %d\n", args->id);
 
 	/* treat FOCUS_CUR special */
 	if (args->id == SWM_ARG_ID_FOCUSCUR) {
@@ -2509,7 +2515,8 @@ focus(struct swm_region *r, union arg *args)
 					winfocus = TAILQ_LAST(wl, ws_win_list);
 				if (winfocus->iconic == 0)
 					break;
-				winfocus = TAILQ_PREV(winfocus, ws_win_list, entry);
+				winfocus = TAILQ_PREV(winfocus, ws_win_list,
+				    entry);
 			}
 		}
 		break;
@@ -2578,7 +2585,7 @@ stack_config(struct swm_region *r, union arg *args)
 {
 	struct workspace	*ws = r->ws;
 
-	DNPRINTF(SWM_D_STACK, "stack_config for workspace %d (id %d\n",
+	DNPRINTF(SWM_D_STACK, "stack_config: id: %d workspace: %d\n",
 	    args->id, ws->idx);
 
 	if (ws->cur_layout->l_config != NULL)
@@ -2598,15 +2605,15 @@ stack(void) {
 	int j;
 #endif
 
-	DNPRINTF(SWM_D_STACK, "stack\n");
+	DNPRINTF(SWM_D_STACK, "stack: begin\n");
 
 	for (i = 0; i < ScreenCount(display); i++) {
 #ifdef SWM_DEBUG
 		j = 0;
 #endif
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
-			DNPRINTF(SWM_D_STACK, "stacking workspace %d "
-			    "(screen %d, region %d)\n", r->ws->idx, i, j++);
+			DNPRINTF(SWM_D_STACK, "stack: workspace: %d "
+			    "(screen: %d, region: %d)\n", r->ws->idx, i, j++);
 
 			/* start with screen geometry, adjust for bar */
 			g = r->g;
@@ -2628,20 +2635,16 @@ stack(void) {
 
 	if (focus_mode == SWM_FOCUS_DEFAULT)
 		drain_enter_notify();
+
+	DNPRINTF(SWM_D_STACK, "stack: end\n");
 }
 
 void
 store_float_geom(struct ws_win *win, struct swm_region *r)
 {
 	/* retain window geom and region geom */
-	win->g_float.x = win->g.x;
-	win->g_float.y = win->g.y;
-	win->g_float.w = win->g.w;
-	win->g_float.h = win->g.h;
-	win->rg_float.x = r->g.x;
-	win->rg_float.y = r->g.y;
-	win->rg_float.w = r->g.w;
-	win->rg_float.h = r->g.h;
+	win->g_float = win->g;
+	win->rg_float = r->g;
 	win->g_floatvalid = 1;
 }
 
@@ -2661,30 +2664,29 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 	 * to allow windows to change their size (e.g. mplayer fs) only retrieve
 	 * geom on ws switches or return from max mode
 	 */
-
 	if (win->floatmaxed || (r != r->ws->old_r && win->g_floatvalid
 	    && !(win->ewmh_flags & EWMH_F_FULLSCREEN))) {
 		/*
 		 * use stored g and rg to set relative position and size
 		 * as in old region or before max stack mode
 		 */
-		win->g.x = win->g_float.x - win->rg_float.x + r->g.x;
-		win->g.y = win->g_float.y - win->rg_float.y + r->g.y;
-		win->g.w = win->g_float.w;
-		win->g.h = win->g_float.h;
+		X(win) = win->g_float.x - win->rg_float.x + X(r);
+		Y(win) = win->g_float.y - win->rg_float.y + Y(r);
+		WIDTH(win) = win->g_float.w;
+		HEIGHT(win) = win->g_float.h;
 		win->g_floatvalid = 0;
 	}
 
 	win->floatmaxed = 0;
 
-	if ((win->quirks & SWM_Q_FULLSCREEN) && (win->g.w >= WIDTH(r)) &&
-	    (win->g.h >= HEIGHT(r)))
+	if ((win->quirks & SWM_Q_FULLSCREEN) && (WIDTH(win) >= WIDTH(r)) &&
+	    (HEIGHT(win) >= HEIGHT(r)))
 		wc.border_width = 0;
 	else
 		wc.border_width = border_width;
 	if (win->transient && (win->quirks & SWM_Q_TRANSSZ)) {
-		win->g.w = (double)WIDTH(r) * dialog_ratio;
-		win->g.h = (double)HEIGHT(r) * dialog_ratio;
+		WIDTH(win) = (double)WIDTH(r) * dialog_ratio;
+		HEIGHT(win) = (double)HEIGHT(r) * dialog_ratio;
 	}
 
 	if (!win->manual) {
@@ -2692,29 +2694,27 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 		 * floaters and transients are auto-centred unless moved
 		 * or resized
 		 */
-		win->g.x = r->g.x + (WIDTH(r) - win->g.w) /
-		    2 - wc.border_width;
-		win->g.y = r->g.y + (HEIGHT(r) - win->g.h) /
-		    2 - wc.border_width;
+		X(win) = X(r) + (WIDTH(r) - WIDTH(win)) /  2 - wc.border_width;
+		Y(win) = Y(r) + (HEIGHT(r) - HEIGHT(win)) / 2 - wc.border_width;
 	}
 
 	/* win can be outside r if new r smaller than old r */
 	/* Ensure top left corner inside r (move probs otherwise) */
-	if (win->g.x < r->g.x - wc.border_width)
-		win->g.x = r->g.x - wc.border_width;
-	if (win->g.x > r->g.x + r->g.w - 1)
-		win->g.x = (win->g.w > r->g.w) ? r->g.x :
-		    (r->g.x + r->g.w - win->g.w - 2 * wc.border_width);
-	if (win->g.y < r->g.y - wc.border_width)
-		win->g.y = r->g.y - wc.border_width;
-	if (win->g.y > r->g.y + r->g.h - 1)
-		win->g.y = (win->g.h > r->g.h) ? r->g.y :
-		    (r->g.y + r->g.h - win->g.h - 2 * wc.border_width);
+	if (X(win) < X(r) - wc.border_width)
+		X(win) = X(r) - wc.border_width;
+	if (X(win) > X(r) + WIDTH(r) - 1)
+		X(win) = (WIDTH(win) > WIDTH(r)) ? X(r) :
+		    (X(r) + WIDTH(r) - WIDTH(win) - 2 * wc.border_width);
+	if (Y(win) < Y(r) - wc.border_width)
+		Y(win) = Y(r) - wc.border_width;
+	if (Y(win) > Y(r) + HEIGHT(r) - 1)
+		Y(win) = (HEIGHT(win) > HEIGHT(r)) ? Y(r) :
+		    (Y(r) + HEIGHT(r) - HEIGHT(win) - 2 * wc.border_width);
 
-	wc.x = win->g.x;
-	wc.y = win->g.y;
-	wc.width = win->g.w;
-	wc.height = win->g.h;
+	wc.x = X(win);
+	wc.y = Y(win);
+	wc.width = WIDTH(win);
+	wc.height = HEIGHT(win);
 
 	/*
 	 * Retain floater and transient geometry for correct positioning
@@ -2723,8 +2723,8 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 	if (!(win->ewmh_flags & EWMH_F_FULLSCREEN))
 		store_float_geom(win, r);
 
-	DNPRINTF(SWM_D_MISC, "stack_floater: win %lu x %d y %d w %d h %d\n",
-	    win->id, wc.x, wc.y, wc.width, wc.height);
+	DNPRINTF(SWM_D_MISC, "stack_floater: window: %lu, (x,y) w x h: (%d,%d) "
+	    "%d x %d\n", win->id, wc.x, wc.y, wc.width, wc.height);
 
 	XConfigureWindow(display, win->id, mask, &wc);
 }
@@ -2741,7 +2741,7 @@ adjust_font(struct ws_win *win)
 		return;
 
 	if (win->sh.width_inc && win->last_inc != win->sh.width_inc &&
-	    win->g.w / win->sh.width_inc < term_width &&
+	    WIDTH(win) / win->sh.width_inc < term_width &&
 	    win->font_steps < SWM_MAX_FONT_STEPS) {
 		win->font_size_boundary[win->font_steps] =
 		    (win->sh.width_inc * term_width) + win->sh.base_width;
@@ -2750,7 +2750,7 @@ adjust_font(struct ws_win *win)
 		win->last_inc = win->sh.width_inc;
 		fake_keypress(win, XK_KP_Subtract, ShiftMask);
 	} else if (win->font_steps && win->last_inc != win->sh.width_inc &&
-	    win->g.w > win->font_size_boundary[win->font_steps - 1]) {
+	    WIDTH(win) > win->font_size_boundary[win->font_steps - 1]) {
 		win->font_steps--;
 		font_adjusted++;
 		win->last_inc = win->sh.width_inc;
@@ -2777,8 +2777,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	int			remain, missing, v_slice, reconfigure;
 	unsigned int		mask;
 
-	DNPRINTF(SWM_D_STACK, "stack_master: workspace: %d\n rot=%s flip=%s",
-	    ws->idx, rot ? "yes" : "no", flip ? "yes" : "no");
+	DNPRINTF(SWM_D_STACK, "stack_master: workspace: %d, rot: %s, "
+	    "flip: %s\n", ws->idx, YESNO(rot), YESNO(flip));
 
 	winno = count_win(ws, 0);
 	if (winno == 0 && count_win(ws, 1) == 0)
@@ -2912,22 +2912,22 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			wc.border_width = border_width;
 		reconfigure = 0;
 		if (rot) {
-			if (win->g.x != win_g.y || win->g.y != win_g.x ||
-			    win->g.w != win_g.h || win->g.h != win_g.w) {
+			if (X(win) != win_g.y || Y(win) != win_g.x ||
+			    WIDTH(win) != win_g.h || HEIGHT(win) != win_g.w) {
 				reconfigure = 1;
-				win->g.x = wc.x = win_g.y;
-				win->g.y = wc.y = win_g.x;
-				win->g.w = wc.width = win_g.h;
-				win->g.h = wc.height = win_g.w;
+				X(win) = wc.x = win_g.y;
+				Y(win) = wc.y = win_g.x;
+				WIDTH(win) = wc.width = win_g.h;
+				HEIGHT(win) = wc.height = win_g.w;
 			}
 		} else {
-			if (win->g.x != win_g.x || win->g.y != win_g.y ||
-			    win->g.w != win_g.w || win->g.h != win_g.h) {
+			if (X(win) != win_g.x || Y(win) != win_g.y ||
+			    WIDTH(win) != win_g.w || HEIGHT(win) != win_g.h) {
 				reconfigure = 1;
-				win->g.x = wc.x = win_g.x;
-				win->g.y = wc.y = win_g.y;
-				win->g.w = wc.width = win_g.w;
-				win->g.h = wc.height = win_g.h;
+				X(win) = wc.x = win_g.x;
+				Y(win) = wc.y = win_g.y;
+				WIDTH(win) = wc.width = win_g.w;
+				HEIGHT(win) = wc.height = win_g.h;
 			}
 		}
 		if (reconfigure) {
@@ -2970,7 +2970,8 @@ notiles:
 void
 vertical_config(struct workspace *ws, int id)
 {
-	DNPRINTF(SWM_D_STACK, "vertical_resize: workspace: %d\n", ws->idx);
+	DNPRINTF(SWM_D_STACK, "vertical_config: id: %d, workspace: %d\n",
+	    id, ws->idx);
 
 	switch (id) {
 	case SWM_ARG_ID_STACKRESET:
@@ -3097,19 +3098,20 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		}
 
 		/* only reconfigure if necessary */
-		if (win->g.x != gg.x || win->g.y != gg.y || win->g.w != gg.w ||
-		    win->g.h != gg.h) {
+		if (X(win) != gg.x || Y(win) != gg.y || WIDTH(win) != gg.w ||
+		    HEIGHT(win) != gg.h) {
 			bzero(&wc, sizeof wc);
-			win->g.x = wc.x = gg.x;
-			win->g.y = wc.y = gg.y;
+			X(win) = wc.x = gg.x;
+			Y(win) = wc.y = gg.y;
 			if (bar_enabled){
 				wc.border_width = border_width;
-				win->g.w = wc.width = gg.w;
-				win->g.h = wc.height = gg.h;
+				WIDTH(win) = wc.width = gg.w;
+				HEIGHT(win) = wc.height = gg.h;
 			} else {
 				wc.border_width = 0;
-				win->g.w = wc.width = gg.w + 2 * border_width;
-				win->g.h = wc.height = gg.h + 2 * border_width;
+				WIDTH(win) = wc.width = gg.w + 2 * border_width;
+				HEIGHT(win) = wc.height = gg.h +
+				    2 * border_width;
 			}
 			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
 			XConfigureWindow(display, win->id, mask, &wc);
@@ -3148,7 +3150,7 @@ send_to_ws(struct swm_region *r, union arg *args)
 	if (win->ws->idx == wsid)
 		return;
 
-	DNPRINTF(SWM_D_MOVE, "send_to_ws: win: %lu\n", win->id);
+	DNPRINTF(SWM_D_MOVE, "send_to_ws: window: 0x%lx\n", win->id);
 
 	ws = win->ws;
 	nws = &win->s->ws[wsid];
@@ -3176,7 +3178,7 @@ send_to_ws(struct swm_region *r, union arg *args)
 	if (ws_idx_atom &&
 	    snprintf((char *)ws_idx_str, SWM_PROPLEN, "%d", nws->idx) <
 	        SWM_PROPLEN) {
-		DNPRINTF(SWM_D_PROP, "setting property _SWM_WS to %s\n",
+		DNPRINTF(SWM_D_PROP, "send_to_ws: set property: _SWM_WS: %s\n",
 		    ws_idx_str);
 		XChangeProperty(display, win->id, ws_idx_atom, XA_STRING, 8,
 		    PropModeReplace, ws_idx_str, SWM_PROPLEN);
@@ -3290,8 +3292,8 @@ uniconify(struct swm_region *r, union arg *args)
 		if (win->iconic == 0)
 			continue;
 
-		name = get_win_name(display, win->id, a_netwmname, a_utf8_string,
-		    &len);
+		name = get_win_name(display, win->id, a_netwmname,
+		    a_utf8_string, &len);
 		if (name == NULL)
 			continue;
 		fprintf(lfile, "%s.%lu\n", name, win->id);
@@ -3399,7 +3401,8 @@ search_win(struct swm_region *r, union arg *args)
 
 		sw = calloc(1, sizeof(struct search_window));
 		if (sw == NULL) {
-			fprintf(stderr, "search_win: calloc: %s", strerror(errno));
+			fprintf(stderr, "search_win: calloc: %s",
+			    strerror(errno));
 			fclose(lfile);
 			search_win_cleanup();
 			return;
@@ -3441,12 +3444,13 @@ search_resp_uniconify(char *resp, unsigned long len)
 	struct ws_win		*win;
 	char			*s;
 
-	DNPRINTF(SWM_D_MISC, "search_resp_uniconify: resp %s\n", resp);
+	DNPRINTF(SWM_D_MISC, "search_resp_uniconify: resp: %s\n", resp);
 
 	TAILQ_FOREACH(win, &search_r->ws->winlist, entry) {
 		if (win->iconic == 0)
 			continue;
-		name = get_win_name(display, win->id, a_netwmname, a_utf8_string, &len);
+		name = get_win_name(display, win->id, a_netwmname,
+		    a_utf8_string, &len);
 		if (name == NULL)
 			continue;
 		if (asprintf(&s, "%s.%lu", name, win->id) == -1) {
@@ -3469,7 +3473,7 @@ search_resp_name_workspace(char *resp, unsigned long len)
 {
 	struct workspace	*ws;
 
-	DNPRINTF(SWM_D_MISC, "search_resp_name_workspace: resp %s\n", resp);
+	DNPRINTF(SWM_D_MISC, "search_resp_name_workspace: resp: %s\n", resp);
 
 	if (search_r->ws == NULL)
 		return;
@@ -3483,8 +3487,8 @@ search_resp_name_workspace(char *resp, unsigned long len)
 	if (len > 1) {
 		ws->name = strdup(resp);
 		if (ws->name == NULL) {
-			DNPRINTF(SWM_D_MISC, "search_resp_name_workspace: strdup: %s",
-			    strerror(errno));
+			DNPRINTF(SWM_D_MISC, "search_resp_name_workspace: "
+			    "strdup: %s", strerror(errno));
 			return;
 		}
 	}
@@ -3498,7 +3502,7 @@ search_resp_search_workspace(char *resp, unsigned long len)
 	const char		*errstr;
 	union arg		a;
 
-	DNPRINTF(SWM_D_MISC, "search_resp_search_workspace: resp %s\n", resp);
+	DNPRINTF(SWM_D_MISC, "search_resp_search_workspace: resp: %s\n", resp);
 
 	q = strdup(resp);
 	if (!q) {
@@ -3529,7 +3533,7 @@ search_resp_search_window(char *resp, unsigned long len)
 	const char		*errstr;
 	struct search_window	*sw;
 
-	DNPRINTF(SWM_D_MISC, "search_resp_search_window: resp %s\n", resp);
+	DNPRINTF(SWM_D_MISC, "search_resp_search_window: resp: %s\n", resp);
 
 	s = strdup(resp);
 	if (!s) {
@@ -3614,7 +3618,7 @@ done:
 void
 wkill(struct swm_region *r, union arg *args)
 {
-	DNPRINTF(SWM_D_MISC, "wkill %d\n", args->id);
+	DNPRINTF(SWM_D_MISC, "wkill: id: %d\n", args->id);
 
 	if (r->ws->focus == NULL)
 		return;
@@ -3653,10 +3657,10 @@ floating_toggle_win(struct ws_win *win)
 	} else {
 		if (win->g_floatvalid) {
 			/* refloat at last floating relative position */
-			win->g.x = win->g_float.x - win->rg_float.x + r->g.x;
-			win->g.y = win->g_float.y - win->rg_float.y + r->g.y;
-			win->g.w = win->g_float.w;
-			win->g.h = win->g_float.h;
+			X(win) = win->g_float.x - win->rg_float.x + X(r);
+			Y(win) = win->g_float.y - win->rg_float.y + Y(r);
+			WIDTH(win) = win->g_float.w;
+			HEIGHT(win) = win->g_float.h;
 		}
 		win->floating = 1;
 	}
@@ -3691,38 +3695,38 @@ floating_toggle(struct swm_region *r, union arg *args)
 void
 constrain_window(struct ws_win *win, struct swm_region *r, int resizable)
 {
-	if (win->g.x + win->g.w > r->g.x + r->g.w - border_width) {
+	if (X(win) + WIDTH(win) > X(r) + WIDTH(r) - border_width) {
 		if (resizable)
-			win->g.w = r->g.x + r->g.w - win->g.x - border_width;
+			WIDTH(win) = X(r) + WIDTH(r) - X(win) - border_width;
 		else
-			win->g.x = r->g.x + r->g.w - win->g.w - border_width;
+			X(win) = X(r) + WIDTH(r) - WIDTH(win) - border_width;
 	}
 
-	if (win->g.x < r->g.x - border_width) {
+	if (X(win) < X(r) - border_width) {
 		if (resizable)
-			win->g.w -= r->g.x - win->g.x - border_width;
+			WIDTH(win) -= X(r) - X(win) - border_width;
 
-		win->g.x = r->g.x - border_width;
+		X(win) = X(r) - border_width;
 	}
 
-	if (win->g.y + win->g.h > r->g.y + r->g.h - border_width) {
+	if (Y(win) + HEIGHT(win) > Y(r) + HEIGHT(r) - border_width) {
 		if (resizable)
-			win->g.h = r->g.y + r->g.h - win->g.y - border_width;
+			HEIGHT(win) = Y(r) + HEIGHT(r) - Y(win) - border_width;
 		else
-			win->g.y = r->g.y + r->g.h - win->g.h - border_width;
+			Y(win) = Y(r) + HEIGHT(r) - HEIGHT(win) - border_width;
 	}
 
-	if (win->g.y < r->g.y - border_width) {
+	if (Y(win) < Y(r) - border_width) {
 		if (resizable)
-			win->g.h -= r->g.y - win->g.y - border_width;
+			HEIGHT(win) -= Y(r) - Y(win) - border_width;
 
-		win->g.y = r->g.y - border_width;
+		Y(win) = Y(r) - border_width;
 	}
 
-	if (win->g.w < 1)
-		win->g.w = 1;
-	if (win->g.h < 1)
-		win->g.h = 1;
+	if (WIDTH(win) < 1)
+		WIDTH(win) = 1;
+	if (HEIGHT(win) < 1)
+		HEIGHT(win) = 1;
 }
 
 void
@@ -3734,13 +3738,13 @@ update_window(struct ws_win *win)
 	bzero(&wc, sizeof wc);
 	mask = CWBorderWidth | CWWidth | CWHeight | CWX | CWY;
 	wc.border_width = border_width;
-	wc.x = win->g.x;
-	wc.y = win->g.y;
-	wc.width = win->g.w;
-	wc.height = win->g.h;
+	wc.x = X(win);
+	wc.y = Y(win);
+	wc.width = WIDTH(win);
+	wc.height = HEIGHT(win);
 
-	DNPRINTF(SWM_D_STACK, "update_window: win %lu x %d y %d w %d h %d\n",
-	    win->id, wc.x, wc.y, wc.width, wc.height);
+	DNPRINTF(SWM_D_MISC, "update_window: window: 0x%lx, (x,y) w x h: "
+	    "(%d,%d) %d x %d\n", win->id, wc.x, wc.y, wc.width, wc.height);
 
 	XConfigureWindow(display, win->id, mask, &wc);
 }
@@ -3767,8 +3771,9 @@ resize(struct ws_win *win, union arg *args)
 		return;
 	r = win->ws->r;
 
-	DNPRINTF(SWM_D_MOUSE, "resize: win %lu floating %d trans %lu\n",
-	    win->id, win->floating, win->transient);
+	DNPRINTF(SWM_D_MOUSE, "resize: window: 0x%lx, floating: %s, "
+	    "transient: 0x%lx\n", win->id, YESNO(win->floating),
+	    win->transient);
 
 	if (!(win->transient != 0 || win->floating != 0))
 		return;
@@ -3785,19 +3790,19 @@ resize(struct ws_win *win, union arg *args)
 
 	switch (args->id) {
 	case SWM_ARG_ID_WIDTHSHRINK:
-		win->g.w -= SWM_RESIZE_STEPS;
+		WIDTH(win) -= SWM_RESIZE_STEPS;
 		resize_step = 1;
 		break;
 	case SWM_ARG_ID_WIDTHGROW:
-		win->g.w += SWM_RESIZE_STEPS;
+		WIDTH(win) += SWM_RESIZE_STEPS;
 		resize_step = 1;
 		break;
 	case SWM_ARG_ID_HEIGHTSHRINK:
-		win->g.h -= SWM_RESIZE_STEPS;
+		HEIGHT(win) -= SWM_RESIZE_STEPS;
 		resize_step = 1;
 		break;
 	case SWM_ARG_ID_HEIGHTGROW:
-		win->g.h += SWM_RESIZE_STEPS;
+		HEIGHT(win) += SWM_RESIZE_STEPS;
 		resize_step = 1;
 		break;
 	default:
@@ -3819,10 +3824,10 @@ resize(struct ws_win *win, union arg *args)
 
 	g = win->g;
 
-	if (wx < win->g.w / 2)
+	if (wx < WIDTH(win) / 2)
 		left = 1;
 
-	if (wy < win->g.h / 2)
+	if (wy < HEIGHT(win) / 2)
 		top = 1;
 
 	if (args->id == SWM_ARG_ID_CENTER)
@@ -3862,16 +3867,16 @@ resize(struct ws_win *win, union arg *args)
 				if (g.h / 2 + dy < 1)
 					dy = 1 - g.h / 2;
 
-				win->g.y = g.y - dy;
-				win->g.h = g.h + 2 * dy;
+				Y(win) = g.y - dy;
+				HEIGHT(win) = g.h + 2 * dy;
 			} else {
 				if (g.h + dy < 1)
 					dy = 1 - g.h;
 
 				if (top)
-					win->g.y = g.y - dy;
+					Y(win) = g.y - dy;
 
-				win->g.h = g.h + dy;
+				HEIGHT(win) = g.h + dy;
 			}
 
 			/* horizontal */
@@ -3882,16 +3887,16 @@ resize(struct ws_win *win, union arg *args)
 				if (g.w / 2 + dx < 1)
 					dx = 1 - g.w / 2;
 
-				win->g.x = g.x - dx;
-				win->g.w = g.w + 2 * dx;
+				X(win) = g.x - dx;
+				WIDTH(win) = g.w + 2 * dx;
 			} else {
 				if (g.w + dx < 1)
 					dx = 1 - g.w;
 
 				if (left)
-					win->g.x = g.x - dx;
+					X(win) = g.x - dx;
 
-				win->g.w = g.w + dx;
+				WIDTH(win) = g.w + dx;
 			}
 
 			constrain_window(win, r, 1);
@@ -3949,8 +3954,8 @@ move(struct ws_win *win, union arg *args)
 		return;
 	r = win->ws->r;
 
-	DNPRINTF(SWM_D_MOUSE, "move: win %lu floating %d trans %lu\n",
-	    win->id, win->floating, win->transient);
+	DNPRINTF(SWM_D_MOUSE, "move: window: 0x%lx, floating: %s, transient: "
+	    "0x%lx\n", win->id, YESNO(win->floating), win->transient);
 
 	/* in max_stack mode should only move transients */
 	if (win->ws->cur_layout == &layouts[SWM_MAX_STACK] && !win->transient)
@@ -3970,19 +3975,19 @@ move(struct ws_win *win, union arg *args)
 	move_step = 0;
 	switch (args->id) {
 	case SWM_ARG_ID_MOVELEFT:
-		win->g.x -= (SWM_MOVE_STEPS - border_width);
+		X(win) -= (SWM_MOVE_STEPS - border_width);
 		move_step = 1;
 		break;
 	case SWM_ARG_ID_MOVERIGHT:
-		win->g.x += (SWM_MOVE_STEPS - border_width);
+		X(win) += (SWM_MOVE_STEPS - border_width);
 		move_step = 1;
 		break;
 	case SWM_ARG_ID_MOVEUP:
-		win->g.y -= (SWM_MOVE_STEPS - border_width);
+		Y(win) -= (SWM_MOVE_STEPS - border_width);
 		move_step = 1;
 		break;
 	case SWM_ARG_ID_MOVEDOWN:
-		win->g.y += (SWM_MOVE_STEPS - border_width);
+		Y(win) += (SWM_MOVE_STEPS - border_width);
 		move_step = 1;
 		break;
 	default:
@@ -3991,7 +3996,7 @@ move(struct ws_win *win, union arg *args)
 	if (move_step) {
 		constrain_window(win, r, 0);
 		update_window(win);
-		store_float_geom(win,r);
+		store_float_geom(win, r);
 		return;
 	}
 
@@ -4014,8 +4019,8 @@ move(struct ws_win *win, union arg *args)
 			handler[ev.type](&ev);
 			break;
 		case MotionNotify:
-			win->g.x = ev.xmotion.x_root - wx - border_width;
-			win->g.y = ev.xmotion.y_root - wy - border_width;
+			X(win) = ev.xmotion.x_root - wx - border_width;
+			Y(win) = ev.xmotion.y_root - wy - border_width;
 
 			constrain_window(win, r, 0);
 
@@ -4283,7 +4288,7 @@ spawn_expand(struct swm_region *r, union arg *args, char *spawn_name,
 	int			i;
 	char			*ap, **real_args;
 
-	DNPRINTF(SWM_D_SPAWN, "spawn_expand %s\n", spawn_name);
+	DNPRINTF(SWM_D_SPAWN, "spawn_expand: %s\n", spawn_name);
 
 	/* find program */
 	for (i = 0; i < spawns_length; i++) {
@@ -4303,7 +4308,7 @@ spawn_expand(struct swm_region *r, union arg *args, char *spawn_name,
 	/* expand spawn_args into real_args */
 	for (i = 0; i < prog->argc; i++) {
 		ap = prog->argv[i];
-		DNPRINTF(SWM_D_SPAWN, "spawn_custom: raw arg = %s\n", ap);
+		DNPRINTF(SWM_D_SPAWN, "spawn_custom: raw arg: %s\n", ap);
 		if (!strcasecmp(ap, "$bar_border")) {
 			if ((real_args[i] =
 			    strdup(r->s->c[SWM_S_COLOR_BAR_BORDER].name))
@@ -4338,17 +4343,15 @@ spawn_expand(struct swm_region *r, union arg *args, char *spawn_name,
 			if ((real_args[i] = strdup(ap)) == NULL)
 				err(1, "spawn_custom strdup(ap)");
 		}
-		DNPRINTF(SWM_D_SPAWN, "spawn_custom: cooked arg = %s\n",
+		DNPRINTF(SWM_D_SPAWN, "spawn_custom: cooked arg: %s\n",
 		    real_args[i]);
 	}
 
 #ifdef SWM_DEBUG
-	if ((swm_debug & SWM_D_SPAWN) != 0) {
-		fprintf(stderr, "spawn_custom: result = ");
-		for (i = 0; i < prog->argc; i++)
-			fprintf(stderr, "\"%s\" ", real_args[i]);
-		fprintf(stderr, "\n");
-	}
+	DNPRINTF(SWM_D_SPAWN, "spawn_custom: result: ");
+	for (i = 0; i < prog->argc; i++)
+		DNPRINTF(SWM_D_SPAWN, "\"%s\" ", real_args[i]);
+	DNPRINTF(SWM_D_SPAWN, "\n");
 #endif
 	*ret_args = real_args;
 	return (prog->argc);
@@ -4429,7 +4432,7 @@ setspawn(struct spawn_prog *prog)
 			if (prog->argv == NULL) {
 				/* delete */
 				DNPRINTF(SWM_D_SPAWN,
-				    "setspawn: delete #%d %s\n",
+				    "setspawn: delete #%d: %s\n",
 				    i, spawns[i].name);
 				free(spawns[i].name);
 				for (j = 0; j < spawns[i].argc; j++)
@@ -4443,7 +4446,7 @@ setspawn(struct spawn_prog *prog)
 			} else {
 				/* replace */
 				DNPRINTF(SWM_D_SPAWN,
-				    "setspawn: replace #%d %s\n",
+				    "setspawn: replace #%d: %s\n",
 				    i, spawns[i].name);
 				free(spawns[i].name);
 				for (j = 0; j < spawns[i].argc; j++)
@@ -4459,7 +4462,7 @@ setspawn(struct spawn_prog *prog)
 
 	if (prog->argv == NULL) {
 		fprintf(stderr,
-		    "error: setspawn: cannot find program %s", prog->name);
+		    "error: setspawn: cannot find program: %s", prog->name);
 		free(prog);
 		return;
 	}
@@ -4654,7 +4657,7 @@ setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid,
 			} else {
 				/* found: replace */
 				DNPRINTF(SWM_D_KEY,
-				    "setkeybinding: replace #%d %s %s\n",
+				    "setkeybinding: replace #%d %s [%s]\n",
 				    i, keyfuncs[keys[i].funcid].name,
 				    spawn_name);
 				free(keys[i].spawn_name);
@@ -4695,7 +4698,7 @@ setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid,
 	}
 	if (keys_length < keys_size) {
 		j = keys_length++;
-		DNPRINTF(SWM_D_KEY, "setkeybinding: add #%d %s %s\n",
+		DNPRINTF(SWM_D_KEY, "setkeybinding: add #%d %s [%s]\n",
 		    j, keyfuncs[kfid].name, spawn_name);
 		keys[j].mod = mod;
 		keys[j].keysym = ks;
@@ -5444,7 +5447,7 @@ conf_load(char *filename, int keymapping)
 	int			wordlen, i, optind;
 	struct config_option	*opt;
 
-	DNPRINTF(SWM_D_CONF, "conf_load begin\n");
+	DNPRINTF(SWM_D_CONF, "conf_load: begin\n");
 
 	if (filename == NULL) {
 		fprintf(stderr, "conf_load: no filename\n");
@@ -5538,7 +5541,7 @@ conf_load(char *filename, int keymapping)
 	}
 
 	fclose(config);
-	DNPRINTF(SWM_D_CONF, "conf_load end\n");
+	DNPRINTF(SWM_D_CONF, "conf_load: end\n");
 
 	return (0);
 
@@ -5562,10 +5565,10 @@ set_child_transient(struct ws_win *win, Window *trans)
 		parent->child_trans = win;
 	else {
 		DNPRINTF(SWM_D_MISC, "set_child_transient: parent doesn't exist"
-		    " for %lu trans %lu\n", win->id, win->transient);
+		    " for 0x%lx trans 0x%lx\n", win->id, win->transient);
 
 		if (win->hints == NULL) {
-			fprintf(stderr, "no hints for %lu\n", win->id);
+			fprintf(stderr, "no hints for 0x%lx\n", win->id);
 			return;
 		}
 
@@ -5577,7 +5580,7 @@ set_child_transient(struct ws_win *win, Window *trans)
 				XFree(wmh);
 
 			if ((wmh = XGetWMHints(display, w->id)) == NULL) {
-				fprintf(stderr, "can't get hints for %lu\n",
+				fprintf(stderr, "can't get hints for 0x%lx\n",
 				    w->id);
 				continue;
 			}
@@ -5589,7 +5592,7 @@ set_child_transient(struct ws_win *win, Window *trans)
 			win->transient = w->id;
 			*trans = w->id;
 			DNPRINTF(SWM_D_MISC, "set_child_transient: asjusting "
-			    "transient to %lu\n", win->transient);
+			    "transient to 0x%lx\n", win->transient);
 			break;
 		}
 	}
@@ -5666,8 +5669,8 @@ manage_window(Window id)
 
 	/* see if we are on the unmanaged list */
 	if ((win = find_unmanaged_window(id)) != NULL) {
-		DNPRINTF(SWM_D_MISC, "manage previously unmanaged window "
-		    "%lu\n", win->id);
+		DNPRINTF(SWM_D_MISC, "manage_window: previously unmanaged "
+		    "window: 0x%lx\n", win->id);
 		TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
 		if (win->transient) {
 			set_child_transient(win, &trans);
@@ -5680,7 +5683,8 @@ manage_window(Window id)
 	}
 
 	if ((win = calloc(1, sizeof(struct ws_win))) == NULL)
-		err(1, "calloc: failed to allocate memory for new window");
+		err(1, "manage_window: calloc: failed to allocate memory for "
+		    "new window");
 
 	win->id = id;
 
@@ -5700,8 +5704,8 @@ manage_window(Window id)
 	if (trans) {
 		win->transient = trans;
 		set_child_transient(win, &trans);
-		DNPRINTF(SWM_D_MISC, "manage_window: win %lu transient %lu\n",
-		    win->id, win->transient);
+		DNPRINTF(SWM_D_MISC, "manage_window: window: 0x%lx, "
+		    "transient: 0x%lx\n", win->id, win->transient);
 	}
 
 	/* get supported protocols */
@@ -5730,10 +5734,10 @@ manage_window(Window id)
 		free(p);
 		p = NULL;
 	} else if (prop && win->transient == 0) {
-		DNPRINTF(SWM_D_PROP, "got property _SWM_WS=%s\n", prop);
+		DNPRINTF(SWM_D_PROP, "manage_window: get _SWM_WS: %s\n", prop);
 		ws_idx = strtonum((const char *)prop, 0, 9, &errstr);
 		if (errstr) {
-			DNPRINTF(SWM_D_EVENT, "window idx is %s: %s",
+			DNPRINTF(SWM_D_EVENT, "manage_window: window: #%s: %s",
 			    errstr, prop);
 		}
 		ws = &r->s->ws[ws_idx];
@@ -5748,7 +5752,8 @@ manage_window(Window id)
 						r = ww->ws->r;
 					else
 						fprintf(stderr,
-						    "fix this bug mcbride\n");
+						    "manage_window: fix this "
+						    "bug mcbride\n");
 					border_me = 1;
 				}
 	}
@@ -5762,10 +5767,10 @@ manage_window(Window id)
 	else
 		TAILQ_INSERT_TAIL(&ws->winlist, win, entry);
 
-	win->g.w = win->wa.width;
-	win->g.h = win->wa.height;
-	win->g.x = win->wa.x;
-	win->g.y = win->wa.y;
+	WIDTH(win) = win->wa.width;
+	HEIGHT(win) = win->wa.height;
+	X(win) = win->wa.x;
+	Y(win) = win->wa.y;
 	win->g_floatvalid = 0;
 	win->floatmaxed = 0;
 	win->ewmh_flags = 0;
@@ -5774,7 +5779,7 @@ manage_window(Window id)
 	if (ws_idx_atom && prop == NULL &&
 	    snprintf((char *)ws_idx_str, SWM_PROPLEN, "%d", ws->idx) <
 	        SWM_PROPLEN) {
-		DNPRINTF(SWM_D_PROP, "setting property _SWM_WS to %s\n",
+		DNPRINTF(SWM_D_PROP, "manage_window: set _SWM_WS: %s\n",
 		    ws_idx_str);
 		XChangeProperty(display, win->id, ws_idx_atom, XA_STRING, 8,
 		    PropModeReplace, ws_idx_str, SWM_PROPLEN);
@@ -5785,7 +5790,7 @@ manage_window(Window id)
 	ewmh_autoquirk(win);
 
 	if (XGetClassHint(display, win->id, &win->ch)) {
-		DNPRINTF(SWM_D_CLASS, "class: %s name: %s\n",
+		DNPRINTF(SWM_D_CLASS, "manage_window: class: %s, name: %s\n",
 		    win->ch.res_class, win->ch.res_name);
 
 		/* java is retarded so treat it special */
@@ -5797,8 +5802,9 @@ manage_window(Window id)
 		for (i = 0; i < quirks_length; i++){
 			if (!strcmp(win->ch.res_class, quirks[i].class) &&
 			    !strcmp(win->ch.res_name, quirks[i].name)) {
-				DNPRINTF(SWM_D_CLASS, "found: %s name: %s\n",
-				    win->ch.res_class, win->ch.res_name);
+				DNPRINTF(SWM_D_CLASS, "manage_window: found: "
+				    "class: %s, name: %s\n", win->ch.res_class,
+				    win->ch.res_name);
 				if (quirks[i].quirk & SWM_Q_FLOAT) {
 					win->floating = 1;
 					border_me = 1;
@@ -5813,12 +5819,12 @@ manage_window(Window id)
 		win->manual = 1; /* don't center the quirky windows */
 		bzero(&wc, sizeof wc);
 		mask = 0;
-		if (bar_enabled && win->g.y < bar_height) {
-			win->g.y = wc.y = bar_height;
+		if (bar_enabled && Y(win) < bar_height) {
+			Y(win) = wc.y = bar_height;
 			mask |= CWY;
 		}
-		if (win->g.w + win->g.x > WIDTH(r)) {
-			win->g.x = wc.x = WIDTH(r) - win->g.w - 2;
+		if (WIDTH(win) + X(win) > WIDTH(r)) {
+			X(win) = wc.x = WIDTH(r) - WIDTH(win) - 2;
 			mask |= CWX;
 		}
 		border_me = 1;
@@ -5857,7 +5863,7 @@ manage_window(Window id)
 void
 free_window(struct ws_win *win)
 {
-	DNPRINTF(SWM_D_MISC, "free_window:  %lu\n", win->id);
+	DNPRINTF(SWM_D_MISC, "free_window: window: 0x%lx\n", win->id);
 
 	if (win == NULL)
 		return;
@@ -5888,7 +5894,7 @@ unmanage_window(struct ws_win *win)
 	if (win == NULL)
 		return;
 
-	DNPRINTF(SWM_D_MISC, "unmanage_window:  %lu\n", win->id);
+	DNPRINTF(SWM_D_MISC, "unmanage_window: window: 0x%lx\n", win->id);
 
 	if (win->transient) {
 		parent = find_window(win->transient);
@@ -5910,7 +5916,7 @@ unmanage_window(struct ws_win *win)
 void
 focus_magic(struct ws_win *win)
 {
-	DNPRINTF(SWM_D_FOCUS, "focus_magic: %lu\n", WINID(win));
+	DNPRINTF(SWM_D_FOCUS, "focus_magic: window: 0x%lx\n", WINID(win));
 
 	if (win == NULL)
 		return;
@@ -5945,7 +5951,7 @@ focus_magic(struct ws_win *win)
 void
 expose(XEvent *e)
 {
-	DNPRINTF(SWM_D_EVENT, "expose: window: %lu\n", e->xexpose.window);
+	DNPRINTF(SWM_D_EVENT, "expose: window: 0x%lx\n", e->xexpose.window);
 }
 
 void
@@ -5954,8 +5960,6 @@ keypress(XEvent *e)
 	unsigned int		i;
 	KeySym			keysym;
 	XKeyEvent		*ev = &e->xkey;
-
-	DNPRINTF(SWM_D_EVENT, "keypress: window: %lu\n", ev->window);
 
 	keysym = XKeycodeToKeysym(display, (KeyCode)ev->keycode, 0);
 	for (i = 0; i < keys_length; i++)
@@ -5983,8 +5987,6 @@ buttonpress(XEvent *e)
 	int			i, action;
 	XButtonPressedEvent	*ev = &e->xbutton;
 
-	DNPRINTF(SWM_D_EVENT, "buttonpress: window: %lu\n", ev->window);
-
 	if ((win = find_window(ev->window)) == NULL)
 		return;
 
@@ -6010,9 +6012,10 @@ configurerequest(XEvent *e)
 		if ((win = find_unmanaged_window(ev->window)) == NULL)
 			new = 1;
 
+	DNPRINTF(SWM_D_EVENT, "configurerequest: window: 0x%lx, new: %s\n",
+	    ev->window, YESNO(new));
+
 	if (new) {
-		DNPRINTF(SWM_D_EVENT, "configurerequest: new window: %lu\n",
-		    ev->window);
 		bzero(&wc, sizeof wc);
 		wc.x = ev->x;
 		wc.y = ev->y;
@@ -6023,8 +6026,6 @@ configurerequest(XEvent *e)
 		wc.stack_mode = ev->detail;
 		XConfigureWindow(display, ev->window, ev->value_mask, &wc);
 	} else {
-		DNPRINTF(SWM_D_EVENT, "configurerequest: change window: %lu\n",
-		    ev->window);
 		config_win(win, ev);
 	}
 }
@@ -6035,7 +6036,7 @@ configurenotify(XEvent *e)
 	struct ws_win		*win;
 	long			mask;
 
-	DNPRINTF(SWM_D_EVENT, "configurenotify: window: %lu\n",
+	DNPRINTF(SWM_D_EVENT, "configurenotify: window: 0x%lx\n",
 	    e->xconfigure.window);
 
 	win = find_window(e->xconfigure.window);
@@ -6055,7 +6056,7 @@ destroynotify(XEvent *e)
 	struct ws_win		*win;
 	XDestroyWindowEvent	*ev = &e->xdestroywindow;
 
-	DNPRINTF(SWM_D_EVENT, "destroynotify: window %lu\n", ev->window);
+	DNPRINTF(SWM_D_EVENT, "destroynotify: window: 0x%lx\n", ev->window);
 
 	if ((win = find_window(ev->window)) == NULL) {
 		if ((win = find_unmanaged_window(ev->window)) == NULL)
@@ -6085,13 +6086,14 @@ enternotify(XEvent *e)
 	Window			focus_return;
 	int			revert_to_return;
 #endif
-	DNPRINTF(SWM_D_FOCUS, "enternotify: window: %lu mode %d detail %d root "
-	    "%lu subwindow %lu same_screen %d focus %d state %d\n",
-	    ev->window, ev->mode, ev->detail, ev->root, ev->subwindow,
-	    ev->same_screen, ev->focus, ev->state);
+	DNPRINTF(SWM_D_FOCUS, "enternotify: window: 0x%lx, mode: %d, detail: "
+	    "%d, root: 0x%lx, subwindow: 0x%lx, same_screen: %s, focus: %s, "
+	    "state: %d\n", ev->window, ev->mode, ev->detail, ev->root,
+	    ev->subwindow, YESNO(ev->same_screen), YESNO(ev->focus), ev->state);
 
 	if (ev->mode != NotifyNormal) {
-		DNPRINTF(SWM_D_EVENT, "ignoring enternotify: generated by cursor grab.\n");
+		DNPRINTF(SWM_D_EVENT, "skip enternotify: generated by "
+		    "cursor grab.\n");
 		return;
 	}
 
@@ -6173,7 +6175,7 @@ enternotify(XEvent *e)
 	}
 
 	if ((win = find_window(ev->window)) == NULL) {
-		DNPRINTF(SWM_D_EVENT, "ignoring enternotify: win == NULL\n");
+		DNPRINTF(SWM_D_EVENT, "skip enternotify: window is NULL\n");
 		return;
 	}
 
@@ -6201,8 +6203,8 @@ focusevent(XEvent *e)
 	u_int32_t		mode_detail;
 	XFocusChangeEvent	*ev = &e->xfocus;
 
-	DNPRINTF(SWM_D_EVENT, "focusevent: %s window: %lu mode %d detail %d\n",
-	    ev->type == FocusIn ? "entering" : "leaving",
+	DNPRINTF(SWM_D_EVENT, "focusevent: %s window: 0x%lx mode: %d "
+	    "detail: %d\n", ev->type == FocusIn ? "entering" : "leaving",
 	    ev->window, ev->mode, ev->detail);
 
 	if (last_focus_event == ev->type) {
@@ -6243,7 +6245,7 @@ mapnotify(XEvent *e)
 	struct ws_win		*win;
 	XMapEvent		*ev = &e->xmap;
 
-	DNPRINTF(SWM_D_EVENT, "mapnotify: window: %lu\n", ev->window);
+	DNPRINTF(SWM_D_EVENT, "mapnotify: window: 0x%lx\n", ev->window);
 
 	win = manage_window(ev->window);
 	if (win)
@@ -6268,7 +6270,7 @@ maprequest(XEvent *e)
 	XWindowAttributes	wa;
 	XMapRequestEvent	*ev = &e->xmaprequest;
 
-	DNPRINTF(SWM_D_EVENT, "maprequest: window: %lu\n",
+	DNPRINTF(SWM_D_EVENT, "maprequest: window: 0x%lx\n",
 	    e->xmaprequest.window);
 
 	if (!XGetWindowAttributes(display, ev->window, &wa))
@@ -6294,7 +6296,7 @@ propertynotify(XEvent *e)
 	struct ws_win		*win;
 	XPropertyEvent		*ev = &e->xproperty;
 
-	DNPRINTF(SWM_D_EVENT, "propertynotify: window: %lu atom:%s\n",
+	DNPRINTF(SWM_D_EVENT, "propertynotify: window: 0x%lx, atom: %s\n",
 	    ev->window, XGetAtomName(display, ev->atom));
 
 	win = find_window(ev->window);
@@ -6316,12 +6318,12 @@ propertynotify(XEvent *e)
 		XGetWMNormalHints(display, win->id, &win->sh, &mask);
 		fprintf(stderr, "normal hints: flag 0x%x\n", win->sh.flags);
 		if (win->sh.flags & PMinSize) {
-			win->g.w = win->sh.min_width;
-			win->g.h = win->sh.min_height;
-			fprintf(stderr, "min %d %d\n", win->g.w, win->g.h);
+			WIDTH(win) = win->sh.min_width;
+			HEIGHT(win) = win->sh.min_height;
+			fprintf(stderr, "min %d %d\n", WIDTH(win), HEIGHT(win));
 		}
 		XMoveResizeWindow(display, win->id,
-		    win->g.x, win->g.y, win->g.w, win->g.h);
+		    X(win), Y(win), WIDTH(win), HEIGHT(win));
 #endif
 	case XA_WM_CLASS:
 		if (title_name_enabled || title_class_enabled)
@@ -6341,7 +6343,7 @@ unmapnotify(XEvent *e)
 {
 	struct ws_win		*win;
 
-	DNPRINTF(SWM_D_EVENT, "unmapnotify: window: %lu\n", e->xunmap.window);
+	DNPRINTF(SWM_D_EVENT, "unmapnotify: window: 0x%lx\n", e->xunmap.window);
 
 	/* determine if we need to help unmanage this window */
 	win = find_window(e->xunmap.window);
@@ -6378,7 +6380,7 @@ visibilitynotify(XEvent *e)
 	int			i;
 	struct swm_region	*r;
 
-	DNPRINTF(SWM_D_EVENT, "visibilitynotify: window: %lu\n",
+	DNPRINTF(SWM_D_EVENT, "visibilitynotify: window: 0x%lx\n",
 	    e->xvisibility.window);
 	if (e->xvisibility.state == VisibilityUnobscured)
 		for (i = 0; i < ScreenCount(display); i++)
@@ -6399,15 +6401,15 @@ clientmessage(XEvent *e)
 	if (win == NULL)
 		return;
 
-	DNPRINTF(SWM_D_EVENT, "clientmessage: window: 0x%lx type: %ld \n",
+	DNPRINTF(SWM_D_EVENT, "clientmessage: window: 0x%lx, type: %ld\n",
 	    ev->window, ev->message_type);
 
 	if (ev->message_type == ewmh[_NET_ACTIVE_WINDOW].atom) {
-		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_ACTIVE_WINDOW \n");
+		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_ACTIVE_WINDOW\n");
 		focus_win(win);
 	}
 	if (ev->message_type == ewmh[_NET_CLOSE_WINDOW].atom) {
-		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_CLOSE_WINDOW \n");
+		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_CLOSE_WINDOW\n");
 		if (win->can_delete)
 			client_msg(win, adelete);
 		else
@@ -6415,24 +6417,27 @@ clientmessage(XEvent *e)
 	}
 	if (ev->message_type == ewmh[_NET_MOVERESIZE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT,
-		    "clientmessage: _NET_MOVERESIZE_WINDOW \n");
+		    "clientmessage: _NET_MOVERESIZE_WINDOW\n");
 		if (win->floating) {
 			if (ev->data.l[0] & (1<<8)) /* x */
-				win->g.x = ev->data.l[1];
+				X(win) = ev->data.l[1];
 			if (ev->data.l[0] & (1<<9)) /* y */
-				win->g.y = ev->data.l[2];
+				Y(win) = ev->data.l[2];
 			if (ev->data.l[0] & (1<<10)) /* width */
-				win->g.w = ev->data.l[3];
+				WIDTH(win) = ev->data.l[3];
 			if (ev->data.l[0] & (1<<11)) /* height */
-				win->g.h = ev->data.l[4];
+				HEIGHT(win) = ev->data.l[4];
+
+			update_window(win);
 		}
 		else {
 			/* TODO: Change stack sizes */
+			/* notify no change was made. */
+			config_win(win, NULL);
 		}
-		config_win(win, NULL);
 	}
 	if (ev->message_type == ewmh[_NET_WM_STATE].atom) {
-		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_WM_STATE \n");
+		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_WM_STATE\n");
 		ewmh_update_win_state(win, ev->data.l[1], ev->data.l[0]);
 		if (ev->data.l[2])
 			ewmh_update_win_state(win, ev->data.l[2],
@@ -6522,7 +6527,8 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 			ws = r->ws;
 	} else
 		if ((r = calloc(1, sizeof(struct swm_region))) == NULL)
-			err(1, "calloc: failed to allocate memory for screen");
+			err(1, "new_region: calloc: failed to allocate memory "
+			    "for screen");
 
 	/* if we don't have a workspace already, find one */
 	if (ws == NULL) {
@@ -6534,7 +6540,7 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 	}
 
 	if (ws == NULL)
-		errx(1, "no free workspaces");
+		errx(1, "new_region: no free workspaces");
 
 	X(r) = x;
 	Y(r) = y;
@@ -6561,7 +6567,7 @@ scan_xrandr(int i)
 
 
 	if (i >= ScreenCount(display))
-		errx(1, "invalid screen");
+		errx(1, "scan_xrandr: invalid screen");
 
 	/* remove any old regions */
 	while ((r = TAILQ_FIRST(&screens[i].rl)) != NULL) {
@@ -6613,7 +6619,7 @@ screenchange(XEvent *e) {
 	struct swm_region		*r;
 	int				i;
 
-	DNPRINTF(SWM_D_EVENT, "screenchange: %lu\n", xe->root);
+	DNPRINTF(SWM_D_EVENT, "screenchange: root: 0x%lx\n", xe->root);
 
 	if (!XRRUpdateConfiguration(e))
 		return;
@@ -6691,7 +6697,8 @@ setup_screens(void)
 
 	if ((screens = calloc(ScreenCount(display),
 	     sizeof(struct swm_screen))) == NULL)
-		err(1, "calloc: screens");
+		err(1, "setup_screens: calloc: failed to allocate memory for "
+		    "screens");
 
 	/* initial Xrandr setup */
 	xrandr_support = XRRQueryExtension(display,
@@ -6702,7 +6709,7 @@ setup_screens(void)
 
 	/* map physical screens */
 	for (i = 0; i < ScreenCount(display); i++) {
-		DNPRINTF(SWM_D_WS, "setup_screens: init screen %d\n", i);
+		DNPRINTF(SWM_D_WS, "setup_screens: init screen: %d\n", i);
 		screens[i].idx = i;
 		TAILQ_INIT(&screens[i].rl);
 		TAILQ_INIT(&screens[i].orl);
@@ -6845,7 +6852,7 @@ main(int argc, char *argv[])
 	/* look for local and global conf file */
 	pwd = getpwuid(getuid());
 	if (pwd == NULL)
-		errx(1, "invalid user %d", getuid());
+		errx(1, "invalid user: %d", getuid());
 
 	setup_screens();
 	setup_globals();
@@ -6899,22 +6906,24 @@ main(int argc, char *argv[])
 			if (running == 0)
 				goto done;
 			if (e.type < LASTEvent) {
-				dumpevent(&e);
+				DNPRINTF(SWM_D_EVENTQ ,"XEvent: handled: %s, "
+				    "window: 0x%lx, type: %s (%d), %d remaining"
+				    "\n", YESNO(handler[e.type]),
+				    e.xany.window, geteventname(&e),
+				    e.type, QLength(display));
+
 				if (handler[e.type])
 					handler[e.type](&e);
-				else
-					DNPRINTF(SWM_D_EVENT,
-					    "win: %lu unknown event: %d\n",
-					    e.xany.window, e.type);
 			} else {
+				DNPRINTF(SWM_D_EVENTQ, "XRandr Event: window: "
+				    "0x%lx, type: %s (%d)\n", e.xany.window,
+				    xrandr_geteventname(&e), e.type);
+
 				switch (e.type - xrandr_eventbase) {
 				case RRScreenChangeNotify:
 					screenchange(&e);
 					break;
 				default:
-					DNPRINTF(SWM_D_EVENT,
-					    "win: %lu unknown xrandr event: "
-					    "%d\n", e.xany.window, e.type);
 					break;
 				}
 			}
@@ -6931,8 +6940,8 @@ main(int argc, char *argv[])
 			/* move pointer to first screen if multi screen */
 			if (ScreenCount(display) > 1 || outputs > 1)
 				XWarpPointer(display, None, rr->s[0].root,
-				    0, 0, 0, 0, rr->g.x,
-				    rr->g.y + (bar_enabled ? bar_height : 0));
+				    0, 0, 0, 0, X(rr),
+				    Y(rr) + (bar_enabled ? bar_height : 0));
 
 			a.id = SWM_ARG_ID_FOCUSCUR;
 			focus(rr, &a);
