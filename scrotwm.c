@@ -124,6 +124,7 @@ static const char	*buildstr = SCROTWM_VERSION;
 #define SWM_D_SPAWN		0x0800
 #define SWM_D_EVENTQ		0x1000
 #define SWM_D_CONF		0x2000
+#define SWM_D_BAR		0x4000
 
 u_int32_t		swm_debug = 0
 			    | SWM_D_MISC
@@ -140,6 +141,7 @@ u_int32_t		swm_debug = 0
 			    | SWM_D_SPAWN
 			    | SWM_D_EVENTQ
 			    | SWM_D_CONF
+			    | SWM_D_BAR
 			    ;
 #else
 #define DPRINTF(x...)
@@ -214,6 +216,7 @@ struct search_window {
 	TAILQ_ENTRY(search_window)	entry;
 	int				idx;
 	struct ws_win			*win;
+	GC				gc;
 	Window				indicator;
 };
 TAILQ_HEAD(search_winlist, search_window);
@@ -230,16 +233,27 @@ enum {
 };
 
 /* dialog windows */
-double			dialog_ratio = .6;
+double			dialog_ratio = 0.6;
 /* status bar */
 #define SWM_BAR_MAX		(256)
 #define SWM_BAR_JUSTIFY_LEFT	(0)
 #define SWM_BAR_JUSTIFY_CENTER	(1)
 #define SWM_BAR_JUSTIFY_RIGHT	(2)
 #define SWM_BAR_OFFSET		(4)
+#define SWM_BAR_FONTS		"-*-terminus-medium-*-*-*-*-*-*-*-*-*-*-*," \
+				"-*-profont-*-*-*-*-*-*-*-*-*-*-*-*,"	    \
+				"-*-times-medium-r-*-*-*-*-*-*-*-*-*-*,"    \
+				"-misc-fixed-medium-r-*-*-*-*-*-*-*-*-*-*"
+
+#ifdef X_HAVE_UTF8_STRING
+#define DRAWSTRING(x...)	Xutf8DrawString(x)
+#else
+#define DRAWSTRING(x...)	XmbDrawString(x)
+#endif
+
 char			*bar_argv[] = { NULL, NULL };
 int			bar_pipe[2];
-char			bar_ext[SWM_BAR_MAX];
+unsigned char		bar_ext[SWM_BAR_MAX];
 char			bar_vertext[SWM_BAR_MAX];
 int			bar_version = 0;
 sig_atomic_t		bar_alarm = 0;
@@ -264,12 +278,10 @@ int			disable_border = 0;
 int			border_width = 1;
 int			verbose_layout = 0;
 pid_t			bar_pid;
-GC			bar_gc;
-XGCValues		bar_gcv;
-int			bar_fidx = 0;
-XFontStruct		*bar_fs;
-char			*bar_fonts[] = { NULL, NULL, NULL, NULL };/* XXX Make fully dynamic */
-char			*spawn_term[] = { NULL, NULL };		/* XXX Make fully dynamic */
+XFontSet		bar_fs;
+XFontSetExtents		*bar_fs_extents;
+char			*bar_fonts;
+char			*spawn_term[] = { NULL, NULL }; /* XXX fully dynamic */
 struct passwd		*pwd;
 
 #define SWM_MENU_FN	(2)
@@ -424,6 +436,8 @@ struct swm_screen {
 		unsigned long	color;
 		char		*name;
 	} c[SWM_S_COLOR_MAX];
+
+	GC			bar_gc;
 };
 struct swm_screen	*screens;
 int			num_screens;
@@ -535,9 +549,10 @@ struct ewmh_hint {
     {"_NET_WM_ACTION_CLOSE", None},
 };
 
-void	store_float_geom(struct ws_win *, struct swm_region *);
-int	floating_toggle_win(struct ws_win *);
-void	spawn_select(struct swm_region *, union arg *, char *, int *);
+void		 store_float_geom(struct ws_win *, struct swm_region *);
+int		 floating_toggle_win(struct ws_win *);
+void		 spawn_select(struct swm_region *, union arg *, char *, int *);
+unsigned char	*get_win_name(Display *, Window, Atom, Atom, unsigned long *);
 
 int
 get_property(Window id, Atom atom, long count, Atom type,
@@ -1249,31 +1264,33 @@ socket_setnonblock(int fd)
 void
 bar_print(struct swm_region *r, char *s)
 {
-	int			textwidth, x = 0;
-	size_t		len;
+	int			x = 0;
+	size_t			len;
+	XRectangle		ibox, lbox;
 
 	XClearWindow(display, r->bar_window);
-	XSetForeground(display, bar_gc, r->s->c[SWM_S_COLOR_BAR_FONT].color);
 
 	len = strlen(s);
-	textwidth = XTextWidth(bar_fs, s, len);
+	XmbTextExtents(bar_fs, s, len, &ibox, &lbox);
 
 	switch (bar_justify) {
 	case SWM_BAR_JUSTIFY_LEFT:
 		x = SWM_BAR_OFFSET;
 		break;
 	case SWM_BAR_JUSTIFY_CENTER:
-		x = (WIDTH(r) - textwidth) / 2;
+		x = (WIDTH(r) - lbox.width) / 2;
 		break;
 	case SWM_BAR_JUSTIFY_RIGHT:
-		x = WIDTH(r) - textwidth - SWM_BAR_OFFSET;
+		x = WIDTH(r) - lbox.width - SWM_BAR_OFFSET;
 		break;
 	}
 
 	if (x < SWM_BAR_OFFSET)
 		x = SWM_BAR_OFFSET;
 
-	XDrawString(display, r->bar_window, bar_gc, x, bar_fs->ascent, s, len);
+	DRAWSTRING(display, r->bar_window, bar_fs, r->s->bar_gc,
+	    x, (bar_fs_extents->max_logical_extent.height - lbox.height) / 2 - 
+	    lbox.y, s, len);
 }
 
 void
@@ -1287,7 +1304,7 @@ bar_extra_stop(void)
 		kill(bar_pid, SIGTERM);
 		bar_pid = 0;
 	}
-	strlcpy(bar_ext, "", sizeof bar_ext);
+	strlcpy((char *)bar_ext, "", sizeof bar_ext);
 	bar_extra = 0;
 }
 
@@ -1316,21 +1333,28 @@ bar_class_name(char *s, ssize_t sz, struct ws_win *cur_focus)
 		strlcat(s, "    ", sz);
 	}
 out:
-	if (xch)
+	if (xch) {
+		XFree(xch->res_name);
+		XFree(xch->res_class);
 		XFree(xch);
+	}
 }
 
 void
 bar_window_name(char *s, ssize_t sz, struct ws_win *cur_focus)
 {
-	char			*title;
+	unsigned char		*title;
+	unsigned long		len;
 
 	if (window_name_enabled && cur_focus != NULL) {
-		XFetchName(display, cur_focus->id, &title);
-		if (title) {
+		if ((title = get_win_name(display, cur_focus->id, a_netwmname,
+		    a_utf8_string, &len)) != NULL) {
+			DNPRINTF(SWM_D_BAR, "bar_window_name: title: %s\n",
+			    title);
+
 			if (cur_focus->floating)
 				strlcat(s, "(f) ", sz);
-			strlcat(s, title, sz);
+			strlcat(s, (char *)title, sz);
 			strlcat(s, " ", sz);
 			XFree(title);
 		}
@@ -1385,7 +1409,7 @@ bar_update(void)
 	size_t			len;
 	char			ws[SWM_BAR_MAX];
 	char			s[SWM_BAR_MAX];
-	char			cn[SWM_BAR_MAX];
+	unsigned char		cn[SWM_BAR_MAX];
 	char			loc[SWM_BAR_MAX];
 	char			*b, *stack = "";
 
@@ -1396,7 +1420,7 @@ bar_update(void)
 		while ((b = fgetln(stdin, &len)) != NULL)
 			if (b && b[len - 1] == '\n') {
 				b[len - 1] = '\0';
-				strlcpy(bar_ext, b, sizeof bar_ext);
+				strlcpy((char *)bar_ext, b, sizeof bar_ext);
 			}
 		if (b == NULL && errno != EAGAIN) {
 			fprintf(stderr, "bar_update: bar_extra failed: "
@@ -1404,7 +1428,7 @@ bar_update(void)
 			bar_extra_stop();
 		}
 	} else
-		strlcpy(bar_ext, "", sizeof bar_ext);
+		strlcpy((char *)bar_ext, "", sizeof bar_ext);
 
 	if (clock_enabled == 0)
 		strlcpy(s, "", sizeof s);
@@ -1418,12 +1442,14 @@ bar_update(void)
 	for (i = 0; i < ScreenCount(display); i++) {
 		x = 1;
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
-			strlcpy(cn, "", sizeof cn);
+			strlcpy((char *)cn, "", sizeof cn);
 			strlcpy(ws, "", sizeof ws);
 			if (r && r->ws) {
-				bar_urgent(cn, sizeof cn);
-				bar_class_name(cn, sizeof cn, r->ws->focus);
-				bar_window_name(cn, sizeof cn, r->ws->focus);
+				bar_urgent((char *)cn, sizeof cn);
+				bar_class_name((char *)cn, sizeof cn,
+				    r->ws->focus);
+				bar_window_name((char *)cn, sizeof cn,
+				    r->ws->focus);
 				if (r->ws->name)
 					snprintf(ws, sizeof ws, "<%s>",
 					    r->ws->name);
@@ -1452,7 +1478,7 @@ bar_toggle(struct swm_region *r, union arg *args)
 	struct swm_region	*tmpr;
 	int			i, sc = ScreenCount(display);
 
-	DNPRINTF(SWM_D_MISC, "bar_toggle\n");
+	DNPRINTF(SWM_D_BAR, "bar_toggle\n");
 
 	if (bar_enabled)
 		for (i = 0; i < sc; i++)
@@ -1522,27 +1548,48 @@ bar_refresh(void)
 void
 bar_setup(struct swm_region *r)
 {
+	char			*default_string;
+	char			**missing_charsets;
+	int			num_missing_charsets = 0;
 	int			i, x, y;
 
 	if (bar_fs) {
-		XFreeFont(display, bar_fs);
+		XFreeFontSet(display, bar_fs);
 		bar_fs = NULL;
 	}
 
-	for (i = 0; bar_fonts[i] != NULL; i++) {
-		bar_fs = XLoadQueryFont(display, bar_fonts[i]);
-		if (bar_fs) {
-			bar_fidx = i;
-			break;
-		}
-	}
-	if (bar_fonts[i] == NULL)
-		errx(1, "couldn't load font");
-	if (bar_fs == NULL)
-		errx(1, "couldn't create font structure");
 
-	bar_height = bar_fs->ascent + bar_fs->descent + 1 +
+	DNPRINTF(SWM_D_BAR, "bar_setup: loading bar_fonts: %s\n", bar_fonts);
+
+	bar_fs = XCreateFontSet(display, bar_fonts, &missing_charsets,
+	    &num_missing_charsets, &default_string);
+
+	if (num_missing_charsets > 0) {
+		warnx("Unable to load charset(s):");
+
+		for (i = 0; i < num_missing_charsets; ++i)
+			warnx("%s", missing_charsets[i]);
+
+		XFreeStringList(missing_charsets);
+
+		if (strcmp(default_string, ""))
+			warnx("Glyphs from those sets will be replaced "
+			    "by '%s'.", default_string);
+		else
+			warnx("Glyphs from those sets won't be drawn.");
+	}
+
+	if (bar_fs == NULL)
+		errx(1, "Error creating font set structure.");
+
+	bar_fs_extents = XExtentsOfFontSet(bar_fs);
+
+	bar_height = bar_fs_extents->max_logical_extent.height +
 	    2 * bar_border_width;
+
+	if (bar_height < 1)
+		bar_height = 1;
+
 	x = X(r);
 	y = bar_at_bottom ? (Y(r) + HEIGHT(r) - bar_height) : Y(r);
 
@@ -1551,12 +1598,10 @@ bar_setup(struct swm_region *r)
 	    bar_height - 2 * bar_border_width,
 	    bar_border_width, r->s->c[SWM_S_COLOR_BAR_BORDER].color,
 	    r->s->c[SWM_S_COLOR_BAR].color);
-	bar_gc = XCreateGC(display, r->bar_window, 0, &bar_gcv);
-	XSetFont(display, bar_gc, bar_fs->fid);
 	XSelectInput(display, r->bar_window, VisibilityChangeMask);
 	if (bar_enabled)
 		XMapRaised(display, r->bar_window);
-	DNPRINTF(SWM_D_MISC, "bar_setup: bar_window: 0x%lx\n", r->bar_window);
+	DNPRINTF(SWM_D_BAR, "bar_setup: bar_window: 0x%lx\n", r->bar_window);
 
 	if (signal(SIGALRM, bar_signal) == SIG_ERR)
 		err(1, "could not install bar_signal");
@@ -3361,6 +3406,7 @@ search_win_cleanup(void)
 
 	while ((sw = TAILQ_FIRST(&search_wl)) != NULL) {
 		XDestroyWindow(display, sw->indicator);
+		XFreeGC(display, sw->gc);
 		TAILQ_REMOVE(&search_wl, sw, entry);
 		free(sw);
 	}
@@ -3372,13 +3418,12 @@ search_win(struct swm_region *r, union arg *args)
 	struct ws_win		*win = NULL;
 	struct search_window	*sw = NULL;
 	Window			w;
-	GC			gc;
 	XGCValues		gcv;
 	int			i;
 	char			s[8];
 	FILE			*lfile;
 	size_t			len;
-	int			textwidth;
+	XRectangle		ibox, lbox;
 
 	DNPRINTF(SWM_D_MISC, "search_win\n");
 
@@ -3410,23 +3455,25 @@ search_win(struct swm_region *r, union arg *args)
 
 		snprintf(s, sizeof s, "%d", i);
 		len = strlen(s);
-		textwidth = XTextWidth(bar_fs, s, len);
+
+		XmbTextExtents(bar_fs, s, len, &ibox, &lbox);
 
 		w = XCreateSimpleWindow(display,
-		    win->id, 0, 0, textwidth + 12,
-		    bar_fs->ascent + bar_fs->descent + 4, 1,
+		    win->id, 0, 0,lbox.width + 4,
+		    bar_fs_extents->max_logical_extent.height, 1,
 		    r->s->c[SWM_S_COLOR_UNFOCUS].color,
 		    r->s->c[SWM_S_COLOR_FOCUS].color);
 
 		sw->indicator = w;
 		TAILQ_INSERT_TAIL(&search_wl, sw, entry);
 
-		gc = XCreateGC(display, w, 0, &gcv);
-		XSetFont(display, gc, bar_fs->fid);
+		sw->gc = XCreateGC(display, w, 0, &gcv);
 		XMapRaised(display, w);
-		XSetForeground(display, gc, r->s->c[SWM_S_COLOR_BAR].color);
+		XSetForeground(display, sw->gc, r->s->c[SWM_S_COLOR_BAR].color);
 
-		XDrawString(display, w, gc, 6, bar_fs->ascent + 2, s, len);
+		DRAWSTRING(display, w, bar_fs, sw->gc, 2,
+		    (bar_fs_extents->max_logical_extent.height -
+		    lbox.height) / 2 - lbox.y, s, len);
 
 		fprintf(lfile, "%d\n", i);
 		i++;
@@ -4318,7 +4365,7 @@ spawn_expand(struct swm_region *r, union arg *args, char *spawn_name,
 			    == NULL)
 				err(1, "spawn_custom bar color");
 		} else if (!strcasecmp(ap, "$bar_font")) {
-			if ((real_args[i] = strdup(bar_fonts[bar_fidx]))
+			if ((real_args[i] = strdup(bar_fonts))
 			    == NULL)
 				err(1, "spawn_custom bar fonts");
 		} else if (!strcasecmp(ap, "$bar_font_color")) {
@@ -5113,6 +5160,7 @@ int
 setconfvalue(char *selector, char *value, int flags)
 {
 	int	i;
+	char	*b;
 
 	switch (flags) {
 	case SWM_S_BAR_DELAY:
@@ -5191,9 +5239,12 @@ setconfvalue(char *selector, char *value, int flags)
 		border_width = atoi(value);
 		break;
 	case SWM_S_BAR_FONT:
-		free(bar_fonts[0]);
-		if ((bar_fonts[0] = strdup(value)) == NULL)
-			err(1, "setconfvalue: bar_font");
+		b = bar_fonts;
+		if (asprintf(&bar_fonts, "%s,%s", value, bar_fonts) == -1)
+			err(1, "setconfvalue: asprintf: failed to allocate "
+				"memory for bar_fonts.");
+
+		free(b);
 		break;
 	case SWM_S_BAR_ACTION:
 		free(bar_argv[0]);
@@ -5546,6 +5597,7 @@ conf_load(char *filename, int keymapping)
 out:
 	free(line);
 	fclose(config);
+	DNPRINTF(SWM_D_CONF, "conf_load: end with error.\n");
 
 	return (1);
 }
@@ -5904,6 +5956,8 @@ unmanage_window(struct ws_win *win)
 	XSetInputFocus(display, PointerRoot, PointerRoot, CurrentTime);
 
 	focus_prev(win);
+
+	XFree(win->hints);
 
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
 	TAILQ_INSERT_TAIL(&win->ws->unmanagedlist, win, entry);
@@ -6293,9 +6347,13 @@ propertynotify(XEvent *e)
 {
 	struct ws_win		*win;
 	XPropertyEvent		*ev = &e->xproperty;
-
+#ifdef SWM_DEBUG
+	char			*name;
+	name = XGetAtomName(display, ev->atom);
 	DNPRINTF(SWM_D_EVENT, "propertynotify: window: 0x%lx, atom: %s\n",
-	    ev->window, XGetAtomName(display, ev->atom));
+	    ev->window, name);
+	XFree(name);
+#endif
 
 	win = find_window(ev->window);
 	if (win == NULL)
@@ -6692,6 +6750,7 @@ setup_screens(void)
 	int			i, j, k;
 	int			errorbase, major, minor;
 	struct workspace	*ws;
+	XGCValues		gcv;
 
 	if ((screens = calloc(ScreenCount(display),
 	     sizeof(struct swm_screen))) == NULL)
@@ -6719,6 +6778,13 @@ setup_screens(void)
 		setscreencolor("rgb:00/80/80", i + 1, SWM_S_COLOR_BAR_BORDER);
 		setscreencolor("black", i + 1, SWM_S_COLOR_BAR);
 		setscreencolor("rgb:a0/a0/a0", i + 1, SWM_S_COLOR_BAR_FONT);
+
+		/* create graphics context on screen with default font color */
+		screens[i].bar_gc = XCreateGC(display, screens[i].root, 0,
+		    &gcv);
+
+		XSetForeground(display, screens[i].bar_gc,
+		    screens[i].c[SWM_S_COLOR_BAR_FONT].color);
 
 		/* set default cursor */
 		XDefineCursor(display, screens[i].root,
@@ -6755,19 +6821,14 @@ setup_screens(void)
 void
 setup_globals(void)
 {
-	if ((bar_fonts[0] = strdup("-*-terminus-medium-*-*-*-*-*-*-*-*-*-*-*"))
-	    == NULL)
-		err(1, "setup_globals: strdup");
-	if ((bar_fonts[1] = strdup("-*-times-medium-r-*-*-*-*-*-*-*-*-*-*"))
-	    == NULL)
-		err(1, "setup_globals: strdup");
-	if ((bar_fonts[2] = strdup("-misc-fixed-medium-r-*-*-*-*-*-*-*-*-*-*"))
-	    == NULL)
-		err(1, "setup_globals: strdup");
+	if ((bar_fonts = strdup(SWM_BAR_FONTS)) == NULL)
+		err(1, "setup_globals: strdup: failed to allocate memory.");
+
 	if ((spawn_term[0] = strdup("xterm")) == NULL)
-		err(1, "setup_globals: strdup");
+		err(1, "setup_globals: strdup: failed to allocate memory.");
+
 	if ((clock_format = strdup("%a %b %d %R %Z %Y")) == NULL)
-		err(1, "strdup");
+		err(1, "setup_globals: strdup: failed to allocate memory.");
 }
 
 void
@@ -6817,6 +6878,9 @@ main(int argc, char *argv[])
 	    !XSupportsLocale())
 		warnx("no locale support");
 
+	if (!X_HAVE_UTF8_STRING)
+		warnx("no UTF-8 support");
+
 	if (!(display = XOpenDisplay(0)))
 		errx(1, "can not open display");
 
@@ -6852,8 +6916,8 @@ main(int argc, char *argv[])
 	if (pwd == NULL)
 		errx(1, "invalid user: %d", getuid());
 
-	setup_screens();
 	setup_globals();
+	setup_screens();
 	setup_keys();
 	setup_quirks();
 	setup_spawn();
@@ -6870,8 +6934,12 @@ main(int argc, char *argv[])
 			if (S_ISREG(sb.st_mode))
 				cfile = conf;
 	}
-	if (cfile)
-		conf_load(cfile, SWM_CONF_DEFAULT);
+
+	/* load conf (if any) and refresh font color in bar graphics contexts */
+	if (cfile && conf_load(cfile, SWM_CONF_DEFAULT) == 0)
+		for (i = 0; i < ScreenCount(display); ++i)
+			XSetForeground(display, screens[i].bar_gc,
+			    screens[i].c[SWM_S_COLOR_BAR_FONT].color);
 
 	setup_ewmh();
 	/* set some values to work around bad programs */
@@ -6968,7 +7036,12 @@ main(int argc, char *argv[])
 done:
 	teardown_ewmh();
 	bar_extra_stop();
-	XFreeGC(display, bar_gc);
+
+	for (i = 0; i < ScreenCount(display); ++i)
+		if (screens[i].bar_gc != NULL)
+			XFreeGC(display, screens[i].bar_gc);
+
+	XFreeFontSet(display, bar_fs);
 	XCloseDisplay(display);
 
 	return (0);
