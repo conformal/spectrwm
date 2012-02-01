@@ -1643,33 +1643,31 @@ config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 	if (win == NULL)
 		return;
 
+	/* send notification of unchanged state. */
+	ce.type = ConfigureNotify;
+	ce.x = X(win);
+	ce.y = Y(win);
+	ce.width = WIDTH(win);
+	ce.height = HEIGHT(win);
+	ce.override_redirect = False;
 
 	if (ev == NULL) {
 		/* EWMH */
-		ce.type = ConfigureNotify;
 		ce.display = display;
 		ce.event = win->id;
 		ce.window = win->id;
-		ce.x = X(win);
-		ce.y = Y(win);
-		ce.width = WIDTH(win);
-		ce.height = HEIGHT(win);
 		ce.border_width = border_width;
 		ce.above = None;
-		ce.override_redirect = False;
 	} else {
 		/* normal */
-		ce.type = ConfigureNotify;
 		ce.display = ev->display;
 		ce.event = ev->window;
 		ce.window = ev->window;
-		ce.x = ev->x;
-		ce.y = ev->y;
-		ce.width = ev->width;
-		ce.height = ev->height;
+		/* adjust x and y for requested border_width. */
+		ce.x += border_width - ev->border_width;
+		ce.y += border_width - ev->border_width;
 		ce.border_width = ev->border_width;
 		ce.above = ev->above;
-		ce.override_redirect = False;
 	}
 
 	DNPRINTF(SWM_D_MISC, "config_win: ewmh: %s, window: 0x%lx, (x,y) w x h: "
