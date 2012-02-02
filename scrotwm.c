@@ -489,6 +489,7 @@ void	focus_magic(struct ws_win *);
 
 /* quirks */
 struct quirk {
+	TAILQ_ENTRY(quirk)	entry;
 	char			*class;
 	char			*name;
 	unsigned long		quirk;
@@ -499,8 +500,8 @@ struct quirk {
 #define SWM_Q_FULLSCREEN	(1<<4)	/* remove border */
 #define SWM_Q_FOCUSPREV		(1<<5)	/* focus on caller */
 };
-int				quirks_size = 0, quirks_length = 0;
-struct quirk			*quirks = NULL;
+TAILQ_HEAD(quirk_list, quirk);
+struct quirk_list	quirks = TAILQ_HEAD_INITIALIZER(quirks);
 
 /*
  * Supported EWMH hints should be added to
@@ -5028,79 +5029,78 @@ parsequirks(char *qstr, unsigned long *quirk)
 }
 
 void
-setquirk(const char *class, const char *name, const int quirk)
+quirk_insert(const char *class, const char *name, unsigned long quirk)
 {
-	int			i, j;
+	struct quirk	*qp;
 
-	/* find existing */
-	for (i = 0; i < quirks_length; i++) {
-		if (!strcmp(quirks[i].class, class) &&
-		    !strcmp(quirks[i].name, name)) {
-			if (!quirk) {
-				/* found: delete */
-				DNPRINTF(SWM_D_QUIRK,
-				    "setquirk: delete #%d %s:%s\n",
-				    i, quirks[i].class, quirks[i].name);
-				free(quirks[i].class);
-				free(quirks[i].name);
-				j = quirks_length - 1;
-				if (i < j)
-					quirks[i] = quirks[j];
-				quirks_length--;
-				return;
-			} else {
-				/* found: replace */
-				DNPRINTF(SWM_D_QUIRK,
-				    "setquirk: replace #%d %s:%s\n",
-				    i, quirks[i].class, quirks[i].name);
-				free(quirks[i].class);
-				free(quirks[i].name);
-				quirks[i].class = strdup(class);
-				quirks[i].name = strdup(name);
-				quirks[i].quirk = quirk;
-				return;
-			}
+	DNPRINTF(SWM_D_QUIRK, "quirk_insert: %s:%s [%lu]\n", class, name,
+	    quirk);
+
+	if ((qp = malloc(sizeof *qp)) == NULL)
+		err(1, "quirk_insert: malloc");
+	if ((qp->class = strdup(class)) == NULL)
+		err(1, "quirk_insert: strdup");
+	if ((qp->name = strdup(name)) == NULL)
+		err(1, "quirk_insert: strdup");
+
+	qp->quirk = quirk;
+	TAILQ_INSERT_TAIL(&quirks, qp, entry);
+
+	DNPRINTF(SWM_D_QUIRK, "quirk_insert: leave\n");
+}
+
+void
+quirk_remove(struct quirk *qp)
+{
+	DNPRINTF(SWM_D_QUIRK, "quirk_remove: %s:%s [%lu]\n", qp->class,
+	    qp->name, qp->quirk);
+
+	TAILQ_REMOVE(&quirks, qp, entry);
+	free(qp->class);
+	free(qp->name);
+	free(qp);
+
+	DNPRINTF(SWM_D_QUIRK, "quirk_remove: leave\n");
+}
+
+void
+quirk_replace(struct quirk *qp, const char *class, const char *name,
+    unsigned long quirk)
+{
+	DNPRINTF(SWM_D_QUIRK, "quirk_replace: %s:%s [%lu]\n", qp->class,
+	    qp->name, qp->quirk);
+
+	quirk_remove(qp);
+	quirk_insert(class, name, quirk);
+
+	DNPRINTF(SWM_D_QUIRK, "quirk_replace: leave\n");
+}
+
+void
+setquirk(const char *class, const char *name, unsigned long quirk)
+{
+	struct quirk	*qp;
+
+	DNPRINTF(SWM_D_QUIRK, "setquirk: enter %s:%s [%lu]\n", class, name,
+	   quirk); 
+
+	TAILQ_FOREACH(qp, &quirks, entry) {
+		if (!strcmp(qp->class, class) && !strcmp(qp->name, name)) {
+			if (!quirk)
+				quirk_remove(qp);
+			else
+				quirk_replace(qp, class, name, quirk);
+			DNPRINTF(SWM_D_QUIRK, "setquirk: leave\n");
+			return;
 		}
 	}
 	if (!quirk) {
-		fprintf(stderr,
-		    "error: setquirk: cannot find class/name combination");
+		warnx("error: setquirk: cannot find class/name combination");
 		return;
 	}
-	/* not found: add */
-	if (quirks_size == 0 || quirks == NULL) {
-		quirks_size = 4;
-		DNPRINTF(SWM_D_QUIRK, "setquirk: init list %d\n", quirks_size);
-		quirks = malloc((size_t)quirks_size * sizeof(struct quirk));
-		if (quirks == NULL) {
-			fprintf(stderr, "setquirk: malloc failed\n");
-			perror(" failed");
-			quit(NULL, NULL);
-		}
-	} else if (quirks_length == quirks_size) {
-		quirks_size *= 2;
-		DNPRINTF(SWM_D_QUIRK, "setquirk: grow list %d\n", quirks_size);
-		quirks = realloc(quirks,
-		    (size_t)quirks_size * sizeof(struct quirk));
-		if (quirks == NULL) {
-			fprintf(stderr, "setquirk: realloc failed\n");
-			perror(" failed");
-			quit(NULL, NULL);
-		}
-	}
-	if (quirks_length < quirks_size) {
-		DNPRINTF(SWM_D_QUIRK, "setquirk: add %d\n", quirks_length);
-		j = quirks_length++;
-		quirks[j].class = strdup(class);
-		quirks[j].name = strdup(name);
-		quirks[j].quirk = quirk;
-	} else {
-		fprintf(stderr, "quirks array problem?\n");
-		if (quirks == NULL) {
-			fprintf(stderr, "quirks array problem!\n");
-			quit(NULL, NULL);
-		}
-	}
+
+	quirk_insert(class, name, quirk);
+	DNPRINTF(SWM_D_QUIRK, "setquirk: leave\n");
 }
 
 int
@@ -5710,6 +5710,7 @@ manage_window(Window id)
 	const char		*errstr;
 	XWindowChanges		wc;
 	struct pid_e		*p;
+	struct quirk		*qp;
 
 	if ((win = find_window(id)) != NULL)
 		return (win);	/* already being managed */
@@ -5846,17 +5847,17 @@ manage_window(Window id)
 			border_me = 1;
 		}
 
-		for (i = 0; i < quirks_length; i++){
-			if (!strcmp(win->ch.res_class, quirks[i].class) &&
-			    !strcmp(win->ch.res_name, quirks[i].name)) {
+		TAILQ_FOREACH(qp, &quirks, entry) {
+			if (!strcmp(win->ch.res_class, qp->class) &&
+			    !strcmp(win->ch.res_name, qp->name)) {
 				DNPRINTF(SWM_D_CLASS, "manage_window: found: "
 				    "class: %s, name: %s\n", win->ch.res_class,
 				    win->ch.res_name);
-				if (quirks[i].quirk & SWM_Q_FLOAT) {
+				if (qp->quirk & SWM_Q_FLOAT) {
 					win->floating = 1;
 					border_me = 1;
 				}
-				win->quirks = quirks[i].quirk;
+				win->quirks = qp->quirk;
 			}
 		}
 	}
