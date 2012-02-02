@@ -80,12 +80,11 @@ The file supports the following keywords:
 Launch an application in a specified workspace at start-of-day.
 Defined in the format ws[<idx>]:application, e.g. ws[2]:xterm launches an
 xterm in workspace 2.
-.It Ic color_focus
-Border color of the currently focussed window.
-.It Ic color_unfocus
-Border color of unfocussed windows.
-.It Ic bar_enabled
-Enable or disable status bar.
+.It Ic bar_action
+External script that populates additional information in the status bar,
+such as battery life.
+.It Ic bar_at_bottom
+Place the statusbar at the bottom of each region instead of the top.
 .It Ic bar_border Ns Bq Ar x
 Color of the status bar border in screen
 .Ar x .
@@ -95,36 +94,51 @@ Disable border by setting to 0.
 .It Ic bar_color Ns Bq Ar x
 Color of the status bar window in screen
 .Ar x .
+.It Ic bar_delay
+Update frequency, in seconds, of external script that populates the status bar.
+.It Ic bar_enabled
+Enable or disable status bar.
+.It Ic bar_font
+Status bar font.
 .It Ic bar_font_color Ns Bq Ar x
 Color of the font in status bar in screen
 .Ar x .
-.It Ic bar_font
-Status bar font.
-.It Ic bar_action
-External script that populates additional information in the status bar,
-such as battery life.
-.It Ic bar_delay
-Update frequency, in seconds, of external script that populates the status bar.
-.It Ic bar_at_bottom
-Place the statusbar at the bottom of each region instead of the top.
 .It Ic bar_justify
 Justify the status bar text. Possible values are
 .Pa left ,
 .Pa center ,
 and
 .Pa right .
-.It Ic stack_enabled
-Enable or disable displaying the current stacking algorithm in the status bar.
+.It Ic bind Ns Bq Ar x
+Bind key combo to action
+.Ar x .
+See the
+.Sx BINDINGS
+section below.
+.It Ic border_width
+Set window border thickness in pixels.
+Disable all borders by setting to 0.
 .It Ic clock_enabled
 Enable or disable displaying the clock in the status bar.
 Disable by setting to 0
 so a custom clock could be used in the
 .Pa bar_action
 script.
+.It Ic color_focus
+Border color of the currently focussed window.
+.It Ic color_unfocus
+Border color of unfocussed windows.
 .It Ic dialog_ratio
 Some applications have dialogue windows that are too small to be useful.
 This ratio is the screen size to what they will be resized.
 For example, 0.6 is 60% of the physical screen size.
+.It Ic disable_border
+Remove border when bar is disabled and there is only one window on the screen.
+.It Ic focus_mode
+Using a value of
+.Pa follow_cursor
+will make the window manager focus the window
+under the mouse when switching workspaces and creating windows.
 .It Ic keyboard_mapping
 Clear all key bindings and load new key bindings from the specified file.
 This allows you to load pre-defined key bindings for your keyboard layout.
@@ -161,6 +175,23 @@ One should familiarize oneself with these commands before experimenting with the
 option.
 .Pp
 This setting is not retained at restart.
+.It Ic modkey
+Change mod key.
+Mod1 is generally the ALT key and Mod4 is the windows key on a PC.
+.It Ic program Ns Bq Ar p
+Define new action to spawn a program
+.Ar p .
+See the
+.Sx PROGRAMS
+section below.
+.It Ic quirk Ns Bq Ar c:n
+Add "quirk" for windows with class
+.Ar c
+and name
+.Ar n .
+See the
+.Sx QUIRKS
+section below.
 .It Ic region
 Allocates a custom region, removing any autodetected regions which occupy the same
 space on the screen.
@@ -170,6 +201,8 @@ e.g.\& screen[1]:800x1200+0+0.
 To make a screen span multiple monitors, create a region big enough to cover
 them all, e.g. screen[1]:2048x768+0+0 makes the screen span two monitors with
 1024x768 resolution sitting one next to the other.
+.It Ic stack_enabled
+Enable or disable displaying the current stacking algorithm in the status bar.
 .It Ic term_width
 Set a preferred minimum width for the terminal.
 If this value is greater than 0,
@@ -201,46 +234,13 @@ In xterm, for example, one needs to add the following line
 .Pa xterm.urgentOnBell: true
 to
 .Pa .Xdefaults .
-.It Ic window_name_enabled
-Enable or disable displaying the window name in the status bar.
-Enable by setting to 1.
 .It Ic verbose_layout
 Enable or disable displaying the current master and stack values in the status
 bar.
 Enable by setting to 1.
-.It Ic modkey
-Change mod key.
-Mod1 is generally the ALT key and Mod4 is the windows key on a PC.
-.It Ic focus_mode
-Using a value of
-.Pa follow_cursor
-will make the window manager focus the window
-under the mouse when switching workspaces and creating windows.
-.It Ic disable_border
-Remove border when bar is disabled and there is only one window on the screen.
-.It Ic border_width
-Set window border thickness in pixels.
-Disable all borders by setting to 0.
-.It Ic program Ns Bq Ar p
-Define new action to spawn a program
-.Ar p .
-See the
-.Sx PROGRAMS
-section below.
-.It Ic bind Ns Bq Ar x
-Bind key combo to action
-.Ar x .
-See the
-.Sx BINDINGS
-section below.
-.It Ic quirk Ns Bq Ar c:n
-Add "quirk" for windows with class
-.Ar c
-and name
-.Ar n .
-See the
-.Sx QUIRKS
-section below.
+.It Ic window_name_enabled
+Enable or disable displaying the window name in the status bar.
+Enable by setting to 1.
 .El
 .Pp
 Colors need to be specified per the
