@@ -1026,34 +1026,34 @@ dumpwins(struct swm_region *r, union arg *args)
 	XWindowAttributes	wa;
 
 	if (r->ws == NULL) {
-		fprintf(stderr, "dumpwins: invalid workspace\n");
+		warnx("dumpwins: invalid workspace");
 		return;
 	}
 
-	fprintf(stderr, "=== managed window list ws %02d ===\n", r->ws->idx);
+	warnx("=== managed window list ws %02d ===", r->ws->idx);
 
 	TAILQ_FOREACH(win, &r->ws->winlist, entry) {
 		state = getstate(win->id);
 		if (!XGetWindowAttributes(display, win->id, &wa))
-			fprintf(stderr, "window: 0x%lx, failed "
-			    "XGetWindowAttributes\n", win->id);
-		fprintf(stderr, "window: 0x%lx, map_state: %d, state: %d, "
-		    "transient: 0x%lx\n",
-		    win->id, wa.map_state, state, win->transient);
+			warnx("window: 0x%lx, failed XGetWindowAttributes",
+			    win->id);
+		warnx("window: 0x%lx, map_state: %d, state: %d, "
+		    "transient: 0x%lx", win->id, wa.map_state, state,
+		    win->transient);
 	}
 
-	fprintf(stderr, "===== unmanaged window list =====\n");
+	warnx("===== unmanaged window list =====");
 	TAILQ_FOREACH(win, &r->ws->unmanagedlist, entry) {
 		state = getstate(win->id);
 		if (!XGetWindowAttributes(display, win->id, &wa))
-			fprintf(stderr, "window: 0x%lx, failed "
-			    "XGetWindowAttributes\n", win->id);
-		fprintf(stderr, "window: 0x%lx, map_state: %d, state: %d, "
-		    "transient: 0x%lx\n",
-		    win->id, wa.map_state, state, win->transient);
+			warnx("window: 0x%lx, failed XGetWindowAttributes",
+			    win->id);
+		warnx("window: 0x%lx, map_state: %d, state: %d, "
+		    "transient: 0x%lx", win->id, wa.map_state, state,
+		    win->transient);
 	}
 
-	fprintf(stderr, "=================================\n");
+	warnx("=================================");
 }
 #else
 void
@@ -1183,7 +1183,7 @@ name_to_color(char *colorname)
 	if (status)
 		result = screen_def.pixel;
 	else
-		fprintf(stderr, "color '%s' not found.\n", colorname);
+		warnx("color '%s' not found", colorname);
 
 	return (result);
 }
@@ -1250,9 +1250,8 @@ custom_region(char *val)
 	    y > DisplayHeight(display, sidx) ||
 	    w + x > DisplayWidth(display, sidx) ||
 	    h + y > DisplayHeight(display, sidx)) {
-		fprintf(stderr, "ignoring region %ux%u+%u+%u "
-		    "- not within screen boundaries "
-		    "(%ux%u)\n", w, h, x, y,
+		warnx("ignoring region %ux%u+%u+%u - not within screen "
+		    "boundaries (%ux%u)", w, h, x, y,
 		    DisplayWidth(display, sidx), DisplayHeight(display, sidx));
 		return;
 	}
@@ -1434,8 +1433,7 @@ bar_update(void)
 				strlcpy((char *)bar_ext, b, sizeof bar_ext);
 			}
 		if (b == NULL && errno != EAGAIN) {
-			fprintf(stderr, "bar_update: bar_extra failed: "
-			    "errno: %d %s\n", errno, strerror(errno));
+			warn("bar_update: bar_extra failed");
 			bar_extra_stop();
 		}
 	} else
@@ -1873,8 +1871,7 @@ restart(struct swm_region *r, union arg *args)
 	unmap_all();
 	XCloseDisplay(display);
 	execvp(start_argv[0], start_argv);
-	fprintf(stderr, "execvp failed\n");
-	perror(" failed");
+	warn("execvp failed");
 	quit(NULL, NULL);
 }
 
@@ -1968,7 +1965,7 @@ spawn(int ws_idx, union arg *args, int close_fd)
 	setenv("LD_PRELOAD", SWM_LIB, 1);
 
 	if (asprintf(&ret, "%d", ws_idx) == -1) {
-		perror("_SWM_WS");
+		warn("spawn: asprintf SWM_WS");
 		_exit(1);
 	}
 	setenv("_SWM_WS", ret, 1);
@@ -1976,7 +1973,7 @@ spawn(int ws_idx, union arg *args, int close_fd)
 	ret = NULL;
 
 	if (asprintf(&ret, "%d", getpid()) == -1) {
-		perror("_SWM_PID");
+		warn("spawn: asprintf _SWM_PID");
 		_exit(1);
 	}
 	setenv("_SWM_PID", ret, 1);
@@ -1984,7 +1981,7 @@ spawn(int ws_idx, union arg *args, int close_fd)
 	ret = NULL;
 
 	if (setsid() == -1) {
-		perror("setsid");
+		warn("spawn: setsid");
 		_exit(1);
 	}
 
@@ -1995,7 +1992,7 @@ spawn(int ws_idx, union arg *args, int close_fd)
 		 * leave stderr open to record errors
 		*/
 		if ((fd = open(_PATH_DEVNULL, O_RDWR, 0)) == -1) {
-			perror("open");
+			warn("spawn: open");
 			_exit(1);
 		}
 		dup2(fd, STDIN_FILENO);
@@ -2006,7 +2003,7 @@ spawn(int ws_idx, union arg *args, int close_fd)
 
 	execvp(args->argv[0], args->argv);
 
-	perror("execvp");
+	warn("spawn: execvp");
 	_exit(1);
 }
 
@@ -2389,7 +2386,7 @@ sort_windows(struct ws_win_list *wl)
 		if (win->transient) {
 			parent = find_window(win->transient);
 			if (parent == NULL) {
-				fprintf(stderr, "not possible bug\n");
+				warnx("not possible bug");
 				continue;
 			}
 			TAILQ_REMOVE(wl, win, entry);
@@ -3492,8 +3489,7 @@ search_win(struct swm_region *r, union arg *args)
 
 		sw = calloc(1, sizeof(struct search_window));
 		if (sw == NULL) {
-			fprintf(stderr, "search_win: calloc: %s",
-			    strerror(errno));
+			warn("search_win: calloc");
 			fclose(lfile);
 			search_win_cleanup();
 			return;
@@ -3666,13 +3662,13 @@ search_do_resp(void)
 	searchpid = 0;
 
 	if ((resp = calloc(1, MAX_RESP_LEN + 1)) == NULL) {
-		fprintf(stderr, "search: calloc\n");
+		warn("search: calloc");
 		goto done;
 	}
 
 	rbytes = read(select_resp_pipe[0], resp, MAX_RESP_LEN);
 	if (rbytes <= 0) {
-		fprintf(stderr, "search: read error: %s\n", strerror(errno));
+		warn("search: read error");
 		goto done;
 	}
 	resp[rbytes] = '\0';
@@ -4391,8 +4387,7 @@ spawn_expand(struct swm_region *r, union arg *args, char *spawn_name,
 			prog = &spawns[i];
 	}
 	if (prog == NULL) {
-		fprintf(stderr, "spawn_custom: program %s not found\n",
-		    spawn_name);
+		warnx("spawn_custom: program %s not found", spawn_name);
 		return (-1);
 	}
 
@@ -4556,8 +4551,7 @@ setspawn(struct spawn_prog *prog)
 	}
 
 	if (prog->argv == NULL) {
-		fprintf(stderr,
-		    "error: setspawn: cannot find program: %s", prog->name);
+		warnx("error: setspawn: cannot find program: %s", prog->name);
 		free(prog);
 		return;
 	}
@@ -4569,8 +4563,7 @@ setspawn(struct spawn_prog *prog)
 		spawns = malloc((size_t)spawns_size *
 		    sizeof(struct spawn_prog));
 		if (spawns == NULL) {
-			fprintf(stderr, "setspawn: malloc failed\n");
-			perror(" failed");
+			warn("setspawn: malloc failed");
 			quit(NULL, NULL);
 		}
 	} else if (spawns_length == spawns_size) {
@@ -4579,8 +4572,7 @@ setspawn(struct spawn_prog *prog)
 		spawns = realloc(spawns, (size_t)spawns_size *
 		    sizeof(struct spawn_prog));
 		if (spawns == NULL) {
-			fprintf(stderr, "setspawn: realloc failed\n");
-			perror(" failed");
+			warn("setspawn: realloc failed");
 			quit(NULL, NULL);
 		}
 	}
@@ -4591,9 +4583,9 @@ setspawn(struct spawn_prog *prog)
 		i = spawns_length++;
 		spawns[i] = *prog;
 	} else {
-		fprintf(stderr, "spawns array problem?\n");
+		warnx("spawns array problem?");
 		if (spawns == NULL) {
-			fprintf(stderr, "spawns array is NULL!\n");
+			warnx("spawns array is NULL!");
 			quit(NULL, NULL);
 		}
 	}
@@ -5543,7 +5535,7 @@ conf_load(char *filename, int keymapping)
 	DNPRINTF(SWM_D_CONF, "conf_load: begin\n");
 
 	if (filename == NULL) {
-		fprintf(stderr, "conf_load: no filename\n");
+		warnx("conf_load: no filename");
 		return (1);
 	}
 	if ((config = fopen(filename, "r")) == NULL) {
@@ -5622,12 +5614,9 @@ conf_load(char *filename, int keymapping)
 		optval = strdup(cp);
 		/* call function to deal with it all */
 		if (configopt[optind].func(optsub, optval,
-		    configopt[optind].funcflags) != 0) {
-			fprintf(stderr, "%s line %zd: %s\n",
-			    filename, lineno, line);
+		    configopt[optind].funcflags) != 0)
 			errx(1, "%s: line %zd: invalid data for %s",
 			    filename, lineno, configopt[optind].optname);
-		}
 		free(optval);
 		free(optsub);
 		free(line);
@@ -5662,7 +5651,7 @@ set_child_transient(struct ws_win *win, Window *trans)
 		    " for 0x%lx trans 0x%lx\n", win->id, win->transient);
 
 		if (win->hints == NULL) {
-			fprintf(stderr, "no hints for 0x%lx\n", win->id);
+			warnx("no hints for 0x%lx", win->id);
 			return;
 		}
 
@@ -5674,8 +5663,7 @@ set_child_transient(struct ws_win *win, Window *trans)
 				XFree(wmh);
 
 			if ((wmh = XGetWMHints(display, w->id)) == NULL) {
-				fprintf(stderr, "can't get hints for 0x%lx\n",
-				    w->id);
+				warnx("can't get hints for 0x%lx", w->id);
 				continue;
 			}
 
@@ -5846,9 +5834,8 @@ manage_window(Window id)
 					if (ww->ws->r)
 						r = ww->ws->r;
 					else
-						fprintf(stderr,
-						    "manage_window: fix this "
-						    "bug mcbride\n");
+						warnx("manage_window: fix this "
+						    "bug mcbride");
 					border_me = 1;
 				}
 	}
@@ -6331,7 +6318,7 @@ focusevent(XEvent *e)
 			    SWM_S_COLOR_FOCUS : SWM_S_COLOR_UNFOCUS].color);
 		break;
 	default:
-		fprintf(stderr, "ignoring focusevent\n");
+		warnx("ignoring focusevent");
 		DNPRINTF(SWM_D_FOCUS, "ignoring focusevent\n");
 		break;
 	}
@@ -6419,11 +6406,11 @@ propertynotify(XEvent *e)
 	case XA_WM_NORMAL_HINTS:
 		long		mask;
 		XGetWMNormalHints(display, win->id, &win->sh, &mask);
-		fprintf(stderr, "normal hints: flag 0x%x\n", win->sh.flags);
+		warnx("normal hints: flag 0x%x", win->sh.flags);
 		if (win->sh.flags & PMinSize) {
 			WIDTH(win) = win->sh.min_width;
 			HEIGHT(win) = win->sh.min_height;
-			fprintf(stderr, "min %d %d\n", WIDTH(win), HEIGHT(win));
+			warnx("min %d %d", WIDTH(win), HEIGHT(win));
 		}
 		XMoveResizeWindow(display, win->id,
 		    X(win), Y(win), WIDTH(win), HEIGHT(win));
@@ -6560,7 +6547,7 @@ xerror_start(Display *d, XErrorEvent *ee)
 int
 xerror(Display *d, XErrorEvent *ee)
 {
-	/* fprintf(stderr, "error: %p %p\n", display, ee); */
+	/* warnx("error: %p %p", display, ee); */
 	return (-1);
 }
 
@@ -6919,8 +6906,7 @@ main(int argc, char *argv[])
 	struct sigaction	sact;
 
 	start_argv = argv;
-	fprintf(stderr, "Welcome to scrotwm V%s Build: %s\n",
-	    SCROTWM_VERSION, buildstr);
+	warnx("Welcome to scrotwm V%s Build: %s", SCROTWM_VERSION, buildstr);
 	if (!setlocale(LC_CTYPE, "") || !setlocale(LC_TIME, "") ||
 	    !XSupportsLocale())
 		warnx("no locale support");
