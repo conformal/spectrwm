@@ -1446,7 +1446,8 @@ bar_update(void)
 	else {
 		time(&tmt);
 		localtime_r(&tmt, &tm);
-		strftime(s, sizeof s, clock_format, &tm);
+		len = strftime(s, sizeof s, clock_format, &tm);
+		s[len] = '\0';
 		strlcat(s, "    ", sizeof s);
 	}
 
