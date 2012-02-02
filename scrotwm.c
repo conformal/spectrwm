@@ -4280,7 +4280,7 @@ struct key {
 	char			*spawn_name;
 };
 TAILQ_HEAD(key_list, key);
-struct key_list	keys = TAILQ_HEAD_INITIALIZER(keys);
+struct key_list			keys = TAILQ_HEAD_INITIALIZER(keys);
 
 /* mouse */
 enum { client_click, root_click };
@@ -4300,8 +4300,8 @@ struct button {
 void
 update_modkey(unsigned int mod)
 {
-	int		i;
-	struct key	*kp;
+	int			i;
+	struct key		*kp;
 
 	mod_key = mod;
 	TAILQ_FOREACH(kp, &keys, entry)
@@ -4682,7 +4682,7 @@ strdupsafe(char *str)
 void
 key_insert(unsigned int mod, KeySym ks, enum keyfuncid kfid, char *spawn_name)
 {
-	struct key	*kp;
+	struct key		*kp;
 
 	DNPRINTF(SWM_D_KEY, "key_insert: enter %s [%s]\n",
 	    keyfuncs[kfid].name, spawn_name);
@@ -4728,7 +4728,7 @@ void
 setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid,
     char *spawn_name)
 {
-	struct key	*kp;
+	struct key		*kp;
 
 	DNPRINTF(SWM_D_KEY, "setkeybinding: enter %s [%s]\n",
 	    keyfuncs[kfid].name, spawn_name);
@@ -4882,7 +4882,7 @@ setup_keys(void)
 void
 clear_keys(void)
 {
-	struct key	*kp_loop, *kp_next;
+	struct key		*kp_loop, *kp_next;
 
 	kp_loop = TAILQ_FIRST(&keys);
 	while (kp_loop != NULL) {
