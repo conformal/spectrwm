@@ -4273,13 +4273,14 @@ struct keyfunc {
 	{ "invalid key func",	NULL,		{0} },
 };
 struct key {
+	TAILQ_ENTRY(key)	entry;
 	unsigned int		mod;
 	KeySym			keysym;
 	enum keyfuncid		funcid;
 	char			*spawn_name;
 };
-int				keys_size = 0, keys_length = 0;
-struct key			*keys = NULL;
+TAILQ_HEAD(key_list, key);
+struct key_list	keys = TAILQ_HEAD_INITIALIZER(keys);
 
 /* mouse */
 enum { client_click, root_click };
@@ -4299,14 +4300,15 @@ struct button {
 void
 update_modkey(unsigned int mod)
 {
-	int			i;
+	int		i;
+	struct key	*kp;
 
 	mod_key = mod;
-	for (i = 0; i < keys_length; i++)
-		if (keys[i].mod & ShiftMask)
-			keys[i].mod = mod | ShiftMask;
+	TAILQ_FOREACH(kp, &keys, entry)
+		if (kp->mod & ShiftMask)
+			kp->mod = mod | ShiftMask;
 		else
-			keys[i].mod = mod;
+			kp->mod = mod;
 
 	for (i = 0; i < LENGTH(buttons); i++)
 		if (buttons[i].mask & ShiftMask)
@@ -4678,84 +4680,76 @@ strdupsafe(char *str)
 }
 
 void
+key_insert(unsigned int mod, KeySym ks, enum keyfuncid kfid, char *spawn_name)
+{
+	struct key	*kp;
+
+	DNPRINTF(SWM_D_KEY, "key_insert: enter %s [%s]\n",
+	    keyfuncs[kfid].name, spawn_name);
+
+	if ((kp = malloc(sizeof *kp)) == NULL)
+		err(1, "key_insert: malloc");
+
+	kp->mod = mod;
+	kp->keysym = ks;
+	kp->funcid = kfid;
+	kp->spawn_name = strdupsafe(spawn_name);
+	TAILQ_INSERT_TAIL(&keys, kp, entry);
+
+	DNPRINTF(SWM_D_KEY, "key_insert: leave\n");
+}
+
+void
+key_remove(struct key *kp)
+{
+	DNPRINTF(SWM_D_KEY, "key_remove: %s\n", keyfuncs[kp->funcid].name);
+
+	TAILQ_REMOVE(&keys, kp, entry);
+	free(kp->spawn_name);
+	free(kp);
+
+	DNPRINTF(SWM_D_KEY, "key_remove: leave\n");
+}
+
+void
+key_replace(struct key *kp, unsigned int mod, KeySym ks, enum keyfuncid kfid,
+    char *spawn_name)
+{
+	DNPRINTF(SWM_D_KEY, "key_replace: %s [%s]\n", keyfuncs[kp->funcid].name,
+	    spawn_name);
+
+	key_remove(kp);
+	key_insert(mod, ks, kfid, spawn_name);
+
+	DNPRINTF(SWM_D_KEY, "key_replace: leave\n");
+}
+
+void
 setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid,
     char *spawn_name)
 {
-	int			i, j;
+	struct key	*kp;
+
 	DNPRINTF(SWM_D_KEY, "setkeybinding: enter %s [%s]\n",
 	    keyfuncs[kfid].name, spawn_name);
-	/* find existing */
-	for (i = 0; i < keys_length; i++) {
-		if (keys[i].mod == mod && keys[i].keysym == ks) {
-			if (kfid == kf_invalid) {
-				/* found: delete */
-				DNPRINTF(SWM_D_KEY,
-				    "setkeybinding: delete #%d %s\n",
-				    i, keyfuncs[keys[i].funcid].name);
-				free(keys[i].spawn_name);
-				j = keys_length - 1;
-				if (i < j)
-					keys[i] = keys[j];
-				keys_length--;
-				DNPRINTF(SWM_D_KEY, "setkeybinding: leave\n");
-				return;
-			} else {
-				/* found: replace */
-				DNPRINTF(SWM_D_KEY,
-				    "setkeybinding: replace #%d %s [%s]\n",
-				    i, keyfuncs[keys[i].funcid].name,
-				    spawn_name);
-				free(keys[i].spawn_name);
-				keys[i].mod = mod;
-				keys[i].keysym = ks;
-				keys[i].funcid = kfid;
-				keys[i].spawn_name = strdupsafe(spawn_name);
-				DNPRINTF(SWM_D_KEY, "setkeybinding: leave\n");
-				return;
-			}
+
+	TAILQ_FOREACH(kp, &keys, entry) {
+		if (kp->mod == mod && kp->keysym == ks) {
+			if (kfid == kf_invalid)
+				key_remove(kp);
+			else
+				key_replace(kp, mod, ks, kfid, spawn_name);
+			DNPRINTF(SWM_D_KEY, "setkeybinding: leave\n");
+			return;
 		}
 	}
 	if (kfid == kf_invalid) {
-		fprintf(stderr,
-		    "error: setkeybinding: cannot find mod/key combination");
+		warnx("error: setkeybinding: cannot find mod/key combination");
 		DNPRINTF(SWM_D_KEY, "setkeybinding: leave\n");
 		return;
 	}
-	/* not found: add */
-	if (keys_size == 0 || keys == NULL) {
-		keys_size = 4;
-		DNPRINTF(SWM_D_KEY, "setkeybinding: init list %d\n", keys_size);
-		keys = malloc((size_t)keys_size * sizeof(struct key));
-		if (keys == NULL) {
-			fprintf(stderr, "malloc failed\n");
-			perror(" failed");
-			quit(NULL, NULL);
-		}
-	} else if (keys_length == keys_size) {
-		keys_size *= 2;
-		DNPRINTF(SWM_D_KEY, "setkeybinding: grow list %d\n", keys_size);
-		keys = realloc(keys, (size_t)keys_size * sizeof(struct key));
-		if (keys == NULL) {
-			fprintf(stderr, "realloc failed\n");
-			perror(" failed");
-			quit(NULL, NULL);
-		}
-	}
-	if (keys_length < keys_size) {
-		j = keys_length++;
-		DNPRINTF(SWM_D_KEY, "setkeybinding: add #%d %s [%s]\n",
-		    j, keyfuncs[kfid].name, spawn_name);
-		keys[j].mod = mod;
-		keys[j].keysym = ks;
-		keys[j].funcid = kfid;
-		keys[j].spawn_name = strdupsafe(spawn_name);
-	} else {
-		fprintf(stderr, "keys array problem?\n");
-		if (keys == NULL) {
-			fprintf(stderr, "keys array problem\n");
-			quit(NULL, NULL);
-		}
-	}
+
+	key_insert(mod, ks, kfid, spawn_name);
 	DNPRINTF(SWM_D_KEY, "setkeybinding: leave\n");
 }
 
@@ -4888,12 +4882,14 @@ setup_keys(void)
 void
 clear_keys(void)
 {
-	int			i;
+	struct key	*kp_loop, *kp_next;
 
-	/* clear all key bindings, if any */
-	for (i = 0; i < keys_length; i++)
-		free(keys[i].spawn_name);
-	keys_length = 0;
+	kp_loop = TAILQ_FIRST(&keys);
+	while (kp_loop != NULL) {
+		kp_next = TAILQ_NEXT(kp_loop, entry);
+		key_remove(kp_loop);
+		kp_loop = kp_next;
+	}
 }
 
 int
@@ -4937,10 +4933,11 @@ updatenumlockmask(void)
 void
 grabkeys(void)
 {
-	unsigned int		i, j, k;
+	unsigned int		j, k;
 	KeyCode			code;
 	unsigned int		modifiers[] =
 	    { 0, LockMask, numlockmask, numlockmask | LockMask };
+	struct key		*kp;
 
 	DNPRINTF(SWM_D_MISC, "grabkeys\n");
 	updatenumlockmask();
@@ -4949,11 +4946,11 @@ grabkeys(void)
 		if (TAILQ_EMPTY(&screens[k].rl))
 			continue;
 		XUngrabKey(display, AnyKey, AnyModifier, screens[k].root);
-		for (i = 0; i < keys_length; i++) {
-			if ((code = XKeysymToKeycode(display, keys[i].keysym)))
+		TAILQ_FOREACH(kp, &keys, entry) {
+			if ((code = XKeysymToKeycode(display, kp->keysym)))
 				for (j = 0; j < LENGTH(modifiers); j++)
 					XGrabKey(display, code,
-					    keys[i].mod | modifiers[j],
+					    kp->mod | modifiers[j],
 					    screens[k].root, True,
 					    GrabModeAsync, GrabModeAsync);
 		}
@@ -6009,25 +6006,25 @@ expose(XEvent *e)
 void
 keypress(XEvent *e)
 {
-	unsigned int		i;
 	KeySym			keysym;
 	XKeyEvent		*ev = &e->xkey;
+	struct key		*kp;
 
 	keysym = XKeycodeToKeysym(display, (KeyCode)ev->keycode, 0);
-	for (i = 0; i < keys_length; i++)
-		if (keysym == keys[i].keysym
-		    && CLEANMASK(keys[i].mod) == CLEANMASK(ev->state)
-		    && keyfuncs[keys[i].funcid].func) {
-			if (keys[i].funcid == kf_spawn_custom)
+	TAILQ_FOREACH(kp, &keys, entry)
+		if (keysym == kp->keysym
+		    && CLEANMASK(kp->mod) == CLEANMASK(ev->state)
+		    && keyfuncs[kp->funcid].func) {
+			if (kp->funcid == kf_spawn_custom)
 				spawn_custom(
 				    root_to_region(ev->root),
-				    &(keyfuncs[keys[i].funcid].args),
-				    keys[i].spawn_name
+				    &(keyfuncs[kp->funcid].args),
+				    kp->spawn_name
 				    );
 			else
-				keyfuncs[keys[i].funcid].func(
+				keyfuncs[kp->funcid].func(
 				    root_to_region(ev->root),
-				    &(keyfuncs[keys[i].funcid].args)
+				    &(keyfuncs[kp->funcid].args)
 				    );
 		}
 }
