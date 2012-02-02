@@ -501,7 +501,7 @@ struct quirk {
 #define SWM_Q_FOCUSPREV		(1<<5)	/* focus on caller */
 };
 TAILQ_HEAD(quirk_list, quirk);
-struct quirk_list	quirks = TAILQ_HEAD_INITIALIZER(quirks);
+struct quirk_list		quirks = TAILQ_HEAD_INITIALIZER(quirks);
 
 /*
  * Supported EWMH hints should be added to
@@ -5031,7 +5031,7 @@ parsequirks(char *qstr, unsigned long *quirk)
 void
 quirk_insert(const char *class, const char *name, unsigned long quirk)
 {
-	struct quirk	*qp;
+	struct quirk		*qp;
 
 	DNPRINTF(SWM_D_QUIRK, "quirk_insert: %s:%s [%lu]\n", class, name,
 	    quirk);
@@ -5079,7 +5079,7 @@ quirk_replace(struct quirk *qp, const char *class, const char *name,
 void
 setquirk(const char *class, const char *name, unsigned long quirk)
 {
-	struct quirk	*qp;
+	struct quirk		*qp;
 
 	DNPRINTF(SWM_D_QUIRK, "setquirk: enter %s:%s [%lu]\n", class, name,
 	   quirk); 
