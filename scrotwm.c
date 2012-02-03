@@ -161,9 +161,18 @@ u_int32_t		swm_debug = 0
 #define Y(r)			(r)->g.y
 #define WIDTH(r)		(r)->g.w
 #define HEIGHT(r)		(r)->g.h
+#define SH_MIN(w)		(w)->sh_mask & PMinSize
+#define SH_MIN_W(w)		(w)->sh.min_width
+#define SH_MIN_H(w)		(w)->sh.min_height
+#define SH_MAX(w)		(w)->sh_mask & PMaxSize
+#define SH_MAX_W(w)		(w)->sh.max_width
+#define SH_MAX_H(w)		(w)->sh.max_height
+#define SH_INC(w)		(w)->sh_mask & PResizeInc
+#define SH_INC_W(w)		(w)->sh.width_inc
+#define SH_INC_H(w)		(w)->sh.height_inc
 #define SWM_MAX_FONT_STEPS	(3)
-#define WINID(w)		(w ? w->id : 0)
-#define YESNO(x)		(x ? "yes" : "no")
+#define WINID(w)		((w) ? (w)->id : 0)
+#define YESNO(x)		((x) ? "yes" : "no")
 
 #define SWM_FOCUS_DEFAULT	(0)
 #define SWM_FOCUS_SYNERGY	(1)
@@ -337,6 +346,7 @@ struct ws_win {
 	struct swm_screen	*s;	/* always valid, never changes */
 	XWindowAttributes	wa;
 	XSizeHints		sh;
+	long			sh_mask;
 	XClassHint		ch;
 	XWMHints		*hints;
 };
@@ -1709,6 +1719,43 @@ config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 		ce.display = ev->display;
 		ce.event = ev->window;
 		ce.window = ev->window;
+
+		/* make response appear more WM_SIZE_HINTS-compliant */
+		if (win->sh_mask)
+			DNPRINTF(SWM_D_MISC, "config_win: hints: window: 0x%lx,"
+			    " sh_mask: %ld, min: %d x %d, max: %d x %d, inc: "
+			    "%d x %d\n", win->id, win->sh_mask, SH_MIN_W(win),
+			    SH_MIN_H(win), SH_MAX_W(win), SH_MAX_H(win),
+			    SH_INC_W(win), SH_INC_H(win));
+
+		/* min size */
+		if (SH_MIN(win)) {
+			/* the hint may be set... to 0! */
+			if (SH_MIN_W(win) > 0 && ce.width < SH_MIN_W(win))
+				ce.width = SH_MIN_W(win);
+			if (SH_MIN_H(win) > 0 && ce.height < SH_MIN_H(win))
+				ce.height = SH_MIN_H(win);
+		}
+
+		/* max size */
+		if (SH_MAX(win)) {
+			/* may also be advertized as 0 */
+			if (SH_MAX_W(win) > 0 && ce.width > SH_MAX_W(win))
+				ce.width = SH_MAX_W(win);
+			if (SH_MAX_H(win) > 0 && ce.height > SH_MAX_H(win))
+				ce.height = SH_MAX_H(win);
+		}
+
+		/* resize increment. */
+		if (SH_INC(win)) {
+			if (SH_INC_W(win) > 1 && ce.width > SH_INC_W(win))
+				ce.width -= (ce.width - SH_MIN_W(win)) %
+				    SH_INC_W(win);
+			if (SH_INC_H(win) > 1 && ce.height > SH_INC_H(win))
+				ce.height -= (ce.height - SH_MIN_H(win)) %
+				    SH_INC_H(win);
+		}
+
 		/* adjust x and y for requested border_width. */
 		ce.x += border_width - ev->border_width;
 		ce.y += border_width - ev->border_width;
@@ -5745,7 +5792,7 @@ manage_window(Window id)
 		    False, XA_STRING, &type, &format, &nitems, &bytes, &prop);
 	}
 	XGetWindowAttributes(display, id, &win->wa);
-	XGetWMNormalHints(display, id, &win->sh, &mask);
+	XGetWMNormalHints(display, id, &win->sh, &win->sh_mask);
 	win->hints = XGetWMHints(display, id);
 	XGetTransientForHint(display, id, &trans);
 	if (trans) {
@@ -6086,14 +6133,13 @@ void
 configurenotify(XEvent *e)
 {
 	struct ws_win		*win;
-	long			mask;
 
 	DNPRINTF(SWM_D_EVENT, "configurenotify: window: 0x%lx\n",
 	    e->xconfigure.window);
 
 	win = find_window(e->xconfigure.window);
 	if (win) {
-		XGetWMNormalHints(display, win->id, &win->sh, &mask);
+		XGetWMNormalHints(display, win->id, &win->sh, &win->sh_mask);
 		adjust_font(win);
 		if (font_adjusted)
 			stack();
