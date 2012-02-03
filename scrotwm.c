@@ -995,7 +995,7 @@ geteventname(XEvent *e)
 char *
 xrandr_geteventname(XEvent *e)
 {
-	char 			*name = NULL;
+	char			*name = NULL;
 
 	switch(e->type - xrandr_eventbase) {
 	case RRScreenChangeNotify:
@@ -2485,7 +2485,6 @@ done:
 		if (window_name_enabled || title_name_enabled ||
 		    title_class_enabled)
 			bar_update();
-		
 		return;
 	}
 
@@ -5082,7 +5081,7 @@ setquirk(const char *class, const char *name, unsigned long quirk)
 	struct quirk		*qp;
 
 	DNPRINTF(SWM_D_QUIRK, "setquirk: enter %s:%s [%lu]\n", class, name,
-	   quirk); 
+	   quirk);
 
 	TAILQ_FOREACH(qp, &quirks, entry) {
 		if (!strcmp(qp->class, class) && !strcmp(qp->name, name)) {
@@ -5955,7 +5954,10 @@ unmanage_window(struct ws_win *win)
 
 	focus_prev(win);
 
-	XFree(win->hints);
+	if (win->hints) {
+		XFree(win->hints);
+		win->hints = NULL;
+	}
 
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
 	TAILQ_INSERT_TAIL(&win->ws->unmanagedlist, win, entry);
