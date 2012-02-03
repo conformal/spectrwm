@@ -2207,7 +2207,7 @@ focus_win(struct ws_win *win)
 		    PropModeReplace, (unsigned char *)&win->id,1);
 	}
 
-	if (window_name_enabled)
+	if (window_name_enabled || title_class_enabled || title_name_enabled)
 		bar_update();
 }
 
