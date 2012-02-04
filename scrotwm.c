@@ -563,7 +563,7 @@ struct ewmh_hint {
 void		 store_float_geom(struct ws_win *, struct swm_region *);
 int		 floating_toggle_win(struct ws_win *);
 void		 spawn_select(struct swm_region *, union arg *, char *, int *);
-unsigned char	*get_win_name(Display *, Window, Atom, Atom, unsigned long *);
+unsigned char	*get_win_name(Display *, Window, unsigned long *);
 
 int
 get_property(Window id, Atom atom, long count, Atom type,
@@ -1357,8 +1357,8 @@ bar_window_name(char *s, ssize_t sz, struct ws_win *cur_focus)
 	unsigned long		len;
 
 	if (window_name_enabled && cur_focus != NULL) {
-		if ((title = get_win_name(display, cur_focus->id, a_netwmname,
-		    a_utf8_string, &len)) != NULL) {
+		title = get_win_name(display, cur_focus->id, &len);
+		if (title != NULL) {
 			DNPRINTF(SWM_D_BAR, "bar_window_name: title: %s\n",
 			    title);
 
@@ -3313,27 +3313,26 @@ iconify(struct swm_region *r, union arg *args)
 }
 
 unsigned char *
-get_win_name(Display *dpy, Window win, Atom wname, Atom stype,
-    unsigned long *slen)
+get_win_name(Display *dpy, Window win, unsigned long *slen)
 {
 	int			status, retfmt;
 	unsigned long		nitems, nbytes, nextra;
 	unsigned char		*prop = NULL;
 	Atom			rettype;
 
-	status = XGetWindowProperty(dpy, win, wname, 0L, 0L, False, stype,
-	    &rettype, &retfmt,  &nitems, &nbytes, &prop);
+	status = XGetWindowProperty(dpy, win, a_netwmname, 0L, 0L, False,
+	    a_utf8_string, &rettype, &retfmt,  &nitems, &nbytes, &prop);
 	if (status != Success)
 		return (NULL);
 	XFree(prop);
 
-	status = XGetWindowProperty(dpy, win, wname, 0L, nbytes, False,
-	    stype, &rettype, &retfmt, &nitems, &nextra, &prop);
+	status = XGetWindowProperty(dpy, win, a_netwmname, 0L, nbytes, False,
+	    a_utf8_string, &rettype, &retfmt, &nitems, &nextra, &prop);
 	if (status != Success) {
 		XFree(prop);
 		return (NULL);
 	}
-	if (rettype != stype) {
+	if (rettype != a_utf8_string) {
 		XFree(prop);
 		return (NULL);
 	}
@@ -3380,8 +3379,7 @@ uniconify(struct swm_region *r, union arg *args)
 		if (win->iconic == 0)
 			continue;
 
-		name = get_win_name(display, win->id, a_netwmname,
-		    a_utf8_string, &len);
+		name = get_win_name(display, win->id, &len);
 		if (name == NULL)
 			continue;
 		fprintf(lfile, "%s.%lu\n", name, win->id);
@@ -3538,8 +3536,7 @@ search_resp_uniconify(char *resp, unsigned long len)
 	TAILQ_FOREACH(win, &search_r->ws->winlist, entry) {
 		if (win->iconic == 0)
 			continue;
-		name = get_win_name(display, win->id, a_netwmname,
-		    a_utf8_string, &len);
+		name = get_win_name(display, win->id, &len);
 		if (name == NULL)
 			continue;
 		if (asprintf(&s, "%s.%lu", name, win->id) == -1) {
