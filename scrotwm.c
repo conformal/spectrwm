@@ -566,17 +566,19 @@ void		 spawn_select(struct swm_region *, union arg *, char *, int *);
 unsigned char	*get_win_name(Window);
 
 int
-get_property(Window id, Atom atom, long count, Atom type,
-    unsigned long *n, unsigned char **data)
+get_property(Window id, Atom atom, long count, Atom type, unsigned long *nitems,
+    unsigned long *nbytes, unsigned char **data)
 {
 	int			format, status;
-	unsigned long		tmp, extra;
-	unsigned long		*nitems;
+	unsigned long		*nbytes_ret, *nitems_ret;
+	unsigned long		nbytes_tmp, nitems_tmp;
 	Atom			real;
 
-	nitems = n != NULL ? n : &tmp;
+	nbytes_ret = nbytes != NULL ? nbytes : &nbytes_tmp;
+	nitems_ret = nitems != NULL ? nitems : &nitems_tmp;
+
 	status = XGetWindowProperty(display, id, atom, 0L, count, False, type,
-	    &real, &format, nitems, &extra, data);
+	    &real, &format, nitems_ret, nbytes_ret, data);
 
 	if (status != Success)
 		return False;
@@ -670,7 +672,7 @@ teardown_ewmh(void)
 	for (i = 0; i < ScreenCount(display); i++) {
 		/* Get the support check window and destroy it */
 		success = get_property(screens[i].root, sup_check, 1, XA_WINDOW,
-		    &n, &data);
+		    &n, NULL, &data);
 
 		if (success) {
 			id = data[0];
@@ -691,7 +693,7 @@ ewmh_autoquirk(struct ws_win *win)
 	Atom			type;
 
 	success = get_property(win->id, ewmh[_NET_WM_WINDOW_TYPE].atom, (~0L),
-	    XA_ATOM, &n, (void *)&data);
+	    XA_ATOM, &n, NULL, (void *)&data);
 
 	if (!success) {
 		XFree(data);
@@ -877,7 +879,7 @@ ewmh_get_win_state(struct ws_win *win)
 		win->ewmh_flags |= SWM_F_MANUAL;
 
 	success = get_property(win->id, ewmh[_NET_WM_STATE].atom,
-	    (~0L), XA_ATOM, &n, (void *)&states);
+	    (~0L), XA_ATOM, &n, NULL, (void *)&states);
 
 	if (!success)
 		return;
@@ -1650,7 +1652,7 @@ getstate(Window w)
 	unsigned char		*p = NULL;
 	unsigned long		n;
 
-	if (!get_property(w, astate, 2L, astate, &n, &p))
+	if (!get_property(w, astate, 2L, astate, &n, NULL, &p))
 		return (-1);
 	if (n != 0)
 		result = *((long *)p);
@@ -3314,28 +3316,26 @@ iconify(struct swm_region *r, union arg *args)
 unsigned char *
 get_win_name(Window win)
 {
-	int			status, retfmt;
-	unsigned long		nitems, nbytes, nextra;
 	unsigned char		*prop = NULL;
-	Atom			rettype;
+	unsigned long		nbytes, nitems;
 
-	status = XGetWindowProperty(display, win, a_netwmname, 0L, 0L, False,
-	    a_utf8_string, &rettype, &retfmt,  &nitems, &nbytes, &prop);
-	if (status != Success)
-		return (NULL);
+	/* try _NET_WM_NAME first */
+	if (get_property(win, a_netwmname, 0L, a_utf8_string, NULL, &nbytes,
+	    &prop)) {
+ 		XFree(prop);
+		if (get_property(win, a_netwmname, nbytes, a_utf8_string,
+		    &nitems, NULL, &prop))
+			return (prop);
+	}
+
+	/* fallback to WM_NAME */
+	if (!get_property(win, a_wmname, 0L, a_string, NULL, &nbytes, &prop))
+ 		return (NULL);
 	XFree(prop);
+	if (get_property(win, a_wmname, nbytes, a_string, &nitems, NULL, &prop))
+		return (prop);
 
-	status = XGetWindowProperty(display, win, a_netwmname, 0L, nbytes,
-	    False, a_utf8_string, &rettype, &retfmt, &nitems, &nextra, &prop);
-	if (status != Success) {
-		XFree(prop);
-		return (NULL);
-	}
-	if (rettype != a_utf8_string) {
-		XFree(prop);
-		return (NULL);
-	}
-	return (prop);
+	return (NULL);
 }
 
 void
