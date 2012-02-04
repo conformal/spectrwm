@@ -563,7 +563,7 @@ struct ewmh_hint {
 void		 store_float_geom(struct ws_win *, struct swm_region *);
 int		 floating_toggle_win(struct ws_win *);
 void		 spawn_select(struct swm_region *, union arg *, char *, int *);
-unsigned char	*get_win_name(Display *, Window, unsigned long *);
+unsigned char	*get_win_name(Display *, Window);
 
 int
 get_property(Window id, Atom atom, long count, Atom type,
@@ -1354,10 +1354,9 @@ void
 bar_window_name(char *s, ssize_t sz, struct ws_win *cur_focus)
 {
 	unsigned char		*title;
-	unsigned long		len;
 
 	if (window_name_enabled && cur_focus != NULL) {
-		title = get_win_name(display, cur_focus->id, &len);
+		title = get_win_name(display, cur_focus->id);
 		if (title != NULL) {
 			DNPRINTF(SWM_D_BAR, "bar_window_name: title: %s\n",
 			    title);
@@ -3313,7 +3312,7 @@ iconify(struct swm_region *r, union arg *args)
 }
 
 unsigned char *
-get_win_name(Display *dpy, Window win, unsigned long *slen)
+get_win_name(Display *dpy, Window win)
 {
 	int			status, retfmt;
 	unsigned long		nitems, nbytes, nextra;
@@ -3336,7 +3335,6 @@ get_win_name(Display *dpy, Window win, unsigned long *slen)
 		XFree(prop);
 		return (NULL);
 	}
-	*slen = nitems;
 	return (prop);
 }
 
@@ -3347,7 +3345,6 @@ uniconify(struct swm_region *r, union arg *args)
 	FILE			*lfile;
 	unsigned char		*name;
 	int			count = 0;
-	unsigned long		len;
 
 	DNPRINTF(SWM_D_MISC, "uniconify\n");
 
@@ -3379,7 +3376,7 @@ uniconify(struct swm_region *r, union arg *args)
 		if (win->iconic == 0)
 			continue;
 
-		name = get_win_name(display, win->id, &len);
+		name = get_win_name(display, win->id);
 		if (name == NULL)
 			continue;
 		fprintf(lfile, "%s.%lu\n", name, win->id);
@@ -3536,7 +3533,7 @@ search_resp_uniconify(char *resp, unsigned long len)
 	TAILQ_FOREACH(win, &search_r->ws->winlist, entry) {
 		if (win->iconic == 0)
 			continue;
-		name = get_win_name(display, win->id, &len);
+		name = get_win_name(display, win->id);
 		if (name == NULL)
 			continue;
 		if (asprintf(&s, "%s.%lu", name, win->id) == -1) {
