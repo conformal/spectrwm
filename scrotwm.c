@@ -3322,7 +3322,7 @@ get_win_name(Window win)
 	/* try _NET_WM_NAME first */
 	if (get_property(win, a_netwmname, 0L, a_utf8_string, NULL, &nbytes,
 	    &prop)) {
- 		XFree(prop);
+		XFree(prop);
 		if (get_property(win, a_netwmname, nbytes, a_utf8_string,
 		    &nitems, NULL, &prop))
 			return (prop);
@@ -3330,7 +3330,7 @@ get_win_name(Window win)
 
 	/* fallback to WM_NAME */
 	if (!get_property(win, a_wmname, 0L, a_string, NULL, &nbytes, &prop))
- 		return (NULL);
+		return (NULL);
 	XFree(prop);
 	if (get_property(win, a_wmname, nbytes, a_string, &nitems, NULL, &prop))
 		return (prop);
