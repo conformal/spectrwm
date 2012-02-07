@@ -4357,13 +4357,13 @@ update_modkey(unsigned int mod)
 
 /* spawn */
 struct spawn_prog {
+	TAILQ_ENTRY(spawn_prog)	entry;
 	char			*name;
 	int			argc;
 	char			**argv;
 };
-
-int				spawns_size = 0, spawns_length = 0;
-struct spawn_prog		*spawns = NULL;
+TAILQ_HEAD(spawn_list, spawn_prog);
+struct spawn_list		spawns = TAILQ_HEAD_INITIALIZER(spawns);
 
 int
 spawn_expand(struct swm_region *r, union arg *args, char *spawn_name,
@@ -4376,9 +4376,9 @@ spawn_expand(struct swm_region *r, union arg *args, char *spawn_name,
 	DNPRINTF(SWM_D_SPAWN, "spawn_expand: %s\n", spawn_name);
 
 	/* find program */
-	for (i = 0; i < spawns_length; i++) {
-		if (!strcasecmp(spawn_name, spawns[i].name))
-			prog = &spawns[i];
+	TAILQ_FOREACH(prog, &spawns, entry) {
+		if (!strcasecmp(spawn_name, prog->name))
+			break;
 	}
 	if (prog == NULL) {
 		warnx("spawn_custom: program %s not found", spawn_name);
@@ -4502,120 +4502,102 @@ spawn_select(struct swm_region *r, union arg *args, char *spawn_name, int *pid)
 }
 
 void
-setspawn(struct spawn_prog *prog)
+spawn_insert(char *name, char *args)
 {
-	int			i, j;
+	char			*arg, *cp, *ptr;
+	struct spawn_prog	*sp;
 
-	if (prog == NULL || prog->name == NULL)
+	DNPRINTF(SWM_D_SPAWN, "spawn_insert: %s\n", name);
+
+	if ((sp = calloc(1, sizeof *sp)) == NULL)
+		err(1, "spawn_insert: malloc");
+	if ((sp->name = strdup(name)) == NULL)
+		err(1, "spawn_insert: strdup");
+
+	/* convert the arguments to an argument list */
+	if ((ptr = cp = strdup(args)) == NULL)
+		err(1, "spawn_insert: strdup");
+	while ((arg = strsep(&ptr, " \t")) != NULL) {
+		/* empty field; skip it */
+		if (*arg == '\0')
+			continue;
+
+		sp->argc++;
+		if ((sp->argv = realloc(sp->argv, sp->argc *
+		    sizeof *sp->argv)) == NULL)
+			err(1, "spawn_insert: realloc");
+		if ((sp->argv[sp->argc - 1] = strdup(arg)) == NULL)
+			err(1, "spawn_insert: strdup");
+	}
+	free(cp);
+
+	TAILQ_INSERT_TAIL(&spawns, sp, entry);
+	DNPRINTF(SWM_D_SPAWN, "spawn_insert: leave\n");
+}
+
+void
+spawn_remove(struct spawn_prog *sp)
+{
+	int			i;
+
+	DNPRINTF(SWM_D_SPAWN, "spawn_remove: %s\n", sp->name);
+
+	TAILQ_REMOVE(&spawns, sp, entry);
+	for (i = 0; i < sp->argc; i++)
+		free(sp->argv[i]);
+	free(sp->argv);
+	free(sp->name);
+	free(sp);
+
+	DNPRINTF(SWM_D_SPAWN, "spawn_remove: leave\n");
+}
+
+void
+spawn_replace(struct spawn_prog *sp, char *name, char *args)
+{
+	DNPRINTF(SWM_D_SPAWN, "spawn_replace: %s [%s]\n", sp->name, name);
+
+	spawn_remove(sp);
+	spawn_insert(name, args);
+
+	DNPRINTF(SWM_D_SPAWN, "spawn_replace: leave\n");
+}
+
+void
+setspawn(char *name, char *args)
+{
+	struct spawn_prog	*sp;
+
+	DNPRINTF(SWM_D_SPAWN, "setspawn: %s\n", name);
+
+	if (name == NULL)
 		return;
 
-	/* find existing */
-	for (i = 0; i < spawns_length; i++) {
-		if (!strcmp(spawns[i].name, prog->name)) {
-			/* found */
-			if (prog->argv == NULL) {
-				/* delete */
-				DNPRINTF(SWM_D_SPAWN,
-				    "setspawn: delete #%d: %s\n",
-				    i, spawns[i].name);
-				free(spawns[i].name);
-				for (j = 0; j < spawns[i].argc; j++)
-					free(spawns[i].argv[j]);
-				free(spawns[i].argv);
-				j = spawns_length - 1;
-				if (i < j)
-					spawns[i] = spawns[j];
-				spawns_length--;
-				free(prog->name);
-			} else {
-				/* replace */
-				DNPRINTF(SWM_D_SPAWN,
-				    "setspawn: replace #%d: %s\n",
-				    i, spawns[i].name);
-				free(spawns[i].name);
-				for (j = 0; j < spawns[i].argc; j++)
-					free(spawns[i].argv[j]);
-				free(spawns[i].argv);
-				spawns[i] = *prog;
-			}
-			/* found case handled */
-			free(prog);
+	TAILQ_FOREACH(sp, &spawns, entry) {
+		if (!strcmp(sp->name, name)) {
+			if (*args == '\0')
+				spawn_remove(sp);
+			else
+				spawn_replace(sp, name, args);
+			DNPRINTF(SWM_D_SPAWN, "setspawn: leave\n");
 			return;
 		}
 	}
-
-	if (prog->argv == NULL) {
-		warnx("error: setspawn: cannot find program: %s", prog->name);
-		free(prog);
+	if (*args == '\0') {
+		warnx("error: setspawn: cannot find program: %s", name);
 		return;
 	}
 
-	/* not found: add */
-	if (spawns_size == 0 || spawns == NULL) {
-		spawns_size = 4;
-		DNPRINTF(SWM_D_SPAWN, "setspawn: init list %d\n", spawns_size);
-		spawns = malloc((size_t)spawns_size *
-		    sizeof(struct spawn_prog));
-		if (spawns == NULL) {
-			warn("setspawn: malloc failed");
-			quit(NULL, NULL);
-		}
-	} else if (spawns_length == spawns_size) {
-		spawns_size *= 2;
-		DNPRINTF(SWM_D_SPAWN, "setspawn: grow list %d\n", spawns_size);
-		spawns = realloc(spawns, (size_t)spawns_size *
-		    sizeof(struct spawn_prog));
-		if (spawns == NULL) {
-			warn("setspawn: realloc failed");
-			quit(NULL, NULL);
-		}
-	}
-
-	if (spawns_length < spawns_size) {
-		DNPRINTF(SWM_D_SPAWN, "setspawn: add #%d %s\n",
-		    spawns_length, prog->name);
-		i = spawns_length++;
-		spawns[i] = *prog;
-	} else {
-		warnx("spawns array problem?");
-		if (spawns == NULL) {
-			warnx("spawns array is NULL!");
-			quit(NULL, NULL);
-		}
-	}
-	free(prog);
+	spawn_insert(name, args);
+	DNPRINTF(SWM_D_SPAWN, "setspawn: leave\n");
 }
 
 int
 setconfspawn(char *selector, char *value, int flags)
 {
-	struct spawn_prog	*prog;
-	char			*vp, *cp, *word;
-
 	DNPRINTF(SWM_D_SPAWN, "setconfspawn: [%s] [%s]\n", selector, value);
-	if ((prog = calloc(1, sizeof *prog)) == NULL)
-		err(1, "setconfspawn: calloc prog");
-	prog->name = strdup(selector);
-	if (prog->name == NULL)
-		err(1, "setconfspawn prog->name");
-	if ((cp = vp = strdup(value)) == NULL)
-		err(1, "setconfspawn: strdup(value) ");
-	while ((word = strsep(&cp, " \t")) != NULL) {
-		DNPRINTF(SWM_D_SPAWN, "setconfspawn: arg [%s]\n", word);
-		if (cp)
-			cp += (long)strspn(cp, " \t");
-		if (strlen(word) > 0) {
-			prog->argc++;
-			if ((prog->argv = realloc(prog->argv,
-			    prog->argc * sizeof(char *))) == NULL)
-				err(1, "setconfspawn: realloc");
-			if ((prog->argv[prog->argc - 1] = strdup(word)) == NULL)
-				err(1, "setconfspawn: strdup");
-		}
-	}
-	free(vp);
 
-	setspawn(prog);
+	setspawn(selector, value);
 
 	DNPRINTF(SWM_D_SPAWN, "setconfspawn: done\n");
 	return (0);
@@ -4793,7 +4775,7 @@ setconfbinding(char *selector, char *value, int flags)
 	enum keyfuncid		kfid;
 	unsigned int		mod;
 	KeySym			ks;
-	int			i;
+	struct spawn_prog	*sp;
 	DNPRINTF(SWM_D_KEY, "setconfbinding: enter\n");
 	if (selector == NULL) {
 		DNPRINTF(SWM_D_KEY, "setconfbinding: unbind %s\n", value);
@@ -4818,13 +4800,13 @@ setconfbinding(char *selector, char *value, int flags)
 		}
 	}
 	/* search by custom spawn name */
-	for (i = 0; i < spawns_length; i++) {
-		if (strcasecmp(selector, spawns[i].name) == 0) {
+	TAILQ_FOREACH(sp, &spawns, entry) {
+		if (strcasecmp(selector, sp->name) == 0) {
 			DNPRINTF(SWM_D_KEY, "setconfbinding: %s: match\n",
 			    selector);
 			if (parsekeys(value, mod_key, &mod, &ks) == 0) {
 				setkeybinding(mod, ks, kf_spawn_custom,
-				    spawns[i].name);
+				    sp->name);
 				return (0);
 			} else
 				return (1);
