@@ -423,9 +423,11 @@ struct workspace {
 				int horizontal_msize;
 				int horizontal_mwin;
 				int horizontal_stacks;
+				int horizontal_flip;
 				int vertical_msize;
 				int vertical_mwin;
 				int vertical_stacks;
+				int vertical_flip;
 	} l_state;
 };
 
@@ -467,6 +469,7 @@ union arg {
 #define SWM_ARG_ID_MASTERGROW	(21)
 #define SWM_ARG_ID_MASTERADD	(22)
 #define SWM_ARG_ID_MASTERDEL	(23)
+#define SWM_ARG_ID_FLIPLAYOUT	(24)
 #define SWM_ARG_ID_STACKRESET	(30)
 #define SWM_ARG_ID_STACKINIT	(31)
 #define SWM_ARG_ID_CYCLEWS_UP	(40)
@@ -1215,10 +1218,12 @@ fancy_stacker(struct workspace *ws)
 {
 	strlcpy(ws->stacker, "[   ]", sizeof ws->stacker);
 	if (ws->cur_layout->l_stack == vertical_stack)
-		snprintf(ws->stacker, sizeof ws->stacker, "[%d|%d]",
+		snprintf(ws->stacker, sizeof ws->stacker,
+		    ws->l_state.vertical_flip ? "[%d>%d]" : "[%d|%d]",
 		    ws->l_state.vertical_mwin, ws->l_state.vertical_stacks);
 	if (ws->cur_layout->l_stack == horizontal_stack)
-		snprintf(ws->stacker, sizeof ws->stacker, "[%d-%d]",
+		snprintf(ws->stacker, sizeof ws->stacker,
+		    ws->l_state.horizontal_flip ? "[%dv%d]" : "[%d-%d]",
 		    ws->l_state.horizontal_mwin, ws->l_state.horizontal_stacks);
 }
 
@@ -1227,9 +1232,11 @@ plain_stacker(struct workspace *ws)
 {
 	strlcpy(ws->stacker, "[ ]", sizeof ws->stacker);
 	if (ws->cur_layout->l_stack == vertical_stack)
-		strlcpy(ws->stacker, "[|]", sizeof ws->stacker);
+		strlcpy(ws->stacker, ws->l_state.vertical_flip ? "[>]" : "[|]",
+		    sizeof ws->stacker);
 	if (ws->cur_layout->l_stack == horizontal_stack)
-		strlcpy(ws->stacker, "[-]", sizeof ws->stacker);
+		strlcpy(ws->stacker, ws->l_state.horizontal_flip ? "[v]" : "[-]",
+		    sizeof ws->stacker);
 }
 
 void
@@ -3091,6 +3098,9 @@ vertical_config(struct workspace *ws, int id)
 		if (ws->l_state.vertical_stacks > 1)
 			ws->l_state.vertical_stacks--;
 		break;
+	case SWM_ARG_ID_FLIPLAYOUT:
+		ws->l_state.vertical_flip = !ws->l_state.vertical_flip;
+		break;
 	default:
 		return;
 	}
@@ -3101,7 +3111,7 @@ vertical_stack(struct workspace *ws, struct swm_geometry *g)
 {
 	DNPRINTF(SWM_D_STACK, "vertical_stack: workspace: %d\n", ws->idx);
 
-	stack_master(ws, g, 0, 0);
+	stack_master(ws, g, 0, ws->l_state.vertical_flip);
 }
 
 void
@@ -3138,6 +3148,9 @@ horizontal_config(struct workspace *ws, int id)
 		if (ws->l_state.horizontal_stacks > 1)
 			ws->l_state.horizontal_stacks--;
 		break;
+	case SWM_ARG_ID_FLIPLAYOUT:
+		ws->l_state.horizontal_flip = !ws->l_state.horizontal_flip;
+		break;
 	default:
 		return;
 	}
@@ -3148,7 +3161,7 @@ horizontal_stack(struct workspace *ws, struct swm_geometry *g)
 {
 	DNPRINTF(SWM_D_STACK, "horizontal_stack: workspace: %d\n", ws->idx);
 
-	stack_master(ws, g, 1, 0);
+	stack_master(ws, g, 1, ws->l_state.horizontal_flip);
 }
 
 /* fullscreen view */
@@ -4147,6 +4160,7 @@ move_step(struct swm_region *r, union arg *args)
 /* user/key callable function IDs */
 enum keyfuncid {
 	kf_cycle_layout,
+	kf_flip_layout,
 	kf_stack_reset,
 	kf_master_shrink,
 	kf_master_grow,
@@ -4238,6 +4252,7 @@ struct keyfunc {
 } keyfuncs[kf_invalid + 1] = {
 	/* name			function	argument */
 	{ "cycle_layout",	cycle_layout,	{0} },
+	{ "flip_layout",	stack_config,	{.id = SWM_ARG_ID_FLIPLAYOUT} },
 	{ "stack_reset",	stack_config,	{.id = SWM_ARG_ID_STACKRESET} },
 	{ "master_shrink",	stack_config,	{.id = SWM_ARG_ID_MASTERSHRINK} },
 	{ "master_grow",	stack_config,	{.id = SWM_ARG_ID_MASTERGROW} },
@@ -4820,6 +4835,7 @@ void
 setup_keys(void)
 {
 	setkeybinding(MODKEY,		XK_space,	kf_cycle_layout,NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_backslash,	kf_flip_layout,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_space,	kf_stack_reset,	NULL);
 	setkeybinding(MODKEY,		XK_h,		kf_master_shrink,NULL);
 	setkeybinding(MODKEY,		XK_l,		kf_master_grow,	NULL);
