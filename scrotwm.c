@@ -2538,13 +2538,8 @@ focus_prev(struct ws_win *win)
 		winfocus = TAILQ_LAST(wl, ws_win_list);
 	if (winfocus == NULL || winfocus == win)
 		winfocus = TAILQ_NEXT(cur_focus, entry);
-done:
-	if (winfocus == winlostfocus || winfocus == NULL) {
-		/* update the bar so that title/class/name will be cleared. */
-		bar_check_opts();
-		return;
-	}
 
+done:
 	focus_magic(winfocus);
 }
 
@@ -2646,11 +2641,6 @@ focus(struct swm_region *r, union arg *args)
 		break;
 
 	default:
-		return;
-	}
-	if (winfocus == winlostfocus || winfocus == NULL) {
-		/* update the bar so that title/class/name will be cleared. */
-		bar_check_opts();
 		return;
 	}
 
@@ -6011,7 +6001,7 @@ focus_magic(struct ws_win *win)
 			if (win->child_trans->take_focus)
 				client_msg(win, takefocus);
 		} else {
-			/* make sure transient hasn't dissapeared */
+			/* make sure transient hasn't disappeared */
 			if (validate_win(win->child_trans) == 0) {
 				focus_win(win->child_trans);
 				if (win->child_trans->take_focus)
