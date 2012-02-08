@@ -1485,6 +1485,13 @@ bar_update(void)
 }
 
 void
+bar_check_opts(void)
+{
+	if (title_class_enabled || title_name_enabled || window_name_enabled)
+		bar_update();
+}
+
+void
 bar_signal(int sig)
 {
 	bar_alarm = 1;
@@ -2215,8 +2222,7 @@ focus_win(struct ws_win *win)
 		    PropModeReplace, (unsigned char *)&win->id,1);
 	}
 
-	if (window_name_enabled || title_class_enabled || title_name_enabled)
-		bar_update();
+	bar_check_opts();
 }
 
 void
@@ -2535,9 +2541,7 @@ focus_prev(struct ws_win *win)
 done:
 	if (winfocus == winlostfocus || winfocus == NULL) {
 		/* update the bar so that title/class/name will be cleared. */
-		if (window_name_enabled || title_name_enabled ||
-		    title_class_enabled)
-			bar_update();
+		bar_check_opts();
 		return;
 	}
 
@@ -2646,10 +2650,7 @@ focus(struct swm_region *r, union arg *args)
 	}
 	if (winfocus == winlostfocus || winfocus == NULL) {
 		/* update the bar so that title/class/name will be cleared. */
-		if (window_name_enabled || title_name_enabled ||
-		    title_class_enabled)
-			bar_update();
-
+		bar_check_opts();
 		return;
 	}
 
