@@ -5998,8 +5998,11 @@ focus_magic(struct ws_win *win)
 {
 	DNPRINTF(SWM_D_FOCUS, "focus_magic: window: 0x%lx\n", WINID(win));
 
-	if (win == NULL)
+	if (win == NULL) {
+		/* if there are no windows clear the status-bar */
+		bar_check_opts();
 		return;
+	}
 
 	if (win->child_trans) {
 		/* win = parent & has a transient so focus on that */
