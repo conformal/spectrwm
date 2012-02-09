@@ -74,6 +74,7 @@
 #include <sys/queue.h>
 #include <sys/param.h>
 #include <sys/select.h>
+#include <sys/tree.h>
 
 #include <X11/cursorfont.h>
 #include <X11/keysym.h>
@@ -4314,14 +4315,32 @@ struct keyfunc {
 	{ "invalid key func",	NULL,		{0} },
 };
 struct key {
-	TAILQ_ENTRY(key)	entry;
+	RB_ENTRY(key)		entry;
 	unsigned int		mod;
 	KeySym			keysym;
 	enum keyfuncid		funcid;
 	char			*spawn_name;
 };
-TAILQ_HEAD(key_list, key);
-struct key_list			keys = TAILQ_HEAD_INITIALIZER(keys);
+RB_HEAD(key_list, key);
+
+int
+key_cmp(struct key *kp1, struct key *kp2)
+{
+	if (kp1->keysym < kp2->keysym)
+		return (-1);
+	if (kp1->keysym > kp2->keysym)
+		return (1);
+
+	if (kp1->mod < kp2->mod)
+		return (-1);
+	if (kp1->mod > kp2->mod)
+		return (1);
+
+	return (0);
+}
+
+RB_GENERATE_STATIC(key_list, key, entry, key_cmp);
+struct key_list			keys;
 
 /* mouse */
 enum { client_click, root_click };
@@ -4345,7 +4364,7 @@ update_modkey(unsigned int mod)
 	struct key		*kp;
 
 	mod_key = mod;
-	TAILQ_FOREACH(kp, &keys, entry)
+	RB_FOREACH(kp, key_list, &keys)
 		if (kp->mod & ShiftMask)
 			kp->mod = mod | ShiftMask;
 		else
@@ -4713,9 +4732,20 @@ key_insert(unsigned int mod, KeySym ks, enum keyfuncid kfid, char *spawn_name)
 	kp->keysym = ks;
 	kp->funcid = kfid;
 	kp->spawn_name = strdupsafe(spawn_name);
-	TAILQ_INSERT_TAIL(&keys, kp, entry);
+	RB_INSERT(key_list, &keys, kp);
 
 	DNPRINTF(SWM_D_KEY, "key_insert: leave\n");
+}
+
+struct key *
+key_lookup(unsigned int mod, KeySym ks)
+{
+	struct key		kp;
+
+	kp.keysym = ks;
+	kp.mod = mod;
+
+	return (RB_FIND(key_list, &keys, &kp));
 }
 
 void
@@ -4723,7 +4753,7 @@ key_remove(struct key *kp)
 {
 	DNPRINTF(SWM_D_KEY, "key_remove: %s\n", keyfuncs[kp->funcid].name);
 
-	TAILQ_REMOVE(&keys, kp, entry);
+	RB_REMOVE(key_list, &keys, kp);
 	free(kp->spawn_name);
 	free(kp);
 
@@ -4752,15 +4782,13 @@ setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid,
 	DNPRINTF(SWM_D_KEY, "setkeybinding: enter %s [%s]\n",
 	    keyfuncs[kfid].name, spawn_name);
 
-	TAILQ_FOREACH(kp, &keys, entry) {
-		if (kp->mod == mod && kp->keysym == ks) {
-			if (kfid == kf_invalid)
-				key_remove(kp);
-			else
-				key_replace(kp, mod, ks, kfid, spawn_name);
-			DNPRINTF(SWM_D_KEY, "setkeybinding: leave\n");
-			return;
-		}
+	if ((kp = key_lookup(mod, ks)) != NULL) {
+		if (kfid == kf_invalid)
+			key_remove(kp);
+		else
+			key_replace(kp, mod, ks, kfid, spawn_name);
+		DNPRINTF(SWM_D_KEY, "setkeybinding: leave\n");
+		return;
 	}
 	if (kfid == kf_invalid) {
 		warnx("error: setkeybinding: cannot find mod/key combination");
@@ -4902,13 +4930,11 @@ setup_keys(void)
 void
 clear_keys(void)
 {
-	struct key		*kp_loop, *kp_next;
+	struct key		*kp;
 
-	kp_loop = TAILQ_FIRST(&keys);
-	while (kp_loop != NULL) {
-		kp_next = TAILQ_NEXT(kp_loop, entry);
-		key_remove(kp_loop);
-		kp_loop = kp_next;
+	while (RB_EMPTY(&keys) == 0) {
+		kp = RB_ROOT(&keys);
+		key_remove(kp);
 	}
 }
 
@@ -4966,7 +4992,7 @@ grabkeys(void)
 		if (TAILQ_EMPTY(&screens[k].rl))
 			continue;
 		XUngrabKey(display, AnyKey, AnyModifier, screens[k].root);
-		TAILQ_FOREACH(kp, &keys, entry) {
+		RB_FOREACH(kp, key_list, &keys) {
 			if ((code = XKeysymToKeycode(display, kp->keysym)))
 				for (j = 0; j < LENGTH(modifiers); j++)
 					XGrabKey(display, code,
@@ -6030,24 +6056,19 @@ keypress(XEvent *e)
 	KeySym			keysym;
 	XKeyEvent		*ev = &e->xkey;
 	struct key		*kp;
+	struct swm_region	*r;
 
 	keysym = XKeycodeToKeysym(display, (KeyCode)ev->keycode, 0);
-	TAILQ_FOREACH(kp, &keys, entry)
-		if (keysym == kp->keysym
-		    && CLEANMASK(kp->mod) == CLEANMASK(ev->state)
-		    && keyfuncs[kp->funcid].func) {
-			if (kp->funcid == kf_spawn_custom)
-				spawn_custom(
-				    root_to_region(ev->root),
-				    &(keyfuncs[kp->funcid].args),
-				    kp->spawn_name
-				    );
-			else
-				keyfuncs[kp->funcid].func(
-				    root_to_region(ev->root),
-				    &(keyfuncs[kp->funcid].args)
-				    );
-		}
+	if ((kp = key_lookup(CLEANMASK(ev->state), keysym)) == NULL)
+		return;
+	if (keyfuncs[kp->funcid].func == NULL)
+		return;
+
+	r = root_to_region(ev->root);
+	if (kp->funcid == kf_spawn_custom)
+		spawn_custom(r, &(keyfuncs[kp->funcid].args), kp->spawn_name);
+	else
+		keyfuncs[kp->funcid].func(r, &(keyfuncs[kp->funcid].args));
 }
 
 void
