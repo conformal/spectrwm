@@ -2487,7 +2487,7 @@ swapwin(struct swm_region *r, union arg *args)
 void
 focus_prev(struct ws_win *win)
 {
-	struct ws_win		*winfocus = NULL, *winlostfocus = NULL;
+	struct ws_win		*winfocus = NULL;
 	struct ws_win		*cur_focus = NULL;
 	struct ws_win_list	*wl = NULL;
 	struct workspace	*ws = NULL;
@@ -2500,7 +2500,6 @@ focus_prev(struct ws_win *win)
 	ws = win->ws;
 	wl = &ws->winlist;
 	cur_focus = ws->focus;
-	winlostfocus = cur_focus;
 
 	/* pickle, just focus on whatever */
 	if (cur_focus == NULL) {
@@ -2546,7 +2545,7 @@ done:
 void
 focus(struct swm_region *r, union arg *args)
 {
-	struct ws_win		*winfocus = NULL, *winlostfocus = NULL, *head;
+	struct ws_win		*winfocus = NULL, *head;
 	struct ws_win		*cur_focus = NULL;
 	struct ws_win_list	*wl = NULL;
 	struct workspace	*ws = NULL;
@@ -2587,8 +2586,6 @@ focus(struct swm_region *r, union arg *args)
 		}
 	if (all_iconics)
 		return;
-
-	winlostfocus = cur_focus;
 
 	switch (args->id) {
 	case SWM_ARG_ID_FOCUSPREV:
