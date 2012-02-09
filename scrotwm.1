@@ -13,7 +13,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 25 2012 $
+.Dd $Mdocdate: February 8 2012 $
 .Dt SCROTWM 1
 .Os
 .Sh NAME
@@ -436,7 +436,7 @@ button2
 width_shrink
 .It Cm M-=
 width_grow
-.It Cm M-S-
+.It Cm M-S--
 height_shrink
 .It Cm M-S-=
 height_grow
@@ -712,7 +712,9 @@ You can obtain
 .Aq class
 and
 .Aq name
-by running xprop(1) and then clicking on the desired window.
+by running
+.Xr xprop 1
+and then clicking on the desired window.
 In the following example the main window of Firefox was clicked:
 .Bd -literal -offset indent
 $ xprop | grep WM_CLASS
