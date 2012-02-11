@@ -75,10 +75,14 @@
 #include <sys/param.h>
 #include <sys/select.h>
 #if defined(__linux__)
-#include "linux/tree.h"
+#include "tree.h"
 #elif defined(__OpenBSD__)
 #include <sys/tree.h>
-# endif
+#elif defined(__FreeBSD__)
+#include <sys/tree.h>
+#else
+#include <sys/tree.h>
+#endif
 
 #include <X11/cursorfont.h>
 #include <X11/keysym.h>
