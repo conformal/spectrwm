@@ -119,15 +119,15 @@ static const char	*buildstr = SCROTWM_VERSION;
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while (0)
 #define DNPRINTF(n,x...)	do { if (swm_debug & n) fprintf(stderr, x); } while (0)
-#define	SWM_D_MISC		0x0001
-#define	SWM_D_EVENT		0x0002
-#define	SWM_D_WS		0x0004
-#define	SWM_D_FOCUS		0x0008
-#define	SWM_D_MOVE		0x0010
-#define	SWM_D_STACK		0x0020
-#define	SWM_D_MOUSE		0x0040
-#define	SWM_D_PROP		0x0080
-#define	SWM_D_CLASS		0x0100
+#define SWM_D_MISC		0x0001
+#define SWM_D_EVENT		0x0002
+#define SWM_D_WS		0x0004
+#define SWM_D_FOCUS		0x0008
+#define SWM_D_MOVE		0x0010
+#define SWM_D_STACK		0x0020
+#define SWM_D_MOUSE		0x0040
+#define SWM_D_PROP		0x0080
+#define SWM_D_CLASS		0x0100
 #define SWM_D_KEY		0x0200
 #define SWM_D_QUIRK		0x0400
 #define SWM_D_SPAWN		0x0800
@@ -1317,7 +1317,7 @@ bar_print(struct swm_region *r, char *s)
 		x = SWM_BAR_OFFSET;
 
 	DRAWSTRING(display, r->bar_window, bar_fs, r->s->bar_gc,
-	    x, (bar_fs_extents->max_logical_extent.height - lbox.height) / 2 - 
+	    x, (bar_fs_extents->max_logical_extent.height - lbox.height) / 2 -
 	    lbox.y, s, len);
 }
 
@@ -3973,7 +3973,7 @@ resize(struct ws_win *win, union arg *args)
 			}
 
 			/* horizontal */
-			if (left) 
+			if (left)
 				dx = -dx;
 
 			if (args->id == SWM_ARG_ID_CENTER) {
