@@ -3280,7 +3280,7 @@ send_to_ws(struct swm_region *r, union arg *args)
 		DNPRINTF(SWM_D_PROP, "send_to_ws: set property: _SWM_WS: %s\n",
 		    ws_idx_str);
 		XChangeProperty(display, win->id, ws_idx_atom, XA_STRING, 8,
-		    PropModeReplace, ws_idx_str, SWM_PROPLEN);
+		    PropModeReplace, ws_idx_str, strlen((char *)ws_idx_str));
 	}
 
 	stack();
@@ -5878,7 +5878,7 @@ manage_window(Window id)
 		DNPRINTF(SWM_D_PROP, "manage_window: set _SWM_WS: %s\n",
 		    ws_idx_str);
 		XChangeProperty(display, win->id, ws_idx_atom, XA_STRING, 8,
-		    PropModeReplace, ws_idx_str, SWM_PROPLEN);
+		    PropModeReplace, ws_idx_str, strlen((char *)ws_idx_str));
 	}
 	if (prop)
 		XFree(prop);

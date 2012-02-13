@@ -106,7 +106,8 @@ set_property(Display *dpy, Window id, char *name, char *val)
 	if (atom)
 		if (snprintf(prop, SWM_PROPLEN, "%s", val) < SWM_PROPLEN)
 			(*xcp)(dpy, id, atom, XA_STRING,
-			    8, PropModeReplace, (unsigned char *)prop, SWM_PROPLEN);
+			    8, PropModeReplace, (unsigned char *)prop,
+			    strlen((char *)prop));
 }
 
 typedef             Window(CWF) (Display * _display, Window _parent, int _x,
