@@ -101,10 +101,10 @@
 
 #include "version.h"
 
-#ifdef SCROTWM_BUILDSTR
-static const char	*buildstr = SCROTWM_BUILDSTR;
+#ifdef SPECTRWM_BUILDSTR
+static const char	*buildstr = SPECTRWM_BUILDSTR;
 #else
-static const char	*buildstr = SCROTWM_VERSION;
+static const char	*buildstr = SPECTRWM_VERSION;
 #endif
 
 #if RANDR_MAJOR < 1
@@ -1691,7 +1691,7 @@ version(struct swm_region *r, union arg *args)
 	bar_version = !bar_version;
 	if (bar_version)
 		snprintf(bar_vertext, sizeof bar_vertext,
-		    "Version: %s Build: %s", SCROTWM_VERSION, buildstr);
+		    "Version: %s Build: %s", SPECTRWM_VERSION, buildstr);
 	else
 		strlcpy(bar_vertext, "", sizeof bar_vertext);
 	bar_update();
@@ -5195,7 +5195,8 @@ setup_quirks(void)
 }
 
 /* conf file stuff */
-#define SWM_CONF_FILE	"scrotwm.conf"
+#define SWM_CONF_FILE		"spectrwm.conf"
+#define SWM_CONF_FILE_OLD	"scrotwm.conf"
 
 enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_BAR_BORDER_WIDTH,
 	  SWM_S_STACK_ENABLED, SWM_S_CLOCK_ENABLED, SWM_S_CLOCK_FORMAT,
@@ -6217,7 +6218,7 @@ enternotify(XEvent *e)
 	 * the window or a subwindow already has focus (occurs during restart).
 	 *
 	 * Only honor the focus flag if last_focus_event is not FocusOut,
-	 * this allows scrotwm to continue to control focus when another
+	 * this allows spectrwm to continue to control focus when another
 	 * program is also playing with it.
 	 */
 	if (ev->state || (ev->focus && last_focus_event != FocusOut)) {
@@ -6920,7 +6921,7 @@ main(int argc, char *argv[])
 	struct sigaction	sact;
 
 	start_argv = argv;
-	warnx("Welcome to scrotwm V%s Build: %s", SCROTWM_VERSION, buildstr);
+	warnx("Welcome to spectrwm V%s Build: %s", SPECTRWM_VERSION, buildstr);
 	if (!setlocale(LC_CTYPE, "") || !setlocale(LC_TIME, "") ||
 	    !XSupportsLocale())
 		warnx("no locale support");

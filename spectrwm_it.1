@@ -14,13 +14,13 @@
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
 .Dd $Mdocdate: September 15 2011 $
-.Dt SCROTWM 1
+.Dt SPECTRWM 1
 .Os
 .Sh NOME
-.Nm scrotwm
+.Nm spectrwm
 .Nd gestore di finestre per X11
 .Sh SINTASSI
-.Nm scrotwm
+.Nm spectrwm
 .Sh DESCRIZIONE
 .Nm
 ? un gestore di finestre minimale che cerca di stare in disparte, in modo
@@ -32,7 +32,7 @@ hacker per gli hacker e cerca di essere piccolo, compatto e veloce.
 Quando
 .Nm
 viene avviato, legge le impostazioni presenti nel file di configurazione
-.Pa scrotwm.conf .
+.Pa spectrwm.conf .
 Vedere la sezione
 .Sx FILE DI CONFIGURAZIONE
 pi? sotto.
@@ -62,10 +62,10 @@ pi? sotto per i default e le possibilit? di personalizzazione.
 .Nm
 prova per prima cosa ad aprire il file di configurazione personale
 dell'utente,
-.Pa ~/.scrotwm.conf .
+.Pa ~/.spectrwm.conf .
 Se il file in questione non ? disponibile, prova ad usare il file di
 configurazione globale
-.Pa /etc/scrotwm.conf .
+.Pa /etc/spectrwm.conf .
 .Pp
 Il formato di questo file ? \*(Ltchiave\*(Gt = \*(Ltvalore\*(Gt.
 Per esempio:
@@ -303,7 +303,7 @@ dove saranno sostituite con il valore al momento del lancio del programma:
 .Pp
 Esempio:
 .Bd -literal -offset indent
-program[ff] = /usr/local/bin/firefox http://scrotwm.org/
+program[ff] = /usr/local/bin/firefox http://spectrwm.org/
 bind[ff] = Mod+f # adesso Mod+F lancia firefox
 .Ed
 .Pp
@@ -723,12 +723,12 @@ I messaggi _NET_MOVERESIZE_WINDOW vengono ignorati per le finestre stacked.
 .Nm
 inviandogli il segnale HUP.
 .Sh FILE
-.Bl -tag -width "/etc/scrotwm.confXXX" -compact
-.It Pa ~/.scrotwm.conf
+.Bl -tag -width "/etc/spectrwm.confXXX" -compact
+.It Pa ~/.spectrwm.conf
 impostazioni di
 .Nm
 dell'utente.
-.It Pa /etc/scrotwm.conf
+.It Pa /etc/spectrwm.conf
 impostazioni globali di
 .Nm .
 .El

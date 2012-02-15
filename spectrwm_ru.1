@@ -14,13 +14,13 @@
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
 .Dd $Mdocdate$
-.Dt SCROTWM 1
+.Dt SPECTRWM 1
 .Os
 .Sh НАЗВАНИЕ
-.Nm scrotwm
+.Nm spectrwm
 .Nd Оконный менеджер для X11
 .Sh ИСПОЛЬЗОВАНИЕ
-.Nm scrotwm
+.Nm spectrwm
 .Sh ОПИСАНИЕ
 .Nm
 это минималистичный менеджер окон, ставящий своей целью не мешать вам и не
@@ -32,7 +32,7 @@
 Когда
 .Nm
 запускается, он читает настройки из своего конфигурационного файла,
-.Pa scrotwm.conf .
+.Pa spectrwm.conf .
 Смотрите секцию
 .Sx КОНФИГУРАЦИОННЫЕ ФАЙЛЫ
 ниже.
@@ -61,10 +61,10 @@ Shift
 .Sh КОНФИГУРАЦИОННЫЕ ФАЙЛЫ
 .Nm
 пытается прочитать файл в домашнем каталоге,
-.Pa ~/.scrotwm.conf .
+.Pa ~/.spectrwm.conf .
 В случае, если он недоступен,
 происходит обращение к глобальному файлу настроек,
-.Pa /etc/scrotwm.conf .
+.Pa /etc/spectrwm.conf .
 .Pp
 Формат файла следующий: \*(Ltключ\*(Gt = \*(Ltзначение\*(Gt.
 Например:
@@ -223,7 +223,7 @@ dmenu_run \-fn $bar_font \-nb $bar_color \-nf $bar_font_color \-sb $bar_border \
 .Pp
 Например:
 .Bd -literal -offset indent
-program[ff] = /usr/local/bin/firefox http://scrotwm.org/
+program[ff] = /usr/local/bin/firefox http://spectrwm.org/
 bind[ff] = Mod+f # Значит Mod+F запускает firefox
 .Ed
 .Pp
@@ -446,7 +446,7 @@ bind[] = Mod1+q # снять все действия с Alt + q
 На одно действие можно назначить несколько комбинаций.
 .Sh КОСТЫЛИ
 .Nm
-позволяет настроить костыли, нужные для специальной работы scrotwm
+позволяет настроить костыли, нужные для специальной работы spectrwm
 с рядом приложений, который вы определяете сами. То есть, Вы можете
 принудительно установить способ тайлинга для какого-нибудь приложения
 .Pp
@@ -531,11 +531,11 @@ WM_CLASS(STRING) = "Navigator", "Firefox"
 quirk[Firefox:Navigator] = FLOAT
 .Ed
 .Sh ФАЙЛЫ
-.Bl -tag -width "/etc/scrotwm.confXXX" -compact
-.It Pa ~/.scrotwm.conf
+.Bl -tag -width "/etc/spectrwm.confXXX" -compact
+.It Pa ~/.spectrwm.conf
 .Nm
 Личные настройки пользователя.
-.It Pa /etc/scrotwm.conf
+.It Pa /etc/spectrwm.conf
 .Nm
 Глобавльные настройки.
 .El

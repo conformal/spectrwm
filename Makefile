@@ -5,9 +5,9 @@ PREFIX?=/usr/local
 BINDIR=${PREFIX}/bin
 SUBDIR= lib
 
-PROG=scrotwm
-#MAN=scrotwm_pt.1 scrotwm_ru.1
-MAN=scrotwm.1 scrotwm_es.1 scrotwm_it.1
+PROG=spectrwm
+#MAN=spectrwm_pt.1 spectrwm_ru.1
+MAN=spectrwm.1 spectrwm_es.1 spectrwm_it.1
 
 CFLAGS+=-std=c89 -Wall -Wno-uninitialized -ggdb3
 # Uncomment define below to disallow user settable clock format string
@@ -16,13 +16,13 @@ CPPFLAGS+= -I${X11BASE}/include
 LDADD+=-lutil -L${X11BASE}/lib -lX11 -lXrandr -lXtst
 BUILDVERSION != sh "${.CURDIR}/buildver.sh"
 .if !${BUILDVERSION} == ""
-CPPFLAGS+= -DSCROTWM_BUILDSTR=\"$(BUILDVERSION)\"
+CPPFLAGS+= -DSPECTRWM_BUILDSTR=\"$(BUILDVERSION)\"
 .endif
 
 MANDIR= ${PREFIX}/man/man
 
-#scrotwm_ru.cat1: scrotwm_ru.1
-#	 nroff -mandoc ${.CURDIR}/scrotwm_ru.1 > ${.TARGET}
+#spectrwm_ru.cat1: spectrwm_ru.1
+#	 nroff -mandoc ${.CURDIR}/spectrwm_ru.1 > ${.TARGET}
 
 obj: _xenocara_obj
 

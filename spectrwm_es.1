@@ -14,13 +14,13 @@
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
 .Dd $Mdocdate$
-.Dt SCROTWM 1
+.Dt SPECTRWM 1
 .Os
 .Sh NOMBRE
-.Nm scrotwm
+.Nm spectrwm
 .Nd es un manejador de ventanas para X11
 .Sh SYNOPSIS
-.Nm scrotwm
+.Nm spectrwm
 .Sh DESCRIPCIÓN
 .Nm
 es un manejador de ventanas super minimalista para X11. Intenta no superponer 
@@ -32,7 +32,7 @@ a ser pequeño, compacto y rápido.
 Cuando
 .Nm
 inicia, lo primero que hace es leer el archivo de configuracion,
-.Pa scrotwm.conf .
+.Pa spectrwm.conf .
 Ver 
 .Sx ARCHIVOS DE CONFIGURACIÓN
 .
@@ -62,10 +62,10 @@ para las personalizaciones y configuraciones por defecto.
 .Sh ARCHIVOS DE CONFIGURACIÓN
 .Nm
 primero trata de abrir el archivo por defecto en el directorio del usuario,
-.Pa ~/.scrotwm.conf .
+.Pa ~/.spectrwm.conf .
 Si ese archivo no esta disponible,
 luego trata de abrir el archivo global de configuracion
-.Pa /etc/scrotwm.conf .
+.Pa /etc/spectrwm.conf .
 .Pp
 El formato del archivo es \*(Lttecla\*(Gt = \*(Ltconfiguracion\*(Gt.
 Por ejemplo:
@@ -291,7 +291,7 @@ programa:
 .Pp
 Ejemplo:
 .Bd -literal -offset indent
-program[ff] = /usr/local/bin/firefox http://scrotwm.com.ar/
+program[ff] = /usr/local/bin/firefox http://spectrwm.com.ar/
 bind[ff] = Mod+f # Ahora Mod+F inicia firefox
 .Ed
 .Pp
@@ -717,14 +717,14 @@ Todos los eventos _NET_MOVERESIZE_WINDOW recibido por las ventanas apiladas se i
 .Sh SIGNALS
 Enviando
 .Nm
-una senal de HUP reinicia scrotwm.
+una senal de HUP reinicia spectrwm.
 .Pp
 .Sh ARCHIVOS
-.Bl -tag -width "/etc/scrotwm.confXXX" -compact
-.It Pa ~/.scrotwm.conf
+.Bl -tag -width "/etc/spectrwm.confXXX" -compact
+.It Pa ~/.spectrwm.conf
 .Nm
 archivo de configuración especifico del usuario.
-.It Pa /etc/scrotwm.conf
+.It Pa /etc/spectrwm.conf
 .Nm
 configuraciones globales.
 .El
