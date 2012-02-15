@@ -6972,44 +6972,39 @@ main(int argc, char *argv[])
 
 	/* load config */
 	for (i = 0; ; i++) {
+		conf[0] = '\0';
 		switch (i) {
 		case 0:
 			/* ~ */
 			snprintf(conf, sizeof conf, "%s/.%s",
 			    pwd->pw_dir, SWM_CONF_FILE);
-			if (stat(conf, &sb) != -1)
-				if (S_ISREG(sb.st_mode))
-					cfile = conf;
 			break;
 		case 1:
 			/* global */
 			snprintf(conf, sizeof conf, "/etc/%s",
 			    SWM_CONF_FILE);
-			if (stat(conf, &sb) != -1)
-				if (S_ISREG(sb.st_mode))
-					cfile = conf;
 			break;
 		case 2:
 			/* ~ compat */
 			snprintf(conf, sizeof conf, "%s/.%s",
 			    pwd->pw_dir, SWM_CONF_FILE_OLD);
-			if (stat(conf, &sb) != -1)
-				if (S_ISREG(sb.st_mode))
-					cfile = conf;
 			break;
 		case 3:
 			/* global compat */
 			snprintf(conf, sizeof conf, "/etc/%s",
 			    SWM_CONF_FILE_OLD);
-			if (stat(conf, &sb) != -1)
-				if (S_ISREG(sb.st_mode))
-					cfile = conf;
 			break;
 		default:
-			cfile = NULL;
-			break;
+			goto noconfig;
 		}
+
+		if (strlen(conf) && stat(conf, &sb) != -1)
+			if (S_ISREG(sb.st_mode)) {
+				cfile = conf;
+				break;
+			}
 	}
+noconfig:
 
 	/* load conf (if any) and refresh font color in bar graphics contexts */
 	if (cfile && conf_load(cfile, SWM_CONF_DEFAULT) == 0)
