@@ -41,6 +41,7 @@ install: all
 	install -m 644 ../spectrwm_it.1 $(DESTDIR)$(MANDIR)/man1/spectrwm_it.1
 	install -m 644 ../spectrwm_pt.1 $(DESTDIR)$(MANDIR)/man1/spectrwm_pt.1
 	install -m 644 ../spectrwm_ru.1 $(DESTDIR)$(MANDIR)/man1/spectrwm_ru.1
+	ln -sf $(DESTDIR)$(BINDIR)/spectrwm $(DESTDIR)$(BINDIR)/scrotwm
 
 clean:
 	rm -f spectrwm *.o *.so libswmhack.so.* spectrwm.c swm_hack.c
