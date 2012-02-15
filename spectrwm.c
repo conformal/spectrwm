@@ -6971,16 +6971,44 @@ main(int argc, char *argv[])
 	setup_spawn();
 
 	/* load config */
-	snprintf(conf, sizeof conf, "%s/.%s", pwd->pw_dir, SWM_CONF_FILE);
-	if (stat(conf, &sb) != -1) {
-		if (S_ISREG(sb.st_mode))
-			cfile = conf;
-	} else {
-		/* try global conf file */
-		snprintf(conf, sizeof conf, "/etc/%s", SWM_CONF_FILE);
-		if (!stat(conf, &sb))
-			if (S_ISREG(sb.st_mode))
-				cfile = conf;
+	for (i = 0; ; i++) {
+		switch (i) {
+		case 0:
+			/* ~ */
+			snprintf(conf, sizeof conf, "%s/.%s",
+			    pwd->pw_dir, SWM_CONF_FILE);
+			if (stat(conf, &sb) != -1)
+				if (S_ISREG(sb.st_mode))
+					cfile = conf;
+			break;
+		case 1:
+			/* global */
+			snprintf(conf, sizeof conf, "/etc/%s",
+			    SWM_CONF_FILE);
+			if (stat(conf, &sb) != -1)
+				if (S_ISREG(sb.st_mode))
+					cfile = conf;
+			break;
+		case 2:
+			/* ~ compat */
+			snprintf(conf, sizeof conf, "%s/.%s",
+			    pwd->pw_dir, SWM_CONF_FILE_OLD);
+			if (stat(conf, &sb) != -1)
+				if (S_ISREG(sb.st_mode))
+					cfile = conf;
+			break;
+		case 3:
+			/* global compat */
+			snprintf(conf, sizeof conf, "/etc/%s",
+			    SWM_CONF_FILE_OLD);
+			if (stat(conf, &sb) != -1)
+				if (S_ISREG(sb.st_mode))
+					cfile = conf;
+			break;
+		default:
+			cfile = NULL;
+			break;
+		}
 	}
 
 	/* load conf (if any) and refresh font color in bar graphics contexts */
