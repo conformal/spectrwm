@@ -83,7 +83,7 @@
 #elif defined(__FreeBSD__)
 #include <sys/tree.h>
 #else
-#include <sys/tree.h>
+#include "tree.h"
 #endif
 
 #include <X11/cursorfont.h>
