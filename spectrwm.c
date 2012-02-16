@@ -6,8 +6,8 @@
  * Copyright (c) 2010 Tuukka Kataja <stuge@xor.fi>
  * Copyright (c) 2011 Jason L. Wright <jason@thought.net>
  * Copyright (c) 2011-2012 Reginald Kennedy <rk@rejii.com>
- * Copyright (c) 2012 Lawrence Teo <lteo@lteo.net>
- * Copyright (c) 2012 Tiago Cunha <tcunha@gmx.com>
+ * Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
+ * Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
