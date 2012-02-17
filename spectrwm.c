@@ -5755,7 +5755,7 @@ manage_window(Window id)
 	Atom			*prot = NULL, *pp;
 	unsigned char		ws_idx_str[SWM_PROPLEN], *prop = NULL;
 	struct swm_region	*r;
-	long			mask;
+	long			mask = 0;
 	const char		*errstr;
 	XWindowChanges		wc;
 	struct pid_e		*p;
@@ -5942,7 +5942,7 @@ manage_window(Window id)
 	if (border_me) {
 		bzero(&wc, sizeof wc);
 		wc.border_width = border_width;
-		mask = CWBorderWidth;
+		mask |= CWBorderWidth;
 		XConfigureWindow(display, win->id, mask, &wc);
 	}
 
