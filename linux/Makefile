@@ -12,7 +12,9 @@ CC= gcc
 LVERS= $(shell . ../lib/shlib_version; echo $$major.$$minor)
 
 BUILDVERSION= $(shell sh $(CURDIR)/../buildver.sh)
+ifneq ("${BUILDVERSION}", "")
 CFLAGS+= -DSPECTRWM_BUILDSTR=\"$(BUILDVERSION)\"
+endif
 
 all: spectrwm libswmhack.so.$(LVERS)
 
