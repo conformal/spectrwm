@@ -1482,14 +1482,15 @@ bar_update(void)
 				if (r->ws->name)
 					snprintf(ws, sizeof ws, "<%s>",
 					    r->ws->name);
-			}
-			if (stack_enabled)
-				stack = r->ws->stacker;
+				if (stack_enabled)
+					stack = r->ws->stacker;
 
-			snprintf(loc, sizeof loc, "%d:%d %s %s   %s%s    %s    "
-			    "%s", x++, r->ws->idx + 1, stack, ws, s, cn,
-			    bar_ext, bar_vertext);
-			bar_print(r, loc);
+				snprintf(loc, sizeof loc, 
+				    "%d:%d %s %s   %s%s    %s    %s",
+				    x++, r->ws->idx + 1, stack, ws, s, cn,
+				    bar_ext, bar_vertext);
+				bar_print(r, loc);
+			}
 		}
 	}
 	alarm(bar_delay);
@@ -2534,8 +2535,6 @@ focus_prev(struct ws_win *win)
 	    (ws->cur_layout->flags & SWM_L_FOCUSPREV)) {
 		if (cur_focus != ws->focus_prev)
 			winfocus = ws->focus_prev;
-		else if (cur_focus != ws->focus)
-			winfocus = ws->focus;
 		else
 			winfocus = TAILQ_PREV(win, ws_win_list, entry);
 		if (winfocus)
