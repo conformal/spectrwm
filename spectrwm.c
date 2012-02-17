@@ -2918,9 +2918,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		if (w_inc > 1 && w_inc < v_slice) {
 			/* adjust for window's requested size increment */
 			remain = (win_g.w - w_base) % w_inc;
-			missing = w_inc - remain;
 			win_g.w -= remain;
-			extra += remain;
 		}
 
 		msize = win_g.w;
@@ -3297,7 +3295,7 @@ pressbutton(struct swm_region *r, union arg *args)
 void
 raise_toggle(struct swm_region *r, union arg *args)
 {
-	if (r && r->ws == NULL)
+	if (r == NULL || r->ws == NULL)
 		return;
 
 	r->ws->always_raise = !r->ws->always_raise;
@@ -3359,7 +3357,7 @@ uniconify(struct swm_region *r, union arg *args)
 
 	DNPRINTF(SWM_D_MISC, "uniconify\n");
 
-	if (r && r->ws == NULL)
+	if (r == NULL || r->ws == NULL)
 		return;
 
 	/* make sure we have anything to uniconify */
