@@ -3,9 +3,9 @@
 PREFIX?= /usr/local
 LOCALBASE?= /usr/local
 
-BINDIR?= $(PREFIX)/bin
-LIBDIR?= $(PREFIX)/lib
-MANDIR?= $(PREFIX)/man
+SWM_BINDIR?= $(PREFIX)/bin
+SWM_LIBDIR?= $(PREFIX)/lib
+SWM_MANDIR?= $(PREFIX)/man
 
 LVERS!=	awk -F = '/major/ { printf( "%s.", $$2 ) } /minor/ { printf( "%s", $$2 ) }' ${.CURDIR}/../lib/shlib_version
 BUILDVERSION!= sh "${.CURDIR}/../buildver.sh"
@@ -14,7 +14,7 @@ CFLAGS+= -DSPECTRWM_BUILDSTR=\"$(BUILDVERSION)\"
 .endif
 
 CFLAGS+= -Wall -Wno-uninitialized -I. -I${LOCALBASE}/include
-CFLAGS+= -DSWM_LIB=\"$(LIBDIR)/libswmhack.so.$(LVERS)\"
+CFLAGS+= -DSWM_LIB=\"$(SWM_LIBDIR)/libswmhack.so.$(LVERS)\"
 LDADD+= -lutil -L${LOCALBASE}/lib -lX11 -lXrandr -lXtst
 
 
@@ -37,17 +37,17 @@ libswmhack.so.$(LVERS): swm_hack.so
 	$(CC) $(LDFLAGS) -shared -fpic -o ${.TARGET} ${.ALLSRC}
 
 install: all
-	install -m 755 -d $(DESTDIR)$(BINDIR)
-	install -m 755 -d $(DESTDIR)$(LIBDIR)
-	install -m 755 -d $(DESTDIR)$(MANDIR)/man1
-	install -m 755 spectrwm $(DESTDIR)$(BINDIR)
-	install -m 755 libswmhack.so.$(LVERS) $(DESTDIR)$(LIBDIR)
-	install -m 644 ../spectrwm.1 $(DESTDIR)$(MANDIR)/man1/spectrwm.1
-	install -m 644 ../spectrwm_es.1 $(DESTDIR)$(MANDIR)/man1/spectrwm_es.1
-	install -m 644 ../spectrwm_it.1 $(DESTDIR)$(MANDIR)/man1/spectrwm_it.1
-	install -m 644 ../spectrwm_pt.1 $(DESTDIR)$(MANDIR)/man1/spectrwm_pt.1
-	install -m 644 ../spectrwm_ru.1 $(DESTDIR)$(MANDIR)/man1/spectrwm_ru.1
-	ln -sf $(DESTDIR)$(BINDIR)/spectrwm $(DESTDIR)$(BINDIR)/scrotwm
+	install -m 755 -d $(SWM_BINDIR)
+	install -m 755 -d $(SWM_LIBDIR)
+	install -m 755 -d $(SWM_MANDIR)/man1
+	install -m 755 spectrwm $(SWM_BINDIR)
+	install -m 755 libswmhack.so.$(LVERS) $(SWM_LIBDIR)
+	install -m 644 ../spectrwm.1 $(SWM_MANDIR)/man1/spectrwm.1
+	install -m 644 ../spectrwm_es.1 $(SWM_MANDIR)/man1/spectrwm_es.1
+	install -m 644 ../spectrwm_it.1 $(SWM_MANDIR)/man1/spectrwm_it.1
+	install -m 644 ../spectrwm_pt.1 $(SWM_MANDIR)/man1/spectrwm_pt.1
+	install -m 644 ../spectrwm_ru.1 $(SWM_MANDIR)/man1/spectrwm_ru.1
+	ln -sf $(SWM_BINDIR)/spectrwm $(SWM_BINDIR)/scrotwm
 
 clean:
 	rm -f spectrwm *.o *.so libswmhack.so.* spectrwm.c swm_hack.c version.h
