@@ -13,7 +13,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate$
+.Dd $Mdocdate: February 15 2012 $
 .Dt SPECTRWM 1
 .Os
 .Sh NOMBRE
@@ -23,17 +23,18 @@
 .Nm spectrwm
 .Sh DESCRIPCIÓN
 .Nm
-es un manejador de ventanas super minimalista para X11. Intenta no superponer 
-las ventanas para que las mismas puedan usarse de manera eficiente y para cosas mas importantes. 
-Tiene configuraciones normales y no requiere que sepas un lenguaje de 
-programacion para configurarlo. Esta escrito por hackers para hackers y apunta 
-a ser pequeño, compacto y rápido. 
+es un manejador de ventanas super minimalista para X11. Intenta no superponer
+las ventanas para que las mismas puedan usarse de manera eficiente y para
+cosas mas importantes.
+Tiene configuraciones normales y no requiere que sepas un lenguaje de
+programacion para configurarlo. Esta escrito por hackers para hackers y apunta
+a ser pequeño, compacto y rápido.
 .Pp
 Cuando
 .Nm
 inicia, lo primero que hace es leer el archivo de configuracion,
 .Pa spectrwm.conf .
-Ver 
+Ver
 .Sx ARCHIVOS DE CONFIGURACIÓN
 .
 .Pp
@@ -54,7 +55,7 @@ Boton 3 del mouse
 .Pp
 .Nm
 es muy simple de usar.
-La mayoria de las acciones se hacen con los mapeos (bindings) de mouse 
+La mayoria de las acciones se hacen con los mapeos (bindings) de mouse
 o teclado.
 Ver la sección de
 .Sx BINDINGS
@@ -102,10 +103,10 @@ Color de la fuente en la barra de estado en pantalla.
 .It Cm bar_font
 Fuente de la barra de estado.
 .It Cm bar_action
-Scripts externos con populares agregados de información para la barra 
+Scripts externos con populares agregados de información para la barra
 de estado, como la vida de la bateria.
 .It Cm bar_delay
-Frecuencia de actualización, en segundos, de los scripts de la barra de 
+Frecuencia de actualización, en segundos, de los scripts de la barra de
 estado.
 .It Cm bar_at_bottom
 Puedes posicionar la statusbar en la parte inferior de la pantalla.
@@ -113,21 +114,21 @@ Puedes posicionar la statusbar en la parte inferior de la pantalla.
 Habilitar o deshabilitar mostrar el algoritmo de apilamiento en la barra
 de estado.
 .It Cm clock_enabled
-Habilitar o deshabilitar el reloj en la barra de estado, deshabilitado 
-por defecto con un 0, para usar el reloj de la barra de estado 
+Habilitar o deshabilitar el reloj en la barra de estado, deshabilitado
+por defecto con un 0, para usar el reloj de la barra de estado
 (bar_action)
 .Pa bar_action
 script.
 .It Cm dialog_ratio
-Algunas aplicaciones tienen ventanas de dialogo muy pequeñas como para 
-ser usables. Este relación (ratio) es el tamaño de la pantalla, por 
+Algunas aplicaciones tienen ventanas de dialogo muy pequeñas como para
+ser usables. Este relación (ratio) es el tamaño de la pantalla, por
 ejemplo 0.6 es 60% del tamaño físico de la pantalla.
 .It Cm layout
 Selecciona una disposicion para usar en el primer inicio.
 Definido con el formato
-ws[idx]:master_grow:master_add:stack_inc:layout:always_raise:stack_mode, 
+ws[idx]:master_grow:master_add:stack_inc:layout:always_raise:stack_mode,
 ej.
-ws[2]:-4:0:1:0:horizontal setea el escritorio 2 en horizontal, el stack 
+ws[2]:-4:0:1:0:horizontal setea el escritorio 2 en horizontal, el stack
 principal y reduce 4 puntos agregando una ventana al stack, mientras
 mantiene el comportamiento de ventanas flotantes.
 Modos posible de stack_mode
@@ -138,15 +139,15 @@ and
 .Pp
 Ver
 .Pa master_grow ,
-.Pa master_shrink ,  
-.Pa master_add ,  
+.Pa master_shrink ,
+.Pa master_add ,
 .Pa master_del ,
 .Pa stack_inc ,
 .Pa stack_del ,
 y
 .Pa always_raise
 para mas informacion.
-Tenga en cuenta que las opciones de stack son complicados y tienen 
+Tenga en cuenta que las opciones de stack son complicados y tienen
 efectos secundarios.
 Uno debe familiarizarse con estos comandos antes de experimentar con la
 opcion
@@ -154,22 +155,22 @@ opcion
 .Pp
 Esta opcion no necesita un reinicio.
 .It Cm region
-Acomodar una region personalizada, removiendo cualquier autodeteción de 
-regiones que ocupe el espacio en la pantalla. 
+Acomodar una region personalizada, removiendo cualquier autodeteción de
+regiones que ocupe el espacio en la pantalla.
 Definiendo el formato screen[<idx>]:WIDTHxHEIGHT+X+Y,
 e.g.\& screen[1]:800x1200+0+0.
 .It Cm term_width
 Setear un ancho minimo preferido para la terminal.
 Si el valor es mayor que 0,
 .Nm
-intentará ajustar el tamaño de la fuente de la terminal para mantener 
-el ancho de la terminal por encima de este número cuando la ventana 
+intentará ajustar el tamaño de la fuente de la terminal para mantener
+el ancho de la terminal por encima de este número cuando la ventana
 cambia de tamaño.
 Actualmente solo es soportado por
 .Xr xterm 1
 El binario de
 .Xr xterm 1
-no debe ser un setuid o setgid, que no sea el que viene por defecto en 
+no debe ser un setuid o setgid, que no sea el que viene por defecto en
 la mayoria de los sistemas.
 Los usuarios pueden necesitar setear program[term] (ver la sección
 .Sx PROGRAMAS
@@ -201,8 +202,8 @@ Habilitado seteandolo a 1.
 Cambiar mod key.
 Mod1 generalmente es la tecla ALT y Mod4 la tecla de windows en una PC.
 .It Cm focus_mode
-Usando el valor de 
-.Pa follow_cursor 
+Usando el valor de
+.Pa follow_cursor
 puedes hacer que el manejador de ventanas
 se enfoque en la ventana cuando el cursor pase por arriba de las mismas o
 bien cambiando de estacion de trabajo.
@@ -236,7 +237,7 @@ y las fuentes por la especificación
 .Xr XQueryFont 3
 .Sh PROGRAMAS
 .Nm
-te permite definir acciones personales para lanzar los programas que 
+te permite definir acciones personales para lanzar los programas que
 quieras y luego obligar a la misma con una función de acciones.
 Ver la sección
 .Sx BINDINGS
@@ -263,7 +264,7 @@ Los programas en la configuración personal, se especifican aca:
 .Dl program[<nombre>] = <progpath> [<arg> [... <arg>]]
 .Pp
 .Aq nombre
-es un identificador, no genera conflictos con ninguna accion o palabra 
+es un identificador, no genera conflictos con ninguna accion o palabra
 clave,
 .Aq progpath
 es la ruta al programa, y
@@ -272,12 +273,12 @@ es ninguno o mas de un argumento para el programa.
 .Pp
 Las siguientes variables de configuracion en
 .Nm
-(ver 
+(ver
 .Sx ARCHIVOS DE CONFIGURACIÓN
 ),
 y pueden ser usadas en los campos de
 .Aq arg
-como asi tambien sustituidas por valores al momento del inicio de un 
+como asi tambien sustituidas por valores al momento del inicio de un
 programa:
 .Pp
 .Bl -tag -width "$bar_font_color" -offset indent -compact
@@ -302,7 +303,7 @@ program[ff] =
 .Ed
 .Sh BINDINGS
 .Nm
-provee muchas funciones (o acciones) accesibles por medio de la 
+provee muchas funciones (o acciones) accesibles por medio de la
 asignación (bindings) de teclas o el mouse.
 .Pp
 Las corrientes asignaciones (bindings) del mouse son:
@@ -371,9 +372,9 @@ wind_del
 .It Cm M-S-x
 wind_kill
 .It Cm M- Ns Aq Ar n
-.Ns ws_ Ns Ar n
+.Pf ws_ Ns Ar n
 .It Cm M-S- Ns Aq Ar n
-.Ns mvws_ Ns Ar n
+.Pf mvws_ Ns Ar n
 .It Cm M- Ns Aq Cm Right
 ws_next
 .It Cm M- Ns Aq Cm Left
@@ -396,7 +397,7 @@ float_toggle
 lock
 .It Cm M-S-i
 initscr
-.It Cm M-w                    
+.It Cm M-w
 iconify
 .It Cm M-S-w
 uniconify
@@ -524,13 +525,13 @@ Minimiza (unmap) la ventana en foco.
 .It Cm uniconify
 Maximiza (map) la ventana seleccionada por dmenu.
 .It Cm always_raise
-Cuando se establece las ventanas en cascada se esconden las 
+Cuando se establece las ventanas en cascada se esconden las
 ventanas flotantes.
 .It Cm button2
 Falsifica el boton del medio del mouse.
 .It Cm width_shrink
 Reducir el ancho de una ventana flotante.
-.It Cm width_grow  
+.It Cm width_grow
 Agranda el ancho de una ventana flotante.
 .It Cm height_shrink
 Reducir la altura de una ventana flotante.
@@ -615,7 +616,7 @@ Ajusta las fuentes de xterm cuando se redimenciona.
 .It FULLSCREEN
 Quita el borde para permitir las ventanas en pantalla completa.
 .It FOCUSPREV
-El enfoque de salida fuerza la solicitud de aplicacisn que 
+El enfoque de salida fuerza la solicitud de aplicacisn que
 anteriormente se centraba en la aplicacion anterior del stack.
 .El
 .Pp
@@ -713,12 +714,10 @@ $ wmctrl \-i \-r 0x4a0000b \-e 0,100,50,640,480
 Esto mueve la ventana de (100,50) y cambia el tamaqo a 640x480.
 .Pp
 Todos los eventos _NET_MOVERESIZE_WINDOW recibido por las ventanas apiladas se ignoran.
-.Pp
 .Sh SIGNALS
 Enviando
 .Nm
 una senal de HUP reinicia spectrwm.
-.Pp
 .Sh ARCHIVOS
 .Bl -tag -width "/etc/spectrwm.confXXX" -compact
 .It Pa ~/.spectrwm.conf
