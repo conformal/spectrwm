@@ -241,6 +241,8 @@ Enable by setting to 1.
 .It Ic window_name_enabled
 Enable or disable displaying the window name in the status bar.
 Enable by setting to 1.
+.It Ic workspace_limit
+Set the total number of workspaces available.  Minimum is 1, maximum is 20.
 .El
 .Pp
 Colors need to be specified per the
@@ -343,7 +345,7 @@ Resize window while maintaining it centered
 .Pp
 The default key bindings are described below:
 .Pp
-.Bl -tag -width "M-j, M-<TAB>XXX" -offset indent -compact
+.Bl -tag -width "M-j, M-<TAB>XXXXXX" -offset indent -compact
 .It Cm M-S- Ns Aq Cm Return
 term
 .It Cm M-p
@@ -394,10 +396,10 @@ bar_toggle
 wind_del
 .It Cm M-S-x
 wind_kill
-.It Cm M- Ns Aq Ar n
-.Pf ws_ Ar n
-.It Cm M-S- Ns Aq Ar n
-.Pf mvws_ Ar n
+.It Cm M- Ns Aq Ar 1-9,0,F1-F12
+.Pf ws_ Aq Ar 1-22
+.It Cm M-S- Ns Aq Ar 1-9,0,F1-F12
+.Pf mvws_ Ns Aq Ar 1-22
 .It Cm M- Ns Aq Cm Right
 ws_next
 .It Cm M- Ns Aq Cm Left
@@ -516,13 +518,13 @@ Switch to workspace
 .Ar n ,
 where
 .Ar n
-is 1 through 10.
+is 1 through workspace_limit.
 .It Cm mvws_ Ns Ar n
 Move current window to workspace
 .Ar n ,
 where
 .Ar n
-is 1 through 10.
+is 1 through workspace_limit.
 .It Cm ws_next
 Switch to next workspace with a window in it.
 .It Cm ws_prev
