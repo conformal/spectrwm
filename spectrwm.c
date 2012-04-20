@@ -6927,7 +6927,7 @@ setup_screens(void)
 
 		/* init all workspaces */
 		/* XXX these should be dynamically allocated too */
-		for (j = 0; j < workspace_limit; j++) {
+		for (j = 0; j < SWM_WS_MAX; j++) {
 			ws = &screens[i].ws[j];
 			ws->idx = j;
 			ws->name = NULL;
