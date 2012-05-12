@@ -2282,8 +2282,6 @@ switchws(struct swm_region *r, union arg *args)
 	a.id = SWM_ARG_ID_FOCUSCUR;
 	focus(new_ws->r, &a);
 
-	bar_update();
-
 	/* unmap old windows */
 	if (unmap_old)
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
@@ -2699,7 +2697,6 @@ cycle_layout(struct swm_region *r, union arg *args)
 		drain_enter_notify();
 	a.id = SWM_ARG_ID_FOCUSCUR;
 	focus(r, &a);
-	bar_update();
 }
 
 void
