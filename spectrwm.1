@@ -616,6 +616,24 @@ To use the currently defined
 specify MOD as the modifier key.
 .Pp
 Multiple key combinations may be bound to the same action.
+.Pp
+To bind non-latin characters such as å or π you must enter the xkb
+character name instead of the character itself. Run xev, focus the window
+and press the specific key and in the terminal output read the symbol name.
+In the fallowing example for å:
+.Bd -literal -offset indent
+KeyPress event, serial 41, synthetic NO, window 0x2600001,
+    root 0x15a, subw 0x0, time 106213808, (11,5), root:(359,823),
+    state 0x0, keycode 24 (keysym 0xe5, aring), same_screen YES,
+    XLookupString gives 2 bytes: (c3 a5) "å"
+    XmbLookupString gives 2 bytes: (c3 a5) "å"
+    XFilterEvent returns: False
+.Ed
+.Pp
+The xkb name is aring. In other words, in .spectrwm.conf add:
+.Bd -literal -offset indent
+bind[program] = MOD+aring
+.Ed
 .Sh KEYBOARD MAPPING FILES
 Keyboard mapping files for several keyboard layouts are listed
 below.
