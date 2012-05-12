@@ -1500,13 +1500,6 @@ bar_update(void)
 }
 
 void
-bar_check_opts(void)
-{
-	if (title_class_enabled || title_name_enabled || window_name_enabled)
-		bar_update();
-}
-
-void
 bar_signal(int sig)
 {
 	bar_alarm = 1;
@@ -2237,7 +2230,7 @@ focus_win(struct ws_win *win)
 		    PropModeReplace, (unsigned char *)&win->id, 1);
 	}
 
-	bar_check_opts();
+	bar_update();
 }
 
 void
@@ -6196,7 +6189,7 @@ focus_magic(struct ws_win *win)
 
 	if (win == NULL) {
 		/* if there are no windows clear the status-bar */
-		bar_check_opts();
+		bar_update();
 		return;
 	}
 
@@ -6609,12 +6602,8 @@ propertynotify(XEvent *e)
 		    X(win), Y(win), WIDTH(win), HEIGHT(win));
 #endif
 	case XA_WM_CLASS:
-		if (title_name_enabled || title_class_enabled)
-			bar_update();
-		break;
 	case XA_WM_NAME:
-		if (window_name_enabled)
-			bar_update();
+		bar_update();
 		break;
 	default:
 		break;
