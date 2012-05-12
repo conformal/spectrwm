@@ -3314,6 +3314,7 @@ send_to_ws(struct swm_region *r, union arg *args)
 	}
 
 	stack();
+	bar_update();
 }
 
 void
