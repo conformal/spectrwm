@@ -241,8 +241,7 @@ struct search_window {
 	Window				indicator;
 };
 TAILQ_HEAD(search_winlist, search_window);
-
-struct search_winlist search_wl;
+struct search_winlist			search_wl;
 
 /* search actions */
 enum {
@@ -608,11 +607,11 @@ get_property(Window id, Atom atom, long count, Atom type, unsigned long *nitems,
 	    &real, &format, nitems_ret, nbytes_ret, data);
 
 	if (status != Success)
-		return False;
+		return (False);
 	if (real != type)
-		return False;
+		return (False);
 
-	return True;
+	return (True);
 }
 
 void
@@ -680,7 +679,7 @@ setup_ewmh(void)
 		for (j = 0; j < LENGTH(ewmh); j++)
 			XChangeProperty(display, screens[i].root,
 			    sup_list, XA_ATOM, 32,
-			    PropModeAppend, (unsigned char *)&ewmh[j].atom,1);
+			    PropModeAppend, (unsigned char *)&ewmh[j].atom, 1);
 	}
 }
 
@@ -763,10 +762,10 @@ ewmh_set_win_fullscreen(struct ws_win *win, int fs)
 	struct swm_geometry	rg;
 
 	if (!win->ws->r)
-		return 0;
+		return (0);
 
 	if (!win->floating)
-		return 0;
+		return (0);
 
 	DNPRINTF(SWM_D_MISC, "ewmh_set_win_fullscreen: window: 0x%lx, "
 	    "fullscreen %s\n", win->id, YESNO(fs));
@@ -787,7 +786,7 @@ ewmh_set_win_fullscreen(struct ws_win *win, int fs)
 		}
 	}
 
-	return 1;
+	return (1);
 }
 
 void
@@ -1028,7 +1027,7 @@ geteventname(XEvent *e)
 		name = "Unknown";
 	}
 
-	return name;
+	return (name);
 }
 
 char *
@@ -1044,7 +1043,7 @@ xrandr_geteventname(XEvent *e)
 		name = "Unknown";
 	}
 
-	return name;
+	return (name);
 }
 
 void
@@ -2168,7 +2167,7 @@ unfocus_win(struct ws_win *win)
 
 	XChangeProperty(display, win->s->root,
 	    ewmh[_NET_ACTIVE_WINDOW].atom, XA_WINDOW, 32,
-	    PropModeReplace, (unsigned char *)&none,1);
+	    PropModeReplace, (unsigned char *)&none, 1);
 }
 
 void
@@ -2244,7 +2243,7 @@ focus_win(struct ws_win *win)
 
 		XChangeProperty(display, win->s->root,
 		    ewmh[_NET_ACTIVE_WINDOW].atom, XA_WINDOW, 32,
-		    PropModeReplace, (unsigned char *)&win->id,1);
+		    PropModeReplace, (unsigned char *)&win->id, 1);
 	}
 
 	bar_check_opts();
@@ -2485,7 +2484,6 @@ swapwin(struct swm_region *r, union arg *args)
 		if (target == source) {
 			if (source->ws->focus_prev != NULL &&
 			    source->ws->focus_prev != target)
-
 				source = source->ws->focus_prev;
 			else
 				return;
@@ -3777,16 +3775,16 @@ floating_toggle_win(struct ws_win *win)
 	struct swm_region	*r;
 
 	if (win == NULL)
-		return 0;
+		return (0);
 
 	if (!win->ws->r)
-		return 0;
+		return (0);
 
 	r = win->ws->r;
 
 	/* reject floating toggles in max stack mode */
 	if (win->ws->cur_layout == &layouts[SWM_MAX_STACK])
-		return 0;
+		return (0);
 
 	if (win->floating) {
 		if (!win->floatmaxed) {
@@ -3807,7 +3805,7 @@ floating_toggle_win(struct ws_win *win)
 
 	ewmh_update_actions(win);
 
-	return 1;
+	return (1);
 }
 
 void
@@ -6310,9 +6308,8 @@ configurerequest(XEvent *e)
 		wc.sibling = ev->above;
 		wc.stack_mode = ev->detail;
 		XConfigureWindow(display, ev->window, ev->value_mask, &wc);
-	} else {
+	} else
 		config_win(win, ev);
-	}
 }
 
 void
@@ -7088,9 +7085,9 @@ workaround(void)
 		    screens[i].c[SWM_S_COLOR_UNFOCUS].color);
 
 		XChangeProperty(display, root, netwmcheck, XA_WINDOW, 32,
-		    PropModeReplace, (unsigned char *)&win,1);
+		    PropModeReplace, (unsigned char *)&win, 1);
 		XChangeProperty(display, win, netwmcheck, XA_WINDOW, 32,
-		    PropModeReplace, (unsigned char *)&win,1);
+		    PropModeReplace, (unsigned char *)&win, 1);
 		XChangeProperty(display, win, netwmname, utf8_string, 8,
 		    PropModeReplace, (unsigned char*)"LG3D", strlen("LG3D"));
 	}
