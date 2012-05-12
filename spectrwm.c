@@ -475,7 +475,6 @@ struct swm_screen {
 	GC			bar_gc;
 };
 struct swm_screen	*screens;
-int			num_screens;
 
 /* args to functions */
 union arg {
