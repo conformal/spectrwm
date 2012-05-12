@@ -1353,32 +1353,24 @@ void
 bar_class_name(char *s, ssize_t sz, struct ws_win *cur_focus)
 {
 	int			do_class, do_name;
-	Status			status;
-	XClassHint		*xch = NULL;
+	XClassHint		*ch;
 
-	if ((title_name_enabled == 1 || title_class_enabled == 1) &&
-	    cur_focus != NULL) {
-		if ((xch = XAllocClassHint()) == NULL)
-			goto out;
-		status = XGetClassHint(display, cur_focus->id, xch);
-		if (status == BadWindow || status == BadAlloc)
-			goto out;
-		do_class = (title_class_enabled && xch->res_class != NULL);
-		do_name = (title_name_enabled && xch->res_name != NULL);
-		if (do_class)
-			strlcat(s, xch->res_class, sz);
-		if (do_class && do_name)
-			strlcat(s, ":", sz);
-		if (do_name)
-			strlcat(s, xch->res_name, sz);
-		strlcat(s, "    ", sz);
-	}
-out:
-	if (xch) {
-		XFree(xch->res_name);
-		XFree(xch->res_class);
-		XFree(xch);
-	}
+	if (title_name_enabled == 0 && title_class_enabled == 0)
+		return;
+	if (cur_focus == NULL)
+		return;
+
+	ch = &cur_focus->ch;
+	do_class = (title_class_enabled && ch->res_class != NULL);
+	do_name = (title_name_enabled && ch->res_name != NULL);
+
+	if (do_class)
+		strlcat(s, ch->res_class, sz);
+	if (do_class && do_name)
+		strlcat(s, ":", sz);
+	if (do_name)
+		strlcat(s, ch->res_name, sz);
+	strlcat(s, "    ", sz);
 }
 
 void
