@@ -2576,6 +2576,7 @@ done:
 			winfocus = TAILQ_FIRST(wl);
 	}
 
+	kill_refs(win);
 	focus_magic(winfocus);
 }
 
@@ -6178,8 +6179,6 @@ unmanage_window(struct ws_win *win)
 
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
 	TAILQ_INSERT_TAIL(&win->ws->unmanagedlist, win, entry);
-
-	kill_refs(win);
 }
 
 void
