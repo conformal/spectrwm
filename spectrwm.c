@@ -1480,8 +1480,7 @@ bar_fmt(char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
 
 /* replaces the bar format character sequences (like in tmux(1)) */
 void
-bar_replace(char *fmt, char *fmtrep, int nscreen, struct swm_region *r,
-    size_t sz)
+bar_replace(char *fmt, char *fmtrep, struct swm_region *r, size_t sz)
 {
 	char			*ptr;
 	char			tmp[SWM_BAR_MAX];
@@ -1515,7 +1514,7 @@ bar_replace(char *fmt, char *fmtrep, int nscreen, struct swm_region *r,
 			snprintf(tmp, sizeof tmp, "%d", r->ws->idx + 1);
 			break;
 		case 'N':
-			snprintf(tmp, sizeof tmp, "%d", nscreen + 1);
+			snprintf(tmp, sizeof tmp, "%d", r->s->idx + 1);
 			break;
 		case 'S':
 			snprintf(tmp, sizeof tmp, "%s", r->ws->stacker);
@@ -1595,7 +1594,7 @@ bar_fmt_print(void)
 	for (i = 0; i < ScreenCount(display); i++) {
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
 			bar_fmt(fmtexp, fmtnew, r, sizeof fmtnew);
-			bar_replace(fmtnew, fmtrep, i, r, sizeof fmtrep);
+			bar_replace(fmtnew, fmtrep, r, sizeof fmtrep);
 			bar_print(r, fmtrep);
 		}
 	}
