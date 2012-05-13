@@ -1575,7 +1575,8 @@ bar_fmt_expand(char *fmtexp, size_t sz)
 	strlcpy(fmtexp, fmt, sz);
 	/* finally pass the string through strftime(3) */
 #ifndef SWM_DENY_CLOCK_FORMAT
-	len = strftime(fmtexp, sz, fmt, &tm);
+	if ((len = strftime(fmtexp, sz, fmt, &tm)) == 0)
+		warnx("format too long");
 	fmtexp[len] = '\0';
 #endif
 }
