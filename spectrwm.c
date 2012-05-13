@@ -1472,7 +1472,7 @@ bar_fmt(char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
 
 	strlcat(fmtnew, "    ", sz);
 	if (window_name_enabled)
-		strlcat(fmtnew, "+W", sz);
+		strlcat(fmtnew, "+64W", sz);
 
 	/* finally add the action script output and the version */
 	strlcat(fmtnew, "     +A    +V", sz);
