@@ -292,6 +292,7 @@ int			bar_extra_running = 0;
 int			bar_verbose = 1;
 int			bar_height = 0;
 int			bar_justify = SWM_BAR_JUSTIFY_LEFT;
+char			*bar_format = NULL;
 int			stack_enabled = 1;
 int			clock_enabled = 1;
 int			urgent_enabled = 0;
@@ -1350,60 +1351,49 @@ bar_extra_stop(void)
 }
 
 void
-bar_class_name(char *s, ssize_t sz, struct ws_win *cur_focus)
+bar_class_name(char *s, size_t sz, struct swm_region *r)
 {
-	int			do_class, do_name;
-	XClassHint		*ch;
-
-	if (title_name_enabled == 0 && title_class_enabled == 0)
+	if (r == NULL || r->ws == NULL || r->ws->focus == NULL)
 		return;
-	if (cur_focus == NULL)
-		return;
-
-	ch = &cur_focus->ch;
-	do_class = (title_class_enabled && ch->res_class != NULL);
-	do_name = (title_name_enabled && ch->res_name != NULL);
-
-	if (do_class)
-		strlcat(s, ch->res_class, sz);
-	if (do_class && do_name)
-		strlcat(s, ":", sz);
-	if (do_name)
-		strlcat(s, ch->res_name, sz);
-	strlcat(s, "    ", sz);
+	if (r->ws->focus->ch.res_class != NULL)
+		strlcat(s, r->ws->focus->ch.res_class, sz);
 }
 
 void
-bar_window_name(char *s, ssize_t sz, struct ws_win *cur_focus)
+bar_title_name(char *s, size_t sz, struct swm_region *r)
+{
+	if (r == NULL || r->ws == NULL || r->ws->focus == NULL)
+		return;
+	if (r->ws->focus->ch.res_name != NULL)
+		strlcat(s, r->ws->focus->ch.res_name, sz);
+}
+
+void
+bar_window_name(char *s, size_t sz, struct swm_region *r)
 {
 	unsigned char		*title;
 
-	if (window_name_enabled && cur_focus != NULL) {
-		title = get_win_name(cur_focus->id);
-		if (title != NULL) {
-			DNPRINTF(SWM_D_BAR, "bar_window_name: title: %s\n",
-			    title);
+	if (r == NULL || r->ws == NULL || r->ws->focus == NULL)
+		return;
+	if ((title = get_win_name(r->ws->focus->id)) == NULL)
+		return;
 
-			if (cur_focus->floating)
-				strlcat(s, "(f) ", sz);
-			strlcat(s, (char *)title, sz);
-			strlcat(s, " ", sz);
-			XFree(title);
-		}
-	}
+	if (r->ws->focus->floating)
+		strlcat(s, "(f) ", sz);
+	strlcat(s, (char *)title, sz);
+	strlcat(s, " ", sz);
+
+	XFree(title);
 }
 
 int		urgent[SWM_WS_MAX];
 void
-bar_urgent(char *s, ssize_t sz)
+bar_urgent(char *s, size_t sz)
 {
 	XWMHints		*wmh = NULL;
 	struct ws_win		*win;
 	int			i, j;
 	char			b[8];
-
-	if (urgent_enabled == 0)
-		return;
 
 	for (i = 0; i < workspace_limit; i++)
 		urgent[i] = 0;
@@ -1420,7 +1410,6 @@ bar_urgent(char *s, ssize_t sz)
 				XFree(wmh);
 			}
 
-	strlcat(s, "* ", sz);
 	for (i = 0; i < workspace_limit; i++) {
 		if (urgent[i])
 			snprintf(b, sizeof b, "%d ", i + 1);
@@ -1428,22 +1417,195 @@ bar_urgent(char *s, ssize_t sz)
 			snprintf(b, sizeof b, "- ");
 		strlcat(s, b, sz);
 	}
-	strlcat(s, "*    ", sz);
+}
+
+void
+bar_workspace_name(char *s, size_t sz, struct swm_region *r)
+{
+	if (r == NULL || r->ws == NULL)
+		return;
+	if (r->ws->name != NULL)
+		strlcat(s, r->ws->name, sz);
+}
+
+/* build the default bar format according to the defined enabled options */
+void
+bar_fmt(char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
+{
+	/* if format provided, just copy the buffers */
+	if (bar_format != NULL) {
+		strlcpy(fmtnew, fmtexp, sz);
+		return;
+	}
+
+	/* reset the output buffer */
+	*fmtnew = '\0';
+
+	strlcat(fmtnew, "+N:+I ", sz);
+	if (stack_enabled)
+		strlcat(fmtnew, "+S", sz);
+	strlcat(fmtnew, " ", sz);
+
+	/* only show the workspace name if there's actually one */
+	if (r != NULL && r->ws != NULL && r->ws->name != NULL)
+		strlcat(fmtnew, "<+D>", sz);
+	strlcat(fmtnew, "   ", sz);
+
+	if (clock_enabled) {
+		strlcat(fmtnew, fmtexp, sz);
+		strlcat(fmtnew, "    ", sz);
+	}
+
+	/* bar_urgent already adds the space before the last asterisk */
+	if (urgent_enabled)
+		strlcat(fmtnew, "* +U*    ", sz);
+
+	if (title_class_enabled)
+		strlcat(fmtnew, "+C", sz);
+	if (title_name_enabled) {
+		/* add a colon if showing the class and something is focused */
+		if (title_class_enabled && r != NULL && r->ws != NULL &&
+		    r->ws->focus != NULL)
+			strlcat(fmtnew, ":", sz);
+		strlcat(fmtnew, "+T", sz);
+	}
+
+	strlcat(fmtnew, "    ", sz);
+	if (window_name_enabled)
+		strlcat(fmtnew, "+W", sz);
+
+	/* finally add the action script output and the version */
+	strlcat(fmtnew, "     +A    +V", sz);
+}
+
+/* replaces the bar format character sequences (like in tmux(1)) */
+void
+bar_replace(char *fmt, char *fmtrep, int nscreen, struct swm_region *r,
+    size_t sz)
+{
+	char			*ptr;
+	char			tmp[SWM_BAR_MAX];
+	size_t			off;
+
+	off = 0;
+	ptr = fmt;
+	while (*ptr != '\0') {
+		if (*ptr != '+') {
+			/* skip ordinary characters */
+			if (off >= sz - 1)
+				break;
+			fmtrep[off++] = *ptr++;
+			continue;
+		}
+
+		/* character sequence found; replace it */
+		*tmp = '\0';
+
+		switch (*++ptr) {
+		case 'A':
+			snprintf(tmp, sizeof tmp, "%s", bar_ext);
+			break;
+		case 'C':
+			bar_class_name(tmp, sizeof tmp, r);
+			break;
+		case 'D':
+			bar_workspace_name(tmp, sizeof tmp, r);
+			break;
+		case 'I':
+			snprintf(tmp, sizeof tmp, "%d", r->ws->idx + 1);
+			break;
+		case 'N':
+			snprintf(tmp, sizeof tmp, "%d", nscreen + 1);
+			break;
+		case 'S':
+			snprintf(tmp, sizeof tmp, "%s", r->ws->stacker);
+			break;
+		case 'T':
+			bar_title_name(tmp, sizeof tmp, r);
+			break;
+		case 'U':
+			bar_urgent(tmp, sizeof tmp);
+			break;
+		case 'V':
+			snprintf(tmp, sizeof tmp, "%s", bar_vertext);
+			break;
+		case 'W':
+			bar_window_name(tmp, sizeof tmp, r);
+			break;
+		default:
+			/* unknown character sequence; copy as-is */
+			snprintf(tmp, sizeof tmp, "+%c", *ptr);
+			break;
+		}
+
+		off += snprintf(fmtrep + off, sz - off, "%s", tmp);
+		if (off >= sz - 1) {
+			off = sz;
+			break;
+		}
+		ptr++;
+	}
+
+	fmtrep[off] = '\0';
+}
+
+void
+bar_fmt_expand(char *fmtexp, size_t sz)
+{
+	char			*fmt = NULL;
+	size_t			len;
+	struct tm		tm;
+	time_t			tmt;
+
+	/* start by grabbing the current time and date */
+	time(&tmt);
+	localtime_r(&tmt, &tm);
+
+	/* figure out what to expand */
+	if (bar_format != NULL)
+		fmt = bar_format;
+	else if (bar_format == NULL && clock_enabled)
+		fmt = clock_format;
+	/* if nothing to expand bail out */
+	if (fmt == NULL) {
+		*fmtexp = '\0';
+		return;
+	}
+
+	/* copy as-is, just in case the format shouldn't be expanded below */
+	strlcpy(fmtexp, fmt, sz);
+	/* finally pass the string through strftime(3) */
+#ifndef SWM_DENY_CLOCK_FORMAT
+	len = strftime(fmtexp, sz, fmt, &tm);
+	fmtexp[len] = '\0';
+#endif
+}
+
+void
+bar_fmt_print(void)
+{
+	char			fmtexp[SWM_BAR_MAX], fmtnew[SWM_BAR_MAX];
+	char			fmtrep[SWM_BAR_MAX];
+	int			i;
+	struct swm_region	*r;
+
+	/* expand the format by first passing it through strftime(3) */
+	bar_fmt_expand(fmtexp, sizeof fmtexp);
+
+	for (i = 0; i < ScreenCount(display); i++) {
+		TAILQ_FOREACH(r, &screens[i].rl, entry) {
+			bar_fmt(fmtexp, fmtnew, r, sizeof fmtnew);
+			bar_replace(fmtnew, fmtrep, i, r, sizeof fmtrep);
+			bar_print(r, fmtrep);
+		}
+	}
 }
 
 void
 bar_update(void)
 {
-	time_t			tmt;
-	struct tm		tm;
-	struct swm_region	*r;
-	int			i, x;
 	size_t			len;
-	char			ws[SWM_BAR_MAX];
-	char			s[SWM_BAR_MAX];
-	unsigned char		cn[SWM_BAR_MAX];
-	char			loc[SWM_BAR_MAX];
-	char			*b, *stack = "";
+	char			*b;
 
 	if (bar_enabled == 0)
 		return;
@@ -1461,41 +1623,7 @@ bar_update(void)
 	} else
 		strlcpy((char *)bar_ext, "", sizeof bar_ext);
 
-	if (clock_enabled == 0)
-		strlcpy(s, "", sizeof s);
-	else {
-		time(&tmt);
-		localtime_r(&tmt, &tm);
-		len = strftime(s, sizeof s, clock_format, &tm);
-		s[len] = '\0';
-		strlcat(s, "    ", sizeof s);
-	}
-
-	for (i = 0; i < ScreenCount(display); i++) {
-		x = 1;
-		TAILQ_FOREACH(r, &screens[i].rl, entry) {
-			strlcpy((char *)cn, "", sizeof cn);
-			strlcpy(ws, "", sizeof ws);
-			if (r && r->ws) {
-				bar_urgent((char *)cn, sizeof cn);
-				bar_class_name((char *)cn, sizeof cn,
-				    r->ws->focus);
-				bar_window_name((char *)cn, sizeof cn,
-				    r->ws->focus);
-				if (r->ws->name)
-					snprintf(ws, sizeof ws, "<%s>",
-					    r->ws->name);
-				if (stack_enabled)
-					stack = r->ws->stacker;
-
-				snprintf(loc, sizeof loc,
-				    "%d:%d %s %s   %s%s    %s    %s",
-				    x++, r->ws->idx + 1, stack, ws, s, cn,
-				    bar_ext, bar_vertext);
-				bar_print(r, loc);
-			}
-		}
-	}
+	bar_fmt_print();
 	alarm(bar_delay);
 }
 
@@ -5305,7 +5433,8 @@ enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_BAR_BORDER_WIDTH,
 	  SWM_S_FOCUS_CLOSE_WRAP, SWM_S_FOCUS_DEFAULT, SWM_S_SPAWN_ORDER,
 	  SWM_S_DISABLE_BORDER, SWM_S_BORDER_WIDTH, SWM_S_BAR_FONT,
 	  SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM, SWM_S_SS_APP, SWM_S_DIALOG_RATIO,
-	  SWM_S_BAR_AT_BOTTOM, SWM_S_VERBOSE_LAYOUT, SWM_S_BAR_JUSTIFY
+	  SWM_S_BAR_AT_BOTTOM, SWM_S_VERBOSE_LAYOUT, SWM_S_BAR_JUSTIFY,
+	  SWM_S_BAR_FORMAT
 	};
 
 int
@@ -5336,6 +5465,11 @@ setconfvalue(char *selector, char *value, int flags)
 			bar_justify = SWM_BAR_JUSTIFY_RIGHT;
 		else
 			errx(1, "invalid bar_justify");
+		break;
+	case SWM_S_BAR_FORMAT:
+		free(bar_format);
+		if ((bar_format = strdup(value)) == NULL)
+			err(1, "setconfvalue: bar_format");
 		break;
 	case SWM_S_STACK_ENABLED:
 		stack_enabled = atoi(value);
@@ -5650,6 +5784,7 @@ struct config_option configopt[] = {
 	{ "bar_action",			setconfvalue,	SWM_S_BAR_ACTION },
 	{ "bar_delay",			setconfvalue,	SWM_S_BAR_DELAY },
 	{ "bar_justify",		setconfvalue,	SWM_S_BAR_JUSTIFY },
+	{ "bar_format",			setconfvalue,	SWM_S_BAR_FORMAT },
 	{ "keyboard_mapping",		setkeymapping,	0 },
 	{ "bind",			setconfbinding,	0 },
 	{ "stack_enabled",		setconfvalue,	SWM_S_STACK_ENABLED },

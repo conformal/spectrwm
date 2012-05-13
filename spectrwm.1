@@ -103,6 +103,30 @@ Status bar font.
 .It Ic bar_font_color Ns Bq Ar x
 Color of the font in status bar in screen
 .Ar x .
+.It Ic bar_format
+Set the bar_format string and override all of the
+.Ic enabled
+options.
+The format is passed through
+.Xr strftime 3
+before being used.
+It may contain the following character sequences:
+.Bl -column "Character sequence" "Replaced with" -offset indent
+.It Sy "Character sequence" Ta Sy "Replaced with"
+.It Li "+A" Ta "Output of the external script"
+.It Li "+C" Ta "Window class"
+.It Li "+D" Ta "Workspace name"
+.It Li "+I" Ta "Workspace index"
+.It Li "+N" Ta "Screen number"
+.It Li "+S" Ta "Stacking algorithm"
+.It Li "+T" Ta "Window title"
+.It Li "+U" Ta "Urgency hint"
+.It Li "+V" Ta "Program version"
+.It Li "+W" Ta "Window name"
+.It Li "++" Ta "A literal" Ql +
+.El
+.Pp
+Any characters that don't match the specification are copied as-is.
 .It Ic bar_justify
 Justify the status bar text. Possible values are
 .Pa left ,
