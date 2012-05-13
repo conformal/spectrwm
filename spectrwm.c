@@ -1479,70 +1479,109 @@ bar_fmt(char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
 }
 
 /* replaces the bar format character sequences (like in tmux(1)) */
+char *
+bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
+    size_t sz)
+{
+	char			*ptr;
+	char			num[8], tmp[SWM_BAR_MAX];
+	int			limit;
+	size_t			len, numoff = 0;
+
+	/* reset strlcat(3) buffer */
+	*tmp = '\0';
+
+	/* get number, if any */
+	fmt++;
+	while (*fmt != '\0' && isdigit((unsigned char) *fmt)) {
+		if (numoff >= sizeof num - 1)
+			break;
+		num[numoff++] = *fmt++;
+	}
+	num[numoff] = '\0';
+
+	if ((limit = strtonum(num, 1, sizeof tmp - 1, NULL)) == 0)
+		limit = sizeof tmp - 1;
+
+	/* if number is too big, skip to the first non-digit */
+	if (numoff >= sizeof num - 1) {
+		while (*fmt != '\0' && isdigit((unsigned char) *fmt))
+			fmt++;
+	}
+	/* there is nothing to replace (ie EOL) */
+	if (*fmt == '\0')
+		return (fmt);
+
+	switch (*fmt) {
+	case 'A':
+		snprintf(tmp, sizeof tmp, "%s", bar_ext);
+		break;
+	case 'C':
+		bar_class_name(tmp, sizeof tmp, r);
+		break;
+	case 'D':
+		bar_workspace_name(tmp, sizeof tmp, r);
+		break;
+	case 'I':
+		snprintf(tmp, sizeof tmp, "%d", r->ws->idx + 1);
+		break;
+	case 'N':
+		snprintf(tmp, sizeof tmp, "%d", r->s->idx + 1);
+		break;
+	case 'S':
+		snprintf(tmp, sizeof tmp, "%s", r->ws->stacker);
+		break;
+	case 'T':
+		bar_title_name(tmp, sizeof tmp, r);
+		break;
+	case 'U':
+		bar_urgent(tmp, sizeof tmp);
+		break;
+	case 'V':
+		snprintf(tmp, sizeof tmp, "%s", bar_vertext);
+		break;
+	case 'W':
+		bar_window_name(tmp, sizeof tmp, r);
+		break;
+	default:
+		/* unknown character sequence; copy as-is */
+		snprintf(tmp, sizeof tmp, "+%c", *fmt);
+		break;
+	}
+
+	len = strlen(tmp);
+	ptr = tmp;
+	if (len < limit)
+		limit = len;
+	while (limit-- > 0) {
+		if (*offrep >= sz - 1)
+			break;
+		fmtrep[(*offrep)++] = *ptr++;
+	}
+
+	fmt++;
+	return (fmt);
+}
+
 void
 bar_replace(char *fmt, char *fmtrep, struct swm_region *r, size_t sz)
 {
-	char			*ptr;
-	char			tmp[SWM_BAR_MAX];
 	size_t			off;
 
 	off = 0;
-	ptr = fmt;
-	while (*ptr != '\0') {
-		if (*ptr != '+') {
+	while (*fmt != '\0') {
+		if (*fmt != '+') {
 			/* skip ordinary characters */
 			if (off >= sz - 1)
 				break;
-			fmtrep[off++] = *ptr++;
+			fmtrep[off++] = *fmt++;
 			continue;
 		}
 
 		/* character sequence found; replace it */
-		*tmp = '\0';
-
-		switch (*++ptr) {
-		case 'A':
-			snprintf(tmp, sizeof tmp, "%s", bar_ext);
+		fmt = bar_replace_seq(fmt, fmtrep, r, &off, sz);
+		if (off >= sz - 1)
 			break;
-		case 'C':
-			bar_class_name(tmp, sizeof tmp, r);
-			break;
-		case 'D':
-			bar_workspace_name(tmp, sizeof tmp, r);
-			break;
-		case 'I':
-			snprintf(tmp, sizeof tmp, "%d", r->ws->idx + 1);
-			break;
-		case 'N':
-			snprintf(tmp, sizeof tmp, "%d", r->s->idx + 1);
-			break;
-		case 'S':
-			snprintf(tmp, sizeof tmp, "%s", r->ws->stacker);
-			break;
-		case 'T':
-			bar_title_name(tmp, sizeof tmp, r);
-			break;
-		case 'U':
-			bar_urgent(tmp, sizeof tmp);
-			break;
-		case 'V':
-			snprintf(tmp, sizeof tmp, "%s", bar_vertext);
-			break;
-		case 'W':
-			bar_window_name(tmp, sizeof tmp, r);
-			break;
-		default:
-			/* unknown character sequence; copy as-is */
-			snprintf(tmp, sizeof tmp, "+%c", *ptr);
-			break;
-		}
-
-		off += snprintf(fmtrep + off, sz - off, "%s", tmp);
-		if (off >= sz - 1) {
-			off = sz;
-			break;
-		}
-		ptr++;
 	}
 
 	fmtrep[off] = '\0';
