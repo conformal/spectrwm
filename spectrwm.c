@@ -88,6 +88,7 @@
 
 #include <X11/cursorfont.h>
 #include <X11/keysym.h>
+#include <X11/XKBlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/Xproto.h>
@@ -6155,7 +6156,7 @@ keypress(XEvent *e)
 	struct key		*kp;
 	struct swm_region	*r;
 
-	keysym = XKeycodeToKeysym(display, (KeyCode)ev->keycode, 0);
+	keysym = XkbKeycodeToKeysym(display, (KeyCode)ev->keycode, 0, 0);
 	if ((kp = key_lookup(CLEANMASK(ev->state), keysym)) == NULL)
 		return;
 	if (keyfuncs[kp->funcid].func == NULL)
