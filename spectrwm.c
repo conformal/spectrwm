@@ -1381,7 +1381,6 @@ bar_window_name(char *s, size_t sz, struct swm_region *r)
 	if (r->ws->focus->floating)
 		strlcat(s, "(f) ", sz);
 	strlcat(s, (char *)title, sz);
-	strlcat(s, " ", sz);
 
 	XFree(title);
 }
@@ -1467,15 +1466,14 @@ bar_fmt(char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
 		if (title_class_enabled && r != NULL && r->ws != NULL &&
 		    r->ws->focus != NULL)
 			strlcat(fmtnew, ":", sz);
-		strlcat(fmtnew, "+T", sz);
+		strlcat(fmtnew, "+T    ", sz);
 	}
 
-	strlcat(fmtnew, "    ", sz);
 	if (window_name_enabled)
-		strlcat(fmtnew, "+64W", sz);
+		strlcat(fmtnew, "+64W ", sz);
 
 	/* finally add the action script output and the version */
-	strlcat(fmtnew, "     +A    +V", sz);
+	strlcat(fmtnew, "    +A    +V", sz);
 }
 
 /* replaces the bar format character sequences (like in tmux(1)) */
