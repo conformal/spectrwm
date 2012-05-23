@@ -253,6 +253,11 @@ enum {
 	SWM_SEARCH_SEARCH_WINDOW
 };
 
+#define SWM_STACK_TOP		(0)
+#define SWM_STACK_BOTTOM	(1)
+#define	SWM_STACK_ABOVE		(2)
+#define	SWM_STACK_BELOW		(3)
+
 /* dialog windows */
 double			dialog_ratio = 0.6;
 /* status bar */
@@ -296,6 +301,10 @@ int			title_name_enabled = 0;
 int			title_class_enabled = 0;
 int			window_name_enabled = 0;
 int			focus_mode = SWM_FOCUS_DEFAULT;
+int			focus_close = SWM_STACK_BELOW;
+int			focus_close_wrap = 1;
+int			focus_default = SWM_STACK_TOP;
+int			spawn_position = SWM_STACK_TOP;
 int			disable_border = 0;
 int			border_width = 1;
 int			verbose_layout = 0;
@@ -2511,8 +2520,6 @@ focus_prev(struct ws_win *win)
 	struct ws_win_list	*wl = NULL;
 	struct workspace	*ws = NULL;
 
-	DNPRINTF(SWM_D_FOCUS, "focus_prev: window: 0x%lx\n", WINID(win));
-
 	if (!(win && win->ws))
 		return;
 
@@ -2520,14 +2527,15 @@ focus_prev(struct ws_win *win)
 	wl = &ws->winlist;
 	cur_focus = ws->focus;
 
+	DNPRINTF(SWM_D_FOCUS, "focus_prev: window: 0x%lx, cur_focus: 0x%lx\n",
+	    WINID(win), WINID(cur_focus));
+
 	/* pickle, just focus on whatever */
 	if (cur_focus == NULL) {
 		/* use prev_focus if valid */
 		if (ws->focus_prev && ws->focus_prev != cur_focus &&
 		    find_window(WINID(ws->focus_prev)))
 			winfocus = ws->focus_prev;
-		if (winfocus == NULL)
-			winfocus = TAILQ_FIRST(wl);
 		goto done;
 	}
 
@@ -2548,14 +2556,44 @@ focus_prev(struct ws_win *win)
 			goto done;
 	}
 
-	if (cur_focus == win)
-		winfocus = TAILQ_PREV(win, ws_win_list, entry);
-	if (winfocus == NULL)
-		winfocus = TAILQ_LAST(wl, ws_win_list);
-	if (winfocus == NULL || winfocus == win)
-		winfocus = TAILQ_NEXT(cur_focus, entry);
+	DNPRINTF(SWM_D_FOCUS, "focus_prev: focus_close: %d\n", focus_close);
 
+	if (winfocus == NULL || winfocus == win) {
+		switch (focus_close) {
+		case SWM_STACK_BOTTOM:
+			winfocus = TAILQ_FIRST(wl);
+			break;
+		case SWM_STACK_TOP:
+			winfocus = TAILQ_LAST(wl, ws_win_list);
+			break;
+		case SWM_STACK_ABOVE:
+			if ((winfocus = TAILQ_NEXT(cur_focus, entry)) == NULL) {
+				if (focus_close_wrap)
+					winfocus = TAILQ_FIRST(wl);
+				else
+					winfocus = TAILQ_PREV(cur_focus,
+					    ws_win_list, entry);
+			}
+			break;
+		case SWM_STACK_BELOW:
+			if ((winfocus = TAILQ_PREV(cur_focus, ws_win_list,
+			    entry)) == NULL) {
+				if (focus_close_wrap)
+					winfocus = TAILQ_LAST(wl, ws_win_list);
+				else
+					winfocus = TAILQ_NEXT(cur_focus, entry);
+			}
+			break;
+		}
+	}
 done:
+	if (winfocus == NULL) {
+		if (focus_default == SWM_STACK_TOP)
+			winfocus = TAILQ_LAST(wl, ws_win_list);
+		else
+			winfocus = TAILQ_FIRST(wl);
+	}
+
 	focus_magic(winfocus);
 }
 
@@ -5281,11 +5319,12 @@ enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_BAR_BORDER_WIDTH,
 	  SWM_S_STACK_ENABLED, SWM_S_CLOCK_ENABLED, SWM_S_CLOCK_FORMAT,
 	  SWM_S_CYCLE_EMPTY, SWM_S_CYCLE_VISIBLE, SWM_S_WORKSPACE_LIMIT,
 	  SWM_S_SS_ENABLED, SWM_S_TERM_WIDTH, SWM_S_TITLE_CLASS_ENABLED,
-	  SWM_S_TITLE_NAME_ENABLED, SWM_S_WINDOW_NAME_ENABLED, SWM_S_URGENT_ENABLED,
-	  SWM_S_FOCUS_MODE, SWM_S_DISABLE_BORDER, SWM_S_BORDER_WIDTH,
-	  SWM_S_BAR_FONT, SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM,
-	  SWM_S_SS_APP, SWM_S_DIALOG_RATIO, SWM_S_BAR_AT_BOTTOM,
-	  SWM_S_VERBOSE_LAYOUT, SWM_S_BAR_JUSTIFY
+	  SWM_S_TITLE_NAME_ENABLED, SWM_S_WINDOW_NAME_ENABLED,
+	  SWM_S_URGENT_ENABLED, SWM_S_FOCUS_MODE, SWM_S_FOCUS_CLOSE,
+	  SWM_S_FOCUS_CLOSE_WRAP, SWM_S_FOCUS_DEFAULT, SWM_S_SPAWN_ORDER,
+	  SWM_S_DISABLE_BORDER, SWM_S_BORDER_WIDTH, SWM_S_BAR_FONT,
+	  SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM, SWM_S_SS_APP, SWM_S_DIALOG_RATIO,
+	  SWM_S_BAR_AT_BOTTOM, SWM_S_VERBOSE_LAYOUT, SWM_S_BAR_JUSTIFY
 	};
 
 int
@@ -5370,6 +5409,41 @@ setconfvalue(char *selector, char *value, int flags)
 			focus_mode = SWM_FOCUS_SYNERGY;
 		else
 			errx(1, "focus_mode");
+		break;
+	case SWM_S_FOCUS_CLOSE:
+		if (!strcmp(value, "first"))
+			focus_close = SWM_STACK_BOTTOM;
+		else if (!strcmp(value, "last"))
+			focus_close = SWM_STACK_TOP;
+		else if (!strcmp(value, "next"))
+			focus_close = SWM_STACK_ABOVE;
+		else if (!strcmp(value, "previous"))
+			focus_close = SWM_STACK_BELOW;
+		else
+			errx(1, "focus_close");
+		break;
+	case SWM_S_FOCUS_CLOSE_WRAP:
+		focus_close_wrap = atoi(value);
+		break;
+	case SWM_S_FOCUS_DEFAULT:
+		if (!strcmp(value, "last"))
+			focus_default = SWM_STACK_TOP;
+		else if (!strcmp(value, "first"))
+			focus_default = SWM_STACK_BOTTOM;
+		else
+			errx(1, "focus_default");
+		break;
+	case SWM_S_SPAWN_ORDER:
+		if (!strcmp(value, "first"))
+			spawn_position = SWM_STACK_BOTTOM;
+		else if (!strcmp(value, "last"))
+			spawn_position = SWM_STACK_TOP;
+		else if (!strcmp(value, "next"))
+			spawn_position = SWM_STACK_ABOVE;
+		else if (!strcmp(value, "previous"))
+			spawn_position = SWM_STACK_BELOW;
+		else
+			errx(1, "spawn_position");
 		break;
 	case SWM_S_DISABLE_BORDER:
 		disable_border = atoi(value);
@@ -5620,6 +5694,10 @@ struct config_option configopt[] = {
 	{ "title_class_enabled",	setconfvalue,	SWM_S_TITLE_CLASS_ENABLED },
 	{ "title_name_enabled",		setconfvalue,	SWM_S_TITLE_NAME_ENABLED },
 	{ "focus_mode",			setconfvalue,	SWM_S_FOCUS_MODE },
+	{ "focus_close",		setconfvalue,	SWM_S_FOCUS_CLOSE },
+	{ "focus_close_wrap",		setconfvalue,	SWM_S_FOCUS_CLOSE_WRAP },
+	{ "focus_default",		setconfvalue,	SWM_S_FOCUS_DEFAULT },
+	{ "spawn_position",		setconfvalue,	SWM_S_SPAWN_ORDER },
 	{ "disable_border",		setconfvalue,	SWM_S_DISABLE_BORDER },
 	{ "border_width",		setconfvalue,	SWM_S_BORDER_WIDTH },
 	{ "autorun",			setautorun,	0 },
@@ -5859,12 +5937,27 @@ manage_window(Window id)
 		DNPRINTF(SWM_D_MISC, "manage_window: previously unmanaged "
 		    "window: 0x%lx\n", win->id);
 		TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
-		if (win->transient) {
+		if (win->transient)
 			set_child_transient(win, &trans);
-		} if (trans && (ww = find_window(trans)))
+
+		if (trans && (ww = find_window(trans)))
 			TAILQ_INSERT_AFTER(&win->ws->winlist, ww, win, entry);
-		else
+		else if ((ww = win->ws->focus) &&
+		    spawn_position == SWM_STACK_ABOVE)
+			TAILQ_INSERT_AFTER(&win->ws->winlist, win->ws->focus, win, entry);
+		else if (ww && spawn_position == SWM_STACK_BELOW)
+			TAILQ_INSERT_AFTER(&win->ws->winlist, win->ws->focus, win, entry);
+		else switch (spawn_position) {
+		default:
+		case SWM_STACK_TOP:
+		case SWM_STACK_ABOVE:
 			TAILQ_INSERT_TAIL(&win->ws->winlist, win, entry);
+			break;
+		case SWM_STACK_BOTTOM:
+		case SWM_STACK_BELOW:
+			TAILQ_INSERT_HEAD(&win->ws->winlist, win, entry);
+		}
+
 		ewmh_update_actions(win);
 		return (win);
 	}
@@ -5951,6 +6044,8 @@ manage_window(Window id)
 	win->s = r->s;	/* this never changes */
 	if (trans && (ww = find_window(trans)))
 		TAILQ_INSERT_AFTER(&ws->winlist, ww, win, entry);
+	else if (spawn_position == SWM_STACK_ABOVE && win->ws->focus)
+		TAILQ_INSERT_AFTER(&win->ws->winlist, win->ws->focus, win, entry);
 	else
 		TAILQ_INSERT_TAIL(&ws->winlist, win, entry);
 
