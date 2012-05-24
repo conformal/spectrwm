@@ -1304,7 +1304,7 @@ socket_setnonblock(int fd)
 }
 
 void
-bar_print(struct swm_region *r, char *s)
+bar_print(struct swm_region *r, const char *s)
 {
 	int			x = 0;
 	size_t			len;
@@ -1429,7 +1429,7 @@ bar_workspace_name(char *s, size_t sz, struct swm_region *r)
 
 /* build the default bar format according to the defined enabled options */
 void
-bar_fmt(char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
+bar_fmt(const char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
 {
 	/* if format provided, just copy the buffers */
 	if (bar_format != NULL) {
