@@ -305,6 +305,12 @@ Enable by setting to 1.
 .It Ic window_name_enabled
 Enable or disable displaying the window name in the status bar.
 Enable by setting to 1.
+.Pp
+To prevent excessively large window names from pushing the remaining text off
+the screen, it's limited to 64 characters, by default.
+See the
+.Ic bar_format
+option for more details.
 .It Ic workspace_limit
 Set the total number of workspaces available.  Minimum is 1, maximum is 22.
 .El
