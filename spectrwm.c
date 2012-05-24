@@ -4570,7 +4570,7 @@ struct key {
 	enum keyfuncid		funcid;
 	char			*spawn_name;
 };
-RB_HEAD(key_list, key);
+RB_HEAD(key_tree, key);
 
 int
 key_cmp(struct key *kp1, struct key *kp2)
@@ -4588,8 +4588,8 @@ key_cmp(struct key *kp1, struct key *kp2)
 	return (0);
 }
 
-RB_GENERATE_STATIC(key_list, key, entry, key_cmp);
-struct key_list			keys;
+RB_GENERATE_STATIC(key_tree, key, entry, key_cmp);
+struct key_tree			keys;
 
 /* mouse */
 enum { client_click, root_click };
@@ -4613,7 +4613,7 @@ update_modkey(unsigned int mod)
 	struct key		*kp;
 
 	mod_key = mod;
-	RB_FOREACH(kp, key_list, &keys)
+	RB_FOREACH(kp, key_tree, &keys)
 		if (kp->mod & ShiftMask)
 			kp->mod = mod | ShiftMask;
 		else
@@ -4981,7 +4981,7 @@ key_insert(unsigned int mod, KeySym ks, enum keyfuncid kfid, char *spawn_name)
 	kp->keysym = ks;
 	kp->funcid = kfid;
 	kp->spawn_name = strdupsafe(spawn_name);
-	RB_INSERT(key_list, &keys, kp);
+	RB_INSERT(key_tree, &keys, kp);
 
 	DNPRINTF(SWM_D_KEY, "key_insert: leave\n");
 }
@@ -4994,7 +4994,7 @@ key_lookup(unsigned int mod, KeySym ks)
 	kp.keysym = ks;
 	kp.mod = mod;
 
-	return (RB_FIND(key_list, &keys, &kp));
+	return (RB_FIND(key_tree, &keys, &kp));
 }
 
 void
@@ -5002,7 +5002,7 @@ key_remove(struct key *kp)
 {
 	DNPRINTF(SWM_D_KEY, "key_remove: %s\n", keyfuncs[kp->funcid].name);
 
-	RB_REMOVE(key_list, &keys, kp);
+	RB_REMOVE(key_tree, &keys, kp);
 	free(kp->spawn_name);
 	free(kp);
 
@@ -5265,7 +5265,7 @@ grabkeys(void)
 		if (TAILQ_EMPTY(&screens[k].rl))
 			continue;
 		XUngrabKey(display, AnyKey, AnyModifier, screens[k].root);
-		RB_FOREACH(kp, key_list, &keys) {
+		RB_FOREACH(kp, key_tree, &keys) {
 			if ((code = XKeysymToKeycode(display, kp->keysym)))
 				for (j = 0; j < LENGTH(modifiers); j++)
 					XGrabKey(display, code,
