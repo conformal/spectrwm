@@ -4588,7 +4588,7 @@ key_cmp(struct key *kp1, struct key *kp2)
 	return (0);
 }
 
-RB_GENERATE_STATIC(key_tree, key, entry, key_cmp);
+RB_GENERATE(key_tree, key, entry, key_cmp);
 struct key_tree			keys;
 
 /* mouse */
