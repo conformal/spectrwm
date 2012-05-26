@@ -264,7 +264,8 @@ double			dialog_ratio = 0.6;
 #define SWM_BAR_FONTS		"-*-terminus-medium-*-*-*-*-*-*-*-*-*-*-*," \
 				"-*-profont-*-*-*-*-*-*-*-*-*-*-*-*,"	    \
 				"-*-times-medium-r-*-*-*-*-*-*-*-*-*-*,"    \
-				"-misc-fixed-medium-r-*-*-*-*-*-*-*-*-*-*"
+				"-misc-fixed-medium-r-*-*-*-*-*-*-*-*-*-*,"  \
+				"-*-*-*-r-*--*-*-*-*-*-*-*-*"
 
 #ifdef X_HAVE_UTF8_STRING
 #define DRAWSTRING(x...)	Xutf8DrawString(x)
