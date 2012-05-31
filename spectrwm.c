@@ -1369,6 +1369,15 @@ bar_title_name(char *s, size_t sz, struct swm_region *r)
 }
 
 void
+bar_window_float(char *s, size_t sz, struct swm_region *r)
+{
+	if (r == NULL || r ->ws == NULL || r->ws->focus == NULL)
+		return;
+	if (r->ws->focus->floating)
+		strlcat(s, "(f)", sz);
+}
+
+void
 bar_window_name(char *s, size_t sz, struct swm_region *r)
 {
 	unsigned char		*title;
@@ -1378,10 +1387,7 @@ bar_window_name(char *s, size_t sz, struct swm_region *r)
 	if ((title = get_win_name(r->ws->focus->id)) == NULL)
 		return;
 
-	if (r->ws->focus->floating)
-		strlcat(s, "(f) ", sz);
 	strlcat(s, (char *)title, sz);
-
 	XFree(title);
 }
 
@@ -1465,16 +1471,19 @@ bar_fmt(const char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
 			strlcat(fmtnew, "    ", sz);
 	}
 
-	if (title_name_enabled) {
-		/* add a colon if showing the class and something is focused */
-		if (title_class_enabled && r != NULL && r->ws != NULL &&
-		    r->ws->focus != NULL)
-			strlcat(fmtnew, ":", sz);
-		strlcat(fmtnew, "+T    ", sz);
+	/* checks needed by the colon and floating strlcat(3) calls below */
+	if (r != NULL && r->ws != NULL && r->ws->focus != NULL) {
+		if (title_name_enabled) {
+			if (title_class_enabled)
+				strlcat(fmtnew, ":", sz);
+			strlcat(fmtnew, "+T    ", sz);
+		}
+		if (window_name_enabled) {
+			if (r->ws->focus->floating)
+				strlcat(fmtnew, "+F ", sz);
+			strlcat(fmtnew, "+64W ", sz);
+		}
 	}
-
-	if (window_name_enabled)
-		strlcat(fmtnew, "+64W ", sz);
 
 	/* finally add the action script output and the version */
 	strlcat(fmtnew, "    +A    +V", sz);
@@ -1523,6 +1532,9 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		break;
 	case 'D':
 		bar_workspace_name(tmp, sizeof tmp, r);
+		break;
+	case 'F':
+		bar_window_float(tmp, sizeof tmp, r);
 		break;
 	case 'I':
 		snprintf(tmp, sizeof tmp, "%d", r->ws->idx + 1);
