@@ -1369,6 +1369,17 @@ bar_title_name(char *s, size_t sz, struct swm_region *r)
 }
 
 void
+bar_class_title_name(char *s, size_t sz, struct swm_region *r)
+{
+	if (r == NULL || r->ws == NULL || r->ws->focus == NULL)
+		return;
+
+	bar_class_name(s, sz, r);
+	strlcat(s, ":", sz);
+	bar_title_name(s, sz, r);
+}
+
+void
 bar_window_float(char *s, size_t sz, struct swm_region *r)
 {
 	if (r == NULL || r ->ws == NULL || r->ws->focus == NULL)
@@ -1541,6 +1552,9 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		break;
 	case 'N':
 		snprintf(tmp, sizeof tmp, "%d", r->s->idx + 1);
+		break;
+	case 'P':
+		bar_class_title_name(tmp, sizeof tmp, r);
 		break;
 	case 'S':
 		snprintf(tmp, sizeof tmp, "%s", r->ws->stacker);
