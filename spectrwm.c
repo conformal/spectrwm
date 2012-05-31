@@ -1459,8 +1459,12 @@ bar_fmt(const char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
 	if (urgent_enabled)
 		strlcat(fmtnew, "* +U*    ", sz);
 
-	if (title_class_enabled)
+	if (title_class_enabled) {
 		strlcat(fmtnew, "+C", sz);
+		if (title_name_enabled == 0)
+			strlcat(fmtnew, "    ", sz);
+	}
+
 	if (title_name_enabled) {
 		/* add a colon if showing the class and something is focused */
 		if (title_class_enabled && r != NULL && r->ws != NULL &&
