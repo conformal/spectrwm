@@ -1489,7 +1489,7 @@ bar_update(void)
 				if (stack_enabled)
 					stack = r->ws->stacker;
 
-				snprintf(loc, sizeof loc, 
+				snprintf(loc, sizeof loc,
 				    "%d:%d %s %s   %s%s    %s    %s",
 				    x++, r->ws->idx + 1, stack, ws, s, cn,
 				    bar_ext, bar_vertext);
@@ -6439,6 +6439,13 @@ mapnotify(XEvent *e)
 	win = manage_window(ev->window);
 	if (win)
 		set_win_state(win, NormalState);
+
+	/*
+	 * focus_win can only set input focus on a mapped window.
+	 * make sure the window really has focus since it is just being mapped.
+	 */
+	if (win->ws->focus == win)
+		focus_win(win);
 }
 
 void
