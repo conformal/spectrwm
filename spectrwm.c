@@ -4394,7 +4394,6 @@ enum keyfuncid {
 	kf_swap_next,
 	kf_swap_prev,
 	kf_spawn_term,
-	kf_spawn_menu,
 	kf_quit,
 	kf_restart,
 	kf_focus_main,
@@ -4452,12 +4451,8 @@ enum keyfuncid {
 	kf_bar_toggle,
 	kf_wind_kill,
 	kf_wind_del,
-	kf_screenshot_all,
-	kf_screenshot_wind,
 	kf_float_toggle,
 	kf_version,
-	kf_spawn_lock,
-	kf_spawn_initscr,
 	kf_spawn_custom,
 	kf_iconify,
 	kf_uniconify,
@@ -4484,11 +4479,6 @@ dummykeyfunc(struct swm_region *r, union arg *args)
 {
 };
 
-void
-legacyfunc(struct swm_region *r, union arg *args)
-{
-};
-
 struct keyfunc {
 	char			name[SWM_FUNCNAME_LEN];
 	void			(*func)(struct swm_region *r, union arg *);
@@ -4510,7 +4500,6 @@ struct keyfunc {
 	{ "swap_next",		swapwin,	{.id = SWM_ARG_ID_SWAPNEXT} },
 	{ "swap_prev",		swapwin,	{.id = SWM_ARG_ID_SWAPPREV} },
 	{ "spawn_term",		spawnterm,	{.argv = spawn_term} },
-	{ "spawn_menu",		legacyfunc,	{0} },
 	{ "quit",		quit,		{0} },
 	{ "restart",		restart,	{0} },
 	{ "focus_main",		focus,		{.id = SWM_ARG_ID_FOCUSMAIN} },
@@ -4568,12 +4557,8 @@ struct keyfunc {
 	{ "bar_toggle",		bar_toggle,	{0} },
 	{ "wind_kill",		wkill,		{.id = SWM_ARG_ID_KILLWINDOW} },
 	{ "wind_del",		wkill,		{.id = SWM_ARG_ID_DELETEWINDOW} },
-	{ "screenshot_all",	legacyfunc,	{0} },
-	{ "screenshot_wind",	legacyfunc,	{0} },
 	{ "float_toggle",	floating_toggle,{0} },
 	{ "version",		version,	{0} },
-	{ "spawn_lock",		legacyfunc,	{0} },
-	{ "spawn_initscr",	legacyfunc,	{0} },
 	{ "spawn_custom",	dummykeyfunc,	{0} },
 	{ "iconify",		iconify,	{0} },
 	{ "uniconify",		uniconify,	{0} },
