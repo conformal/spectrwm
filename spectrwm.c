@@ -5756,7 +5756,7 @@ setautorun(char *selector, char *value, int flags)
 int
 setlayout(char *selector, char *value, int flags)
 {
-	int			ws_id, i, x, mg, ma, si, raise;
+	int			ws_id, i, x, mg, ma, si, raise, f = 0;
 	int			st = SWM_V_STACK;
 	char			s[1024];
 	struct workspace	*ws;
@@ -5776,9 +5776,15 @@ setlayout(char *selector, char *value, int flags)
 
 	if (!strcasecmp(s, "vertical"))
 		st = SWM_V_STACK;
-	else if (!strcasecmp(s, "horizontal"))
+	else if (!strcasecmp(s, "vertical_flip")) {
+		st = SWM_V_STACK;
+		f = 1;
+	} else if (!strcasecmp(s, "horizontal"))
 		st = SWM_H_STACK;
-	else if (!strcasecmp(s, "fullscreen"))
+	else if (!strcasecmp(s, "horizontal_flip")) {
+		st = SWM_H_STACK;
+		f = 1;
+	} else if (!strcasecmp(s, "fullscreen"))
 		st = SWM_MAX_STACK;
 	else
 		errx(1, "invalid layout entry, should be 'ws[<idx>]:"
@@ -5812,6 +5818,12 @@ setlayout(char *selector, char *value, int flags)
 			ws[ws_id].cur_layout->l_config(&ws[ws_id],
 			    si >= 0 ?  SWM_ARG_ID_STACKINC :
 			    SWM_ARG_ID_STACKDEC);
+			stack();
+		}
+		/* Apply flip */
+		if (f) {
+			ws[ws_id].cur_layout->l_config(&ws[ws_id],
+			    SWM_ARG_ID_FLIPLAYOUT);
 			stack();
 		}
 	}
