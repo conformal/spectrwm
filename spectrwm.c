@@ -1486,21 +1486,21 @@ bar_fmt(const char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
 	/* only show the workspace name if there's actually one */
 	if (r != NULL && r->ws != NULL && r->ws->name != NULL)
 		strlcat(fmtnew, "<+D>", sz);
-	strlcat(fmtnew, "   ", sz);
+	strlcat(fmtnew, "+3<", sz);
 
 	if (clock_enabled) {
 		strlcat(fmtnew, fmtexp, sz);
-		strlcat(fmtnew, "    ", sz);
+		strlcat(fmtnew, "+4<", sz);
 	}
 
 	/* bar_urgent already adds the space before the last asterisk */
 	if (urgent_enabled)
-		strlcat(fmtnew, "* +U*    ", sz);
+		strlcat(fmtnew, "* +U*+4<", sz);
 
 	if (title_class_enabled) {
 		strlcat(fmtnew, "+C", sz);
 		if (title_name_enabled == 0)
-			strlcat(fmtnew, "    ", sz);
+			strlcat(fmtnew, "+4<", sz);
 	}
 
 	/* checks needed by the colon and floating strlcat(3) calls below */
@@ -1508,7 +1508,7 @@ bar_fmt(const char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
 		if (title_name_enabled) {
 			if (title_class_enabled)
 				strlcat(fmtnew, ":", sz);
-			strlcat(fmtnew, "+T    ", sz);
+			strlcat(fmtnew, "+T+4<", sz);
 		}
 		if (window_name_enabled) {
 			if (r->ws->focus->floating)
@@ -1518,7 +1518,7 @@ bar_fmt(const char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
 	}
 
 	/* finally add the action script output and the version */
-	strlcat(fmtnew, "    +A    +V", sz);
+	strlcat(fmtnew, "+4<+A+4<+V", sz);
 }
 
 /* replaces the bar format character sequences (like in tmux(1)) */
@@ -1556,6 +1556,12 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		return (fmt);
 
 	switch (*fmt) {
+	case '<':
+		/* special case; no limit given, pad one space, instead */
+		if (limit == sizeof tmp - 1)
+			limit = 1;
+		snprintf(tmp, sizeof tmp, "%*s", limit, " ");
+		break;
 	case 'A':
 		snprintf(tmp, sizeof tmp, "%s", bar_ext);
 		break;
