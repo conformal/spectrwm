@@ -6,8 +6,8 @@ BINDIR=${PREFIX}/bin
 SUBDIR= lib
 
 PROG=spectrwm
-#MAN=spectrwm_pt.1 spectrwm_ru.1
-MAN=spectrwm.1 spectrwm_es.1 spectrwm_it.1
+#MAN=spectrwm_pt.1 spectrwm_ru.1 spectrwm_es.1 spectrwm_it.1
+MAN=spectrwm.1
 
 CFLAGS+=-std=c89 -Wall -Wno-uninitialized -g
 # Uncomment define below to disallow user settable clock format string
