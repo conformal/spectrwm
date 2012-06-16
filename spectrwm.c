@@ -312,7 +312,6 @@ pid_t			bar_pid;
 XFontSet		bar_fs;
 XFontSetExtents		*bar_fs_extents;
 char			*bar_fonts;
-char			*spawn_term[] = { NULL, NULL }; /* XXX fully dynamic */
 struct passwd		*pwd;
 
 #define SWM_MENU_FN	(2)
@@ -453,8 +452,14 @@ struct workspace {
 	} l_state;
 };
 
-enum	{ SWM_S_COLOR_BAR, SWM_S_COLOR_BAR_BORDER, SWM_S_COLOR_BAR_FONT,
-	  SWM_S_COLOR_FOCUS, SWM_S_COLOR_UNFOCUS, SWM_S_COLOR_MAX };
+enum {
+	SWM_S_COLOR_BAR,
+	SWM_S_COLOR_BAR_BORDER,
+	SWM_S_COLOR_BAR_FONT,
+	SWM_S_COLOR_FOCUS,
+	SWM_S_COLOR_UNFOCUS,
+	SWM_S_COLOR_MAX
+};
 
 /* physical screen mapping */
 #define SWM_WS_MAX		(22)	/* hard limit */
@@ -543,17 +548,33 @@ struct quirk_list		quirks = TAILQ_HEAD_INITIALIZER(quirks);
  * Supported EWMH hints should be added to
  * both the enum and the ewmh array
  */
-enum { _NET_ACTIVE_WINDOW, _NET_MOVERESIZE_WINDOW, _NET_CLOSE_WINDOW,
-    _NET_WM_WINDOW_TYPE, _NET_WM_WINDOW_TYPE_DOCK,
-    _NET_WM_WINDOW_TYPE_TOOLBAR, _NET_WM_WINDOW_TYPE_UTILITY,
-    _NET_WM_WINDOW_TYPE_SPLASH, _NET_WM_WINDOW_TYPE_DIALOG,
-    _NET_WM_WINDOW_TYPE_NORMAL, _NET_WM_STATE,
-    _NET_WM_STATE_MAXIMIZED_HORZ, _NET_WM_STATE_MAXIMIZED_VERT,
-    _NET_WM_STATE_SKIP_TASKBAR, _NET_WM_STATE_SKIP_PAGER,
-    _NET_WM_STATE_HIDDEN, _NET_WM_STATE_ABOVE, _SWM_WM_STATE_MANUAL,
-    _NET_WM_STATE_FULLSCREEN, _NET_WM_ALLOWED_ACTIONS, _NET_WM_ACTION_MOVE,
-    _NET_WM_ACTION_RESIZE, _NET_WM_ACTION_FULLSCREEN, _NET_WM_ACTION_CLOSE,
-    SWM_EWMH_HINT_MAX };
+enum {
+	_NET_ACTIVE_WINDOW,
+	_NET_CLOSE_WINDOW,
+	_NET_MOVERESIZE_WINDOW,
+	_NET_WM_ACTION_CLOSE,
+	_NET_WM_ACTION_FULLSCREEN,
+	_NET_WM_ACTION_MOVE,
+	_NET_WM_ACTION_RESIZE,
+	_NET_WM_ALLOWED_ACTIONS,
+	_NET_WM_STATE,
+	_NET_WM_STATE_ABOVE,
+	_NET_WM_STATE_FULLSCREEN,
+	_NET_WM_STATE_HIDDEN,
+	_NET_WM_STATE_MAXIMIZED_HORZ,
+	_NET_WM_STATE_MAXIMIZED_VERT,
+	_NET_WM_STATE_SKIP_PAGER,
+	_NET_WM_STATE_SKIP_TASKBAR,
+	_NET_WM_WINDOW_TYPE,
+	_NET_WM_WINDOW_TYPE_DIALOG,
+	_NET_WM_WINDOW_TYPE_DOCK,
+	_NET_WM_WINDOW_TYPE_NORMAL,
+	_NET_WM_WINDOW_TYPE_SPLASH,
+	_NET_WM_WINDOW_TYPE_TOOLBAR,
+	_NET_WM_WINDOW_TYPE_UTILITY,
+	_SWM_WM_STATE_MANUAL,
+	SWM_EWMH_HINT_MAX
+};
 
 struct ewmh_hint {
 	char	*name;
@@ -561,29 +582,29 @@ struct ewmh_hint {
 } ewmh[SWM_EWMH_HINT_MAX] =	{
     /* must be in same order as in the enum */
     {"_NET_ACTIVE_WINDOW", None},
-    {"_NET_MOVERESIZE_WINDOW", None},
     {"_NET_CLOSE_WINDOW", None},
-    {"_NET_WM_WINDOW_TYPE", None},
-    {"_NET_WM_WINDOW_TYPE_DOCK", None},
-    {"_NET_WM_WINDOW_TYPE_TOOLBAR", None},
-    {"_NET_WM_WINDOW_TYPE_UTILITY", None},
-    {"_NET_WM_WINDOW_TYPE_SPLASH", None},
-    {"_NET_WM_WINDOW_TYPE_DIALOG", None},
-    {"_NET_WM_WINDOW_TYPE_NORMAL", None},
-    {"_NET_WM_STATE", None},
-    {"_NET_WM_STATE_MAXIMIZED_HORZ", None},
-    {"_NET_WM_STATE_MAXIMIZED_VERT", None},
-    {"_NET_WM_STATE_SKIP_TASKBAR", None},
-    {"_NET_WM_STATE_SKIP_PAGER", None},
-    {"_NET_WM_STATE_HIDDEN", None},
-    {"_NET_WM_STATE_ABOVE", None},
-    {"_SWM_WM_STATE_MANUAL", None},
-    {"_NET_WM_STATE_FULLSCREEN", None},
-    {"_NET_WM_ALLOWED_ACTIONS", None},
+    {"_NET_MOVERESIZE_WINDOW", None},
+    {"_NET_WM_ACTION_CLOSE", None},
+    {"_NET_WM_ACTION_FULLSCREEN", None},
     {"_NET_WM_ACTION_MOVE", None},
     {"_NET_WM_ACTION_RESIZE", None},
-    {"_NET_WM_ACTION_FULLSCREEN", None},
-    {"_NET_WM_ACTION_CLOSE", None},
+    {"_NET_WM_ALLOWED_ACTIONS", None},
+    {"_NET_WM_STATE", None},
+    {"_NET_WM_STATE_ABOVE", None},
+    {"_NET_WM_STATE_FULLSCREEN", None},
+    {"_NET_WM_STATE_HIDDEN", None},
+    {"_NET_WM_STATE_MAXIMIZED_HORZ", None},
+    {"_NET_WM_STATE_MAXIMIZED_VERT", None},
+    {"_NET_WM_STATE_SKIP_PAGER", None},
+    {"_NET_WM_STATE_SKIP_TASKBAR", None},
+    {"_NET_WM_WINDOW_TYPE", None},
+    {"_NET_WM_WINDOW_TYPE_DIALOG", None},
+    {"_NET_WM_WINDOW_TYPE_DOCK", None},
+    {"_NET_WM_WINDOW_TYPE_NORMAL", None},
+    {"_NET_WM_WINDOW_TYPE_SPLASH", None},
+    {"_NET_WM_WINDOW_TYPE_TOOLBAR", None},
+    {"_NET_WM_WINDOW_TYPE_UTILITY", None},
+    {"_SWM_WM_STATE_MANUAL", None},
 };
 
 void		 store_float_geom(struct ws_win *, struct swm_region *);
@@ -2223,18 +2244,6 @@ spawn(int ws_idx, union arg *args, int close_fd)
 
 	warn("spawn: execvp");
 	_exit(1);
-}
-
-void
-spawnterm(struct swm_region *r, union arg *args)
-{
-	DNPRINTF(SWM_D_MISC, "spawnterm\n");
-
-	if (fork() == 0) {
-		if (term_width)
-			setenv("_SWM_XTERM_FONTADJ", "", 1);
-		spawn(r->ws->idx, args, 1);
-	}
 }
 
 void
@@ -4393,7 +4402,6 @@ enum keyfuncid {
 	kf_focus_prev,
 	kf_swap_next,
 	kf_swap_prev,
-	kf_spawn_term,
 	kf_quit,
 	kf_restart,
 	kf_focus_main,
@@ -4499,7 +4507,6 @@ struct keyfunc {
 	{ "focus_prev",		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
 	{ "swap_next",		swapwin,	{.id = SWM_ARG_ID_SWAPNEXT} },
 	{ "swap_prev",		swapwin,	{.id = SWM_ARG_ID_SWAPPREV} },
-	{ "spawn_term",		spawnterm,	{.argv = spawn_term} },
 	{ "quit",		quit,		{0} },
 	{ "restart",		restart,	{0} },
 	{ "focus_main",		focus,		{.id = SWM_ARG_ID_FOCUSMAIN} },
@@ -5128,7 +5135,7 @@ setup_keys(void)
 	setkeybinding(MODKEY,		XK_k,		kf_focus_prev,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_j,		kf_swap_next,	NULL);
 	setkeybinding(MODKEY|ShiftMask,	XK_k,		kf_swap_prev,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_Return,	kf_spawn_term,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_Return,	kf_spawn_custom,"term");
 	setkeybinding(MODKEY,		XK_p,		kf_spawn_custom,"menu");
 	setkeybinding(MODKEY|ShiftMask,	XK_q,		kf_quit,	NULL);
 	setkeybinding(MODKEY,		XK_q,		kf_restart,	NULL);
@@ -5476,18 +5483,39 @@ setup_quirks(void)
 #define SWM_CONF_FILE		"spectrwm.conf"
 #define SWM_CONF_FILE_OLD	"scrotwm.conf"
 
-enum	{ SWM_S_BAR_DELAY, SWM_S_BAR_ENABLED, SWM_S_BAR_BORDER_WIDTH,
-	  SWM_S_STACK_ENABLED, SWM_S_CLOCK_ENABLED, SWM_S_CLOCK_FORMAT,
-	  SWM_S_CYCLE_EMPTY, SWM_S_CYCLE_VISIBLE, SWM_S_WORKSPACE_LIMIT,
-	  SWM_S_SS_ENABLED, SWM_S_TERM_WIDTH, SWM_S_TITLE_CLASS_ENABLED,
-	  SWM_S_TITLE_NAME_ENABLED, SWM_S_WINDOW_NAME_ENABLED,
-	  SWM_S_URGENT_ENABLED, SWM_S_FOCUS_MODE, SWM_S_FOCUS_CLOSE,
-	  SWM_S_FOCUS_CLOSE_WRAP, SWM_S_FOCUS_DEFAULT, SWM_S_SPAWN_ORDER,
-	  SWM_S_DISABLE_BORDER, SWM_S_BORDER_WIDTH, SWM_S_BAR_FONT,
-	  SWM_S_BAR_ACTION, SWM_S_SPAWN_TERM, SWM_S_SS_APP, SWM_S_DIALOG_RATIO,
-	  SWM_S_BAR_AT_BOTTOM, SWM_S_VERBOSE_LAYOUT, SWM_S_BAR_JUSTIFY,
-	  SWM_S_BAR_FORMAT
-	};
+enum {
+	SWM_S_BAR_ACTION,
+	SWM_S_BAR_AT_BOTTOM,
+	SWM_S_BAR_BORDER_WIDTH,
+	SWM_S_BAR_DELAY,
+	SWM_S_BAR_ENABLED,
+	SWM_S_BAR_FONT,
+	SWM_S_BAR_FORMAT,
+	SWM_S_BAR_JUSTIFY,
+	SWM_S_BORDER_WIDTH,
+	SWM_S_CLOCK_ENABLED,
+	SWM_S_CLOCK_FORMAT,
+	SWM_S_CYCLE_EMPTY,
+	SWM_S_CYCLE_VISIBLE,
+	SWM_S_DIALOG_RATIO,
+	SWM_S_DISABLE_BORDER,
+	SWM_S_FOCUS_CLOSE,
+	SWM_S_FOCUS_CLOSE_WRAP,
+	SWM_S_FOCUS_DEFAULT,
+	SWM_S_FOCUS_MODE,
+	SWM_S_SPAWN_ORDER,
+	SWM_S_SPAWN_TERM,
+	SWM_S_SS_APP,
+	SWM_S_SS_ENABLED,
+	SWM_S_STACK_ENABLED,
+	SWM_S_TERM_WIDTH,
+	SWM_S_TITLE_CLASS_ENABLED,
+	SWM_S_TITLE_NAME_ENABLED,
+	SWM_S_URGENT_ENABLED,
+	SWM_S_VERBOSE_LAYOUT,
+	SWM_S_WINDOW_NAME_ENABLED,
+	SWM_S_WORKSPACE_LIMIT
+};
 
 int
 setconfvalue(char *selector, char *value, int flags)
@@ -5496,17 +5524,37 @@ setconfvalue(char *selector, char *value, int flags)
 	char	*b;
 
 	switch (flags) {
+	case SWM_S_BAR_ACTION:
+		free(bar_argv[0]);
+		if ((bar_argv[0] = strdup(value)) == NULL)
+			err(1, "setconfvalue: bar_action");
+		break;
+	case SWM_S_BAR_AT_BOTTOM:
+		bar_at_bottom = atoi(value);
+		break;
+	case SWM_S_BAR_BORDER_WIDTH:
+		bar_border_width = atoi(value);
+		if (bar_border_width < 0)
+			bar_border_width = 0;
+		break;
 	case SWM_S_BAR_DELAY:
 		bar_delay = atoi(value);
 		break;
 	case SWM_S_BAR_ENABLED:
 		bar_enabled = atoi(value);
 		break;
-	case SWM_S_BAR_BORDER_WIDTH:
-		bar_border_width = atoi(value);
+	case SWM_S_BAR_FONT:
+		b = bar_fonts;
+		if (asprintf(&bar_fonts, "%s,%s", value, bar_fonts) == -1)
+			err(1, "setconfvalue: asprintf: failed to allocate "
+				"memory for bar_fonts.");
+
+		free(b);
 		break;
-	case SWM_S_BAR_AT_BOTTOM:
-		bar_at_bottom = atoi(value);
+	case SWM_S_BAR_FORMAT:
+		free(bar_format);
+		if ((bar_format = strdup(value)) == NULL)
+			err(1, "setconfvalue: bar_format");
 		break;
 	case SWM_S_BAR_JUSTIFY:
 		if (!strcmp(value, "left"))
@@ -5518,13 +5566,10 @@ setconfvalue(char *selector, char *value, int flags)
 		else
 			errx(1, "invalid bar_justify");
 		break;
-	case SWM_S_BAR_FORMAT:
-		free(bar_format);
-		if ((bar_format = strdup(value)) == NULL)
-			err(1, "setconfvalue: bar_format");
-		break;
-	case SWM_S_STACK_ENABLED:
-		stack_enabled = atoi(value);
+	case SWM_S_BORDER_WIDTH:
+		border_width = atoi(value);
+		if (border_width < 0)
+			border_width = 0;
 		break;
 	case SWM_S_CLOCK_ENABLED:
 		clock_enabled = atoi(value);
@@ -5542,40 +5587,13 @@ setconfvalue(char *selector, char *value, int flags)
 	case SWM_S_CYCLE_VISIBLE:
 		cycle_visible = atoi(value);
 		break;
-	case SWM_S_WORKSPACE_LIMIT:
-		workspace_limit = atoi(value);
-		if (workspace_limit > SWM_WS_MAX)
-			workspace_limit = SWM_WS_MAX;
-		else if (workspace_limit < 1)
-			workspace_limit = 1;
+	case SWM_S_DIALOG_RATIO:
+		dialog_ratio = atof(value);
+		if (dialog_ratio > 1.0 || dialog_ratio <= .3)
+			dialog_ratio = .6;
 		break;
-	case SWM_S_SS_ENABLED:
-		ss_enabled = atoi(value);
-		break;
-	case SWM_S_TERM_WIDTH:
-		term_width = atoi(value);
-		break;
-	case SWM_S_TITLE_CLASS_ENABLED:
-		title_class_enabled = atoi(value);
-		break;
-	case SWM_S_WINDOW_NAME_ENABLED:
-		window_name_enabled = atoi(value);
-		break;
-	case SWM_S_TITLE_NAME_ENABLED:
-		title_name_enabled = atoi(value);
-		break;
-	case SWM_S_URGENT_ENABLED:
-		urgent_enabled = atoi(value);
-		break;
-	case SWM_S_FOCUS_MODE:
-		if (!strcmp(value, "default"))
-			focus_mode = SWM_FOCUS_DEFAULT;
-		else if (!strcmp(value, "follow_cursor"))
-			focus_mode = SWM_FOCUS_FOLLOW;
-		else if (!strcmp(value, "synergy"))
-			focus_mode = SWM_FOCUS_SYNERGY;
-		else
-			errx(1, "focus_mode");
+	case SWM_S_DISABLE_BORDER:
+		disable_border = atoi(value);
 		break;
 	case SWM_S_FOCUS_CLOSE:
 		if (!strcmp(value, "first"))
@@ -5600,6 +5618,16 @@ setconfvalue(char *selector, char *value, int flags)
 		else
 			errx(1, "focus_default");
 		break;
+	case SWM_S_FOCUS_MODE:
+		if (!strcmp(value, "default"))
+			focus_mode = SWM_FOCUS_DEFAULT;
+		else if (!strcmp(value, "follow_cursor"))
+			focus_mode = SWM_FOCUS_FOLLOW;
+		else if (!strcmp(value, "synergy"))
+			focus_mode = SWM_FOCUS_SYNERGY;
+		else
+			errx(1, "focus_mode");
+		break;
 	case SWM_S_SPAWN_ORDER:
 		if (!strcmp(value, "first"))
 			spawn_position = SWM_STACK_BOTTOM;
@@ -5612,36 +5640,30 @@ setconfvalue(char *selector, char *value, int flags)
 		else
 			errx(1, "spawn_position");
 		break;
-	case SWM_S_DISABLE_BORDER:
-		disable_border = atoi(value);
-		break;
-	case SWM_S_BORDER_WIDTH:
-		border_width = atoi(value);
-		break;
-	case SWM_S_BAR_FONT:
-		b = bar_fonts;
-		if (asprintf(&bar_fonts, "%s,%s", value, bar_fonts) == -1)
-			err(1, "setconfvalue: asprintf: failed to allocate "
-				"memory for bar_fonts.");
-
-		free(b);
-		break;
-	case SWM_S_BAR_ACTION:
-		free(bar_argv[0]);
-		if ((bar_argv[0] = strdup(value)) == NULL)
-			err(1, "setconfvalue: bar_action");
-		break;
 	case SWM_S_SPAWN_TERM:
-		free(spawn_term[0]);
-		if ((spawn_term[0] = strdup(value)) == NULL)
-			err(1, "setconfvalue: spawn_term");
+		setconfspawn("term", value, 0);
 		break;
 	case SWM_S_SS_APP:
 		break;
-	case SWM_S_DIALOG_RATIO:
-		dialog_ratio = atof(value);
-		if (dialog_ratio > 1.0 || dialog_ratio <= .3)
-			dialog_ratio = .6;
+	case SWM_S_SS_ENABLED:
+		ss_enabled = atoi(value);
+		break;
+	case SWM_S_STACK_ENABLED:
+		stack_enabled = atoi(value);
+		break;
+	case SWM_S_TERM_WIDTH:
+		term_width = atoi(value);
+		if (term_width < 0)
+			term_width = 0;
+		break;
+	case SWM_S_TITLE_CLASS_ENABLED:
+		title_class_enabled = atoi(value);
+		break;
+	case SWM_S_TITLE_NAME_ENABLED:
+		title_name_enabled = atoi(value);
+		break;
+	case SWM_S_URGENT_ENABLED:
+		urgent_enabled = atoi(value);
 		break;
 	case SWM_S_VERBOSE_LAYOUT:
 		verbose_layout = atoi(value);
@@ -5651,6 +5673,16 @@ setconfvalue(char *selector, char *value, int flags)
 			else
 				layouts[i].l_string = plain_stacker;
 		}
+		break;
+	case SWM_S_WINDOW_NAME_ENABLED:
+		window_name_enabled = atoi(value);
+		break;
+	case SWM_S_WORKSPACE_LIMIT:
+		workspace_limit = atoi(value);
+		if (workspace_limit > SWM_WS_MAX)
+			workspace_limit = SWM_WS_MAX;
+		else if (workspace_limit < 1)
+			workspace_limit = 1;
 		break;
 	default:
 		return (1);
@@ -7234,9 +7266,6 @@ void
 setup_globals(void)
 {
 	if ((bar_fonts = strdup(SWM_BAR_FONTS)) == NULL)
-		err(1, "setup_globals: strdup: failed to allocate memory.");
-
-	if ((spawn_term[0] = strdup("xterm")) == NULL)
 		err(1, "setup_globals: strdup: failed to allocate memory.");
 
 	if ((clock_format = strdup("%a %b %d %R %Z %Y")) == NULL)
