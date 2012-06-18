@@ -140,6 +140,14 @@ Justify the status bar text. Possible values are
 .Pa center ,
 and
 .Pa right .
+.Pp
+Note that if the output is not
+.Pa left
+justified, it may not be properly aligned in some circumstances, due to the
+white-spaces in the default static format.
+See the
+.Ic bar_format
+option for more details.
 .It Ic bind Ns Bq Ar x
 Bind key combo to action
 .Ar x .
