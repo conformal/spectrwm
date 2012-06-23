@@ -10,7 +10,7 @@ LIBDIR= ${X11BASE}/lib
 DEBUGLIBS= no
 NOPROFILE= yes
 
-CFLAGS+=-Wall -Wno-uninitialized -ggdb3 -fPIC
+CFLAGS+=-Wall -Wno-uninitialized -g -fPIC
 CFLAGS+= -I${X11BASE}/include
 
 install:
