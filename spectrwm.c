@@ -173,6 +173,9 @@ u_int32_t		swm_debug = 0
 #define Y(r)			(r)->g.y
 #define WIDTH(r)		(r)->g.w
 #define HEIGHT(r)		(r)->g.h
+#define BORDER(w)		(w->bordered ? border_width : 0)
+#define MAX_X(r)		((r)->g.x + (r)->g.w)
+#define MAX_Y(r)		((r)->g.y + (r)->g.h)
 #define SH_MIN(w)		(w)->sh_mask & PMinSize
 #define SH_MIN_W(w)		(w)->sh.min_width
 #define SH_MIN_H(w)		(w)->sh.min_height
@@ -354,13 +357,13 @@ struct ws_win {
 	Window			transient;
 	struct ws_win		*child_trans;	/* transient child window */
 	struct swm_geometry	g;		/* current geometry */
-	struct swm_geometry	g_float;	/* geometry when floating */
-	struct swm_geometry	rg_float;	/* region geom when floating */
+	struct swm_geometry	g_float;	/* region coordinates */
 	int			g_floatvalid;	/* g_float geometry validity */
 	int			floatmaxed;	/* whether maxed by max_stack */
 	int			floating;
 	int			manual;
 	int			iconic;
+	int			bordered;
 	unsigned int		ewmh_flags;
 	int			font_size_boundary[SWM_MAX_FONT_STEPS];
 	int			font_steps;
@@ -615,6 +618,8 @@ struct ewmh_hint {
 
 void		 store_float_geom(struct ws_win *, struct swm_region *);
 int		 floating_toggle_win(struct ws_win *);
+void		 constrain_window(struct ws_win *, struct swm_region *, int);
+void		 update_window(struct ws_win *);
 void		 spawn_select(struct swm_region *, union arg *, char *, int *);
 unsigned char	*get_win_name(Window);
 
@@ -786,8 +791,6 @@ ewmh_autoquirk(struct ws_win *win)
 int
 ewmh_set_win_fullscreen(struct ws_win *win, int fs)
 {
-	struct swm_geometry	rg;
-
 	if (!win->ws->r)
 		return (0);
 
@@ -797,19 +800,18 @@ ewmh_set_win_fullscreen(struct ws_win *win, int fs)
 	DNPRINTF(SWM_D_MISC, "ewmh_set_win_fullscreen: window: 0x%lx, "
 	    "fullscreen %s\n", win->id, YESNO(fs));
 
-	rg = win->ws->r->g;
-
 	if (fs) {
-		store_float_geom(win, win->ws->r);
+		if (!win->g_floatvalid)
+			store_float_geom(win, win->ws->r);
 
-		win->g = rg;
+		win->g = win->ws->r->g;
+		win->bordered = 0;
 	} else {
 		if (win->g_floatvalid) {
 			/* refloat at last floating relative position */
-			X(win) = win->g_float.x - win->rg_float.x + rg.x;
-			Y(win) = win->g_float.y - win->rg_float.y + rg.y;
-			WIDTH(win) = win->g_float.w;
-			HEIGHT(win) = win->g_float.h;
+			win->g = win->g_float;
+			X(win) += X(win->ws->r);
+			Y(win) += Y(win->ws->r);
 		}
 	}
 
@@ -1917,7 +1919,7 @@ drain_enter_notify(void)
 	while (XCheckMaskEvent(display, EnterWindowMask, &cne))
 		i++;
 
-	DNPRINTF(SWM_D_MISC, "drain_enter_notify: drained: %d\n", i);
+	DNPRINTF(SWM_D_EVENT, "drain_enter_notify: drained: %d\n", i);
 }
 
 void
@@ -2001,7 +2003,7 @@ config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 		ce.display = display;
 		ce.event = win->id;
 		ce.window = win->id;
-		ce.border_width = border_width;
+		ce.border_width = BORDER(win);
 		ce.above = None;
 	} else {
 		/* normal */
@@ -2046,8 +2048,8 @@ config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 		}
 
 		/* adjust x and y for requested border_width. */
-		ce.x += border_width - ev->border_width;
-		ce.y += border_width - ev->border_width;
+		ce.x += BORDER(win) - ev->border_width;
+		ce.y += BORDER(win) - ev->border_width;
 		ce.border_width = ev->border_width;
 		ce.above = ev->above;
 	}
@@ -2173,16 +2175,20 @@ root_to_region(Window root)
 	int			i, x, y, wx, wy;
 	unsigned int		mask;
 
+	DNPRINTF(SWM_D_MISC, "root_to_region: window: 0x%lx\n", root);
+
 	for (i = 0; i < ScreenCount(display); i++)
 		if (screens[i].root == root)
 			break;
 
 	if (XQueryPointer(display, screens[i].root,
 	    &rr, &cr, &x, &y, &wx, &wy, &mask) != False) {
+		DNPRINTF(SWM_D_MISC, "root_to_region: pointer: (%d,%d)\n",
+		    x, y);
 		/* choose a region based on pointer location */
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
-			if (x >= X(r) && x <= X(r) + WIDTH(r) &&
-			    y >= Y(r) && y <= Y(r) + HEIGHT(r))
+			if (X(r) <= x && x < MAX_X(r) &&
+			    Y(r) <= y && y < MAX_Y(r))
 				break;
 	}
 
@@ -3018,46 +3024,65 @@ store_float_geom(struct ws_win *win, struct swm_region *r)
 {
 	/* retain window geom and region geom */
 	win->g_float = win->g;
-	win->rg_float = r->g;
+	win->g_float.x -= X(r);
+	win->g_float.y -= Y(r);
 	win->g_floatvalid = 1;
+	DNPRINTF(SWM_D_MISC, "store_float_geom: window: 0x%lx, g: (%d,%d)"
+	    " %d x %d, g_float: (%d,%d) %d x %d\n", win->id, X(win), Y(win),
+	    WIDTH(win), HEIGHT(win), win->g_float.x, win->g_float.y,
+	    win->g_float.w, win->g_float.h);
 }
 
 void
 stack_floater(struct ws_win *win, struct swm_region *r)
 {
-	unsigned int		mask;
-	XWindowChanges		wc;
-
 	if (win == NULL)
 		return;
 
-	bzero(&wc, sizeof wc);
-	mask = CWX | CWY | CWBorderWidth | CWWidth | CWHeight;
+	DNPRINTF(SWM_D_MISC, "stack_floater: window: 0x%lx\n", win->id);
 
 	/*
 	 * to allow windows to change their size (e.g. mplayer fs) only retrieve
 	 * geom on ws switches or return from max mode
 	 */
-	if (win->floatmaxed || (r != r->ws->old_r && win->g_floatvalid
-	    && !(win->ewmh_flags & EWMH_F_FULLSCREEN))) {
-		/*
-		 * use stored g and rg to set relative position and size
-		 * as in old region or before max stack mode
-		 */
-		X(win) = win->g_float.x - win->rg_float.x + X(r);
-		Y(win) = win->g_float.y - win->rg_float.y + Y(r);
-		WIDTH(win) = win->g_float.w;
-		HEIGHT(win) = win->g_float.h;
-		win->g_floatvalid = 0;
+	if (win->g_floatvalid && (win->floatmaxed || (r != r->ws->old_r &&
+	    !(win->ewmh_flags & EWMH_F_FULLSCREEN)))) {
+		/* refloat at last floating relative position */
+		win->g = win->g_float;
+		X(win) += X(r);
+		Y(win) += Y(r);
 	}
 
 	win->floatmaxed = 0;
 
-	if ((win->quirks & SWM_Q_FULLSCREEN) && (WIDTH(win) >= WIDTH(r)) &&
-	    (HEIGHT(win) >= HEIGHT(r)))
-		wc.border_width = 0;
-	else
-		wc.border_width = border_width;
+	/*
+	 * if set to fullscreen mode, configure window to maximum size.
+	 */
+	if (win->ewmh_flags & EWMH_F_FULLSCREEN) {
+		if (!win->g_floatvalid)
+			store_float_geom(win, win->ws->r);
+
+		win->g = win->ws->r->g;
+	}
+
+	/*
+	 * remove border on fullscreen floater when in fullscreen mode or when
+	 * the quirk is present.
+	 */
+	if ((win->ewmh_flags & EWMH_F_FULLSCREEN) ||
+	    ((win->quirks & SWM_Q_FULLSCREEN) &&
+	     (WIDTH(win) >= WIDTH(r)) && (HEIGHT(win) >= HEIGHT(r)))) {
+		if (win->bordered) {
+			win->bordered = 0;
+			X(win) += border_width;
+			Y(win) += border_width;
+		}
+	} else if (!win->bordered) {
+		win->bordered = 1;
+		X(win) -= border_width;
+		Y(win) -= border_width;
+	}
+
 	if (win->transient && (win->quirks & SWM_Q_TRANSSZ)) {
 		WIDTH(win) = (double)WIDTH(r) * dialog_ratio;
 		HEIGHT(win) = (double)HEIGHT(r) * dialog_ratio;
@@ -3068,39 +3093,14 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 		 * floaters and transients are auto-centred unless moved
 		 * or resized
 		 */
-		X(win) = X(r) + (WIDTH(r) - WIDTH(win)) /  2 - wc.border_width;
-		Y(win) = Y(r) + (HEIGHT(r) - HEIGHT(win)) / 2 - wc.border_width;
+		X(win) = X(r) + (WIDTH(r) - WIDTH(win)) /  2 - BORDER(win);
+		Y(win) = Y(r) + (HEIGHT(r) - HEIGHT(win)) / 2 - BORDER(win);
 	}
 
-	/* win can be outside r if new r smaller than old r */
-	/* Ensure top left corner inside r (move probs otherwise) */
-	if (X(win) < X(r) - wc.border_width)
-		X(win) = X(r) - wc.border_width;
-	if (X(win) > X(r) + WIDTH(r) - 1)
-		X(win) = (WIDTH(win) > WIDTH(r)) ? X(r) :
-		    (X(r) + WIDTH(r) - WIDTH(win) - 2 * wc.border_width);
-	if (Y(win) < Y(r) - wc.border_width)
-		Y(win) = Y(r) - wc.border_width;
-	if (Y(win) > Y(r) + HEIGHT(r) - 1)
-		Y(win) = (HEIGHT(win) > HEIGHT(r)) ? Y(r) :
-		    (Y(r) + HEIGHT(r) - HEIGHT(win) - 2 * wc.border_width);
+	/* keep window within region bounds */
+	constrain_window(win, r, 0);
 
-	wc.x = X(win);
-	wc.y = Y(win);
-	wc.width = WIDTH(win);
-	wc.height = HEIGHT(win);
-
-	/*
-	 * Retain floater and transient geometry for correct positioning
-	 * when ws changes region
-	 */
-	if (!(win->ewmh_flags & EWMH_F_FULLSCREEN))
-		store_float_geom(win, r);
-
-	DNPRINTF(SWM_D_MISC, "stack_floater: window: %lu, (x,y) w x h: (%d,%d) "
-	    "%d x %d\n", win->id, wc.x, wc.y, wc.width, wc.height);
-
-	XConfigureWindow(display, win->id, mask, &wc);
+	update_window(win);
 }
 
 /*
@@ -3140,16 +3140,15 @@ adjust_font(struct ws_win *win)
 void
 stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 {
-	XWindowChanges		wc;
 	XWindowAttributes	wa;
 	struct swm_geometry	win_g, r_g = *g;
-	struct ws_win		*win, *fs_win = 0;
+	struct ws_win		*win, *fs_win = NULL;
 	int			i, j, s, stacks;
 	int			w_inc = 1, h_inc, w_base = 1, h_base;
 	int			hrh, extra = 0, h_slice, last_h = 0;
 	int			split, colno, winno, mwin, msize, mscale;
 	int			remain, missing, v_slice, reconfigure;
-	unsigned int		mask;
+	int			bordered = 1;
 
 	DNPRINTF(SWM_D_STACK, "stack_master: workspace: %d, rot: %s, "
 	    "flip: %s\n", ws->idx, YESNO(rot), YESNO(flip));
@@ -3275,37 +3274,41 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		else
 			win_g.y += last_h + 2 * border_width;
 
-		bzero(&wc, sizeof wc);
 		if (disable_border && bar_enabled == 0 && winno == 1){
-			wc.border_width = 0;
+			bordered = 0;
 			win_g.w += 2 * border_width;
 			win_g.h += 2 * border_width;
-		} else
-			wc.border_width = border_width;
-		reconfigure = 0;
+		} else {
+			bordered = 1;
+		}
 		if (rot) {
 			if (X(win) != win_g.y || Y(win) != win_g.x ||
 			    WIDTH(win) != win_g.h || HEIGHT(win) != win_g.w) {
 				reconfigure = 1;
-				X(win) = wc.x = win_g.y;
-				Y(win) = wc.y = win_g.x;
-				WIDTH(win) = wc.width = win_g.h;
-				HEIGHT(win) = wc.height = win_g.w;
+				X(win) = win_g.y;
+				Y(win) = win_g.x;
+				WIDTH(win) = win_g.h;
+				HEIGHT(win) = win_g.w;
 			}
 		} else {
 			if (X(win) != win_g.x || Y(win) != win_g.y ||
 			    WIDTH(win) != win_g.w || HEIGHT(win) != win_g.h) {
 				reconfigure = 1;
-				X(win) = wc.x = win_g.x;
-				Y(win) = wc.y = win_g.y;
-				WIDTH(win) = wc.width = win_g.w;
-				HEIGHT(win) = wc.height = win_g.h;
+				X(win) = win_g.x;
+				Y(win) = win_g.y;
+				WIDTH(win) = win_g.w;
+				HEIGHT(win) = win_g.h;
 			}
 		}
+
+		if (bordered != win->bordered) {
+			reconfigure = 1;
+			win->bordered = bordered;
+		}
+
 		if (reconfigure) {
 			adjust_font(win);
-			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
-			XConfigureWindow(display, win->id, mask, &wc);
+			update_window(win);
 		}
 
 		if (XGetWindowAttributes(display, win->id, &wa))
@@ -3444,10 +3447,8 @@ horizontal_stack(struct workspace *ws, struct swm_geometry *g)
 void
 max_stack(struct workspace *ws, struct swm_geometry *g)
 {
-	XWindowChanges		wc;
 	struct swm_geometry	gg = *g;
 	struct ws_win		*win, *wintrans = NULL, *parent = NULL;
-	unsigned int		mask;
 	int			winno;
 
 	DNPRINTF(SWM_D_STACK, "max_stack: workspace: %d\n", ws->idx);
@@ -3478,21 +3479,16 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		/* only reconfigure if necessary */
 		if (X(win) != gg.x || Y(win) != gg.y || WIDTH(win) != gg.w ||
 		    HEIGHT(win) != gg.h) {
-			bzero(&wc, sizeof wc);
-			X(win) = wc.x = gg.x;
-			Y(win) = wc.y = gg.y;
+			win->g = gg;
 			if (bar_enabled){
-				wc.border_width = border_width;
-				WIDTH(win) = wc.width = gg.w;
-				HEIGHT(win) = wc.height = gg.h;
+				win->bordered = 1;
 			} else {
-				wc.border_width = 0;
-				WIDTH(win) = wc.width = gg.w + 2 * border_width;
-				HEIGHT(win) = wc.height = gg.h +
-				    2 * border_width;
+				win->bordered = 0;
+				WIDTH(win) += 2 * border_width;
+				HEIGHT(win) += 2 * border_width;
 			}
-			mask = CWX | CWY | CWWidth | CWHeight | CWBorderWidth;
-			XConfigureWindow(display, win->id, mask, &wc);
+
+			update_window(win);
 		}
 		/* unmap only if we don't have multi screen */
 		if (win != ws->focus)
@@ -4033,8 +4029,8 @@ floating_toggle_win(struct ws_win *win)
 	} else {
 		if (win->g_floatvalid) {
 			/* refloat at last floating relative position */
-			X(win) = win->g_float.x - win->rg_float.x + X(r);
-			Y(win) = win->g_float.y - win->rg_float.y + Y(r);
+			X(win) = win->g_float.x + X(r);
+			Y(win) = win->g_float.y + Y(r);
 			WIDTH(win) = win->g_float.w;
 			HEIGHT(win) = win->g_float.h;
 		}
@@ -4071,38 +4067,40 @@ floating_toggle(struct swm_region *r, union arg *args)
 void
 constrain_window(struct ws_win *win, struct swm_region *r, int resizable)
 {
-	if (X(win) + WIDTH(win) > X(r) + WIDTH(r) - border_width) {
+	if (MAX_X(win) + BORDER(win) > MAX_X(r)) {
 		if (resizable)
-			WIDTH(win) = X(r) + WIDTH(r) - X(win) - border_width;
+			WIDTH(win) = MAX_X(r) - X(win) - BORDER(win);
 		else
-			X(win) = X(r) + WIDTH(r) - WIDTH(win) - border_width;
+			X(win) = MAX_X(r)- WIDTH(win) - BORDER(win);
 	}
 
-	if (X(win) < X(r) - border_width) {
+	if (X(win) + BORDER(win) < X(r)) {
 		if (resizable)
-			WIDTH(win) -= X(r) - X(win) - border_width;
+			WIDTH(win) -= X(r) - X(win) - BORDER(win);
 
-		X(win) = X(r) - border_width;
+		X(win) = X(r) - BORDER(win);
 	}
 
-	if (Y(win) + HEIGHT(win) > Y(r) + HEIGHT(r) - border_width) {
+	if (MAX_Y(win) + BORDER(win) > MAX_Y(r)) {
 		if (resizable)
-			HEIGHT(win) = Y(r) + HEIGHT(r) - Y(win) - border_width;
+			HEIGHT(win) = MAX_Y(r) - Y(win) - BORDER(win);
 		else
-			Y(win) = Y(r) + HEIGHT(r) - HEIGHT(win) - border_width;
+			Y(win) = MAX_Y(r) - HEIGHT(win) - BORDER(win);
 	}
 
-	if (Y(win) < Y(r) - border_width) {
+	if (Y(win) + BORDER(win) < Y(r)) {
 		if (resizable)
-			HEIGHT(win) -= Y(r) - Y(win) - border_width;
+			HEIGHT(win) -= Y(r) - Y(win) - BORDER(win);
 
-		Y(win) = Y(r) - border_width;
+		Y(win) = Y(r) - BORDER(win);
 	}
 
-	if (WIDTH(win) < 1)
-		WIDTH(win) = 1;
-	if (HEIGHT(win) < 1)
-		HEIGHT(win) = 1;
+	if (resizable) {
+		if (WIDTH(win) < 1)
+			WIDTH(win) = 1;
+		if (HEIGHT(win) < 1)
+			HEIGHT(win) = 1;
+	}
 }
 
 void
@@ -4113,14 +4111,16 @@ update_window(struct ws_win *win)
 
 	bzero(&wc, sizeof wc);
 	mask = CWBorderWidth | CWWidth | CWHeight | CWX | CWY;
-	wc.border_width = border_width;
+
+	wc.border_width = BORDER(win);
 	wc.x = X(win);
 	wc.y = Y(win);
 	wc.width = WIDTH(win);
 	wc.height = HEIGHT(win);
 
-	DNPRINTF(SWM_D_MISC, "update_window: window: 0x%lx, (x,y) w x h: "
-	    "(%d,%d) %d x %d\n", win->id, wc.x, wc.y, wc.width, wc.height);
+	DNPRINTF(SWM_D_EVENT, "update_window: window: 0x%lx, (x,y) w x h: "
+	    "(%d,%d) %d x %d, bordered: %s\n", win->id, wc.x, wc.y, wc.width,
+	    wc.height, YESNO(win->bordered));
 
 	XConfigureWindow(display, win->id, mask, &wc);
 }
@@ -4146,6 +4146,9 @@ resize(struct ws_win *win, union arg *args)
 	if (win == NULL)
 		return;
 	r = win->ws->r;
+
+	if (win->ewmh_flags & EWMH_F_FULLSCREEN)
+		return;
 
 	DNPRINTF(SWM_D_MOUSE, "resize: window: 0x%lx, floating: %s, "
 	    "transient: 0x%lx\n", win->id, YESNO(win->floating),
@@ -4330,6 +4333,9 @@ move(struct ws_win *win, union arg *args)
 		return;
 	r = win->ws->r;
 
+	if (win->ewmh_flags & EWMH_F_FULLSCREEN)
+		return;
+
 	DNPRINTF(SWM_D_MOUSE, "move: window: 0x%lx, floating: %s, transient: "
 	    "0x%lx\n", win->id, YESNO(win->floating), win->transient);
 
@@ -4339,7 +4345,7 @@ move(struct ws_win *win, union arg *args)
 
 	win->manual = 1;
 	if (win->floating == 0 && !win->transient) {
-		store_float_geom(win,r);
+		store_float_geom(win, r);
 		ewmh_update_win_state(win, ewmh[_NET_WM_STATE_ABOVE].atom,
 		    _NET_WM_STATE_ADD);
 	}
@@ -4413,7 +4419,7 @@ move(struct ws_win *win, union arg *args)
 		XSync(display, False);
 		update_window(win);
 	}
-	store_float_geom(win,r);
+	store_float_geom(win, r);
 	XUngrabPointer(display, CurrentTime);
 
 	/* drain events */
@@ -6186,9 +6192,7 @@ manage_window(Window id)
 	Atom			*prot = NULL, *pp;
 	unsigned char		ws_idx_str[SWM_PROPLEN], *prop = NULL;
 	struct swm_region	*r;
-	long			mask = 0;
 	const char		*errstr;
-	XWindowChanges		wc;
 	struct pid_e		*p;
 	struct quirk		*qp;
 
@@ -6230,6 +6234,7 @@ manage_window(Window id)
 		    "new window");
 
 	win->id = id;
+	win->bordered = 0;
 
 	/* see if we need to override the workspace */
 	p = find_pid(window_get_pid(id));
@@ -6312,13 +6317,21 @@ manage_window(Window id)
 	else
 		TAILQ_INSERT_TAIL(&ws->winlist, win, entry);
 
+	/* ignore window border if there is one. */
 	WIDTH(win) = win->wa.width;
 	HEIGHT(win) = win->wa.height;
-	X(win) = win->wa.x;
-	Y(win) = win->wa.y;
+	X(win) = win->wa.x + win->wa.border_width;
+	Y(win) = win->wa.y + win->wa.border_width;
+	win->bordered = 0;
 	win->g_floatvalid = 0;
 	win->floatmaxed = 0;
 	win->ewmh_flags = 0;
+
+	DNPRINTF(SWM_D_MISC, "manage_window: window: 0x%lx, (x,y) w x h: "
+	    "(%d,%d) %d x %d, ws: %d\n", win->id, X(win), Y(win), WIDTH(win),
+	    HEIGHT(win), ws->idx);
+
+	constrain_window(win, r, 0);
 
 	/* Set window properties so we can remember this after reincarnation */
 	if (ws_idx_atom && prop == NULL &&
@@ -6362,16 +6375,10 @@ manage_window(Window id)
 	/* alter window position if quirky */
 	if (win->quirks & SWM_Q_ANYWHERE) {
 		win->manual = 1; /* don't center the quirky windows */
-		bzero(&wc, sizeof wc);
-		mask = 0;
-		if (bar_enabled && Y(win) < bar_height) {
-			Y(win) = wc.y = bar_height;
-			mask |= CWY;
-		}
-		if (WIDTH(win) + X(win) > WIDTH(r)) {
-			X(win) = wc.x = WIDTH(r) - WIDTH(win) - 2;
-			mask |= CWX;
-		}
+		if (bar_enabled && Y(win) < bar_height)
+			Y(win) = bar_height;
+		if (WIDTH(win) + X(win) > WIDTH(r))
+			X(win) = WIDTH(r) - WIDTH(win) - 2;
 		border_me = 1;
 	}
 
@@ -6389,10 +6396,10 @@ manage_window(Window id)
 
 	/* border me */
 	if (border_me) {
-		bzero(&wc, sizeof wc);
-		wc.border_width = border_width;
-		mask |= CWBorderWidth;
-		XConfigureWindow(display, win->id, mask, &wc);
+		win->bordered = 1;
+		X(win) -= border_width;
+		Y(win) -= border_width;
+		update_window(win);
 	}
 
 	XSelectInput(display, id, EnterWindowMask | FocusChangeMask |
@@ -6558,9 +6565,6 @@ configurerequest(XEvent *e)
 		if ((win = find_unmanaged_window(ev->window)) == NULL)
 			new = 1;
 
-	DNPRINTF(SWM_D_EVENT, "configurerequest: window: 0x%lx, new: %s\n",
-	    ev->window, YESNO(new));
-
 	if (new) {
 		bzero(&wc, sizeof wc);
 		wc.x = ev->x;
@@ -6570,9 +6574,31 @@ configurerequest(XEvent *e)
 		wc.border_width = ev->border_width;
 		wc.sibling = ev->above;
 		wc.stack_mode = ev->detail;
+
+		DNPRINTF(SWM_D_EVENT, "configurerequest: new window: 0x%lx, "
+		    "new: %s, (x,y) w x h: (%d,%d) %d x %d\n", ev->window,
+		    YESNO(new), wc.x, wc.y, wc.width, wc.height);
+
 		XConfigureWindow(display, ev->window, ev->value_mask, &wc);
-	} else
+	} else if ((!win->manual || win->quirks & SWM_Q_ANYWHERE) &&
+	    !(win->sh_mask & EWMH_F_FULLSCREEN)) {
+		win->g_float.x = ev->x - X(win->ws->r);
+		win->g_float.y = ev->y - Y(win->ws->r);
+		win->g_float.w = ev->width;
+		win->g_float.h = ev->height;
+		win->g_floatvalid = 1;
+
+		if (win->floating) {
+			win->g = win->g_float;
+			win->g.x += X(win->ws->r);
+			win->g.y += Y(win->ws->r);
+			update_window(win);
+		} else {
+			config_win(win, ev);
+		}
+	} else {
 		config_win(win, ev);
+	}
 }
 
 void
