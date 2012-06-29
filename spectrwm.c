@@ -331,6 +331,12 @@ struct swm_geometry {
 struct swm_screen;
 struct workspace;
 
+struct swm_bar {
+	Window			id;
+	Pixmap			buffer;
+	struct swm_geometry	g;
+};
+
 /* virtual "screens" */
 struct swm_region {
 	TAILQ_ENTRY(swm_region)	entry;
@@ -338,7 +344,7 @@ struct swm_region {
 	struct workspace	*ws;	/* current workspace on this region */
 	struct workspace	*ws_prior; /* prior workspace on this region */
 	struct swm_screen	*s;	/* screen idx */
-	Window			bar_window;
+	struct swm_bar		*bar;
 };
 TAILQ_HEAD(swm_region_list, swm_region);
 
@@ -1331,8 +1337,6 @@ bar_print(struct swm_region *r, const char *s)
 	size_t			len;
 	XRectangle		ibox, lbox;
 
-	XClearWindow(display, r->bar_window);
-
 	len = strlen(s);
 	XmbTextExtents(bar_fs, s, len, &ibox, &lbox);
 
@@ -1351,9 +1355,21 @@ bar_print(struct swm_region *r, const char *s)
 	if (x < SWM_BAR_OFFSET)
 		x = SWM_BAR_OFFSET;
 
-	DRAWSTRING(display, r->bar_window, bar_fs, r->s->bar_gc,
+	/* clear back buffer */
+	XSetForeground(display, r->s->bar_gc, r->s->c[SWM_S_COLOR_BAR].color);
+	XFillRectangle(display, r->bar->buffer, r->s->bar_gc, 0, 0,
+	    WIDTH(r->bar), HEIGHT(r->bar));
+
+	/* draw back buffer */
+	XSetForeground(display, r->s->bar_gc,
+	    r->s->c[SWM_S_COLOR_BAR_FONT].color);
+	DRAWSTRING(display, r->bar->buffer, bar_fs, r->s->bar_gc,
 	    x, (bar_fs_extents->max_logical_extent.height - lbox.height) / 2 -
 	    lbox.y, s, len);
+
+	/* blt */
+	XCopyArea(display, r->bar->buffer, r->bar->id, r->s->bar_gc, 0, 0,
+	    WIDTH(r->bar), HEIGHT(r->bar), 0, 0);
 }
 
 void
@@ -1688,6 +1704,8 @@ bar_fmt_print(void)
 
 	for (i = 0; i < ScreenCount(display); i++) {
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
+			if (r->bar == NULL)
+				continue;
 			bar_fmt(fmtexp, fmtnew, r, sizeof fmtnew);
 			bar_replace(fmtnew, fmtrep, r, sizeof fmtrep);
 			bar_print(r, fmtrep);
@@ -1735,14 +1753,17 @@ bar_toggle(struct swm_region *r, union arg *args)
 
 	DNPRINTF(SWM_D_BAR, "bar_toggle\n");
 
-	if (bar_enabled)
+	if (bar_enabled) {
 		for (i = 0; i < sc; i++)
 			TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
-				XUnmapWindow(display, tmpr->bar_window);
-	else
+				if (tmpr->bar)
+					XUnmapWindow(display, tmpr->bar->id);
+	} else {
 		for (i = 0; i < sc; i++)
 			TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
-				XMapRaised(display, tmpr->bar_window);
+				if (tmpr->bar)
+					XMapRaised(display, tmpr->bar->id);
+	}
 
 	bar_enabled = !bar_enabled;
 
@@ -1790,11 +1811,13 @@ bar_refresh(void)
 	bzero(&wa, sizeof wa);
 	for (i = 0; i < ScreenCount(display); i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
+			if (r->bar == NULL)
+				continue;
 			wa.border_pixel =
 			    screens[i].c[SWM_S_COLOR_BAR_BORDER].color;
 			wa.background_pixel =
 			    screens[i].c[SWM_S_COLOR_BAR].color;
-			XChangeWindowAttributes(display, r->bar_window,
+			XChangeWindowAttributes(display, r->bar->id,
 			    CWBackPixel | CWBorderPixel, &wa);
 		}
 	bar_update();
@@ -1806,13 +1829,15 @@ bar_setup(struct swm_region *r)
 	char			*default_string;
 	char			**missing_charsets;
 	int			num_missing_charsets = 0;
-	int			i, x, y;
+	int			i;
 
 	if (bar_fs) {
 		XFreeFontSet(display, bar_fs);
 		bar_fs = NULL;
 	}
 
+	if ((r->bar = calloc(1, sizeof(struct swm_bar))) == NULL)
+		err(1, "bar_setup: calloc: failed to allocate memory.");
 
 	DNPRINTF(SWM_D_BAR, "bar_setup: loading bar_fonts: %s\n", bar_fonts);
 
@@ -1845,22 +1870,42 @@ bar_setup(struct swm_region *r)
 	if (bar_height < 1)
 		bar_height = 1;
 
-	x = X(r);
-	y = bar_at_bottom ? (Y(r) + HEIGHT(r) - bar_height) : Y(r);
+	X(r->bar) = X(r);
+	Y(r->bar) = bar_at_bottom ? (Y(r) + HEIGHT(r) - bar_height) : Y(r);
+	WIDTH(r->bar) = WIDTH(r) - 2 * bar_border_width;
+	HEIGHT(r->bar) = bar_height - 2 * bar_border_width;
 
-	r->bar_window = XCreateSimpleWindow(display,
-	    r->s->root, x, y, WIDTH(r) - 2 * bar_border_width,
-	    bar_height - 2 * bar_border_width,
+	r->bar->id = XCreateSimpleWindow(display,
+	    r->s->root, X(r->bar), Y(r->bar), WIDTH(r->bar), HEIGHT(r->bar),
 	    bar_border_width, r->s->c[SWM_S_COLOR_BAR_BORDER].color,
 	    r->s->c[SWM_S_COLOR_BAR].color);
-	XSelectInput(display, r->bar_window, VisibilityChangeMask);
+
+	r->bar->buffer = XCreatePixmap(display, r->bar->id, WIDTH(r->bar),
+	    HEIGHT(r->bar), DefaultDepth(display, r->s->idx));
+
+	XSelectInput(display, r->bar->id, VisibilityChangeMask);
+
 	if (bar_enabled)
-		XMapRaised(display, r->bar_window);
-	DNPRINTF(SWM_D_BAR, "bar_setup: bar_window: 0x%lx\n", r->bar_window);
+		XMapRaised(display, r->bar->id);
+
+	DNPRINTF(SWM_D_BAR, "bar_setup: window: 0x%lx, (x,y) w x h: (%d,%d) "
+	    "%d x %d\n", WINID(r->bar), X(r->bar), Y(r->bar), WIDTH(r->bar),
+	    HEIGHT(r->bar));
 
 	if (signal(SIGALRM, bar_signal) == SIG_ERR)
 		err(1, "could not install bar_signal");
 	bar_refresh();
+}
+
+void
+bar_cleanup(struct swm_region *r)
+{
+	if (r->bar == NULL)
+		return;
+	XDestroyWindow(display, r->bar->id);
+	XFreePixmap(display, r->bar->buffer);
+	free(r->bar);
+	r->bar = NULL;
 }
 
 void
@@ -6891,7 +6936,7 @@ visibilitynotify(XEvent *e)
 	if (e->xvisibility.state == VisibilityUnobscured)
 		for (i = 0; i < ScreenCount(display); i++)
 			TAILQ_FOREACH(r, &screens[i].rl, entry)
-				if (e->xvisibility.window == r->bar_window)
+				if (e->xvisibility.window == WINID(r->bar))
 					bar_update();
 }
 
@@ -7007,7 +7052,7 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 			if (r->ws->r != NULL)
 				r->ws->old_r = r->ws->r;
 			r->ws->r = NULL;
-			XDestroyWindow(display, r->bar_window);
+			bar_cleanup(r);
 			TAILQ_REMOVE(&s->rl, r, entry);
 			TAILQ_INSERT_TAIL(&s->orl, r, entry);
 		}
@@ -7078,7 +7123,7 @@ scan_xrandr(int i)
 	/* remove any old regions */
 	while ((r = TAILQ_FIRST(&screens[i].rl)) != NULL) {
 		r->ws->old_r = r->ws->r = NULL;
-		XDestroyWindow(display, r->bar_window);
+		bar_cleanup(r);
 		TAILQ_REMOVE(&screens[i].rl, r, entry);
 		TAILQ_INSERT_TAIL(&screens[i].orl, r, entry);
 	}
@@ -7229,12 +7274,10 @@ setup_screens(void)
 		setscreencolor("black", i + 1, SWM_S_COLOR_BAR);
 		setscreencolor("rgb:a0/a0/a0", i + 1, SWM_S_COLOR_BAR_FONT);
 
-		/* create graphics context on screen with default font color */
-		screens[i].bar_gc = XCreateGC(display, screens[i].root, 0,
-		    &gcv);
-
-		XSetForeground(display, screens[i].bar_gc,
-		    screens[i].c[SWM_S_COLOR_BAR_FONT].color);
+		/* create graphics context on screen */
+		gcv.graphics_exposures = 0;
+		screens[i].bar_gc = XCreateGC(display, screens[i].root,
+		    GCGraphicsExposures, &gcv);
 
 		/* set default cursor */
 		XDefineCursor(display, screens[i].root,
@@ -7404,11 +7447,9 @@ main(int argc, char *argv[])
 	}
 noconfig:
 
-	/* load conf (if any) and refresh font color in bar graphics contexts */
-	if (cfile && conf_load(cfile, SWM_CONF_DEFAULT) == 0)
-		for (i = 0; i < ScreenCount(display); ++i)
-			XSetForeground(display, screens[i].bar_gc,
-			    screens[i].c[SWM_S_COLOR_BAR_FONT].color);
+	/* load conf (if any) */
+	if (cfile)
+		conf_load(cfile, SWM_CONF_DEFAULT);
 
 	setup_ewmh();
 	/* set some values to work around bad programs */
