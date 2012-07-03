@@ -354,8 +354,8 @@ TAILQ_HEAD(swm_region_list, swm_region);
 
 struct ws_win {
 	TAILQ_ENTRY(ws_win)	entry;
-	Window			id;
-	Window			transient;
+	xcb_window_t		id;
+	xcb_window_t		transient;
 	struct ws_win		*child_trans;	/* transient child window */
 	struct swm_geometry	g;		/* current geometry */
 	struct swm_geometry	g_float;	/* region coordinates */
@@ -402,12 +402,12 @@ void	max_stack(struct workspace *, struct swm_geometry *);
 void	plain_stacker(struct workspace *);
 void	fancy_stacker(struct workspace *);
 
-struct ws_win *find_window(Window);
+struct ws_win *find_window(xcb_window_t);
 
 void	grabbuttons(struct ws_win *, int);
 void	new_region(struct swm_screen *, int, int, int, int);
 void	unmanage_window(struct ws_win *);
-long	getstate(Window);
+long	getstate(xcb_window_t);
 
 int	conf_load(char *, int);
 
@@ -479,7 +479,7 @@ struct swm_screen {
 	int			idx;	/* screen index */
 	struct swm_region_list	rl;	/* list of regions on this screen */
 	struct swm_region_list	orl;	/* list of old regions */
-	Window			root;
+	xcb_window_t		root;
 	struct workspace	ws[SWM_WS_MAX];
 
 	/* colors */
@@ -622,7 +622,7 @@ int		 floating_toggle_win(struct ws_win *);
 void		 constrain_window(struct ws_win *, struct swm_region *, int);
 void		 update_window(struct ws_win *);
 void		 spawn_select(struct swm_region *, union arg *, char *, int *);
-unsigned char	*get_win_name(Window);
+unsigned char	*get_win_name(xcb_window_t);
 
 int
 get_property(Window id, Atom atom, long count, Atom type, unsigned long *nitems,
@@ -1970,7 +1970,7 @@ set_win_state(struct ws_win *win, long state)
 }
 
 long
-getstate(Window w)
+getstate(xcb_window_t w)
 {
 	long			result = -1;
 	unsigned char		*p = NULL;
@@ -2248,7 +2248,7 @@ find_unmanaged_window(Window id)
 }
 
 struct ws_win *
-find_window(Window id)
+find_window(xcb_window_t id)
 {
 	struct ws_win		*win;
 	Window			wrr, wpr, *wcr = NULL;
@@ -2385,10 +2385,11 @@ validate_ws(struct workspace *testws)
 {
 	struct swm_region	*r;
 	struct workspace	*ws;
-	int			i, x;
+	int			i, x, num_screens;
 
 	/* validate all ws */
-	for (i = 0; i < ScreenCount(display); i++)
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			for (x = 0; x < workspace_limit; x++) {
 				ws = &r->s->ws[x];
@@ -2453,11 +2454,12 @@ void
 unfocus_all(void)
 {
 	struct ws_win		*win;
-	int			i, j;
+	int			i, j, num_screens;
 
 	DNPRINTF(SWM_D_FOCUS, "unfocus_all\n");
 
-	for (i = 0; i < ScreenCount(display); i++)
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++)
 		for (j = 0; j < workspace_limit; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
 				unfocus_win(win);
@@ -3637,7 +3639,7 @@ iconify(struct swm_region *r, union arg *args)
 }
 
 unsigned char *
-get_win_name(Window win)
+get_win_name(xcb_window_t win)
 {
 	unsigned char		*prop = NULL;
 	unsigned long		nbytes, nitems;
@@ -3702,7 +3704,7 @@ uniconify(struct swm_region *r, union arg *args)
 		name = get_win_name(win->id);
 		if (name == NULL)
 			continue;
-		fprintf(lfile, "%s.%lu\n", name, win->id);
+		fprintf(lfile, "%s.%u\n", name, win->id);
 		XFree(name);
 	}
 
@@ -3859,7 +3861,7 @@ search_resp_uniconify(char *resp, unsigned long len)
 		name = get_win_name(win->id);
 		if (name == NULL)
 			continue;
-		if (asprintf(&s, "%s.%lu", name, win->id) == -1) {
+		if (asprintf(&s, "%s.%u", name, win->id) == -1) {
 			XFree(name);
 			continue;
 		}
@@ -6144,7 +6146,7 @@ set_child_transient(struct ws_win *win, Window *trans)
 		    " for 0x%lx trans 0x%lx\n", win->id, win->transient);
 
 		if (win->hints == NULL) {
-			warnx("no hints for 0x%lx", win->id);
+			warnx("no hints for 0x%x", win->id);
 			return;
 		}
 
@@ -6156,7 +6158,7 @@ set_child_transient(struct ws_win *win, Window *trans)
 				XFree(wmh);
 
 			if ((wmh = XGetWMHints(display, w->id)) == NULL) {
-				warnx("can't get hints for 0x%lx", w->id);
+				warnx("can't get hints for 0x%x", w->id);
 				continue;
 			}
 
@@ -6167,7 +6169,7 @@ set_child_transient(struct ws_win *win, Window *trans)
 			win->transient = w->id;
 			*trans = w->id;
 			DNPRINTF(SWM_D_MISC, "set_child_transient: asjusting "
-			    "transient to 0x%lx\n", win->transient);
+			    "transient to 0x%x\n", win->transient);
 			break;
 		}
 	}
