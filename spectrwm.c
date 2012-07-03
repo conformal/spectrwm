@@ -696,23 +696,39 @@ out:
 void
 setup_ewmh(void)
 {
-	int			i,j;
-	Atom			sup_list;
+	xcb_atom_t			sup_list;
+	xcb_intern_atom_cookie_t	c;
+	xcb_intern_atom_reply_t		*r;
+	int				i, j, num_screens;
 
-	sup_list = XInternAtom(display, "_NET_SUPPORTED", False);
+	c = xcb_intern_atom(conn, False, strlen("_NET_SUPPORTED"),
+		"_NET_SUPPORTED");
+	r = xcb_intern_atom_reply(conn, c, NULL);
+	if (r) {
+		sup_list = r->atom;
+		free(r);
+	}
+	
+	for (i = 0; i < LENGTH(ewmh); i++) {
+		c = xcb_intern_atom(conn, False, strlen(ewmh[i].name),
+			ewmh[i].name);
+		r = xcb_intern_atom_reply(conn, c, NULL);
+		if (r) {
+			ewmh[i].atom = r->atom;
+			free(r);
+		}
+	}
 
-	for (i = 0; i < LENGTH(ewmh); i++)
-		ewmh[i].atom = XInternAtom(display, ewmh[i].name, False);
-
-	for (i = 0; i < ScreenCount(display); i++) {
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++) {
 		/* Support check window will be created by workaround(). */
 
 		/* Report supported atoms */
-		XDeleteProperty(display, screens[i].root, sup_list);
+		xcb_delete_property(conn, screens[i].root, sup_list);
 		for (j = 0; j < LENGTH(ewmh); j++)
-			XChangeProperty(display, screens[i].root,
-			    sup_list, XA_ATOM, 32,
-			    PropModeAppend, (unsigned char *)&ewmh[j].atom, 1);
+			xcb_change_property(conn, XCB_PROP_MODE_APPEND,
+				screens[i].root, sup_list, XCB_ATOM_ATOM, 32, 1,
+				&ewmh[j].atom);
 	}
 }
 
