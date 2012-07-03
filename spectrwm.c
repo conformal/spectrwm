@@ -650,19 +650,26 @@ get_property(Window id, Atom atom, long count, Atom type, unsigned long *nitems,
 void
 update_iconic(struct ws_win *win, int newv)
 {
-	int32_t v = newv;
-	Atom iprop;
+	int32_t				v = newv;
+	xcb_atom_t			iprop;
+	xcb_intern_atom_cookie_t	c;
+	xcb_intern_atom_reply_t		*r;
 
 	win->iconic = newv;
 
-	iprop = XInternAtom(display, "_SWM_ICONIC", False);
-	if (!iprop)
+	c = xcb_intern_atom(conn, False, strlen("_SWM_ICONIC"), "_SWM_ICONIC");
+	r = xcb_intern_atom_reply(conn, c, NULL);
+	if (r) {
+		iprop = r->atom;
+		free(r);
+	} else
 		return;
+		
 	if (newv)
-		XChangeProperty(display, win->id, iprop, XA_INTEGER, 32,
-		    PropModeReplace, (unsigned char *)&v, 1);
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id,
+			iprop, XCB_ATOM_INTEGER, 32, 1, &v);
 	else
-		XDeleteProperty(display, win->id, iprop);
+		xcb_delete_property(conn, win->id, iprop);
 }
 
 int
