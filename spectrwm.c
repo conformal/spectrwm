@@ -1265,13 +1265,16 @@ name_to_color(char *colorname)
 void
 setscreencolor(char *val, int i, int c)
 {
-	if (i > 0 && i <= ScreenCount(display)) {
+	int	num_screens;
+
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	if (i > 0 && i <= num_screens) {
 		screens[i - 1].c[c].color = name_to_color(val);
 		free(screens[i - 1].c[c].name);
 		if ((screens[i - 1].c[c].name = strdup(val)) == NULL)
 			err(1, "strdup");
 	} else if (i == -1) {
-		for (i = 0; i < ScreenCount(display); i++) {
+		for (i = 0; i < num_screens; i++) {
 			screens[i].c[c].color = name_to_color(val);
 			free(screens[i].c[c].name);
 			if ((screens[i].c[c].name = strdup(val)) == NULL)
@@ -1279,7 +1282,7 @@ setscreencolor(char *val, int i, int c)
 		}
 	} else
 		errx(1, "invalid screen index: %d out of bounds (maximum %d)",
-		    i, ScreenCount(display));
+		    i, num_screens);
 }
 
 void
@@ -7305,12 +7308,13 @@ grab_windows(void)
 void
 setup_screens(void)
 {
-	int			i, j, k;
+	int			i, j, k, num_screens;
 	int			errorbase, major, minor;
 	struct workspace	*ws;
 	XGCValues		gcv;
 
-	if ((screens = calloc(ScreenCount(display),
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	if ((screens = calloc(num_screens,
 	     sizeof(struct swm_screen))) == NULL)
 		err(1, "setup_screens: calloc: failed to allocate memory for "
 		    "screens");
@@ -7323,7 +7327,7 @@ setup_screens(void)
 			xrandr_support = 0;
 
 	/* map physical screens */
-	for (i = 0; i < ScreenCount(display); i++) {
+	for (i = 0; i < num_screens; i++) {
 		DNPRINTF(SWM_D_WS, "setup_screens: init screen: %d\n", i);
 		screens[i].idx = i;
 		TAILQ_INIT(&screens[i].rl);
