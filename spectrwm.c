@@ -90,7 +90,7 @@
 #include <X11/keysym.h>
 #include <X11/XKBlib.h>
 #include <X11/Xatom.h>
-#include <X11/Xlib.h>
+#include <X11/Xlib-xcb.h>
 #include <X11/Xproto.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/Xrandr.h>
@@ -221,6 +221,7 @@ int			xrandr_support;
 int			xrandr_eventbase;
 unsigned int		numlockmask = 0;
 Display			*display;
+xcb_connection_t	*conn;
 
 int			cycle_empty = 0;
 int			cycle_visible = 0;
@@ -2159,6 +2160,7 @@ restart(struct swm_region *r, union arg *args)
 	bar_extra_stop();
 	bar_extra = 1;
 	unmap_all();
+	xcb_disconnect(conn);
 	XCloseDisplay(display);
 	execvp(start_argv[0], start_argv);
 	warn("execvp failed");
@@ -7418,6 +7420,9 @@ main(int argc, char *argv[])
 	if (!(display = XOpenDisplay(0)))
 		errx(1, "can not open display");
 
+	if (!(conn = XGetXCBConnection(display)))
+		errx(1, "can not get XCB connection");
+
 	if (active_wm())
 		errx(1, "other wm running");
 
@@ -7597,6 +7602,7 @@ done:
 			XFreeGC(display, screens[i].bar_gc);
 
 	XFreeFontSet(display, bar_fs);
+	xcb_disconnect(conn);	
 	XCloseDisplay(display);
 
 	return (0);
