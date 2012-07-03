@@ -2402,7 +2402,7 @@ void
 unfocus_win(struct ws_win *win)
 {
 	XEvent			cne;
-	Window			none = None;
+	xcb_window_t		none = XCB_WINDOW_NONE;
 
 	DNPRINTF(SWM_D_FOCUS, "unfocus_win: window: 0x%lx\n", WINID(win));
 
@@ -2444,9 +2444,9 @@ unfocus_win(struct ws_win *win)
 	XSetWindowBorder(display, win->id,
 	    win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
 
-	XChangeProperty(display, win->s->root,
-	    ewmh[_NET_ACTIVE_WINDOW].atom, XA_WINDOW, 32,
-	    PropModeReplace, (unsigned char *)&none, 1);
+	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
+		ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
+		&none);
 }
 
 void
@@ -5398,19 +5398,25 @@ grabbuttons(struct ws_win *win, int focused)
 	    { 0, LockMask, numlockmask, numlockmask|LockMask };
 
 	updatenumlockmask();
-	XUngrabButton(display, AnyButton, AnyModifier, win->id);
+	xcb_ungrab_button(conn, XCB_BUTTON_INDEX_ANY, win->id,
+		XCB_BUTTON_MASK_ANY);
 	if (focused) {
 		for (i = 0; i < LENGTH(buttons); i++)
 			if (buttons[i].action == client_click)
 				for (j = 0; j < LENGTH(modifiers); j++)
-					XGrabButton(display, buttons[i].button,
-					    buttons[i].mask | modifiers[j],
-					    win->id, False, BUTTONMASK,
-					    GrabModeAsync, GrabModeSync, None,
-					    None);
+					xcb_grab_button(conn, False, win->id,
+						BUTTONMASK,
+						XCB_GRAB_MODE_ASYNC,
+						XCB_GRAB_MODE_SYNC,
+						XCB_WINDOW_NONE,
+						XCB_CURSOR_NONE,
+						buttons[i].button,
+						buttons[i].mask);
 	} else
-		XGrabButton(display, AnyButton, AnyModifier, win->id, False,
-		    BUTTONMASK, GrabModeAsync, GrabModeSync, None, None);
+		xcb_grab_button(conn, False, win->id, BUTTONMASK,
+			XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_SYNC,
+			XCB_WINDOW_NONE, XCB_CURSOR_NONE, XCB_BUTTON_INDEX_ANY,
+			XCB_BUTTON_MASK_ANY); 
 }
 
 const char *quirkname[] = {
