@@ -336,8 +336,8 @@ struct swm_screen;
 struct workspace;
 
 struct swm_bar {
-	Window			id;
-	Pixmap			buffer;
+	xcb_window_t		id;
+	xcb_pixmap_t		buffer;
 	struct swm_geometry	g;
 };
 
@@ -1327,13 +1327,15 @@ void
 custom_region(char *val)
 {
 	unsigned int			sidx, x, y, w, h;
+	int				num_screens;
 
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));	
 	if (sscanf(val, "screen[%u]:%ux%u+%u+%u", &sidx, &w, &h, &x, &y) != 5)
 		errx(1, "invalid custom region, "
 		    "should be 'screen[<n>]:<n>x<n>+<n>+<n>");
-	if (sidx < 1 || sidx > ScreenCount(display))
+	if (sidx < 1 || sidx > num_screens)
 		errx(1, "invalid screen index: %d out of bounds (maximum %d)",
-		    sidx, ScreenCount(display));
+		    sidx, num_screens);
 	sidx--;
 
 	if (w < 1 || h < 1)
@@ -1934,8 +1936,8 @@ bar_cleanup(struct swm_region *r)
 {
 	if (r->bar == NULL)
 		return;
-	XDestroyWindow(display, r->bar->id);
-	XFreePixmap(display, r->bar->buffer);
+	xcb_destroy_window(conn, r->bar->id);
+	xcb_free_pixmap(conn, r->bar->buffer);
 	free(r->bar);
 	r->bar = NULL;
 }
@@ -6170,45 +6172,51 @@ set_child_transient(struct ws_win *win, Window *trans)
 long
 window_get_pid(Window win)
 {
-	Atom			actual_type_return;
-	int			actual_format_return = 0;
-	unsigned long		nitems_return = 0;
-	unsigned long		bytes_after_return = 0;
-	long			*pid = NULL;
-	long			ret = 0;
-	const char		*errstr;
-	unsigned char		*prop = NULL;
+	long				ret = 0;
+	const char			*errstr;
+	xcb_atom_t			apid;
+	xcb_intern_atom_cookie_t	c;
+	xcb_intern_atom_reply_t		*r;
+	xcb_get_property_cookie_t	pc;
+	xcb_get_property_reply_t	*pr;	
 
-	if (XGetWindowProperty(display, win,
-	    XInternAtom(display, "_NET_WM_PID", False), 0, 1, False,
-	    XA_CARDINAL, &actual_type_return, &actual_format_return,
-	    &nitems_return, &bytes_after_return,
-	    (unsigned char**)(void*)&pid) != Success)
-		goto tryharder;
-	if (actual_type_return != XA_CARDINAL)
-		goto tryharder;
-	if (pid == NULL)
+	c = xcb_intern_atom(conn, False, strlen("_NET_WM_PID"), "_NET_WM_PID");
+	r = xcb_intern_atom_reply(conn, c, NULL);
+	if (r) {
+		apid = r->atom;
+		free(r);
+	} else
 		goto tryharder;
 
-	ret = *pid;
-	XFree(pid);
+	pc = xcb_get_property(conn, False, win, apid, XCB_ATOM_CARDINAL, 0, 1);
+	pr = xcb_get_property_reply(conn, pc, NULL);
+	if (!pr)
+		goto tryharder;
+	if (pr->type != XCB_ATOM_CARDINAL)
+		goto tryharder;
+
+	ret = *(long *)xcb_get_property_value(pr);
+	free(pr);
 
 	return (ret);
 
 tryharder:
-	if (XGetWindowProperty(display, win,
-	    XInternAtom(display, "_SWM_PID", False), 0, SWM_PROPLEN, False,
-	    XA_STRING, &actual_type_return, &actual_format_return,
-	    &nitems_return, &bytes_after_return, &prop) != Success)
+	c = xcb_intern_atom(conn, False, strlen("_SWM_PID"), "_SWM_PID");
+	r = xcb_intern_atom_reply(conn, c, NULL);
+	if (r) {
+		apid = r->atom;
+		free(r);
+	}
+	pc = xcb_get_property(conn, False, win, apid, XCB_ATOM_STRING,
+		0, SWM_PROPLEN);
+	pr = xcb_get_property_reply(conn, pc, NULL);
+	if (!pr)
 		return (0);
-	if (actual_type_return != XA_STRING)
+	if (pr->type != XCB_ATOM_STRING)
+		free(pr);
 		return (0);
-	if (prop == NULL)
-		return (0);
-
-	ret = strtonum((const char *)prop, 0, UINT_MAX, &errstr);
-	/* ignore error because strtonum returns 0 anyway */
-	XFree(prop);
+	ret = strtonum(xcb_get_property_value(pr), 0, UINT_MAX, &errstr);
+	free(pr);
 
 	return (ret);
 }
