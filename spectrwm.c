@@ -675,28 +675,33 @@ update_iconic(struct ws_win *win, int newv)
 int
 get_iconic(struct ws_win *win)
 {
-	int32_t v = 0;
-	int retfmt, status;
-	Atom iprop, rettype;
-	unsigned long nitems, extra;
-	unsigned char *prop = NULL;
+	int32_t v = 0, *vtmp;
+	xcb_atom_t			iprop;
+	xcb_intern_atom_cookie_t	c;
+	xcb_intern_atom_reply_t		*r;
+	xcb_get_property_cookie_t	pc;
+	xcb_get_property_reply_t	*pr;
 
-	iprop = XInternAtom(display, "_SWM_ICONIC", False);
-	if (!iprop)
+	c = xcb_intern_atom(conn, False, strlen("_SWM_ICONIC"), "_SWM_ICONIC");
+	r = xcb_intern_atom_reply(conn, c, NULL);
+	if (r) {
+		iprop = r->atom;
+		free(r);
+	} else
 		goto out;
-	status = XGetWindowProperty(display, win->id, iprop, 0L, 1L,
-	    False, XA_INTEGER, &rettype, &retfmt, &nitems, &extra, &prop);
-	if (status != Success)
-		goto out;
-	if (rettype != XA_INTEGER || retfmt != 32)
-		goto out;
-	if (nitems != 1)
-		goto out;
-	v = *((int32_t *)prop);
 
+	pc = xcb_get_property(conn, False, win->id, iprop, XCB_ATOM_INTEGER,
+			0, 1);
+	pr = xcb_get_property_reply(conn, pc, NULL);
+	if (!pr)
+		goto out;	
+	if (pr->type != XCB_ATOM_INTEGER || pr->format != 32)
+		goto out;
+	vtmp = xcb_get_property_value(pr);
+	v = *vtmp;
 out:
-	if (prop != NULL)
-		XFree(prop);
+	if (pr != NULL)
+		free(pr);
 	return (v);
 }
 
