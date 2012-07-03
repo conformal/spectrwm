@@ -587,34 +587,34 @@ enum {
 };
 
 struct ewmh_hint {
-	char	*name;
-	Atom	 atom;
+	char		*name;
+	xcb_atom_t	atom;
 } ewmh[SWM_EWMH_HINT_MAX] =	{
     /* must be in same order as in the enum */
-    {"_NET_ACTIVE_WINDOW", None},
-    {"_NET_CLOSE_WINDOW", None},
-    {"_NET_MOVERESIZE_WINDOW", None},
-    {"_NET_WM_ACTION_CLOSE", None},
-    {"_NET_WM_ACTION_FULLSCREEN", None},
-    {"_NET_WM_ACTION_MOVE", None},
-    {"_NET_WM_ACTION_RESIZE", None},
-    {"_NET_WM_ALLOWED_ACTIONS", None},
-    {"_NET_WM_STATE", None},
-    {"_NET_WM_STATE_ABOVE", None},
-    {"_NET_WM_STATE_FULLSCREEN", None},
-    {"_NET_WM_STATE_HIDDEN", None},
-    {"_NET_WM_STATE_MAXIMIZED_HORZ", None},
-    {"_NET_WM_STATE_MAXIMIZED_VERT", None},
-    {"_NET_WM_STATE_SKIP_PAGER", None},
-    {"_NET_WM_STATE_SKIP_TASKBAR", None},
-    {"_NET_WM_WINDOW_TYPE", None},
-    {"_NET_WM_WINDOW_TYPE_DIALOG", None},
-    {"_NET_WM_WINDOW_TYPE_DOCK", None},
-    {"_NET_WM_WINDOW_TYPE_NORMAL", None},
-    {"_NET_WM_WINDOW_TYPE_SPLASH", None},
-    {"_NET_WM_WINDOW_TYPE_TOOLBAR", None},
-    {"_NET_WM_WINDOW_TYPE_UTILITY", None},
-    {"_SWM_WM_STATE_MANUAL", None},
+    {"_NET_ACTIVE_WINDOW", XCB_ATOM_NONE},
+    {"_NET_CLOSE_WINDOW", XCB_ATOM_NONE},
+    {"_NET_MOVERESIZE_WINDOW", XCB_ATOM_NONE},
+    {"_NET_WM_ACTION_CLOSE", XCB_ATOM_NONE},
+    {"_NET_WM_ACTION_FULLSCREEN", XCB_ATOM_NONE},
+    {"_NET_WM_ACTION_MOVE", XCB_ATOM_NONE},
+    {"_NET_WM_ACTION_RESIZE", XCB_ATOM_NONE},
+    {"_NET_WM_ALLOWED_ACTIONS", XCB_ATOM_NONE},
+    {"_NET_WM_STATE", XCB_ATOM_NONE},
+    {"_NET_WM_STATE_ABOVE", XCB_ATOM_NONE},
+    {"_NET_WM_STATE_FULLSCREEN", XCB_ATOM_NONE},
+    {"_NET_WM_STATE_HIDDEN", XCB_ATOM_NONE},
+    {"_NET_WM_STATE_MAXIMIZED_HORZ", XCB_ATOM_NONE},
+    {"_NET_WM_STATE_MAXIMIZED_VERT", XCB_ATOM_NONE},
+    {"_NET_WM_STATE_SKIP_PAGER", XCB_ATOM_NONE},
+    {"_NET_WM_STATE_SKIP_TASKBAR", XCB_ATOM_NONE},
+    {"_NET_WM_WINDOW_TYPE", XCB_ATOM_NONE},
+    {"_NET_WM_WINDOW_TYPE_DIALOG", XCB_ATOM_NONE},
+    {"_NET_WM_WINDOW_TYPE_DOCK", XCB_ATOM_NONE},
+    {"_NET_WM_WINDOW_TYPE_NORMAL", XCB_ATOM_NONE},
+    {"_NET_WM_WINDOW_TYPE_SPLASH", XCB_ATOM_NONE},
+    {"_NET_WM_WINDOW_TYPE_TOOLBAR", XCB_ATOM_NONE},
+    {"_NET_WM_WINDOW_TYPE_UTILITY", XCB_ATOM_NONE},
+    {"_SWM_WM_STATE_MANUAL", XCB_ATOM_NONE},
 };
 
 void		 store_float_geom(struct ws_win *, struct swm_region *);
@@ -850,7 +850,7 @@ ewmh_set_win_fullscreen(struct ws_win *win, int fs)
 void
 ewmh_update_actions(struct ws_win *win)
 {
-	Atom			actions[SWM_EWMH_ACTION_COUNT_MAX];
+	xcb_atom_t		actions[SWM_EWMH_ACTION_COUNT_MAX];
 	int			n = 0;
 
 	if (win == NULL)
@@ -863,8 +863,9 @@ ewmh_update_actions(struct ws_win *win)
 		actions[n++] = ewmh[_NET_WM_ACTION_RESIZE].atom;
 	}
 
-	XChangeProperty(display, win->id, ewmh[_NET_WM_ALLOWED_ACTIONS].atom,
-	    XA_ATOM, 32, PropModeReplace, (unsigned char *)actions, n);
+	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id,
+		ewmh[_NET_WM_ALLOWED_ACTIONS].atom, XCB_ATOM_ATOM, 32, 1,
+		actions);
 }
 
 #define _NET_WM_STATE_REMOVE	0    /* remove/unset property */
