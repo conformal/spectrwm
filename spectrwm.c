@@ -4957,6 +4957,7 @@ void
 setup_spawn(void)
 {
 	setconfspawn("term",		"xterm",		0);
+	setconfspawn("spawn_term",	"xterm",		0);
 	setconfspawn("screenshot_all",	"screenshot.sh full",	0);
 	setconfspawn("screenshot_wind",	"screenshot.sh window",	0);
 	setconfspawn("lock",		"xlock",		0);
@@ -5699,6 +5700,7 @@ setconfvalue(char *selector, char *value, int flags)
 		break;
 	case SWM_S_SPAWN_TERM:
 		setconfspawn("term", value, 0);
+		setconfspawn("spawn_term", value, 0);
 		break;
 	case SWM_S_SS_APP:
 		break;
