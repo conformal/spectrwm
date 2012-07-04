@@ -951,9 +951,10 @@ ewmh_update_win_state(struct ws_win *win, long state, long action)
 void
 ewmh_get_win_state(struct ws_win *win)
 {
-	int			success, i;
-	unsigned long		n;
-	Atom			*states;
+	xcb_atom_t			*states;
+	xcb_get_property_cookie_t	c;
+	xcb_get_property_reply_t	*r;
+	int				i, n;
 
 	if (win == NULL)
 		return;
@@ -964,16 +965,19 @@ ewmh_get_win_state(struct ws_win *win)
 	if (win->manual)
 		win->ewmh_flags |= SWM_F_MANUAL;
 
-	success = get_property(win->id, ewmh[_NET_WM_STATE].atom,
-	    (~0L), XA_ATOM, &n, NULL, (void *)&states);
-
-	if (!success)
+	c = xcb_get_property(conn, False, win->id, ewmh[_NET_WM_STATE].atom,
+		XCB_ATOM_ATOM, 0, (~0L));
+	r = xcb_get_property_reply(conn, c, NULL);
+	if (!r)
 		return;
+	
+	states = xcb_get_property_value(r);
+	n = xcb_get_property_value_length(r);
+
+	free(r);
 
 	for (i = 0; i < n; i++)
 		ewmh_update_win_state(win, states[i], _NET_WM_STATE_ADD);
-
-	XFree(states);
 }
 
 /* events */
