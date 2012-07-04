@@ -792,20 +792,22 @@ teardown_ewmh(void)
 void
 ewmh_autoquirk(struct ws_win *win)
 {
-	int			success, i;
-	unsigned long		*data = NULL, n;
-	Atom			type;
+	int			i;
+	unsigned long		n;
+	xcb_atom_t		type;
 
-	success = get_property(win->id, ewmh[_NET_WM_WINDOW_TYPE].atom, (~0L),
-	    XA_ATOM, &n, NULL, (void *)&data);
+	xcb_get_property_cookie_t	c;
+	xcb_get_property_reply_t	*r;
 
-	if (!success) {
-		XFree(data);
+	c = xcb_get_property(conn, False, win->id,
+		ewmh[_NET_WM_WINDOW_TYPE].atom, XCB_ATOM_ATOM, 0, (~0L));
+	r = xcb_get_property_reply(conn, c, NULL);
+	if (!r)
 		return;
-	}
+	n = xcb_get_property_value_length(r);
 
 	for (i = 0; i < n; i++) {
-		type = data[i];
+		type = *((xcb_atom_t *)xcb_get_property_value(r)); 
 		if (type == ewmh[_NET_WM_WINDOW_TYPE_NORMAL].atom)
 			break;
 		if (type == ewmh[_NET_WM_WINDOW_TYPE_DOCK].atom ||
@@ -822,8 +824,7 @@ ewmh_autoquirk(struct ws_win *win)
 			break;
 		}
 	}
-
-	XFree(data);
+	free(r);
 }
 
 #define SWM_EWMH_ACTION_COUNT_MAX	(6)
