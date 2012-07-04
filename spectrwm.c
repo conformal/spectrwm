@@ -1822,8 +1822,8 @@ bar_toggle(struct swm_region *r, union arg *args)
 void
 bar_refresh(void)
 {
-	XSetWindowAttributes	wa;
 	struct swm_region	*r;
+	uint32_t		wa[2];
 	int			i, num_screens;
 
 	/* do this here because the conf file is in memory */
@@ -1855,18 +1855,15 @@ bar_refresh(void)
 		}
 	}
 
-	bzero(&wa, sizeof wa);
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	for (i = 0; i < num_screens; i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
 			if (r->bar == NULL)
 				continue;
-			wa.border_pixel =
-			    screens[i].c[SWM_S_COLOR_BAR_BORDER].color;
-			wa.background_pixel =
-			    screens[i].c[SWM_S_COLOR_BAR].color;
-			XChangeWindowAttributes(display, r->bar->id,
-			    CWBackPixel | CWBorderPixel, &wa);
+			wa[0] = screens[i].c[SWM_S_COLOR_BAR].color;
+			wa[1] = screens[i].c[SWM_S_COLOR_BAR_BORDER].color;
+			xcb_change_window_attributes(conn, r->bar->id,
+				XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);
 		}
 	bar_update();
 }
