@@ -1251,26 +1251,34 @@ find_pid(long pid)
 	return (NULL);
 }
 
-unsigned long
-name_to_color(char *colorname)
+uint32_t
+name_to_color(const char *colorname)
 {
-	Colormap		cmap;
-	Status			status;
-	XColor			screen_def, exact_def;
-	unsigned long		result = 0;
-	char			cname[32] = "#";
+	uint32_t			result = 0;
+	char				cname[32] = "#";
+	xcb_screen_t			*screen;
+	xcb_colormap_t			cmap;
+	xcb_alloc_named_color_cookie_t	c;
+	xcb_alloc_named_color_reply_t	*r;
 
-	cmap = DefaultColormap(display, screens[0].idx);
-	status = XAllocNamedColor(display, cmap, colorname,
-	    &screen_def, &exact_def);
-	if (!status) {
+	/* XXX - does not support rgb:/RR/GG/BB
+	 *       will need to use xcb_alloc_color
+	 */
+	screen = xcb_setup_roots_iterator(xcb_get_setup(conn)).data;
+	cmap = screen->default_colormap;
+
+	c = xcb_alloc_named_color(conn, cmap, strlen(colorname), colorname);
+	r = xcb_alloc_named_color_reply(conn, c, NULL);
+	if (!r) {
 		strlcat(cname, colorname + 2, sizeof cname - 1);
-		status = XAllocNamedColor(display, cmap, cname, &screen_def,
-		    &exact_def);
+		c = xcb_alloc_named_color(conn, cmap, strlen(cname),
+			cname);
+		r = xcb_alloc_named_color_reply(conn, c, NULL);
 	}
-	if (status)
-		result = screen_def.pixel;
-	else
+	if (r) {
+		result = r->pixel;
+		free(r);
+	} else
 		warnx("color '%s' not found", colorname);
 
 	return (result);
