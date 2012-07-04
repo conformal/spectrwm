@@ -1539,6 +1539,15 @@ bar_fmt(const char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
 	strlcat(fmtnew, "+4<+A+4<+V", sz);
 }
 
+void
+bar_replace_pad(char *tmp, int *limit, size_t sz)
+{
+	/* special case; no limit given, pad one space, instead */
+	if (*limit == sz - 1)
+		*limit = 1;
+	snprintf(tmp, sz, "%*s", *limit, " ");
+}
+
 /* replaces the bar format character sequences (like in tmux(1)) */
 char *
 bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
@@ -1575,10 +1584,7 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 
 	switch (*fmt) {
 	case '<':
-		/* special case; no limit given, pad one space, instead */
-		if (limit == sizeof tmp - 1)
-			limit = 1;
-		snprintf(tmp, sizeof tmp, "%*s", limit, " ");
+		bar_replace_pad(tmp, &limit, sizeof tmp);
 		break;
 	case 'A':
 		snprintf(tmp, sizeof tmp, "%s", bar_ext);
