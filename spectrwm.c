@@ -747,7 +747,7 @@ setup_ewmh(void)
 void
 teardown_ewmh(void)
 {
-	int			i, success;
+	int			i, success, num_screens;
 	unsigned char		*data = NULL;
 	unsigned long		n;
 	Atom			sup_check, sup_list;
@@ -756,7 +756,8 @@ teardown_ewmh(void)
 	sup_check = XInternAtom(display, "_NET_SUPPORTING_WM_CHECK", False);
 	sup_list = XInternAtom(display, "_NET_SUPPORTED", False);
 
-	for (i = 0; i < ScreenCount(display); i++) {
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++) {
 		/* Get the support check window and destroy it */
 		success = get_property(screens[i].root, sup_check, 1, XA_WINDOW,
 		    &n, NULL, &data);
@@ -1482,13 +1483,14 @@ bar_urgent(char *s, size_t sz)
 {
 	XWMHints		*wmh = NULL;
 	struct ws_win		*win;
-	int			i, j;
+	int			i, j, num_screens;
 	char			b[8];
 
 	for (i = 0; i < workspace_limit; i++)
 		urgent[i] = 0;
 
-	for (i = 0; i < ScreenCount(display); i++)
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++)
 		for (j = 0; j < workspace_limit; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry) {
 				wmh = XGetWMHints(display, win->id);
@@ -1731,13 +1733,14 @@ bar_fmt_print(void)
 {
 	char			fmtexp[SWM_BAR_MAX], fmtnew[SWM_BAR_MAX];
 	char			fmtrep[SWM_BAR_MAX];
-	int			i;
+	int			i, num_screens;
 	struct swm_region	*r;
 
 	/* expand the format by first passing it through strftime(3) */
 	bar_fmt_expand(fmtexp, sizeof fmtexp);
 
-	for (i = 0; i < ScreenCount(display); i++) {
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++) {
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
 			if (r->bar == NULL)
 				continue;
@@ -1784,17 +1787,18 @@ void
 bar_toggle(struct swm_region *r, union arg *args)
 {
 	struct swm_region	*tmpr;
-	int			i, sc = ScreenCount(display);
+	int			i, num_screens; 
 
 	DNPRINTF(SWM_D_BAR, "bar_toggle\n");
 
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	if (bar_enabled) {
-		for (i = 0; i < sc; i++)
+		for (i = 0; i < num_screens; i++)
 			TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
 				if (tmpr->bar)
 					XUnmapWindow(display, tmpr->bar->id);
 	} else {
-		for (i = 0; i < sc; i++)
+		for (i = 0; i < num_screens; i++)
 			TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
 				if (tmpr->bar)
 					XMapRaised(display, tmpr->bar->id);
@@ -1812,7 +1816,7 @@ bar_refresh(void)
 {
 	XSetWindowAttributes	wa;
 	struct swm_region	*r;
-	int			i;
+	int			i, num_screens;
 
 	/* do this here because the conf file is in memory */
 	if (bar_extra && bar_extra_running == 0 && bar_argv[0]) {
@@ -1844,7 +1848,8 @@ bar_refresh(void)
 	}
 
 	bzero(&wa, sizeof wa);
-	for (i = 0; i < ScreenCount(display); i++)
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
 			if (r->bar == NULL)
 				continue;
@@ -2142,9 +2147,9 @@ void
 unmap_all(void)
 {
 	struct ws_win		*win;
-	int			i, j;
+	int			i, j, num_screens;
 
-	for (i = 0; i < ScreenCount(display); i++)
+	for (i = 0; i < num_screens; i++)
 		for (j = 0; j < workspace_limit; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
 				unmap_window(win);
@@ -2206,12 +2211,13 @@ root_to_region(Window root)
 {
 	struct swm_region	*r = NULL;
 	Window			rr, cr;
-	int			i, x, y, wx, wy;
+	int			i, x, y, wx, wy, num_screens;
 	unsigned int		mask;
 
 	DNPRINTF(SWM_D_MISC, "root_to_region: window: 0x%lx\n", root);
 
-	for (i = 0; i < ScreenCount(display); i++)
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++)
 		if (screens[i].root == root)
 			break;
 
@@ -2236,9 +2242,10 @@ struct ws_win *
 find_unmanaged_window(Window id)
 {
 	struct ws_win		*win;
-	int			i, j;
+	int			i, j, num_screens;
 
-	for (i = 0; i < ScreenCount(display); i++)
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++)
 		for (j = 0; j < workspace_limit; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].unmanagedlist,
 			    entry)
@@ -2252,10 +2259,11 @@ find_window(xcb_window_t id)
 {
 	struct ws_win		*win;
 	Window			wrr, wpr, *wcr = NULL;
-	int			i, j;
+	int			i, j, num_screens;
 	unsigned int		nc;
 
-	for (i = 0; i < ScreenCount(display); i++)
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++)
 		for (j = 0; j < workspace_limit; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
 				if (id == win->id)
@@ -2272,7 +2280,7 @@ find_window(xcb_window_t id)
 		return (NULL);
 
 	/* look for parent */
-	for (i = 0; i < ScreenCount(display); i++)
+	for (i = 0; i < num_screens; i++)
 		for (j = 0; j < workspace_limit; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
 				if (wpr == win->id)
@@ -2340,14 +2348,15 @@ spawn(int ws_idx, union arg *args, int close_fd)
 void
 kill_refs(struct ws_win *win)
 {
-	int			i, x;
+	int			i, x, num_screens;
 	struct swm_region	*r;
 	struct workspace	*ws;
 
 	if (win == NULL)
 		return;
 
-	for (i = 0; i < ScreenCount(display); i++)
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			for (x = 0; x < workspace_limit; x++) {
 				ws = &r->s->ws[x];
@@ -2364,12 +2373,13 @@ validate_win(struct ws_win *testwin)
 	struct ws_win		*win;
 	struct workspace	*ws;
 	struct swm_region	*r;
-	int			i, x;
+	int			i, x, num_screens;
 
 	if (testwin == NULL)
 		return (0);
 
-	for (i = 0; i < ScreenCount(display); i++)
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			for (x = 0; x < workspace_limit; x++) {
 				ws = &r->s->ws[x];
@@ -2653,10 +2663,11 @@ cyclescr(struct swm_region *r, union arg *args)
 {
 	struct swm_region	*rr = NULL;
 	union arg		a;
-	int			i, x, y;
+	int			i, x, y, num_screens;
 
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	/* do nothing if we don't have more than one screen */
-	if (!(ScreenCount(display) > 1 || outputs > 1))
+	if (!(num_screens > 1 || outputs > 1))
 		return;
 
 	i = r->s->idx;
@@ -3016,14 +3027,15 @@ void
 stack(void) {
 	struct swm_geometry	g;
 	struct swm_region	*r;
-	int			i;
+	int			i, num_screens;
 #ifdef SWM_DEBUG
 	int j;
 #endif
 
 	DNPRINTF(SWM_D_STACK, "stack: begin\n");
-
-	for (i = 0; i < ScreenCount(display); i++) {
+	
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++) {
 #ifdef SWM_DEBUG
 		j = 0;
 #endif
@@ -3485,7 +3497,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 {
 	struct swm_geometry	gg = *g;
 	struct ws_win		*win, *wintrans = NULL, *parent = NULL;
-	int			winno;
+	int			winno, num_screens;
 
 	DNPRINTF(SWM_D_STACK, "max_stack: workspace: %d\n", ws->idx);
 
@@ -3496,6 +3508,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 	if (winno == 0 && count_win(ws, 1) == 0)
 		return;
 
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
 		if (win->transient) {
 			wintrans = win;
@@ -3528,7 +3541,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		}
 		/* unmap only if we don't have multi screen */
 		if (win != ws->focus)
-			if (!(ScreenCount(display) > 1 || outputs > 1))
+			if (!(num_screens > 1 || outputs > 1))
 				unmap_window(win);
 	}
 
@@ -5368,6 +5381,7 @@ updatenumlockmask(void)
 void
 grabkeys(void)
 {
+	int			num_screens;
 	unsigned int		j, k;
 	KeyCode			code;
 	unsigned int		modifiers[] =
@@ -5377,7 +5391,8 @@ grabkeys(void)
 	DNPRINTF(SWM_D_MISC, "grabkeys\n");
 	updatenumlockmask();
 
-	for (k = 0; k < ScreenCount(display); k++) {
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (k = 0; k < num_screens; k++) {
 		if (TAILQ_EMPTY(&screens[k].rl))
 			continue;
 		XUngrabKey(display, AnyKey, AnyModifier, screens[k].root);
@@ -5890,7 +5905,7 @@ int
 setlayout(char *selector, char *value, int flags)
 {
 	int			ws_id, i, x, mg, ma, si, raise, f = 0;
-	int			st = SWM_V_STACK;
+	int			st = SWM_V_STACK, num_screens;
 	char			s[1024];
 	struct workspace	*ws;
 
@@ -5924,7 +5939,8 @@ setlayout(char *selector, char *value, int flags)
 		    "<master_grow>:<master_add>:<stack_inc>:<always_raise>:"
 		    "<type>'");
 
-	for (i = 0; i < ScreenCount(display); i++) {
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++) {
 		ws = (struct workspace *)&screens[i].ws;
 		ws[ws_id].cur_layout = &layouts[st];
 
@@ -7016,16 +7032,19 @@ unmapnotify(XEvent *e)
 void
 visibilitynotify(XEvent *e)
 {
-	int			i;
+	int			i, num_screens;
 	struct swm_region	*r;
 
 	DNPRINTF(SWM_D_EVENT, "visibilitynotify: window: 0x%lx\n",
 	    e->xvisibility.window);
-	if (e->xvisibility.state == VisibilityUnobscured)
-		for (i = 0; i < ScreenCount(display); i++)
+
+	if (e->xvisibility.state == VisibilityUnobscured) {
+		num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+		for (i = 0; i < num_screens; i++)
 			TAILQ_FOREACH(r, &screens[i].rl, entry)
 				if (e->xvisibility.window == WINID(r->bar))
 					bar_update();
+	}
 }
 
 void
@@ -7210,9 +7229,10 @@ scan_xrandr(int i)
 	int			ncrtc = 0;
 #endif /* SWM_XRR_HAS_CRTC */
 	struct swm_region	*r;
+	int			num_screens;
 
-
-	if (i >= ScreenCount(display))
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	if (i >= num_screens)
 		errx(1, "scan_xrandr: invalid screen");
 
 	/* remove any old regions */
@@ -7263,25 +7283,26 @@ void
 screenchange(XEvent *e) {
 	XRRScreenChangeNotifyEvent	*xe = (XRRScreenChangeNotifyEvent *)e;
 	struct swm_region		*r;
-	int				i;
+	int				i, num_screens;
 
 	DNPRINTF(SWM_D_EVENT, "screenchange: root: 0x%lx\n", xe->root);
 
 	if (!XRRUpdateConfiguration(e))
 		return;
 
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	/* silly event doesn't include the screen index */
-	for (i = 0; i < ScreenCount(display); i++)
+	for (i = 0; i < num_screens; i++)
 		if (screens[i].root == xe->root)
 			break;
-	if (i >= ScreenCount(display))
+	if (i >= num_screens)
 		errx(1, "screenchange: screen not found");
 
 	/* brute force for now, just re-enumerate the regions */
 	scan_xrandr(i);
 
 	/* add bars to all regions */
-	for (i = 0; i < ScreenCount(display); i++)
+	for (i = 0; i < num_screens; i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			bar_setup(r);
 	stack();
@@ -7295,10 +7316,11 @@ grab_windows(void)
 	Window			d1, d2, *wins = NULL;
 	XWindowAttributes	wa;
 	unsigned int		no;
-	int			i, j;
+	int			i, j, num_screens;
 	long			state, manage;
 
-	for (i = 0; i < ScreenCount(display); i++) {
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++) {
 		if (!XQueryTree(display, screens[i].root, &d1, &d2, &wins, &no))
 			continue;
 
@@ -7420,7 +7442,7 @@ setup_globals(void)
 void
 workaround(void)
 {
-	int			i;
+	int			i, num_screens;
 	Atom			netwmcheck, netwmname, utf8_string;
 	Window			root, win;
 
@@ -7428,7 +7450,9 @@ workaround(void)
 	netwmcheck = XInternAtom(display, "_NET_SUPPORTING_WM_CHECK", False);
 	netwmname = XInternAtom(display, "_NET_WM_NAME", False);
 	utf8_string = XInternAtom(display, "UTF8_STRING", False);
-	for (i = 0; i < ScreenCount(display); i++) {
+
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++) {
 		root = screens[i].root;
 		win = XCreateSimpleWindow(display,root, 0, 0, 1, 1, 0,
 		    screens[i].c[SWM_S_COLOR_UNFOCUS].color,
@@ -7453,7 +7477,7 @@ main(int argc, char *argv[])
 	char			conf[PATH_MAX], *cfile = NULL;
 	struct stat		sb;
 	XEvent			e;
-	int			xfd, i;
+	int			xfd, i, num_screens;
 	fd_set			rd;
 	struct sigaction	sact;
 
@@ -7560,7 +7584,8 @@ noconfig:
 		setenv("SWM_STARTED", "YES", 1);
 
 	/* setup all bars */
-	for (i = 0; i < ScreenCount(display); i++)
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
 			if (winfocus == NULL)
 				winfocus = TAILQ_FIRST(&r->ws->winlist);
@@ -7613,7 +7638,7 @@ noconfig:
 				continue;
 			}
 			/* move pointer to first screen if multi screen */
-			if (ScreenCount(display) > 1 || outputs > 1)
+			if (num_screens > 1 || outputs > 1)
 				XWarpPointer(display, None, rr->s[0].root,
 				    0, 0, 0, 0, X(rr),
 				    Y(rr) + (bar_enabled ? bar_height : 0));
@@ -7646,7 +7671,7 @@ done:
 	teardown_ewmh();
 	bar_extra_stop();
 
-	for (i = 0; i < ScreenCount(display); ++i)
+	for (i = 0; i < num_screens; ++i)
 		if (screens[i].bar_gc != NULL)
 			XFreeGC(display, screens[i].bar_gc);
 
