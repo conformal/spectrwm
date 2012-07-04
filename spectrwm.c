@@ -747,29 +747,45 @@ setup_ewmh(void)
 void
 teardown_ewmh(void)
 {
-	int			i, success, num_screens;
-	unsigned char		*data = NULL;
-	unsigned long		n;
-	Atom			sup_check, sup_list;
-	Window			id;
+	int			i, num_screens;
+	xcb_atom_t		sup_check, sup_list;
+	xcb_window_t		id;
 
-	sup_check = XInternAtom(display, "_NET_SUPPORTING_WM_CHECK", False);
-	sup_list = XInternAtom(display, "_NET_SUPPORTED", False);
+	xcb_intern_atom_cookie_t	c;
+	xcb_intern_atom_reply_t		*r;
+	xcb_get_property_cookie_t	pc;
+	xcb_get_property_reply_t	*pr;
+
+	c = xcb_intern_atom(conn, False, strlen("_NET_SUPPORTING_WM_CHECK"),
+		"_NET_SUPPORTING_WM_CHECK");
+	r = xcb_intern_atom_reply(conn, c, NULL);
+	if (r) {
+		sup_check = r->atom;
+		free(r);
+	}
+	c = xcb_intern_atom(conn, False, strlen("_NET_SUPPORTED"),
+		"_NET_SUPPORTED");
+	r = xcb_intern_atom_reply(conn, c, NULL);
+	if (r) {
+		sup_list = r->atom;
+		free(r);
+	}
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	for (i = 0; i < num_screens; i++) {
 		/* Get the support check window and destroy it */
-		success = get_property(screens[i].root, sup_check, 1, XA_WINDOW,
-		    &n, NULL, &data);
+		pc = xcb_get_property(conn, False, screens[i].root, sup_check,
+			XCB_ATOM_WINDOW, 0, 1);
+		pr = xcb_get_property_reply(conn, pc, NULL);
+		if (pr) {
+			id = *((xcb_window_t *)xcb_get_property_value(pr));
 
-		if (success) {
-			id = data[0];
-			XDestroyWindow(display, id);
-			XDeleteProperty(display, screens[i].root, sup_check);
-			XDeleteProperty(display, screens[i].root, sup_list);
+			xcb_destroy_window(conn, id);
+			xcb_delete_property(conn, screens[i].root, sup_check);
+			xcb_delete_property(conn, screens[i].root, sup_list);
+		
+			free(pr);
 		}
-
-		XFree(data);
 	}
 }
 
