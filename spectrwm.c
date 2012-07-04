@@ -4155,23 +4155,23 @@ constrain_window(struct ws_win *win, struct swm_region *r, int resizable)
 void
 update_window(struct ws_win *win)
 {
-	unsigned int		mask;
-	XWindowChanges		wc;
+	uint16_t	mask;
+	uint32_t	wc[5];
 
-	bzero(&wc, sizeof wc);
-	mask = CWBorderWidth | CWWidth | CWHeight | CWX | CWY;
+	mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
+		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
+		XCB_CONFIG_WINDOW_BORDER_WIDTH; 
+	wc[0] = X(win);
+	wc[1] = Y(win);
+	wc[2] = WIDTH(win);
+	wc[3] = HEIGHT(win);
+	wc[4] = BORDER(win);
 
-	wc.border_width = BORDER(win);
-	wc.x = X(win);
-	wc.y = Y(win);
-	wc.width = WIDTH(win);
-	wc.height = HEIGHT(win);
+	DNPRINTF(SWM_D_EVENT, "update_window: window: 0x%x, (x,y) w x h: "
+	    "(%d,%d) %d x %d, bordered: %s\n", win->id, wc[0], wc[1], wc[2],
+	    wc[3], YESNO(win->bordered));
 
-	DNPRINTF(SWM_D_EVENT, "update_window: window: 0x%lx, (x,y) w x h: "
-	    "(%d,%d) %d x %d, bordered: %s\n", win->id, wc.x, wc.y, wc.width,
-	    wc.height, YESNO(win->bordered));
-
-	XConfigureWindow(display, win->id, mask, &wc);
+	xcb_configure_window(conn, win->id, mask, wc);
 }
 
 #define SWM_RESIZE_STEPS	(50)
