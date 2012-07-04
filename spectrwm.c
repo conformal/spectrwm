@@ -924,28 +924,28 @@ ewmh_update_win_state(struct ws_win *win, long state, long action)
 			    win->ewmh_flags & EWMH_F_FULLSCREEN))
 				win->ewmh_flags = orig_flags; /* revert */
 
-	XDeleteProperty(display, win->id, ewmh[_NET_WM_STATE].atom);
+	xcb_delete_property(conn, win->id, ewmh[_NET_WM_STATE].atom);
 
 	if (win->ewmh_flags & EWMH_F_FULLSCREEN)
-		XChangeProperty(display, win->id, ewmh[_NET_WM_STATE].atom,
-		    XA_ATOM, 32, PropModeAppend,
-		    (unsigned char *)&ewmh[_NET_WM_STATE_FULLSCREEN].atom, 1);
+		xcb_change_property(conn, XCB_PROP_MODE_APPEND, win->id,
+			ewmh[_NET_WM_STATE].atom, XCB_ATOM_ATOM, 32, 1,
+			&ewmh[_NET_WM_STATE_FULLSCREEN].atom);
 	if (win->ewmh_flags & EWMH_F_SKIP_PAGER)
-		XChangeProperty(display, win->id, ewmh[_NET_WM_STATE].atom,
-		    XA_ATOM, 32, PropModeAppend,
-		    (unsigned char *)&ewmh[_NET_WM_STATE_SKIP_PAGER].atom, 1);
+		xcb_change_property(conn, XCB_PROP_MODE_APPEND, win->id,
+			ewmh[_NET_WM_STATE].atom, XCB_ATOM_ATOM, 32, 1,
+			&ewmh[_NET_WM_STATE_SKIP_PAGER].atom);  
 	if (win->ewmh_flags & EWMH_F_SKIP_TASKBAR)
-		XChangeProperty(display, win->id, ewmh[_NET_WM_STATE].atom,
-		    XA_ATOM, 32, PropModeAppend,
-		    (unsigned char *)&ewmh[_NET_WM_STATE_SKIP_TASKBAR].atom, 1);
+		xcb_change_property(conn, XCB_PROP_MODE_APPEND, win->id,
+			ewmh[_NET_WM_STATE].atom, XCB_ATOM_ATOM, 32, 1,
+			&ewmh[_NET_WM_STATE_SKIP_TASKBAR].atom);
 	if (win->ewmh_flags & EWMH_F_ABOVE)
-		XChangeProperty(display, win->id, ewmh[_NET_WM_STATE].atom,
-		    XA_ATOM, 32, PropModeAppend,
-		    (unsigned char *)&ewmh[_NET_WM_STATE_ABOVE].atom, 1);
+		xcb_change_property(conn, XCB_PROP_MODE_APPEND, win->id,
+			ewmh[_NET_WM_STATE].atom, XCB_ATOM_ATOM, 32, 1,
+			&ewmh[_NET_WM_STATE_ABOVE].atom);
 	if (win->ewmh_flags & SWM_F_MANUAL)
-		XChangeProperty(display, win->id, ewmh[_NET_WM_STATE].atom,
-		    XA_ATOM, 32, PropModeAppend,
-		    (unsigned char *)&ewmh[_SWM_WM_STATE_MANUAL].atom, 1);
+		xcb_change_property(conn, XCB_PROP_MODE_APPEND, win->id,
+			ewmh[_NET_WM_STATE].atom, XCB_ATOM_ATOM, 32, 1,
+			&ewmh[_SWM_WM_STATE_MANUAL].atom);
 }
 
 void
