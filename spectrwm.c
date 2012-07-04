@@ -1968,29 +1968,32 @@ drain_enter_notify(void)
 void
 set_win_state(struct ws_win *win, long state)
 {
-	long			data[] = {state, None};
+	long			data[] = {state, XCB_ATOM_NONE};
 
 	DNPRINTF(SWM_D_EVENT, "set_win_state: window: 0x%lx\n", win->id);
 
 	if (win == NULL)
 		return;
 
-	XChangeProperty(display, win->id, astate, astate, 32, PropModeReplace,
-	    (unsigned char *)data, 2);
+	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id, astate,
+		astate, 32, 2, data);
 }
 
 long
 getstate(xcb_window_t w)
 {
-	long			result = -1;
-	unsigned char		*p = NULL;
-	unsigned long		n;
+	long				result = -1;
+	xcb_get_property_cookie_t	c;
+	xcb_get_property_reply_t	*r;
 
-	if (!get_property(w, astate, 2L, astate, &n, NULL, &p))
-		return (-1);
-	if (n != 0)
-		result = *((long *)p);
-	XFree(p);
+	c = xcb_get_property(conn, False, w, astate, astate, 0L, 2L);
+	r = xcb_get_property_reply(conn, c, NULL);
+
+	if (r) {
+		result = *((long *)xcb_get_property_value(r));
+		free(r);
+	}
+	
 	return (result);
 }
 
@@ -5399,7 +5402,8 @@ grabkeys(void)
 	for (k = 0; k < num_screens; k++) {
 		if (TAILQ_EMPTY(&screens[k].rl))
 			continue;
-		XUngrabKey(display, AnyKey, AnyModifier, screens[k].root);
+		xcb_ungrab_key(conn, XCB_GRAB_ANY, screens[k].root,
+			XCB_MOD_MASK_ANY); 
 		RB_FOREACH(kp, key_tree, &keys) {
 			if ((code = XKeysymToKeycode(display, kp->keysym)))
 				for (j = 0; j < LENGTH(modifiers); j++)
