@@ -1554,31 +1554,23 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
     size_t sz)
 {
 	char			*ptr;
-	char			num[8], tmp[SWM_BAR_MAX];
-	int			limit;
-	size_t			len, numoff = 0;
+	char			tmp[SWM_BAR_MAX];
+	int			limit, size;
+	size_t			len;
 
 	/* reset strlcat(3) buffer */
 	*tmp = '\0';
 
 	/* get number, if any */
 	fmt++;
-	while (*fmt != '\0' && isdigit((unsigned char) *fmt)) {
-		if (numoff >= sizeof num - 1)
-			break;
-		num[numoff++] = *fmt++;
-	}
-	num[numoff] = '\0';
-
-	if ((limit = strtonum(num, 1, sizeof tmp - 1, NULL)) == 0)
+	size = 0;
+	if (sscanf(fmt, "%d%n", &limit, &size) != 1)
+		limit = sizeof tmp - 1;
+	if (limit <= 0 || limit >= sizeof tmp)
 		limit = sizeof tmp - 1;
 
-	/* if number is too big, skip to the first non-digit */
-	if (numoff >= sizeof num - 1) {
-		while (*fmt != '\0' && isdigit((unsigned char) *fmt))
-			fmt++;
-	}
 	/* there is nothing to replace (ie EOL) */
+	fmt += size;
 	if (*fmt == '\0')
 		return (fmt);
 
