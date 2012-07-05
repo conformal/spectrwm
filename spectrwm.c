@@ -91,6 +91,7 @@
 #include <X11/XKBlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xlib-xcb.h>
+#include <xcb/randr.h>
 #include <X11/Xproto.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/Xrandr.h>
@@ -201,15 +202,15 @@ u_int32_t		swm_debug = 0
 #endif
 
 char			**start_argv;
-Atom			astate;
-Atom			aprot;
-Atom			adelete;
-Atom			takefocus;
-Atom			a_wmname;
-Atom			a_netwmname;
-Atom			a_utf8_string;
-Atom			a_string;
-Atom			a_swm_iconic;
+xcb_atom_t		astate;
+xcb_atom_t		aprot;
+xcb_atom_t		adelete;
+xcb_atom_t		takefocus;
+xcb_atom_t		a_wmname;
+xcb_atom_t		a_netwmname;
+xcb_atom_t		a_utf8_string;
+xcb_atom_t		a_string;
+xcb_atom_t		a_swm_iconic;
 volatile sig_atomic_t   running = 1;
 volatile sig_atomic_t   restart_wm = 0;
 int			outputs = 0;
@@ -623,6 +624,26 @@ void		 constrain_window(struct ws_win *, struct swm_region *, int);
 void		 update_window(struct ws_win *);
 void		 spawn_select(struct swm_region *, union arg *, char *, int *);
 unsigned char	*get_win_name(xcb_window_t);
+xcb_atom_t	 get_atom_from_string(const char *);
+
+xcb_atom_t
+get_atom_from_string(const char *str)
+{
+	xcb_intern_atom_cookie_t	c;
+	xcb_intern_atom_reply_t		*r;
+	xcb_atom_t			atom;
+
+	c = xcb_intern_atom(conn, False, strlen(str), str);
+	r = xcb_intern_atom_reply(conn, c, NULL);
+	if (r) {
+		atom = r->atom;
+		free(r);
+
+		return (atom);
+	}
+
+	return (XCB_ATOM_NONE);
+}
 
 int
 get_property(Window id, Atom atom, long count, Atom type, unsigned long *nitems,
@@ -652,17 +673,11 @@ update_iconic(struct ws_win *win, int newv)
 {
 	int32_t				v = newv;
 	xcb_atom_t			iprop;
-	xcb_intern_atom_cookie_t	c;
-	xcb_intern_atom_reply_t		*r;
 
 	win->iconic = newv;
 
-	c = xcb_intern_atom(conn, False, strlen("_SWM_ICONIC"), "_SWM_ICONIC");
-	r = xcb_intern_atom_reply(conn, c, NULL);
-	if (r) {
-		iprop = r->atom;
-		free(r);
-	} else
+	iprop = get_atom_from_string("_SWM_ICONIC");
+	if (iprop == XCB_ATOM_NONE)
 		return;
 		
 	if (newv)
@@ -677,17 +692,11 @@ get_iconic(struct ws_win *win)
 {
 	int32_t v = 0, *vtmp;
 	xcb_atom_t			iprop;
-	xcb_intern_atom_cookie_t	c;
-	xcb_intern_atom_reply_t		*r;
 	xcb_get_property_cookie_t	pc;
 	xcb_get_property_reply_t	*pr;
 
-	c = xcb_intern_atom(conn, False, strlen("_SWM_ICONIC"), "_SWM_ICONIC");
-	r = xcb_intern_atom_reply(conn, c, NULL);
-	if (r) {
-		iprop = r->atom;
-		free(r);
-	} else
+	iprop = get_atom_from_string("_SWM_ICONIC");
+	if (iprop == XCB_ATOM_NONE)
 		goto out;
 
 	pc = xcb_get_property(conn, False, win->id, iprop, XCB_ATOM_INTEGER,
@@ -709,27 +718,12 @@ void
 setup_ewmh(void)
 {
 	xcb_atom_t			sup_list;
-	xcb_intern_atom_cookie_t	c;
-	xcb_intern_atom_reply_t		*r;
 	int				i, j, num_screens;
 
-	c = xcb_intern_atom(conn, False, strlen("_NET_SUPPORTED"),
-		"_NET_SUPPORTED");
-	r = xcb_intern_atom_reply(conn, c, NULL);
-	if (r) {
-		sup_list = r->atom;
-		free(r);
-	}
+	sup_list = get_atom_from_string("_NET_SUPPORTED");
 	
-	for (i = 0; i < LENGTH(ewmh); i++) {
-		c = xcb_intern_atom(conn, False, strlen(ewmh[i].name),
-			ewmh[i].name);
-		r = xcb_intern_atom_reply(conn, c, NULL);
-		if (r) {
-			ewmh[i].atom = r->atom;
-			free(r);
-		}
-	}
+	for (i = 0; i < LENGTH(ewmh); i++)
+		ewmh[i].atom = get_atom_from_string(ewmh[i].name);
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	for (i = 0; i < num_screens; i++) {
@@ -747,31 +741,16 @@ setup_ewmh(void)
 void
 teardown_ewmh(void)
 {
-	int			i, num_screens;
-	xcb_atom_t		sup_check, sup_list;
-	xcb_window_t		id;
-
-	xcb_intern_atom_cookie_t	c;
-	xcb_intern_atom_reply_t		*r;
+	int				i, num_screens;
+	xcb_atom_t			sup_check, sup_list;
+	xcb_window_t			id;
 	xcb_get_property_cookie_t	pc;
 	xcb_get_property_reply_t	*pr;
 
-	c = xcb_intern_atom(conn, False, strlen("_NET_SUPPORTING_WM_CHECK"),
-		"_NET_SUPPORTING_WM_CHECK");
-	r = xcb_intern_atom_reply(conn, c, NULL);
-	if (r) {
-		sup_check = r->atom;
-		free(r);
-	}
-	c = xcb_intern_atom(conn, False, strlen("_NET_SUPPORTED"),
-		"_NET_SUPPORTED");
-	r = xcb_intern_atom_reply(conn, c, NULL);
-	if (r) {
-		sup_list = r->atom;
-		free(r);
-	}
-
+	sup_check = get_atom_from_string("_NET_SUPPORTING_WM_CHECK");
+	sup_list = get_atom_from_string("_NET_SUPPORTED");
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	
 	for (i = 0; i < num_screens; i++) {
 		/* Get the support check window and destroy it */
 		pc = xcb_get_property(conn, False, screens[i].root, sup_check,
@@ -6229,17 +6208,11 @@ window_get_pid(Window win)
 	long				ret = 0;
 	const char			*errstr;
 	xcb_atom_t			apid;
-	xcb_intern_atom_cookie_t	c;
-	xcb_intern_atom_reply_t		*r;
 	xcb_get_property_cookie_t	pc;
-	xcb_get_property_reply_t	*pr;	
+	xcb_get_property_reply_t	*pr;
 
-	c = xcb_intern_atom(conn, False, strlen("_NET_WM_PID"), "_NET_WM_PID");
-	r = xcb_intern_atom_reply(conn, c, NULL);
-	if (r) {
-		apid = r->atom;
-		free(r);
-	} else
+	apid = get_atom_from_string("_NET_WM_PID");
+	if (apid == XCB_ATOM_NONE)
 		goto tryharder;
 
 	pc = xcb_get_property(conn, False, win, apid, XCB_ATOM_CARDINAL, 0, 1);
@@ -6255,12 +6228,7 @@ window_get_pid(Window win)
 	return (ret);
 
 tryharder:
-	c = xcb_intern_atom(conn, False, strlen("_SWM_PID"), "_SWM_PID");
-	r = xcb_intern_atom_reply(conn, c, NULL);
-	if (r) {
-		apid = r->atom;
-		free(r);
-	}
+	apid = get_atom_from_string("_SWM_PID");
 	pc = xcb_get_property(conn, False, win, apid, XCB_ATOM_STRING,
 		0, SWM_PROPLEN);
 	pr = xcb_get_property_reply(conn, pc, NULL);
@@ -7252,13 +7220,16 @@ void
 scan_xrandr(int i)
 {
 #ifdef SWM_XRR_HAS_CRTC
-	XRRCrtcInfo		*ci;
-	XRRScreenResources	*sr;
 	int			c;
 	int			ncrtc = 0;
 #endif /* SWM_XRR_HAS_CRTC */
 	struct swm_region	*r;
 	int			num_screens;
+	xcb_randr_get_screen_resources_cookie_t	src;
+	xcb_randr_get_screen_resources_reply_t	*srr;
+	xcb_randr_get_crtc_info_cookie_t	cic;
+	xcb_randr_get_crtc_info_reply_t		*cir;	
+	xcb_randr_crtc_t	*crtc;
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	if (i >= num_screens)
@@ -7276,30 +7247,34 @@ scan_xrandr(int i)
 	/* map virtual screens onto physical screens */
 #ifdef SWM_XRR_HAS_CRTC
 	if (xrandr_support) {
-		sr = XRRGetScreenResourcesCurrent(display, screens[i].root);
-		if (sr == NULL)
+		src = xcb_randr_get_screen_resources(conn, screens[i].root);
+		srr = xcb_randr_get_screen_resources_reply(conn, src, NULL);
+		if (srr == NULL)
 			new_region(&screens[i], 0, 0,
 			    DisplayWidth(display, i),
 			    DisplayHeight(display, i));
 		else
-			ncrtc = sr->ncrtc;
-
-		for (c = 0, ci = NULL; c < ncrtc; c++) {
-			ci = XRRGetCrtcInfo(display, sr, sr->crtcs[c]);
-			if (ci->noutput == 0)
+			ncrtc = srr->num_crtcs; 
+		for (c = 0; c < ncrtc; c++) {
+			crtc = xcb_randr_get_screen_resources_crtcs(srr);
+			cic = xcb_randr_get_crtc_info(conn, crtc[c],
+				XCB_CURRENT_TIME);			
+			cir = xcb_randr_get_crtc_info_reply(conn, cic, NULL);
+			if (cir && cir->num_outputs == 0)
 				continue;
 
-			if (ci != NULL && ci->mode == None)
+			if (cir == NULL || cir->mode == 0)
 				new_region(&screens[i], 0, 0,
 				    DisplayWidth(display, i),
 				    DisplayHeight(display, i));
 			else
 				new_region(&screens[i],
-				    ci->x, ci->y, ci->width, ci->height);
+				    cir->x, cir->y, cir->width, cir->height);
 		}
-		if (ci)
-			XRRFreeCrtcInfo(ci);
-		XRRFreeScreenResources(sr);
+		if (srr)
+			free(srr);
+		if (cir)
+			free(cir);	
 	} else
 #endif /* SWM_XRR_HAS_CRTC */
 	{
@@ -7309,7 +7284,8 @@ scan_xrandr(int i)
 }
 
 void
-screenchange(XEvent *e) {
+screenchange(XEvent *e)
+{
 	XRRScreenChangeNotifyEvent	*xe = (XRRScreenChangeNotifyEvent *)e;
 	struct swm_region		*r;
 	int				i, num_screens;
@@ -7389,9 +7365,11 @@ void
 setup_screens(void)
 {
 	int			i, j, k, num_screens;
-	int			errorbase, major, minor;
+	int			errorbase;
 	struct workspace	*ws;
 	XGCValues		gcv;
+	xcb_randr_query_version_cookie_t	c;
+	xcb_randr_query_version_reply_t		*r;
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	if ((screens = calloc(num_screens,
@@ -7402,9 +7380,16 @@ setup_screens(void)
 	/* initial Xrandr setup */
 	xrandr_support = XRRQueryExtension(display,
 	    &xrandr_eventbase, &errorbase);
-	if (xrandr_support)
-		if (XRRQueryVersion(display, &major, &minor) && major < 1)
+	if (xrandr_support) {
+		c = xcb_randr_query_version(conn, True, False);
+		r = xcb_randr_query_version_reply(conn, c, NULL);
+		if (r) {
+			if (r->major_version < 1)
+				xrandr_support = 0;
+			free(r);
+		} else
 			xrandr_support = 0;
+	}
 
 	/* map physical screens */
 	for (i = 0; i < num_screens; i++) {
@@ -7453,8 +7438,8 @@ setup_screens(void)
 		scan_xrandr(i);
 
 		if (xrandr_support)
-			XRRSelectInput(display, screens[i].root,
-			    RRScreenChangeNotifyMask);
+			xcb_randr_select_input(conn, screens[i].root,
+				XCB_RANDR_NOTIFY_MASK_SCREEN_CHANGE);
 	}
 }
 
@@ -7542,15 +7527,15 @@ main(int argc, char *argv[])
 	sact.sa_flags = SA_NOCLDSTOP;
 	sigaction(SIGCHLD, &sact, NULL);
 
-	astate = XInternAtom(display, "WM_STATE", False);
-	aprot = XInternAtom(display, "WM_PROTOCOLS", False);
-	adelete = XInternAtom(display, "WM_DELETE_WINDOW", False);
-	takefocus = XInternAtom(display, "WM_TAKE_FOCUS", False);
-	a_wmname = XInternAtom(display, "WM_NAME", False);
-	a_netwmname = XInternAtom(display, "_NET_WM_NAME", False);
-	a_utf8_string = XInternAtom(display, "UTF8_STRING", False);
-	a_string = XInternAtom(display, "STRING", False);
-	a_swm_iconic = XInternAtom(display, "_SWM_ICONIC", False);
+	astate = get_atom_from_string("WM_STATE");
+	aprot = get_atom_from_string("WM_PROTOCOLS");
+	adelete = get_atom_from_string("WM_DELETE_WINDOW");
+	takefocus = get_atom_from_string("WM_TAKE_FOCUS");
+	a_wmname = get_atom_from_string("WM_NAME");
+	a_netwmname = get_atom_from_string("_NET_WM_NAME");
+	a_utf8_string = get_atom_from_string("UTF8_STRING");
+	a_string = get_atom_from_string("STRING");
+	a_swm_iconic = get_atom_from_string("_SWM_ICONIC");
 
 	/* look for local and global conf file */
 	pwd = getpwuid(getuid());
