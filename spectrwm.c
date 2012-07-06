@@ -4060,7 +4060,7 @@ wkill(struct swm_region *r, union arg *args)
 		return;
 
 	if (args->id == SWM_ARG_ID_KILLWINDOW)
-		XKillClient(display, r->ws->focus->id);
+		xcb_kill_client(conn, r->ws->focus->id);
 	else
 		if (r->ws->focus->can_delete)
 			client_msg(r->ws->focus, adelete);
@@ -7083,7 +7083,7 @@ clientmessage(XEvent *e)
 		if (win->can_delete)
 			client_msg(win, adelete);
 		else
-			XKillClient(display, win->id);
+			xcb_kill_client(conn, win->id);
 	}
 	if (ev->message_type == ewmh[_NET_MOVERESIZE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT,
