@@ -637,6 +637,7 @@ map_window_raised(xcb_window_t win)
 		XCB_CONFIG_WINDOW_STACK_MODE, &val);
 
 	xcb_map_window(conn, win);	
+	xcb_flush(conn);
 }
 
 xcb_atom_t
@@ -7552,7 +7553,6 @@ main(int argc, char *argv[])
 	int			xfd, i, num_screens;
 	fd_set			rd;
 	struct sigaction	sact;
-	xcb_generic_event_t	*evt;
 	
 	start_argv = argv;
 	warnx("Welcome to spectrwm V%s Build: %s", SPECTRWM_VERSION, buildstr);
@@ -7674,7 +7674,7 @@ noconfig:
 
 	xfd = xcb_get_file_descriptor(conn); 
 	while (running) {
-		while ((evt = xcb_poll_for_event(conn)) == 0) {
+		while (XPending(display)) {
 			XNextEvent(display, &e);
 			if (running == 0)
 				goto done;
