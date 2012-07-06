@@ -92,6 +92,7 @@
 #include <X11/Xatom.h>
 #include <X11/Xlib-xcb.h>
 #include <xcb/randr.h>
+#include <xcb/xcb_icccm.h>
 #include <X11/Xproto.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/Xrandr.h>
@@ -243,7 +244,7 @@ struct search_window {
 	int				idx;
 	struct ws_win			*win;
 	GC				gc;
-	Window				indicator;
+	xcb_window_t			indicator;
 };
 TAILQ_HEAD(search_winlist, search_window);
 struct search_winlist			search_wl;
@@ -405,12 +406,12 @@ void	fancy_stacker(struct workspace *);
 
 struct ws_win *find_window(xcb_window_t);
 
-void	grabbuttons(struct ws_win *, int);
-void	new_region(struct swm_screen *, int, int, int, int);
-void	unmanage_window(struct ws_win *);
-long	getstate(xcb_window_t);
+void		grabbuttons(struct ws_win *, int);
+void		new_region(struct swm_screen *, int, int, int, int);
+void		unmanage_window(struct ws_win *);
+uint16_t	getstate(xcb_window_t);
 
-int	conf_load(char *, int);
+int		conf_load(char *, int);
 
 struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
@@ -1110,7 +1111,7 @@ void
 dumpwins(struct swm_region *r, union arg *args)
 {
 	struct ws_win		*win;
-	unsigned int		state;
+	uint16_t		state;
 	XWindowAttributes	wa;
 
 	if (r->ws == NULL) {
@@ -1125,7 +1126,7 @@ dumpwins(struct swm_region *r, union arg *args)
 		if (!XGetWindowAttributes(display, win->id, &wa))
 			warnx("window: 0x%lx, failed XGetWindowAttributes",
 			    win->id);
-		warnx("window: 0x%lx, map_state: %d, state: %d, "
+		warnx("window: 0x%lx, map_state: %d, state: %u, "
 		    "transient: 0x%lx", win->id, wa.map_state, state,
 		    win->transient);
 	}
@@ -1136,7 +1137,7 @@ dumpwins(struct swm_region *r, union arg *args)
 		if (!XGetWindowAttributes(display, win->id, &wa))
 			warnx("window: 0x%lx, failed XGetWindowAttributes",
 			    win->id);
-		warnx("window: 0x%lx, map_state: %d, state: %d, "
+		warnx("window: 0x%lx, map_state: %d, state: %u, "
 		    "transient: 0x%lx", win->id, wa.map_state, state,
 		    win->transient);
 	}
@@ -1410,8 +1411,8 @@ bar_print(struct swm_region *r, const char *s)
 	XSetForeground(display, r->s->bar_gc,
 	    r->s->c[SWM_S_COLOR_BAR_FONT].color);
 	DRAWSTRING(display, r->bar->buffer, bar_fs, r->s->bar_gc,
-	    x, (bar_fs_extents->max_logical_extent.height - lbox.height) / 2 -
-	    lbox.y, s, len);
+		x, (bar_fs_extents->max_logical_extent.height - lbox.height) / 2 -
+		lbox.y, s, len);
 
 	/* blt */
 	XCopyArea(display, r->bar->buffer, r->bar->id, r->s->bar_gc, 0, 0,
@@ -1804,7 +1805,7 @@ bar_toggle(struct swm_region *r, union arg *args)
 		for (i = 0; i < num_screens; i++)
 			TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
 				if (tmpr->bar)
-					XUnmapWindow(display, tmpr->bar->id);
+					xcb_unmap_window(conn, tmpr->bar->id);
 	} else {
 		for (i = 0; i < num_screens; i++)
 			TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
@@ -1928,8 +1929,9 @@ bar_setup(struct swm_region *r)
 	r->bar->buffer = XCreatePixmap(display, r->bar->id, WIDTH(r->bar),
 	    HEIGHT(r->bar), DefaultDepth(display, r->s->idx));
 
-	XSelectInput(display, r->bar->id, VisibilityChangeMask);
-
+	xcb_randr_select_input(conn, r->bar->id,
+		XCB_RANDR_NOTIFY_MASK_OUTPUT_CHANGE);
+  
 	if (bar_enabled)
 		XMapRaised(display, r->bar->id);
 
@@ -1957,20 +1959,19 @@ void
 drain_enter_notify(void)
 {
 	int			i = 0;
-	XEvent			cne;
 
-	while (XCheckMaskEvent(display, EnterWindowMask, &cne))
+	while (xcb_poll_for_event(conn))
 		i++;
 
 	DNPRINTF(SWM_D_EVENT, "drain_enter_notify: drained: %d\n", i);
 }
 
 void
-set_win_state(struct ws_win *win, long state)
+set_win_state(struct ws_win *win, uint16_t state)
 {
-	long			data[] = {state, XCB_ATOM_NONE};
+	uint16_t		data[2] = { state, XCB_ATOM_NONE };
 
-	DNPRINTF(SWM_D_EVENT, "set_win_state: window: 0x%lx\n", win->id);
+	DNPRINTF(SWM_D_EVENT, "set_win_state: window: 0x%x\n", win->id);
 
 	if (win == NULL)
 		return;
@@ -1979,10 +1980,10 @@ set_win_state(struct ws_win *win, long state)
 		astate, 32, 2, data);
 }
 
-long
+uint16_t
 getstate(xcb_window_t w)
 {
-	long				result = -1;
+	uint16_t			result = 0;
 	xcb_get_property_cookie_t	c;
 	xcb_get_property_reply_t	*r;
 
@@ -1990,7 +1991,7 @@ getstate(xcb_window_t w)
 	r = xcb_get_property_reply(conn, c, NULL);
 
 	if (r) {
-		result = *((long *)xcb_get_property_value(r));
+		result = *((uint16_t *)xcb_get_property_value(r));
 		free(r);
 	}
 	
@@ -2141,12 +2142,12 @@ unmap_window(struct ws_win *win)
 		return;
 
 	/* don't unmap again */
-	if (getstate(win->id) == IconicState)
+	if (getstate(win->id) == XCB_WM_STATE_ICONIC)
 		return;
 
-	set_win_state(win, IconicState);
+	set_win_state(win, XCB_WM_STATE_ICONIC);
 
-	XUnmapWindow(display, win->id);
+	xcb_unmap_window(conn, win->id);
 	XSetWindowBorder(display, win->id,
 	    win->s->c[SWM_S_COLOR_UNFOCUS].color);
 }
@@ -2246,7 +2247,7 @@ root_to_region(Window root)
 }
 
 struct ws_win *
-find_unmanaged_window(Window id)
+find_unmanaged_window(xcb_window_t id)
 {
 	struct ws_win		*win;
 	int			i, j, num_screens;
@@ -2265,9 +2266,9 @@ struct ws_win *
 find_window(xcb_window_t id)
 {
 	struct ws_win		*win;
-	Window			wrr, wpr, *wcr = NULL;
 	int			i, j, num_screens;
-	unsigned int		nc;
+	xcb_query_tree_cookie_t	c;
+	xcb_query_tree_reply_t	*r;
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	for (i = 0; i < num_screens; i++)
@@ -2276,23 +2277,25 @@ find_window(xcb_window_t id)
 				if (id == win->id)
 					return (win);
 
-	/* if we were looking for the parent return that window instead */
-	if (XQueryTree(display, id, &wrr, &wpr, &wcr, &nc) == 0)
+	c = xcb_query_tree(conn, id);
+	r = xcb_query_tree_reply(conn, c, NULL);
+	if (!r)
 		return (NULL);
-	if (wcr)
-		XFree(wcr);
 
-	/* ignore not found and root */
-	if (wpr == 0 || wrr == wpr)
+	/* if we were looking for the parent return that window instead */
+	if (r->parent == 0 || r->root == r->parent)
 		return (NULL);
 
 	/* look for parent */
 	for (i = 0; i < num_screens; i++)
 		for (j = 0; j < workspace_limit; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
-				if (wpr == win->id)
+				if (r->parent == win->id) {
+					free(r);
 					return (win);
+				}
 
+	free(r);
 	return (NULL);
 }
 
@@ -2305,7 +2308,7 @@ spawn(int ws_idx, union arg *args, int close_fd)
 	DNPRINTF(SWM_D_MISC, "spawn: %s\n", args->argv[0]);
 
 	if (display)
-		close(ConnectionNumber(display));
+		close(xcb_get_file_descriptor(conn));
 
 	setenv("LD_PRELOAD", SWM_LIB, 1);
 
@@ -2486,10 +2489,10 @@ void
 focus_win(struct ws_win *win)
 {
 	XEvent			cne;
-	Window			cur_focus;
-	int			rr;
 	struct ws_win		*cfw = NULL;
-
+	xcb_get_input_focus_cookie_t	c;
+	xcb_get_input_focus_reply_t	*r;
+	xcb_window_t			cur_focus = XCB_WINDOW_NONE;
 
 	DNPRINTF(SWM_D_FOCUS, "focus_win: window: 0x%lx\n", WINID(win));
 
@@ -2511,7 +2514,12 @@ focus_win(struct ws_win *win)
 		return;
 	}
 
-	XGetInputFocus(display, &cur_focus, &rr);
+	c = xcb_get_input_focus(conn);
+	r = xcb_get_input_focus_reply(conn, c, NULL);
+	if (r) {
+		cur_focus = r->focus;
+		free(r);
+	}
 	if ((cfw = find_window(cur_focus)) != NULL)
 		unfocus_win(cfw);
 	else {
@@ -2530,8 +2538,8 @@ focus_win(struct ws_win *win)
 			;
 
 		if (win->java == 0)
-			XSetInputFocus(display, win->id,
-			    RevertToParent, CurrentTime);
+			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
+				win->id, XCB_CURRENT_TIME);
 		grabbuttons(win, 1);
 		XSetWindowBorder(display, win->id,
 		    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
@@ -2539,9 +2547,9 @@ focus_win(struct ws_win *win)
 		    win->ws->always_raise)
 			XMapRaised(display, win->id);
 
-		XChangeProperty(display, win->s->root,
-		    ewmh[_NET_ACTIVE_WINDOW].atom, XA_WINDOW, 32,
-		    PropModeReplace, (unsigned char *)&win->id, 1);
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
+			ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
+			&win->id);
 	}
 
 	bar_update();
@@ -3790,7 +3798,7 @@ search_win_cleanup(void)
 	struct search_window	*sw = NULL;
 
 	while ((sw = TAILQ_FIRST(&search_wl)) != NULL) {
-		XDestroyWindow(display, sw->indicator);
+		xcb_destroy_window(conn, sw->indicator);
 		XFreeGC(display, sw->gc);
 		TAILQ_REMOVE(&search_wl, sw, entry);
 		free(sw);
@@ -3802,8 +3810,8 @@ search_win(struct swm_region *r, union arg *args)
 {
 	struct ws_win		*win = NULL;
 	struct search_window	*sw = NULL;
-	Window			w;
-	XGCValues		gcv;
+	xcb_window_t		w;
+	XGCValues               gcv;
 	int			i;
 	char			s[8];
 	FILE			*lfile;
@@ -3854,7 +3862,7 @@ search_win(struct swm_region *r, union arg *args)
 		sw->gc = XCreateGC(display, w, 0, &gcv);
 		XMapRaised(display, w);
 		XSetForeground(display, sw->gc, r->s->c[SWM_S_COLOR_BAR].color);
-
+ 
 		DRAWSTRING(display, w, bar_fs, sw->gc, 2,
 		    (bar_fs_extents->max_logical_extent.height -
 		    lbox.height) / 2 - lbox.y, s, len);
@@ -4351,7 +4359,7 @@ resize(struct ws_win *win, union arg *args)
 	}
 	store_float_geom(win,r);
 
-	XUngrabPointer(display, CurrentTime);
+	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
 	XFreeCursor(display, cursor);
 
 	/* drain events */
@@ -4476,7 +4484,7 @@ move(struct ws_win *win, union arg *args)
 		update_window(win);
 	}
 	store_float_geom(win, r);
-	XUngrabPointer(display, CurrentTime);
+	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);	
 
 	/* drain events */
 	drain_enter_notify();
@@ -6203,7 +6211,7 @@ set_child_transient(struct ws_win *win, Window *trans)
 }
 
 long
-window_get_pid(Window win)
+window_get_pid(xcb_window_t win)
 {
 	long				ret = 0;
 	const char			*errstr;
@@ -6244,7 +6252,7 @@ tryharder:
 }
 
 struct ws_win *
-manage_window(Window id)
+manage_window(xcb_window_t id)
 {
 	Window			trans = 0;
 	struct workspace	*ws;
@@ -6496,7 +6504,7 @@ free_window(struct ws_win *win)
 		return;
 
 	/* needed for restart wm */
-	set_win_state(win, WithdrawnState);
+	set_win_state(win, XCB_WM_STATE_WITHDRAWN);
 
 	TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
 
@@ -6894,7 +6902,7 @@ mapnotify(XEvent *e)
 
 	win = manage_window(ev->window);
 	if (win)
-		set_win_state(win, NormalState);
+		set_win_state(win, XCB_WM_STATE_NORMAL);
 
 	/*
 	 * focus_win can only set input focus on a mapped window.
@@ -7002,7 +7010,7 @@ unmapnotify(XEvent *e)
 	if (win == NULL)
 		return;
 
-	if (getstate(e->xunmap.window) == NormalState) {
+	if (getstate(e->xunmap.window) == XCB_WM_STATE_NORMAL) {
 		unmanage_window(win);
 		stack();
 
@@ -7318,46 +7326,70 @@ screenchange(XEvent *e)
 void
 grab_windows(void)
 {
-	Window			d1, d2, *wins = NULL;
-	XWindowAttributes	wa;
-	unsigned int		no;
+	xcb_window_t		*wins	= NULL;
+	int			no;
 	int			i, j, num_screens;
-	long			state, manage;
+	uint16_t		state, manage;
+	
+	xcb_query_tree_cookie_t			qtc;
+	xcb_query_tree_reply_t			*qtr;
+	xcb_get_window_attributes_cookie_t	c;
+	xcb_get_window_attributes_reply_t	*r;
+	xcb_get_property_cookie_t		pc;
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	for (i = 0; i < num_screens; i++) {
-		if (!XQueryTree(display, screens[i].root, &d1, &d2, &wins, &no))
+		qtc = xcb_query_tree(conn, screens[i].root);
+		qtr = xcb_query_tree_reply(conn, qtc, NULL);
+		if (!qtr)
 			continue;
-
+		wins = xcb_query_tree_children(qtr);
+		no = xcb_query_tree_children_length(qtr);
 		/* attach windows to a region */
-		/* normal windows */
+		/* normal windows */		
 		for (j = 0; j < no; j++) {
-			if (!XGetWindowAttributes(display, wins[j], &wa) ||
-			    wa.override_redirect ||
-			    XGetTransientForHint(display, wins[j], &d1))
+			c = xcb_get_window_attributes(conn, wins[j]);
+			r = xcb_get_window_attributes_reply(conn, c, NULL);
+			if (!r)
 				continue;
+			if (r->override_redirect) {
+				free(r);
+				continue;
+			}
+			
+			pc = xcb_get_wm_transient_for(conn, wins[j]);
+			if (xcb_get_wm_transient_for_reply(conn, pc, &wins[j],
+					NULL)) {
+				free(r);
+				continue;
+			}
 
 			state = getstate(wins[j]);
-			manage = state == IconicState;
-			if (wa.map_state == IsViewable || manage)
+			manage = state == XCB_WM_STATE_ICONIC;
+			if (r->map_state == XCB_MAP_STATE_VIEWABLE || manage)
 				manage_window(wins[j]);
+			free(r);
 		}
 		/* transient windows */
 		for (j = 0; j < no; j++) {
-			if (!XGetWindowAttributes(display, wins[j], &wa) ||
-			    wa.override_redirect)
+			c = xcb_get_window_attributes(conn, wins[j]);
+			r = xcb_get_window_attributes_reply(conn, c, NULL);
+			if (!r)
 				continue;
-
+			if (r->override_redirect) {
+				free(r);
+				continue;
+			}
+			free(r);
+		
 			state = getstate(wins[j]);
-			manage = state == IconicState;
-			if (XGetTransientForHint(display, wins[j], &d1) &&
-			    manage)
+			manage = state == XCB_WM_STATE_ICONIC;
+			pc = xcb_get_wm_transient_for(conn, wins[j]);
+			if (xcb_get_wm_transient_for_reply(conn, pc, &wins[j],
+					NULL) && manage)
 				manage_window(wins[j]);
 		}
-		if (wins) {
-			XFree(wins);
-			wins = NULL;
-		}
+		free(qtr);
 	}
 }
 
@@ -7368,6 +7400,7 @@ setup_screens(void)
 	int			errorbase;
 	struct workspace	*ws;
 	XGCValues		gcv;
+
 	xcb_randr_query_version_cookie_t	c;
 	xcb_randr_query_version_reply_t		*r;
 
@@ -7409,7 +7442,7 @@ setup_screens(void)
 		/* create graphics context on screen */
 		gcv.graphics_exposures = 0;
 		screens[i].bar_gc = XCreateGC(display, screens[i].root,
-		    GCGraphicsExposures, &gcv);
+			GCGraphicsExposures, &gcv);
 
 		/* set default cursor */
 		XDefineCursor(display, screens[i].root,
@@ -7457,13 +7490,13 @@ void
 workaround(void)
 {
 	int			i, num_screens;
-	Atom			netwmcheck, netwmname, utf8_string;
-	Window			root, win;
+	xcb_atom_t		netwmcheck, netwmname, utf8_string;
+	xcb_window_t		root, win;
 
 	/* work around sun jdk bugs, code from wmname */
-	netwmcheck = XInternAtom(display, "_NET_SUPPORTING_WM_CHECK", False);
-	netwmname = XInternAtom(display, "_NET_WM_NAME", False);
-	utf8_string = XInternAtom(display, "UTF8_STRING", False);
+	netwmcheck = get_atom_from_string("_NET_SUPPORTING_WM_CHECK");
+	netwmname = get_atom_from_string("_NET_WM_NAME");
+	utf8_string = get_atom_from_string("UTF8_STRING");
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	for (i = 0; i < num_screens; i++) {
@@ -7472,12 +7505,12 @@ workaround(void)
 		    screens[i].c[SWM_S_COLOR_UNFOCUS].color,
 		    screens[i].c[SWM_S_COLOR_UNFOCUS].color);
 
-		XChangeProperty(display, root, netwmcheck, XA_WINDOW, 32,
-		    PropModeReplace, (unsigned char *)&win, 1);
-		XChangeProperty(display, win, netwmcheck, XA_WINDOW, 32,
-		    PropModeReplace, (unsigned char *)&win, 1);
-		XChangeProperty(display, win, netwmname, utf8_string, 8,
-		    PropModeReplace, (unsigned char*)"LG3D", strlen("LG3D"));
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, root,
+			netwmcheck, XCB_ATOM_WINDOW, 32, 1, &win);
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win,
+			netwmcheck, XCB_ATOM_WINDOW, 32, 1, &win);
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win,
+			netwmcheck, utf8_string, 8, strlen("LG3D"), "LG3D"); 
 	}
 }
 
@@ -7494,7 +7527,8 @@ main(int argc, char *argv[])
 	int			xfd, i, num_screens;
 	fd_set			rd;
 	struct sigaction	sact;
-
+	xcb_generic_event_t	*evt;
+	
 	start_argv = argv;
 	warnx("Welcome to spectrwm V%s Build: %s", SPECTRWM_VERSION, buildstr);
 	if (!setlocale(LC_CTYPE, "") || !setlocale(LC_TIME, "") ||
@@ -7613,9 +7647,9 @@ noconfig:
 	if (focus_mode == SWM_FOCUS_DEFAULT)
 		drain_enter_notify();
 
-	xfd = ConnectionNumber(display);
+	xfd = xcb_get_file_descriptor(conn); 
 	while (running) {
-		while (XPending(display)) {
+		while ((evt = xcb_poll_for_event(conn)) == 0) {
 			XNextEvent(display, &e);
 			if (running == 0)
 				goto done;
@@ -7688,7 +7722,6 @@ done:
 	for (i = 0; i < num_screens; ++i)
 		if (screens[i].bar_gc != NULL)
 			XFreeGC(display, screens[i].bar_gc);
-
 	XFreeFontSet(display, bar_fs);
 	xcb_disconnect(conn);	
 	XCloseDisplay(display);
