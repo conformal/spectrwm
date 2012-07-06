@@ -6287,7 +6287,8 @@ manage_window(xcb_window_t id)
 	const char		*errstr;
 	struct pid_e		*p;
 	struct quirk		*qp;
-
+	uint32_t		event_mask;
+	
 	if ((win = find_window(id)) != NULL)
 		return (win);	/* already being managed */
 
@@ -6506,9 +6507,12 @@ manage_window(xcb_window_t id)
 		update_window(win);
 	}
 
-	XSelectInput(display, id, EnterWindowMask | FocusChangeMask |
-	    PropertyChangeMask | StructureNotifyMask);
+	event_mask = XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE |
+			XCB_EVENT_MASK_PROPERTY_CHANGE |
+			XCB_EVENT_MASK_STRUCTURE_NOTIFY;
 
+	xcb_change_window_attributes(conn, id, XCB_CW_EVENT_MASK, &event_mask);
+	
 	/* floaters need to be mapped if they are in the current workspace */
 	if ((win->floating || win->transient) && (ws->idx == r->ws->idx))
 		map_window_raised(win->id);
