@@ -2229,29 +2229,32 @@ restart(struct swm_region *r, union arg *args)
 }
 
 struct swm_region *
-root_to_region(Window root)
+root_to_region(xcb_window_t root)
 {
 	struct swm_region	*r = NULL;
-	Window			rr, cr;
-	int			i, x, y, wx, wy, num_screens;
-	unsigned int		mask;
+	int			i, num_screens;
+	xcb_query_pointer_cookie_t	qpc;
+	xcb_query_pointer_reply_t	*qpr;
 
-	DNPRINTF(SWM_D_MISC, "root_to_region: window: 0x%lx\n", root);
+	DNPRINTF(SWM_D_MISC, "root_to_region: window: 0x%x\n", root);
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	for (i = 0; i < num_screens; i++)
 		if (screens[i].root == root)
 			break;
 
-	if (XQueryPointer(display, screens[i].root,
-	    &rr, &cr, &x, &y, &wx, &wy, &mask) != False) {
+	qpc = xcb_query_pointer(conn, screens[i].root);
+	qpr = xcb_query_pointer_reply(conn, qpc, NULL);
+
+	if (qpr) {
 		DNPRINTF(SWM_D_MISC, "root_to_region: pointer: (%d,%d)\n",
-		    x, y);
+		    qpr->root_x, qpr->root_y);
 		/* choose a region based on pointer location */
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
-			if (X(r) <= x && x < MAX_X(r) &&
-			    Y(r) <= y && y < MAX_Y(r))
+			if (X(r) <= qpr->root_x && qpr->root_x < MAX_X(r) &&
+			    Y(r) <= qpr->root_y && qpr->root_y < MAX_Y(r))
 				break;
+		free(qpr);
 	}
 
 	if (r == NULL)
