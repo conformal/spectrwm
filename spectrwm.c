@@ -626,6 +626,18 @@ void		 update_window(struct ws_win *);
 void		 spawn_select(struct swm_region *, union arg *, char *, int *);
 unsigned char	*get_win_name(xcb_window_t);
 xcb_atom_t	 get_atom_from_string(const char *);
+void		map_window_raised(xcb_window_t);
+
+void
+map_window_raised(xcb_window_t win)
+{
+	uint32_t	val = XCB_STACK_MODE_ABOVE;
+
+	xcb_configure_window(conn, win, 	
+		XCB_CONFIG_WINDOW_STACK_MODE, &val);
+
+	xcb_map_window(conn, win);	
+}
 
 xcb_atom_t
 get_atom_from_string(const char *str)
@@ -1810,7 +1822,7 @@ bar_toggle(struct swm_region *r, union arg *args)
 		for (i = 0; i < num_screens; i++)
 			TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
 				if (tmpr->bar)
-					XMapRaised(display, tmpr->bar->id);
+					map_window_raised(tmpr->bar->id);
 	}
 
 	bar_enabled = !bar_enabled;
@@ -1933,7 +1945,7 @@ bar_setup(struct swm_region *r)
 		XCB_RANDR_NOTIFY_MASK_OUTPUT_CHANGE);
   
 	if (bar_enabled)
-		XMapRaised(display, r->bar->id);
+		map_window_raised(r->bar->id);
 
 	DNPRINTF(SWM_D_BAR, "bar_setup: window: 0x%lx, (x,y) w x h: (%d,%d) "
 	    "%d x %d\n", WINID(r->bar), X(r->bar), Y(r->bar), WIDTH(r->bar),
@@ -2545,7 +2557,7 @@ focus_win(struct ws_win *win)
 		    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
 		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS ||
 		    win->ws->always_raise)
-			XMapRaised(display, win->id);
+			map_window_raised(win->id);
 
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
 			ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
@@ -3376,7 +3388,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 
 		if (XGetWindowAttributes(display, win->id, &wa))
 			if (wa.map_state == IsUnmapped)
-				XMapRaised(display, win->id);
+				map_window_raised(win->id);
 
 		last_h = win_g.h;
 		i++;
@@ -3396,12 +3408,12 @@ notiles:
 		}
 
 		stack_floater(win, ws->r);
-		XMapRaised(display, win->id);
+		map_window_raised(win->id);
 	}
 
 	if (fs_win) {
 		stack_floater(fs_win, ws->r);
-		XMapRaised(display, fs_win->id);
+		map_window_raised(fs_win->id);
 	}
 }
 
@@ -3563,7 +3575,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 	/* put the last transient on top */
 	if (wintrans) {
 		if (parent)
-			XMapRaised(display, parent->id);
+			map_window_raised(parent->id);
 		stack_floater(wintrans, ws->r);
 		focus_magic(wintrans);
 	}
@@ -3860,7 +3872,7 @@ search_win(struct swm_region *r, union arg *args)
 		TAILQ_INSERT_TAIL(&search_wl, sw, entry);
 
 		sw->gc = XCreateGC(display, w, 0, &gcv);
-		XMapRaised(display, w);
+		map_window_raised(w);
 		XSetForeground(display, sw->gc, r->s->c[SWM_S_COLOR_BAR].color);
  
 		DRAWSTRING(display, w, bar_fs, sw->gc, 2,
@@ -6490,7 +6502,7 @@ manage_window(xcb_window_t id)
 
 	/* floaters need to be mapped if they are in the current workspace */
 	if ((win->floating || win->transient) && (ws->idx == r->ws->idx))
-		XMapRaised(display, win->id);
+		map_window_raised(win->id);
 
 	return (win);
 }
@@ -6969,7 +6981,7 @@ propertynotify(XEvent *e)
 
 	if (ev->state == PropertyDelete && ev->atom == a_swm_iconic) {
 		update_iconic(win, 0);
-		XMapRaised(display, win->id);
+		map_window_raised(win->id);
 		stack();
 		focus_win(win);
 		return;
