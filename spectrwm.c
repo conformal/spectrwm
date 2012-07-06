@@ -7701,7 +7701,7 @@ noconfig:
 				    xrandr_geteventname(&e), e.type);
 
 				switch (e.type - xrandr_eventbase) {
-				case RRScreenChangeNotify:
+				case XCB_RANDR_SCREEN_CHANGE_NOTIFY:
 					screenchange(&e);
 					break;
 				default:
