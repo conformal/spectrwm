@@ -93,6 +93,7 @@
 #include <X11/Xlib-xcb.h>
 #include <xcb/randr.h>
 #include <xcb/xcb_icccm.h>
+#include <xcb/xcb_keysyms.h>
 #include <X11/Xproto.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/Xrandr.h>
@@ -2049,19 +2050,21 @@ client_msg(struct ws_win *win, xcb_atom_t a)
 
 	xcb_send_event(conn, False, win->id,
 		XCB_EVENT_MASK_NO_EVENT, (const char *)&ev);
+	xcb_flush(conn);
 }
 
 /* synthetic response to a ConfigureRequest when not making a change */
 void
 config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 {
-	XConfigureEvent		ce;
+	xcb_configure_notify_event_t ce;
 
 	if (win == NULL)
 		return;
 
 	/* send notification of unchanged state. */
-	ce.type = ConfigureNotify;
+	bzero(&ce, sizeof(ce));
+	ce.response_type = XCB_CONFIGURE_NOTIFY;
 	ce.x = X(win);
 	ce.y = Y(win);
 	ce.width = WIDTH(win);
@@ -2070,20 +2073,18 @@ config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 
 	if (ev == NULL) {
 		/* EWMH */
-		ce.display = display;
 		ce.event = win->id;
 		ce.window = win->id;
 		ce.border_width = BORDER(win);
-		ce.above = None;
+		ce.above_sibling = XCB_WINDOW_NONE;
 	} else {
 		/* normal */
-		ce.display = ev->display;
 		ce.event = ev->window;
 		ce.window = ev->window;
 
 		/* make response appear more WM_SIZE_HINTS-compliant */
 		if (win->sh_mask)
-			DNPRINTF(SWM_D_MISC, "config_win: hints: window: 0x%lx,"
+			DNPRINTF(SWM_D_MISC, "config_win: hints: window: 0x%x,"
 			    " sh_mask: %ld, min: %d x %d, max: %d x %d, inc: "
 			    "%d x %d\n", win->id, win->sh_mask, SH_MIN_W(win),
 			    SH_MIN_H(win), SH_MAX_W(win), SH_MAX_H(win),
@@ -2121,14 +2122,16 @@ config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 		ce.x += BORDER(win) - ev->border_width;
 		ce.y += BORDER(win) - ev->border_width;
 		ce.border_width = ev->border_width;
-		ce.above = ev->above;
+		ce.above_sibling = ev->above;
 	}
 
-	DNPRINTF(SWM_D_MISC, "config_win: ewmh: %s, window: 0x%lx, (x,y) w x h: "
+	DNPRINTF(SWM_D_MISC, "config_win: ewmh: %s, window: 0x%x, (x,y) w x h: "
 	    "(%d,%d) %d x %d, border: %d\n", YESNO(ev == NULL), win->id, ce.x,
 	    ce.y, ce.width, ce.height, ce.border_width);
 
-	XSendEvent(display, win->id, False, StructureNotifyMask, (XEvent *)&ce);
+	xcb_send_event(conn, False, win->id, XCB_EVENT_MASK_STRUCTURE_NOTIFY,
+		(char *)&ce);
+	xcb_flush(conn);
 }
 
 int
@@ -2188,34 +2191,40 @@ unmap_all(void)
 }
 
 void
-fake_keypress(struct ws_win *win, int keysym, int modifiers)
+fake_keypress(struct ws_win *win, xcb_keysym_t keysym, uint16_t modifiers)
 {
-	XKeyEvent event;
+	xcb_key_press_event_t	event;
+	xcb_key_symbols_t	*syms;
+	xcb_keycode_t		*keycode;
 
 	if (win == NULL)
 		return;
-
-	event.display = display;	/* Ignored, but what the hell */
-	event.window = win->id;
+	
+	syms = xcb_key_symbols_alloc(conn);
+	keycode = xcb_key_symbols_get_keycode(syms, keysym);
+	
+	event.event = win->id;
 	event.root = win->s->root;
-	event.subwindow = None;
-	event.time = CurrentTime;
-	event.x = X(win);
-	event.y = Y(win);
-	event.x_root = 1;
-	event.y_root = 1;
+	event.child = XCB_WINDOW_NONE;
+	event.time = XCB_CURRENT_TIME;
+	event.event_x = X(win);
+	event.event_y = Y(win);
+	event.root_x = 1;
+	event.root_y = 1;
 	event.same_screen = True;
-	event.keycode = XKeysymToKeycode(display, keysym);
+	event.detail = *keycode; 
 	event.state = modifiers;
 
-	event.type = KeyPress;
-	XSendEvent(event.display, event.window, True,
-	    KeyPressMask, (XEvent *)&event);
+	event.response_type = XCB_KEY_PRESS;
+	xcb_send_event(conn, win->id, True,
+		 XCB_EVENT_MASK_KEY_PRESS, (char *)&event);
 
-	event.type = KeyRelease;
-	XSendEvent(event.display, event.window, True,
-	    KeyPressMask, (XEvent *)&event);
-
+	event.response_type = XCB_KEY_RELEASE;
+	xcb_send_event(conn, win->id, True,
+		XCB_EVENT_MASK_KEY_RELEASE, (char *)&event);
+	xcb_flush(conn);
+	
+	xcb_key_symbols_free(syms);
 }
 
 void
