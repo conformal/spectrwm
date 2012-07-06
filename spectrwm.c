@@ -486,7 +486,7 @@ struct swm_screen {
 
 	/* colors */
 	struct {
-		unsigned long	color;
+		uint32_t	color;
 		char		*name;
 	} c[SWM_S_COLOR_MAX];
 
@@ -2162,8 +2162,8 @@ unmap_window(struct ws_win *win)
 	set_win_state(win, XCB_WM_STATE_ICONIC);
 
 	xcb_unmap_window(conn, win->id);
-	XSetWindowBorder(display, win->id,
-	    win->s->c[SWM_S_COLOR_UNFOCUS].color);
+	xcb_change_window_attributes(conn, win->id,
+		XCB_CW_BORDER_PIXEL, &win->s->c[SWM_S_COLOR_UNFOCUS].color);
 }
 
 void
@@ -2479,9 +2479,8 @@ unfocus_win(struct ws_win *win)
 		;
 
 	grabbuttons(win, 0);
-	XSetWindowBorder(display, win->id,
-	    win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
-
+	xcb_change_window_attributes(conn, win->id, XCB_CW_BORDER_PIXEL,
+		&win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
 	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
 		ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
 		&none);
@@ -2543,8 +2542,9 @@ focus_win(struct ws_win *win)
 		/* use larger hammer since the window was killed somehow */
 		TAILQ_FOREACH(cfw, &win->ws->winlist, entry)
 			if (cfw->ws && cfw->ws->r && cfw->ws->r->s)
-				XSetWindowBorder(display, cfw->id,
-				    cfw->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
+				xcb_change_window_attributes(conn, cfw->id,
+					XCB_CW_BORDER_PIXEL,
+					&cfw->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
 	}
 
 	win->ws->focus = win;
@@ -2558,8 +2558,9 @@ focus_win(struct ws_win *win)
 			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
 				win->id, XCB_CURRENT_TIME);
 		grabbuttons(win, 1);
-		XSetWindowBorder(display, win->id,
-		    win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
+		xcb_change_window_attributes(conn, win->id,
+			XCB_CW_BORDER_PIXEL,
+			&win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
 		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS ||
 		    win->ws->always_raise)
 			map_window_raised(win->id);
@@ -6543,6 +6544,7 @@ void
 unmanage_window(struct ws_win *win)
 {
 	struct ws_win		*parent;
+	xcb_screen_t		*screen;
 
 	if (win == NULL)
 		return;
@@ -6556,8 +6558,10 @@ unmanage_window(struct ws_win *win)
 	}
 
 	/* focus on root just in case */
-	XSetInputFocus(display, PointerRoot, PointerRoot, CurrentTime);
-
+	screen = xcb_setup_roots_iterator(xcb_get_setup(conn)).data;
+	xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
+		screen->root, XCB_CURRENT_TIME); 
+	
 	focus_prev(win);
 
 	if (win->hints) {
