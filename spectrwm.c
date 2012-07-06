@@ -1502,10 +1502,11 @@ int		urgent[SWM_WS_MAX];
 void
 bar_urgent(char *s, size_t sz)
 {
-	XWMHints		*wmh = NULL;
 	struct ws_win		*win;
 	int			i, j, num_screens;
 	char			b[8];
+	xcb_get_property_cookie_t	c;
+	xcb_wm_hints_t		hints;
 
 	for (i = 0; i < workspace_limit; i++)
 		urgent[i] = 0;
@@ -1514,13 +1515,12 @@ bar_urgent(char *s, size_t sz)
 	for (i = 0; i < num_screens; i++)
 		for (j = 0; j < workspace_limit; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry) {
-				wmh = XGetWMHints(display, win->id);
-				if (wmh == NULL)
+				c = xcb_get_wm_hints(conn, win->id);
+				if (xcb_get_wm_hints_reply(conn, c,
+						&hints, NULL) == 0)
 					continue;
-
-				if (wmh->flags & XUrgencyHint)
+				if (hints.flags & XCB_WM_HINT_X_URGENCY)
 					urgent[j] = 1;
-				XFree(wmh);
 			}
 
 	for (i = 0; i < workspace_limit; i++) {
