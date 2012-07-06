@@ -2023,21 +2023,23 @@ version(struct swm_region *r, union arg *args)
 }
 
 void
-client_msg(struct ws_win *win, Atom a)
+client_msg(struct ws_win *win, xcb_atom_t a)
 {
-	XClientMessageEvent	cm;
+	xcb_client_message_event_t	ev;
 
 	if (win == NULL)
 		return;
 
-	bzero(&cm, sizeof cm);
-	cm.type = ClientMessage;
-	cm.window = win->id;
-	cm.message_type = aprot;
-	cm.format = 32;
-	cm.data.l[0] = a;
-	cm.data.l[1] = CurrentTime;
-	XSendEvent(display, win->id, False, 0L, (XEvent *)&cm);
+	bzero(&ev, sizeof ev);
+	ev.response_type = XCB_CLIENT_MESSAGE;
+	ev.window = win->id;
+	ev.type = aprot;
+	ev.format = 32;
+	ev.data.data32[0] = a;
+	ev.data.data32[1] = XCB_CURRENT_TIME; 
+
+	xcb_send_event(conn, False, win->id,
+		XCB_EVENT_MASK_NO_EVENT, (const char *)&ev);
 }
 
 /* synthetic response to a ConfigureRequest when not making a change */
@@ -3587,8 +3589,8 @@ send_to_ws(struct swm_region *r, union arg *args)
 	int			wsid = args->id;
 	struct ws_win		*win = NULL, *parent;
 	struct workspace	*ws, *nws;
-	Atom			ws_idx_atom = 0;
-	unsigned char		ws_idx_str[SWM_PROPLEN];
+	xcb_atom_t		ws_idx_atom = XCB_ATOM_NONE;
+	char			ws_idx_str[SWM_PROPLEN];
 	union arg		a;
 
 	if (wsid >= workspace_limit)
@@ -3627,14 +3629,15 @@ send_to_ws(struct swm_region *r, union arg *args)
 	win->ws = nws;
 
 	/* Try to update the window's workspace property */
-	ws_idx_atom = XInternAtom(display, "_SWM_WS", False);
+	ws_idx_atom = get_atom_from_string("_SWM_WS");
 	if (ws_idx_atom &&
-	    snprintf((char *)ws_idx_str, SWM_PROPLEN, "%d", nws->idx) <
+	    snprintf(ws_idx_str, SWM_PROPLEN, "%d", nws->idx) <
 	        SWM_PROPLEN) {
 		DNPRINTF(SWM_D_PROP, "send_to_ws: set property: _SWM_WS: %s\n",
 		    ws_idx_str);
-		XChangeProperty(display, win->id, ws_idx_atom, XA_STRING, 8,
-		    PropModeReplace, ws_idx_str, strlen((char *)ws_idx_str));
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id,
+			ws_idx_atom, XCB_ATOM_STRING, 8, strlen(ws_idx_str),
+			ws_idx_str);
 	}
 
 	stack();
