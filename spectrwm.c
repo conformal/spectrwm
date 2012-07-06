@@ -628,7 +628,22 @@ void		 spawn_select(struct swm_region *, union arg *, char *, int *);
 unsigned char	*get_win_name(xcb_window_t);
 xcb_atom_t	 get_atom_from_string(const char *);
 void		map_window_raised(xcb_window_t);
+void		do_sync(void);
 
+void
+do_sync(void)
+{
+	xcb_get_input_focus_cookie_t	c;
+	xcb_get_input_focus_reply_t	*r;
+
+	/* mimic XSync() */
+	c = xcb_get_input_focus(conn);
+	xcb_flush(conn);
+	r = xcb_get_input_focus_reply(conn, c, NULL);
+	if (r)
+		free(r);
+}
+	
 void
 map_window_raised(xcb_window_t win)
 {
@@ -4386,14 +4401,14 @@ resize(struct ws_win *win, union arg *args)
 			/* not free, don't sync more than 120 times / second */
 			if ((ev.xmotion.time - time) > (1000 / 120) ) {
 				time = ev.xmotion.time;
-				XSync(display, False);
+				do_sync();	
 				update_window(win);
 			}
 			break;
 		}
 	} while (ev.type != ButtonRelease);
 	if (time) {
-		XSync(display, False);
+		do_sync();	
 		update_window(win);
 	}
 	store_float_geom(win,r);
@@ -4512,14 +4527,14 @@ move(struct ws_win *win, union arg *args)
 			/* not free, don't sync more than 120 times / second */
 			if ((ev.xmotion.time - time) > (1000 / 120) ) {
 				time = ev.xmotion.time;
-				XSync(display, False);
+				do_sync();	
 				update_window(win);
 			}
 			break;
 		}
 	} while (ev.type != ButtonRelease);
 	if (time) {
-		XSync(display, False);
+		do_sync();	
 		update_window(win);
 	}
 	store_float_geom(win, r);
@@ -7186,12 +7201,12 @@ active_wm(void)
 	/* this causes an error if some other window manager is running */
 	XSelectInput(display, DefaultRootWindow(display),
 	    SubstructureRedirectMask);
-	XSync(display, False);
+	do_sync();	
 	if (other_wm)
 		return (1);
 
 	XSetErrorHandler(xerror);
-	XSync(display, False);
+	do_sync();
 	return (0);
 }
 
