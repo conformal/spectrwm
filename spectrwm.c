@@ -7425,10 +7425,9 @@ void
 setup_screens(void)
 {
 	int			i, j, k, num_screens;
-	int			errorbase;
 	struct workspace	*ws;
 	XGCValues		gcv;
-
+	const xcb_query_extension_reply_t *qep;
 	xcb_randr_query_version_cookie_t	c;
 	xcb_randr_query_version_reply_t		*r;
 
@@ -7439,18 +7438,16 @@ setup_screens(void)
 		    "screens");
 
 	/* initial Xrandr setup */
-	xrandr_support = XRRQueryExtension(display,
-	    &xrandr_eventbase, &errorbase);
-	if (xrandr_support) {
-		c = xcb_randr_query_version(conn, True, False);
-		r = xcb_randr_query_version_reply(conn, c, NULL);
-		if (r) {
-			if (r->major_version < 1)
-				xrandr_support = 0;
-			free(r);
-		} else
-			xrandr_support = 0;
+	xrandr_support = False;
+	c = xcb_randr_query_version(conn, True, True);
+	r = xcb_randr_query_version_reply(conn, c, NULL);
+	if (r) {
+		if (r->major_version >= 1)
+			xrandr_support = True;
+		free(r);
 	}
+	qep = xcb_get_extension_data(conn, &xcb_randr_id);
+	xrandr_eventbase = qep->first_event;
 
 	/* map physical screens */
 	for (i = 0; i < num_screens; i++) {
