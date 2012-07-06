@@ -2724,7 +2724,8 @@ cyclescr(struct swm_region *r, union arg *args)
 	/* move mouse to region */
 	x = X(rr) + 1;
 	y = Y(rr) + 1 + (bar_enabled ? bar_height : 0);
-	XWarpPointer(display, None, rr->s[i].root, 0, 0, 0, 0, x, y);
+	xcb_warp_pointer(conn, XCB_WINDOW_NONE, rr->s[i].root, 0, 0, 0, 0,
+		x, y);
 
 	a.id = SWM_ARG_ID_FOCUSCUR;
 	focus(rr, &a);
@@ -2733,7 +2734,8 @@ cyclescr(struct swm_region *r, union arg *args)
 		/* move to focus window */
 		x = X(rr->ws->focus) + 1;
 		y = Y(rr->ws->focus) + 1;
-		XWarpPointer(display, None, rr->s[i].root, 0, 0, 0, 0, x, y);
+		xcb_warp_pointer(conn, XCB_WINDOW_NONE, rr->s[i].root, 0, 0, 0,
+			0, x, y);
 	}
 }
 
@@ -7709,9 +7711,9 @@ noconfig:
 			}
 			/* move pointer to first screen if multi screen */
 			if (num_screens > 1 || outputs > 1)
-				XWarpPointer(display, None, rr->s[0].root,
-				    0, 0, 0, 0, X(rr),
-				    Y(rr) + (bar_enabled ? bar_height : 0));
+				xcb_warp_pointer(conn, XCB_WINDOW_NONE,
+					rr->s[0].root, 0, 0, 0, 0, X(rr),
+					Y(rr) + (bar_enabled ? bar_height : 0));
 
 			a.id = SWM_ARG_ID_FOCUSCUR;
 			focus(rr, &a);
