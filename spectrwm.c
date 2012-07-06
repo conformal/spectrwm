@@ -1123,9 +1123,10 @@ xrandr_geteventname(XEvent *e)
 void
 dumpwins(struct swm_region *r, union arg *args)
 {
-	struct ws_win		*win;
-	uint16_t		state;
-	XWindowAttributes	wa;
+	struct ws_win				*win;
+	uint16_t				state;
+	xcb_get_window_attributes_cookie_t	c;
+	xcb_get_window_attributes_reply_t	*r;
 
 	if (r->ws == NULL) {
 		warnx("dumpwins: invalid workspace");
@@ -1133,26 +1134,33 @@ dumpwins(struct swm_region *r, union arg *args)
 	}
 
 	warnx("=== managed window list ws %02d ===", r->ws->idx);
-
 	TAILQ_FOREACH(win, &r->ws->winlist, entry) {
 		state = getstate(win->id);
-		if (!XGetWindowAttributes(display, win->id, &wa))
-			warnx("window: 0x%lx, failed XGetWindowAttributes",
+		c = xcb_get_window_attributes(conn, win->id);
+		r = xcb_get_window_attributes_reply(conn, c, NULL);
+		if (r) {
+			warnx("window: 0x%x, map_state: %d, state: %u, "
+				"transient: 0x%x", win->id, wa.map_state,
+				state, win->transient);
+			free(r);
+		} else	
+			warnx("window: 0x%x, failed xcb_get_window_attributes",
 			    win->id);
-		warnx("window: 0x%lx, map_state: %d, state: %u, "
-		    "transient: 0x%lx", win->id, wa.map_state, state,
-		    win->transient);
 	}
 
 	warnx("===== unmanaged window list =====");
 	TAILQ_FOREACH(win, &r->ws->unmanagedlist, entry) {
 		state = getstate(win->id);
-		if (!XGetWindowAttributes(display, win->id, &wa))
+		c = xcb_get_window_attributes(conn, win->id);
+		r xcb_get_window_attributes_reply(conn, c, NULL);
+		if (r) {
+			warnx("window: 0x%lx, map_state: %d, state: %u, "
+				"transient: 0x%lx", win->id, wa.map_state,
+				state, win->transient); 
+			free(r);
+		} else
 			warnx("window: 0x%lx, failed XGetWindowAttributes",
 			    win->id);
-		warnx("window: 0x%lx, map_state: %d, state: %u, "
-		    "transient: 0x%lx", win->id, wa.map_state, state,
-		    win->transient);
 	}
 
 	warnx("=================================");
