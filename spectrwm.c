@@ -7158,7 +7158,7 @@ scan_xrandr(int i)
 	/* map virtual screens onto physical screens */
 #ifdef SWM_XRR_HAS_CRTC
 	if (xrandr_support) {
-		sr = XRRGetScreenResources(display, screens[i].root);
+		sr = XRRGetScreenResourcesCurrent(display, screens[i].root);
 		if (sr == NULL)
 			new_region(&screens[i], 0, 0,
 			    DisplayWidth(display, i),
