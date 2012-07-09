@@ -7306,8 +7306,8 @@ scan_xrandr(int i)
 #endif /* SWM_XRR_HAS_CRTC */
 	struct swm_region	*r;
 	int			num_screens;
-	xcb_randr_get_screen_resources_cookie_t	src;
-	xcb_randr_get_screen_resources_reply_t	*srr;
+	xcb_randr_get_screen_resources_current_cookie_t	src;
+	xcb_randr_get_screen_resources_current_reply_t	*srr;
 	xcb_randr_get_crtc_info_cookie_t	cic;
 	xcb_randr_get_crtc_info_reply_t		*cir = NULL;
 	xcb_randr_crtc_t	*crtc;
@@ -7328,8 +7328,10 @@ scan_xrandr(int i)
 	/* map virtual screens onto physical screens */
 #ifdef SWM_XRR_HAS_CRTC
 	if (xrandr_support) {
-		src = xcb_randr_get_screen_resources(conn, screens[i].root);
-		srr = xcb_randr_get_screen_resources_reply(conn, src, NULL);
+		src = xcb_randr_get_screen_resources_current(conn,
+			screens[i].root);
+		srr = xcb_randr_get_screen_resources_current_reply(conn, src,
+			NULL);
 		if (srr == NULL)
 			new_region(&screens[i], 0, 0,
 			    DisplayWidth(display, i),
@@ -7337,7 +7339,7 @@ scan_xrandr(int i)
 		else
 			ncrtc = srr->num_crtcs;
 		for (c = 0; c < ncrtc; c++) {
-			crtc = xcb_randr_get_screen_resources_crtcs(srr);
+			crtc = xcb_randr_get_screen_resources_current_crtcs(srr);
 			cic = xcb_randr_get_crtc_info(conn, crtc[c],
 				XCB_CURRENT_TIME);
 			cir = xcb_randr_get_crtc_info_reply(conn, cic, NULL);
