@@ -2244,11 +2244,11 @@ fake_keypress(struct ws_win *win, xcb_keysym_t keysym, uint16_t modifiers)
 	event.state = modifiers;
 
 	event.response_type = XCB_KEY_PRESS;
-	xcb_send_event(conn, win->id, True,
+	xcb_send_event(conn, True, win->id,
 		 XCB_EVENT_MASK_KEY_PRESS, (char *)&event);
 
 	event.response_type = XCB_KEY_RELEASE;
-	xcb_send_event(conn, win->id, True,
+	xcb_send_event(conn, True, win->id,
 		XCB_EVENT_MASK_KEY_RELEASE, (char *)&event);
 	xcb_flush(conn);
 
