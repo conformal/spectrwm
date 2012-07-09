@@ -124,6 +124,7 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #if defined(__OpenBSD__)
 #define xcb_icccm_wm_hints_t			xcb_wm_hints_t
 #define xcb_icccm_get_wm_hints			xcb_get_wm_hints
+#define xcb_icccm_get_wm_hints_reply		xcb_get_wm_hints_reply
 #define XCB_ICCCM_WM_HINT_X_URGENCY		XCB_WM_HINT_X_URGENCY
 #define XCB_ICCCM_WM_STATE_ICONIC		XCB_WM_STATE_ICONIC
 #define XCB_ICCCM_WM_STATE_WITHDRAWN		XCB_WM_STATE_WITHDRAWN
