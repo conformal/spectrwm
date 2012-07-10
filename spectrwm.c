@@ -2283,7 +2283,6 @@ root_to_region(xcb_window_t root)
 {
 	struct swm_region	*r = NULL;
 	int			i, num_screens;
-	xcb_query_pointer_cookie_t	qpc;
 	xcb_query_pointer_reply_t	*qpr;
 
 	DNPRINTF(SWM_D_MISC, "root_to_region: window: 0x%x\n", root);
@@ -2293,8 +2292,8 @@ root_to_region(xcb_window_t root)
 		if (screens[i].root == root)
 			break;
 
-	qpc = xcb_query_pointer(conn, screens[i].root);
-	qpr = xcb_query_pointer_reply(conn, qpc, NULL);
+	qpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn,
+		screens[i].root), NULL);
 
 	if (qpr) {
 		DNPRINTF(SWM_D_MISC, "root_to_region: pointer: (%d,%d)\n",
@@ -4272,14 +4271,12 @@ resize(struct ws_win *win, union arg *args)
 	Time			time = 0;
 	struct swm_region	*r = NULL;
 	int			resize_step = 0;
-	Window			rr, cr;
-	int			x, y, wx, wy;
-	unsigned int		mask;
 	struct swm_geometry	g;
 	int			top = 0, left = 0;
 	int			dx, dy;
 	Cursor			cursor;
 	unsigned int		shape; /* cursor style */
+	xcb_query_pointer_reply_t	*xpr;
 
 	if (win == NULL)
 		return;
@@ -4336,15 +4333,17 @@ resize(struct ws_win *win, union arg *args)
 		drain_enter_notify();
 
 	/* get cursor offset from window root */
-	if (!XQueryPointer(display, win->id, &rr, &cr, &x, &y, &wx, &wy, &mask))
-	    return;
-
+	xpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn, win->id),
+		NULL);
+	if (!xpr)
+		return;
+	
 	g = win->g;
 
-	if (wx < WIDTH(win) / 2)
+	if (xpr->win_x < WIDTH(win) / 2)
 		left = 1;
 
-	if (wy < HEIGHT(win) / 2)
+	if (xpr->win_y < HEIGHT(win) / 2)
 		top = 1;
 
 	if (args->id == SWM_ARG_ID_CENTER)
@@ -4359,6 +4358,7 @@ resize(struct ws_win *win, union arg *args)
 	if (XGrabPointer(display, win->id, False, MOUSEMASK, GrabModeAsync,
 	    GrabModeAsync, None, cursor, CurrentTime) != GrabSuccess) {
 		XFreeCursor(display, cursor);
+		free(xpr);
 		return;
 	}
 
@@ -4373,8 +4373,8 @@ resize(struct ws_win *win, union arg *args)
 			break;
 		case MotionNotify:
 			/* cursor offset/delta from start of the operation */
-			dx = ev.xmotion.x_root - x;
-			dy = ev.xmotion.y_root - y;
+			dx = ev.xmotion.x_root - xpr->root_x;
+			dy = ev.xmotion.y_root - xpr->root_y;
 
 			/* vertical */
 			if (top)
@@ -4435,6 +4435,7 @@ resize(struct ws_win *win, union arg *args)
 
 	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
 	XFreeCursor(display, cursor);
+	free(xpr);
 
 	/* drain events */
 	drain_enter_notify();
@@ -4463,9 +4464,7 @@ move(struct ws_win *win, union arg *args)
 	int			move_step = 0;
 	struct swm_region	*r = NULL;
 
-	Window			rr, cr;
-	int			x, y, wx, wy;
-	unsigned int		mask;
+	xcb_query_pointer_reply_t	*qpr;
 
 	if (win == NULL)
 		return;
@@ -4526,9 +4525,10 @@ move(struct ws_win *win, union arg *args)
 		return;
 
 	/* get cursor offset from window root */
-	if (!XQueryPointer(display, win->id, &rr, &cr, &x, &y, &wx, &wy, &mask))
-	    return;
-
+	qpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn, win->id),
+		NULL);
+	if (!qpr)
+		return;
 	do {
 		XMaskEvent(display, MOUSEMASK | ExposureMask |
 		    SubstructureRedirectMask, &ev);
@@ -4539,8 +4539,8 @@ move(struct ws_win *win, union arg *args)
 			handler[ev.type](&ev);
 			break;
 		case MotionNotify:
-			X(win) = ev.xmotion.x_root - wx - border_width;
-			Y(win) = ev.xmotion.y_root - wy - border_width;
+			X(win) = ev.xmotion.x_root - qpr->win_x - border_width;
+			Y(win) = ev.xmotion.y_root - qpr->win_y - border_width;
 
 			constrain_window(win, r, 0);
 
@@ -4559,6 +4559,7 @@ move(struct ws_win *win, union arg *args)
 	}
 	store_float_geom(win, r);
 	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
+	free(qpr);
 
 	/* drain events */
 	drain_enter_notify();
