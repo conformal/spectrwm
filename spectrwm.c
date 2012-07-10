@@ -129,6 +129,8 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #define XCB_ICCCM_WM_STATE_ICONIC		XCB_WM_STATE_ICONIC
 #define XCB_ICCCM_WM_STATE_WITHDRAWN		XCB_WM_STATE_WITHDRAWN
 #define XCB_ICCCM_WM_STATE_NORMAL		XCB_WM_STATE_NORMAL
+#define	xcb_icccm_get_wm_name			xcb_get_wm_name
+#define xcb_icccm_get_wm_name_reply		xcb_get_wm_name_reply
 #define xcb_icccm_get_wm_transient_for		xcb_get_wm_transient_for
 #define xcb_icccm_get_wm_transient_for_reply	xcb_get_wm_transient_for_reply
 #endif
@@ -637,7 +639,7 @@ int		 floating_toggle_win(struct ws_win *);
 void		 constrain_window(struct ws_win *, struct swm_region *, int);
 void		 update_window(struct ws_win *);
 void		 spawn_select(struct swm_region *, union arg *, char *, int *);
-unsigned char	*get_win_name(xcb_window_t);
+char		*get_win_name(xcb_window_t);
 xcb_atom_t	 get_atom_from_string(const char *);
 void		map_window_raised(xcb_window_t);
 void		do_sync(void);
@@ -1540,7 +1542,7 @@ bar_window_float(char *s, size_t sz, struct swm_region *r)
 void
 bar_window_name(char *s, size_t sz, struct swm_region *r)
 {
-	unsigned char		*title;
+	char		*title;
 
 	if (r == NULL || r->ws == NULL || r->ws->focus == NULL)
 		return;
@@ -1548,7 +1550,7 @@ bar_window_name(char *s, size_t sz, struct swm_region *r)
 		return;
 
 	strlcat(s, (char *)title, sz);
-	XFree(title);
+	free(title);
 }
 
 int		urgent[SWM_WS_MAX];
@@ -3750,29 +3752,27 @@ iconify(struct swm_region *r, union arg *args)
 	focus(r, &a);
 }
 
-unsigned char *
+char *
 get_win_name(xcb_window_t win)
 {
-	unsigned char		*prop = NULL;
-	unsigned long		nbytes, nitems;
+	char				*name = NULL;
+	xcb_get_property_cookie_t	c;
+	xcb_get_text_property_reply_t	r;
 
-	/* try _NET_WM_NAME first */
-	if (get_property(win, a_netwmname, 0L, a_utf8_string, NULL, &nbytes,
-	    &prop)) {
-		XFree(prop);
-		if (get_property(win, a_netwmname, nbytes, a_utf8_string,
-		    &nitems, NULL, &prop))
-			return (prop);
+	c = xcb_icccm_get_wm_name(conn, win);
+	if (xcb_icccm_get_wm_name_reply(conn, c, &r, NULL)) {
+		name = malloc((r.name_len + 1) * sizeof(char *));
+		if (!name) {
+			xcb_get_text_property_reply_wipe(&r);
+			return (NULL);
+		}
+		memcpy(name, r.name, r.name_len * sizeof(char *));
+		name[r.name_len] = '\0';
 	}
 
-	/* fallback to WM_NAME */
-	if (!get_property(win, a_wmname, 0L, a_string, NULL, &nbytes, &prop))
-		return (NULL);
-	XFree(prop);
-	if (get_property(win, a_wmname, nbytes, a_string, &nitems, NULL, &prop))
-		return (prop);
+	xcb_get_text_property_reply_wipe(&r);
 
-	return (NULL);
+	return (name);
 }
 
 void
@@ -3780,7 +3780,7 @@ uniconify(struct swm_region *r, union arg *args)
 {
 	struct ws_win		*win;
 	FILE			*lfile;
-	unsigned char		*name;
+	char			*name;
 	int			count = 0;
 
 	DNPRINTF(SWM_D_MISC, "uniconify\n");
@@ -3817,7 +3817,7 @@ uniconify(struct swm_region *r, union arg *args)
 		if (name == NULL)
 			continue;
 		fprintf(lfile, "%s.%u\n", name, win->id);
-		XFree(name);
+		free(name);
 	}
 
 	fclose(lfile);
@@ -3961,7 +3961,7 @@ search_win(struct swm_region *r, union arg *args)
 void
 search_resp_uniconify(char *resp, unsigned long len)
 {
-	unsigned char		*name;
+	char			*name;
 	struct ws_win		*win;
 	char			*s;
 
@@ -3974,10 +3974,10 @@ search_resp_uniconify(char *resp, unsigned long len)
 		if (name == NULL)
 			continue;
 		if (asprintf(&s, "%s.%u", name, win->id) == -1) {
-			XFree(name);
+			free(name);
 			continue;
 		}
-		XFree(name);
+		free(name);
 		if (strncmp(s, resp, len) == 0) {
 			/* XXX this should be a callback to generalize */
 			update_iconic(win, 0);
