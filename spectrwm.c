@@ -3738,7 +3738,7 @@ get_win_name(xcb_window_t win)
 
 	c = xcb_icccm_get_wm_name(conn, win);
 	if (xcb_icccm_get_wm_name_reply(conn, c, &r, NULL)) {
-		name = malloc(1, r.name_len + 1);
+		name = malloc(r.name_len + 1);
 		if (!name) {
 			xcb_get_text_property_reply_wipe(&r);
 			return (NULL);
@@ -7328,32 +7328,35 @@ scan_xrandr(int i)
 			screens[i].root);
 		srr = xcb_randr_get_screen_resources_current_reply(conn, src,
 			NULL);
-		if (srr == NULL)
+		if (srr == NULL) {
 			new_region(&screens[i], 0, 0,
 			    screen->width_in_pixels,
 			    screen->height_in_pixels);
-		else
+			return;
+		} else
 			ncrtc = srr->num_crtcs;
 		for (c = 0; c < ncrtc; c++) {
 			crtc = xcb_randr_get_screen_resources_current_crtcs(srr);
 			cic = xcb_randr_get_crtc_info(conn, crtc[c],
 				XCB_CURRENT_TIME);
 			cir = xcb_randr_get_crtc_info_reply(conn, cic, NULL);
-			if (cir && cir->num_outputs == 0)
+			if (cir == NULL)
 				continue;
+			if (cir->num_outputs == 0) {
+				free(cir);
+				continue;
+			}
 
-			if (cir == NULL || cir->mode == 0)
+			if (cir->mode == 0)
 				new_region(&screens[i], 0, 0,
 				    screen->width_in_pixels,
 				    screen->height_in_pixels);
 			else
 				new_region(&screens[i],
 				    cir->x, cir->y, cir->width, cir->height);
-		}
-		if (srr)
-			free(srr);
-		if (cir)
 			free(cir);
+		}
+		free(srr);
 	} else
 #endif /* SWM_XRR_HAS_CRTC */
 	{
