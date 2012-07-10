@@ -1923,7 +1923,8 @@ bar_setup(struct swm_region *r)
 	int			num_missing_charsets = 0;
 	int			i;
 	xcb_screen_t		*screen = get_screen(r->s->idx);
-
+	uint32_t		wa[2];
+	
 	if (bar_fs) {
 		XFreeFontSet(display, bar_fs);
 		bar_fs = NULL;
@@ -1968,13 +1969,18 @@ bar_setup(struct swm_region *r)
 	WIDTH(r->bar) = WIDTH(r) - 2 * bar_border_width;
 	HEIGHT(r->bar) = bar_height - 2 * bar_border_width;
 
-	r->bar->id = XCreateSimpleWindow(display,
-	    r->s->root, X(r->bar), Y(r->bar), WIDTH(r->bar), HEIGHT(r->bar),
-	    bar_border_width, r->s->c[SWM_S_COLOR_BAR_BORDER].color,
-	    r->s->c[SWM_S_COLOR_BAR].color);
+	r->bar->id = xcb_generate_id(conn);
+	wa[0] = r->s->c[SWM_S_COLOR_BAR].color;
+	wa[1] = r->s->c[SWM_S_COLOR_BAR_BORDER].color;
+	xcb_create_window(conn, screen->root_depth, r->bar->id, r->s->root,
+		X(r->bar), Y(r->bar), WIDTH(r->bar), HEIGHT(r->bar),
+		bar_border_width, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+		screen->root_visual, XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL,
+		wa);
 
-	r->bar->buffer = XCreatePixmap(display, r->bar->id, WIDTH(r->bar),
-	    HEIGHT(r->bar), screen->root_depth);
+	r->bar->buffer = xcb_generate_id(conn);
+	xcb_create_pixmap(conn, screen->root_depth, r->bar->buffer, r->bar->id,
+		WIDTH(r->bar), HEIGHT(r->bar)); 
 
 	xcb_randr_select_input(conn, r->bar->id,
 		XCB_RANDR_NOTIFY_MASK_OUTPUT_CHANGE);
@@ -3874,13 +3880,13 @@ search_win(struct swm_region *r, union arg *args)
 	struct ws_win		*win = NULL;
 	struct search_window	*sw = NULL;
 	xcb_window_t		w;
-	uint32_t		gcv[1];
+	uint32_t		gcv[1], wa[2];
 	int			i;
 	char			s[8];
 	FILE			*lfile;
 	size_t			len;
 	XRectangle		ibox, lbox;
-
+	xcb_screen_t		*screen; 
 	DNPRINTF(SWM_D_MISC, "search_win\n");
 
 	search_r = r;
@@ -3907,18 +3913,22 @@ search_win(struct swm_region *r, union arg *args)
 		}
 		sw->idx = i;
 		sw->win = win;
+		screen = get_screen(sw->idx);
 
 		snprintf(s, sizeof s, "%d", i);
 		len = strlen(s);
 
 		XmbTextExtents(bar_fs, s, len, &ibox, &lbox);
 
-		w = XCreateSimpleWindow(display,
-		    win->id, 0, 0,lbox.width + 4,
-		    bar_fs_extents->max_logical_extent.height, 1,
-		    r->s->c[SWM_S_COLOR_UNFOCUS].color,
-		    r->s->c[SWM_S_COLOR_FOCUS].color);
-
+		w = xcb_generate_id(conn);
+		wa[0] = r->s->c[SWM_S_COLOR_FOCUS].color;
+		wa[1] = r->s->c[SWM_S_COLOR_UNFOCUS].color;
+		xcb_create_window(conn, screen->root_depth, w, win->id,
+			0, 0, lbox.width + 4,
+			bar_fs_extents->max_logical_extent.height, 1,
+			XCB_WINDOW_CLASS_INPUT_OUTPUT, screen->root_visual,
+			XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);	
+		
 		sw->indicator = w;
 		TAILQ_INSERT_TAIL(&search_wl, sw, entry);
 
@@ -7567,6 +7577,8 @@ workaround(void)
 	int			i, num_screens;
 	xcb_atom_t		netwmcheck, netwmname, utf8_string;
 	xcb_window_t		root, win;
+	xcb_screen_t		*screen;
+	uint32_t		wa[2];
 
 	/* work around sun jdk bugs, code from wmname */
 	netwmcheck = get_atom_from_string("_NET_SUPPORTING_WM_CHECK");
@@ -7576,9 +7588,15 @@ workaround(void)
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	for (i = 0; i < num_screens; i++) {
 		root = screens[i].root;
-		win = XCreateSimpleWindow(display,root, 0, 0, 1, 1, 0,
-		    screens[i].c[SWM_S_COLOR_UNFOCUS].color,
-		    screens[i].c[SWM_S_COLOR_UNFOCUS].color);
+		screen = get_screen(i);
+
+		win = xcb_generate_id(conn);
+		wa[0] = screens[i].c[SWM_S_COLOR_UNFOCUS].color;
+		wa[1] = screens[i].c[SWM_S_COLOR_UNFOCUS].color;
+		xcb_create_window(conn, screen->root_depth, win, 0,
+			0, 0, 1, 1, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+			screen->root_visual,
+			XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);
 
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, root,
 			netwmcheck, XCB_ATOM_WINDOW, 32, 1, &win);
