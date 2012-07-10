@@ -3738,12 +3738,12 @@ get_win_name(xcb_window_t win)
 
 	c = xcb_icccm_get_wm_name(conn, win);
 	if (xcb_icccm_get_wm_name_reply(conn, c, &r, NULL)) {
-		name = malloc((r.name_len + 1) * sizeof(char *));
+		name = malloc(1, r.name_len + 1);
 		if (!name) {
 			xcb_get_text_property_reply_wipe(&r);
 			return (NULL);
 		}
-		memcpy(name, r.name, r.name_len * sizeof(char *));
+		memcpy(name, r.name, r.name_len);
 		name[r.name_len] = '\0';
 	}
 
