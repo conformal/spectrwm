@@ -641,6 +641,20 @@ unsigned char	*get_win_name(xcb_window_t);
 xcb_atom_t	 get_atom_from_string(const char *);
 void		map_window_raised(xcb_window_t);
 void		do_sync(void);
+xcb_screen_t	*get_screen(int);
+
+xcb_screen_t *
+get_screen(int screen)
+{
+	xcb_screen_iterator_t i;
+
+	i = xcb_setup_roots_iterator(xcb_get_setup(conn));
+	for (; i.rem; --screen, xcb_screen_next(&i))
+		if (screen == 0)
+			return (i.data);
+
+	return (NULL);
+}
 
 void
 do_sync(void)
@@ -1388,6 +1402,7 @@ custom_region(char *val)
 {
 	unsigned int			sidx, x, y, w, h;
 	int				num_screens;
+	xcb_screen_t			*screen;
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	if (sscanf(val, "screen[%u]:%ux%u+%u+%u", &sidx, &w, &h, &x, &y) != 5)
@@ -1398,16 +1413,17 @@ custom_region(char *val)
 		    sidx, num_screens);
 	sidx--;
 
+	screen = get_screen(sidx);
 	if (w < 1 || h < 1)
 		errx(1, "region %ux%u+%u+%u too small", w, h, x, y);
 
-	if (x > DisplayWidth(display, sidx) ||
-	    y > DisplayHeight(display, sidx) ||
-	    w + x > DisplayWidth(display, sidx) ||
-	    h + y > DisplayHeight(display, sidx)) {
+	if (x > screen->width_in_pixels ||
+	    y > screen->height_in_pixels ||
+	    w + x > screen->width_in_pixels ||
+	    h + y > screen->height_in_pixels) {
 		warnx("ignoring region %ux%u+%u+%u - not within screen "
 		    "boundaries (%ux%u)", w, h, x, y,
-		    DisplayWidth(display, sidx), DisplayHeight(display, sidx));
+		    screen->width_in_pixels, screen->height_in_pixels);
 		return;
 	}
 
@@ -1925,6 +1941,7 @@ bar_setup(struct swm_region *r)
 	char			**missing_charsets;
 	int			num_missing_charsets = 0;
 	int			i;
+	xcb_screen_t		*screen = get_screen(r->s->idx);
 
 	if (bar_fs) {
 		XFreeFontSet(display, bar_fs);
@@ -1976,7 +1993,7 @@ bar_setup(struct swm_region *r)
 	    r->s->c[SWM_S_COLOR_BAR].color);
 
 	r->bar->buffer = XCreatePixmap(display, r->bar->id, WIDTH(r->bar),
-	    HEIGHT(r->bar), DefaultDepth(display, r->s->idx));
+	    HEIGHT(r->bar), screen->root_depth);
 
 	xcb_randr_select_input(conn, r->bar->id,
 		XCB_RANDR_NOTIFY_MASK_OUTPUT_CHANGE);
@@ -7302,16 +7319,17 @@ void
 scan_xrandr(int i)
 {
 #ifdef SWM_XRR_HAS_CRTC
-	int			c;
-	int			ncrtc = 0;
+	int						c;
+	int						ncrtc = 0;
 #endif /* SWM_XRR_HAS_CRTC */
-	struct swm_region	*r;
-	int			num_screens;
+	struct swm_region				*r;
+	int						num_screens;
 	xcb_randr_get_screen_resources_current_cookie_t	src;
 	xcb_randr_get_screen_resources_current_reply_t	*srr;
-	xcb_randr_get_crtc_info_cookie_t	cic;
-	xcb_randr_get_crtc_info_reply_t		*cir = NULL;
-	xcb_randr_crtc_t	*crtc;
+	xcb_randr_get_crtc_info_cookie_t		cic;
+	xcb_randr_get_crtc_info_reply_t			*cir = NULL;
+	xcb_randr_crtc_t				*crtc;
+	xcb_screen_t					*screen = get_screen(i);
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	if (i >= num_screens)
@@ -7335,8 +7353,8 @@ scan_xrandr(int i)
 			NULL);
 		if (srr == NULL)
 			new_region(&screens[i], 0, 0,
-			    DisplayWidth(display, i),
-			    DisplayHeight(display, i));
+			    screen->width_in_pixels,
+			    screen->height_in_pixels);
 		else
 			ncrtc = srr->num_crtcs;
 		for (c = 0; c < ncrtc; c++) {
@@ -7349,8 +7367,8 @@ scan_xrandr(int i)
 
 			if (cir == NULL || cir->mode == 0)
 				new_region(&screens[i], 0, 0,
-				    DisplayWidth(display, i),
-				    DisplayHeight(display, i));
+				    screen->width_in_pixels,
+				    screen->height_in_pixels);
 			else
 				new_region(&screens[i],
 				    cir->x, cir->y, cir->width, cir->height);
@@ -7362,8 +7380,8 @@ scan_xrandr(int i)
 	} else
 #endif /* SWM_XRR_HAS_CRTC */
 	{
-		new_region(&screens[i], 0, 0, DisplayWidth(display, i),
-		    DisplayHeight(display, i));
+		new_region(&screens[i], 0, 0, screen->width_in_pixels,
+		    screen->height_in_pixels);
 	}
 }
 
