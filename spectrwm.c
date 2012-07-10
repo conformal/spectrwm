@@ -258,7 +258,7 @@ struct search_window {
 	TAILQ_ENTRY(search_window)	entry;
 	int				idx;
 	struct ws_win			*win;
-	GC				gc;
+	xcb_gcontext_t			gc;
 	xcb_window_t			indicator;
 };
 TAILQ_HEAD(search_winlist, search_window);
@@ -291,12 +291,6 @@ double			dialog_ratio = 0.6;
 				"-*-times-medium-r-*-*-*-*-*-*-*-*-*-*,"    \
 				"-misc-fixed-medium-r-*-*-*-*-*-*-*-*-*-*,"  \
 				"-*-*-*-r-*--*-*-*-*-*-*-*-*"
-
-#ifdef X_HAVE_UTF8_STRING
-#define DRAWSTRING(x...)	Xutf8DrawString(x)
-#else
-#define DRAWSTRING(x...)	XmbDrawString(x)
-#endif
 
 char			*bar_argv[] = { NULL, NULL };
 int			bar_pipe[2];
@@ -505,7 +499,7 @@ struct swm_screen {
 		char		*name;
 	} c[SWM_S_COLOR_MAX];
 
-	GC			bar_gc;
+	xcb_gcontext_t		bar_gc;
 };
 struct swm_screen	*screens;
 
@@ -1426,6 +1420,8 @@ bar_print(struct swm_region *r, const char *s)
 {
 	int			x = 0;
 	size_t			len;
+	xcb_rectangle_t		rect;
+	uint32_t		gcv[1];
 	XRectangle		ibox, lbox;
 
 	len = strlen(s);
@@ -1446,21 +1442,27 @@ bar_print(struct swm_region *r, const char *s)
 	if (x < SWM_BAR_OFFSET)
 		x = SWM_BAR_OFFSET;
 
+	rect.x = 0;
+	rect.y = 0;
+	rect.width = WIDTH(r->bar);
+	rect.height = HEIGHT(r->bar);
+
 	/* clear back buffer */
-	XSetForeground(display, r->s->bar_gc, r->s->c[SWM_S_COLOR_BAR].color);
-	XFillRectangle(display, r->bar->buffer, r->s->bar_gc, 0, 0,
-	    WIDTH(r->bar), HEIGHT(r->bar));
+	gcv[0] = r->s->c[SWM_S_COLOR_BAR].color;
+	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
+	xcb_poly_fill_rectangle(conn, r->bar->buffer, r->s->bar_gc,
+		sizeof(rect), &rect);
 
 	/* draw back buffer */
-	XSetForeground(display, r->s->bar_gc,
-	    r->s->c[SWM_S_COLOR_BAR_FONT].color);
-	DRAWSTRING(display, r->bar->buffer, bar_fs, r->s->bar_gc,
-		x, (bar_fs_extents->max_logical_extent.height - lbox.height) / 2 -
-		lbox.y, s, len);
+	gcv[0] = r->s->c[SWM_S_COLOR_BAR_FONT].color;
+	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
+	xcb_image_text_8(conn, len, r->bar->buffer, r->s->bar_gc, x,
+		(bar_fs_extents->max_logical_extent.height - lbox.height) / 2 -
+		lbox.y, s);
 
 	/* blt */
-	XCopyArea(display, r->bar->buffer, r->bar->id, r->s->bar_gc, 0, 0,
-	    WIDTH(r->bar), HEIGHT(r->bar), 0, 0);
+	xcb_copy_area(conn, r->bar->buffer, r->bar->id, r->s->bar_gc, 0, 0,
+		0, 0, WIDTH(r->bar), HEIGHT(r->bar));
 }
 
 void
@@ -3860,7 +3862,7 @@ search_win_cleanup(void)
 
 	while ((sw = TAILQ_FIRST(&search_wl)) != NULL) {
 		xcb_destroy_window(conn, sw->indicator);
-		XFreeGC(display, sw->gc);
+		xcb_free_gc(conn, sw->gc);
 		TAILQ_REMOVE(&search_wl, sw, entry);
 		free(sw);
 	}
@@ -3872,7 +3874,7 @@ search_win(struct swm_region *r, union arg *args)
 	struct ws_win		*win = NULL;
 	struct search_window	*sw = NULL;
 	xcb_window_t		w;
-	XGCValues               gcv;
+	uint32_t		gcv[1];
 	int			i;
 	char			s[8];
 	FILE			*lfile;
@@ -3920,13 +3922,14 @@ search_win(struct swm_region *r, union arg *args)
 		sw->indicator = w;
 		TAILQ_INSERT_TAIL(&search_wl, sw, entry);
 
-		sw->gc = XCreateGC(display, w, 0, &gcv);
+		sw->gc = xcb_generate_id(conn);
+		gcv[0] = r->s->c[SWM_S_COLOR_BAR].color;		
+		xcb_create_gc(conn, sw->gc, w, XCB_GC_FOREGROUND, gcv); 
 		map_window_raised(w);
-		XSetForeground(display, sw->gc, r->s->c[SWM_S_COLOR_BAR].color);
 
-		DRAWSTRING(display, w, bar_fs, sw->gc, 2,
+		xcb_image_text_8(conn, len, w, sw->gc, 2,
 		    (bar_fs_extents->max_logical_extent.height -
-		    lbox.height) / 2 - lbox.y, s, len);
+		    lbox.height) / 2 - lbox.y, s);
 
 		fprintf(lfile, "%d\n", i);
 		i++;
@@ -7472,7 +7475,7 @@ setup_screens(void)
 {
 	int			i, j, k, num_screens;
 	struct workspace	*ws;
-	XGCValues		gcv;
+	uint32_t		gcv[1];
 	const xcb_query_extension_reply_t *qep;
 	xcb_randr_query_version_cookie_t	c;
 	xcb_randr_query_version_reply_t		*r;
@@ -7511,9 +7514,10 @@ setup_screens(void)
 		setscreencolor("rgb:a0/a0/a0", i + 1, SWM_S_COLOR_BAR_FONT);
 
 		/* create graphics context on screen */
-		gcv.graphics_exposures = 0;
-		screens[i].bar_gc = XCreateGC(display, screens[i].root,
-			GCGraphicsExposures, &gcv);
+		screens[i].bar_gc = xcb_generate_id(conn);
+		gcv[0] = 0;
+		xcb_create_gc(conn, screens[i].bar_gc, screens[i].root,
+			XCB_GC_GRAPHICS_EXPOSURES, gcv);
 
 		/* set default cursor */
 		XDefineCursor(display, screens[i].root,
@@ -7790,8 +7794,8 @@ done:
 	bar_extra_stop();
 
 	for (i = 0; i < num_screens; ++i)
-		if (screens[i].bar_gc != NULL)
-			XFreeGC(display, screens[i].bar_gc);
+		if (screens[i].bar_gc != 0)
+			xcb_free_gc(conn, screens[i].bar_gc);
 	XFreeFontSet(display, bar_fs);
 	xcb_disconnect(conn);
 	XCloseDisplay(display);
