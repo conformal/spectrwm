@@ -703,29 +703,6 @@ get_atom_from_string(const char *str)
 	return (XCB_ATOM_NONE);
 }
 
-int
-get_property(Window id, Atom atom, long count, Atom type, unsigned long *nitems,
-    unsigned long *nbytes, unsigned char **data)
-{
-	int			format, status;
-	unsigned long		*nbytes_ret, *nitems_ret;
-	unsigned long		nbytes_tmp, nitems_tmp;
-	Atom			real;
-
-	nbytes_ret = nbytes != NULL ? nbytes : &nbytes_tmp;
-	nitems_ret = nitems != NULL ? nitems : &nitems_tmp;
-
-	status = XGetWindowProperty(display, id, atom, 0L, count, False, type,
-	    &real, &format, nitems_ret, nbytes_ret, data);
-
-	if (status != Success)
-		return (False);
-	if (real != type)
-		return (False);
-
-	return (True);
-}
-
 void
 update_iconic(struct ws_win *win, int newv)
 {
