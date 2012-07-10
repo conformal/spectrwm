@@ -1526,7 +1526,7 @@ bar_window_name(char *s, size_t sz, struct swm_region *r)
 	if ((title = get_win_name(r->ws->focus->id)) == NULL)
 		return;
 
-	strlcat(s, (char *)title, sz);
+	strlcat(s, title, sz);
 	free(title);
 }
 
