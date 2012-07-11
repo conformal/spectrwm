@@ -6211,9 +6211,10 @@ manage_window(Window id)
 			TAILQ_INSERT_AFTER(&win->ws->winlist, ww, win, entry);
 		else if ((ww = win->ws->focus) &&
 		    spawn_position == SWM_STACK_ABOVE)
-			TAILQ_INSERT_AFTER(&win->ws->winlist, win->ws->focus, win, entry);
+			TAILQ_INSERT_AFTER(&win->ws->winlist, win->ws->focus,
+			    win, entry);
 		else if (ww && spawn_position == SWM_STACK_BELOW)
-			TAILQ_INSERT_AFTER(&win->ws->winlist, win->ws->focus, win, entry);
+			TAILQ_INSERT_BEFORE(win->ws->focus, win, entry);
 		else switch (spawn_position) {
 		default:
 		case SWM_STACK_TOP:
@@ -6312,10 +6313,21 @@ manage_window(Window id)
 	win->s = r->s;	/* this never changes */
 	if (trans && (ww = find_window(trans)))
 		TAILQ_INSERT_AFTER(&ws->winlist, ww, win, entry);
-	else if (spawn_position == SWM_STACK_ABOVE && win->ws->focus)
-		TAILQ_INSERT_AFTER(&win->ws->winlist, win->ws->focus, win, entry);
-	else
-		TAILQ_INSERT_TAIL(&ws->winlist, win, entry);
+	else if (win->ws->focus && spawn_position == SWM_STACK_ABOVE)
+		TAILQ_INSERT_AFTER(&win->ws->winlist, win->ws->focus, win,
+		    entry);
+	else if (win->ws->focus && spawn_position == SWM_STACK_BELOW)
+		TAILQ_INSERT_BEFORE(win->ws->focus, win, entry);
+	else switch (spawn_position) {
+	default:
+	case SWM_STACK_TOP:
+	case SWM_STACK_ABOVE:
+		TAILQ_INSERT_TAIL(&win->ws->winlist, win, entry);
+		break;
+	case SWM_STACK_BOTTOM:
+	case SWM_STACK_BELOW:
+		TAILQ_INSERT_HEAD(&win->ws->winlist, win, entry);
+	}
 
 	/* ignore window border if there is one. */
 	WIDTH(win) = win->wa.width;
