@@ -390,7 +390,7 @@ struct ws_win {
 	XSizeHints		sh;
 	long			sh_mask;
 	XClassHint		ch;
-	XWMHints		*hints;
+	xcb_wm_hints_t		hints;
 };
 TAILQ_HEAD(ws_win_list, ws_win);
 
@@ -6276,9 +6276,9 @@ void
 set_child_transient(struct ws_win *win, Window *trans)
 {
 	struct ws_win		*parent, *w;
-	XWMHints		*wmh = NULL;
 	struct swm_region	*r;
 	struct workspace	*ws;
+	xcb_wm_hints_t		wmh;
 
 	parent = find_window(win->transient);
 	if (parent)
@@ -6287,24 +6287,18 @@ set_child_transient(struct ws_win *win, Window *trans)
 		DNPRINTF(SWM_D_MISC, "set_child_transient: parent doesn't exist"
 		    " for 0x%x trans 0x%x\n", win->id, win->transient);
 
-		if (win->hints == NULL) {
-			warnx("no hints for 0x%x", win->id);
-			return;
-		}
-
 		r = root_to_region(win->wa.root);
 		ws = r->ws;
 		/* parent doen't exist in our window list */
 		TAILQ_FOREACH(w, &ws->winlist, entry) {
-			if (wmh)
-				XFree(wmh);
-
-			if ((wmh = XGetWMHints(display, w->id)) == NULL) {
+			if (xcb_icccm_get_wm_hints_reply(conn,
+					xcb_icccm_get_wm_hints(conn, w->id),
+					&wmh, NULL) != 1) {
 				warnx("can't get hints for 0x%x", w->id);
 				continue;
 			}
 
-			if (win->hints->window_group != wmh->window_group)
+			if (win->hints.window_group != wmh.window_group)
 				continue;
 
 			w->child_trans = win;
@@ -6315,9 +6309,6 @@ set_child_transient(struct ws_win *win, Window *trans)
 			break;
 		}
 	}
-
-	if (wmh)
-		XFree(wmh);
 }
 
 long
@@ -6430,7 +6421,9 @@ manage_window(xcb_window_t id)
 	}
 	XGetWindowAttributes(display, id, &win->wa);
 	XGetWMNormalHints(display, id, &win->sh, &win->sh_mask);
-	win->hints = XGetWMHints(display, id);
+	xcb_icccm_get_wm_hints_reply(conn,
+		xcb_icccm_get_wm_hints(conn, id),
+		&win->hints, NULL);
 	XGetTransientForHint(display, id, &trans);
 	if (trans) {
 		win->transient = trans;
@@ -6658,11 +6651,6 @@ unmanage_window(struct ws_win *win)
 		screen->root, XCB_CURRENT_TIME);
 
 	focus_prev(win);
-
-	if (win->hints) {
-		XFree(win->hints);
-		win->hints = NULL;
-	}
 
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
 	TAILQ_INSERT_TAIL(&win->ws->unmanagedlist, win, entry);
