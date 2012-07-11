@@ -6274,7 +6274,7 @@ out:
 }
 
 void
-set_child_transient(struct ws_win *win, Window *trans)
+set_child_transient(struct ws_win *win, xcb_window_t *trans)
 {
 	struct ws_win		*parent, *w;
 	struct swm_region	*r;
@@ -6305,7 +6305,7 @@ set_child_transient(struct ws_win *win, Window *trans)
 			w->child_trans = win;
 			win->transient = w->id;
 			*trans = w->id;
-			DNPRINTF(SWM_D_MISC, "set_child_transient: asjusting "
+			DNPRINTF(SWM_D_MISC, "set_child_transient: adjusting "
 			    "transient to 0x%x\n", win->transient);
 			break;
 		}
@@ -6356,7 +6356,7 @@ tryharder:
 struct ws_win *
 manage_window(xcb_window_t id)
 {
-	Window			trans = 0;
+	xcb_window_t		trans = XCB_WINDOW_NONE;
 	struct workspace	*ws;
 	struct ws_win		*win, *ww;
 	int			format, i, ws_idx, border_me = 0;
@@ -6426,7 +6426,9 @@ manage_window(xcb_window_t id)
 	xcb_icccm_get_wm_hints_reply(conn,
 		xcb_icccm_get_wm_hints(conn, id),
 		&win->hints, NULL);
-	XGetTransientForHint(display, id, &trans);
+	xcb_get_wm_transient_for_reply(conn,
+		xcb_get_wm_transient_for(conn, id),
+		&trans, NULL);
 	if (trans) {
 		win->transient = trans;
 		set_child_transient(win, &trans);
