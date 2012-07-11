@@ -92,6 +92,7 @@
 #include <X11/Xatom.h>
 #include <X11/Xlib-xcb.h>
 #include <xcb/randr.h>
+#include <xcb/xcb_atom.h>
 #include <xcb/xcb_icccm.h>
 #include <xcb/xcb_keysyms.h>
 #include <X11/Xproto.h>
@@ -6358,16 +6359,17 @@ manage_window(xcb_window_t id)
 	Window			trans = 0;
 	struct workspace	*ws;
 	struct ws_win		*win, *ww;
-	int			format, i, ws_idx, n, border_me = 0;
+	int			format, i, ws_idx, border_me = 0;
 	unsigned long		nitems, bytes;
 	Atom			ws_idx_atom = 0, type;
-	Atom			*prot = NULL, *pp;
 	unsigned char		ws_idx_str[SWM_PROPLEN], *prop = NULL;
 	struct swm_region	*r;
 	const char		*errstr;
 	struct pid_e		*p;
 	struct quirk		*qp;
 	uint32_t		event_mask;
+	xcb_atom_t		prot;
+	xcb_get_wm_protocols_reply_t	wpr;
 
 	if ((win = find_window(id)) != NULL)
 		return (win);	/* already being managed */
@@ -6432,16 +6434,21 @@ manage_window(xcb_window_t id)
 		    "transient: 0x%x\n", win->id, win->transient);
 	}
 
+	prot = xcb_atom_get_fast_reply(conn,
+		xcb_atom_get_fast(conn, False, strlen("WM_PROTOCOLS"),
+			"WM_PROTOCOLS"),
+		NULL);
 	/* get supported protocols */
-	if (XGetWMProtocols(display, id, &prot, &n)) {
-		for (i = 0, pp = prot; i < n; i++, pp++) {
-			if (*pp == takefocus)
+	if (xcb_get_wm_protocols_reply(conn,
+			xcb_get_wm_protocols(conn, id, prot),
+			&wpr, NULL)) {
+		for (i = 0; i < wpr.atoms_len; i++) {
+			if (wpr.atoms[i] == takefocus)
 				win->take_focus = 1;
-			if (*pp == adelete)
+			if (wpr.atoms[i] == adelete)
 				win->can_delete = 1;
 		}
-		if (prot)
-			XFree(prot);
+		xcb_get_wm_protocols_reply_wipe(&wpr);
 	}
 
 	win->iconic = get_iconic(win);
