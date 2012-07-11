@@ -4276,6 +4276,7 @@ resize(struct ws_win *win, union arg *args)
 	int			dx, dy;
 	Cursor			cursor;
 	unsigned int		shape; /* cursor style */
+	xcb_grab_pointer_reply_t	*gpr;
 	xcb_query_pointer_reply_t	*xpr;
 
 	if (win == NULL)
@@ -4355,8 +4356,12 @@ resize(struct ws_win *win, union arg *args)
 
 	cursor = XCreateFontCursor(display, shape);
 
-	if (XGrabPointer(display, win->id, False, MOUSEMASK, GrabModeAsync,
-	    GrabModeAsync, None, cursor, CurrentTime) != GrabSuccess) {
+	gpr = xcb_grab_pointer_reply(conn,
+		xcb_grab_pointer(conn, False, win->id, MOUSEMASK,
+		XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, XCB_WINDOW_NONE,
+		cursor, XCB_CURRENT_TIME),
+		NULL);
+	if (!gpr) {
 		XFreeCursor(display, cursor);
 		free(xpr);
 		return;
@@ -4463,7 +4468,7 @@ move(struct ws_win *win, union arg *args)
 	Time			time = 0;
 	int			move_step = 0;
 	struct swm_region	*r = NULL;
-
+	xcb_grab_pointer_reply_t	*gpr;
 	xcb_query_pointer_reply_t	*qpr;
 
 	if (win == NULL)
@@ -4519,10 +4524,14 @@ move(struct ws_win *win, union arg *args)
 		return;
 	}
 
-	if (XGrabPointer(display, win->id, False, MOUSEMASK, GrabModeAsync,
-	    GrabModeAsync, None, XCreateFontCursor(display, XC_fleur),
-	    CurrentTime) != GrabSuccess)
-		return;
+	gpr = xcb_grab_pointer_reply(conn,
+		xcb_grab_pointer(conn, False, win->id, MOUSEMASK,
+			XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC,
+			XCB_WINDOW_NONE, XCreateFontCursor(display, XC_fleur),
+			XCB_CURRENT_TIME),
+		NULL);
+	if (!gpr)
+		return;	
 
 	/* get cursor offset from window root */
 	qpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn, win->id),
