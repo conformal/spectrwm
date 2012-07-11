@@ -4274,8 +4274,9 @@ resize(struct ws_win *win, union arg *args)
 	struct swm_geometry	g;
 	int			top = 0, left = 0;
 	int			dx, dy;
-	Cursor			cursor;
 	unsigned int		shape; /* cursor style */
+	xcb_cursor_t		cursor;
+	xcb_font_t		cursor_font;
 	xcb_grab_pointer_reply_t	*gpr;
 	xcb_query_pointer_reply_t	*xpr;
 
@@ -4354,7 +4355,12 @@ resize(struct ws_win *win, union arg *args)
 	else
 		shape = (left) ? XC_bottom_left_corner : XC_bottom_right_corner;
 
-	cursor = XCreateFontCursor(display, shape);
+	cursor_font = xcb_generate_id(conn);
+	xcb_open_font(conn, cursor_font, strlen("cursor"), "cursor");
+
+	cursor = xcb_generate_id(conn);
+	xcb_create_glyph_cursor(conn, cursor, cursor_font, cursor_font,
+		shape, shape + 1, 0, 0, 0, 0xffff, 0xffff, 0xffff);
 
 	gpr = xcb_grab_pointer_reply(conn,
 		xcb_grab_pointer(conn, False, win->id, MOUSEMASK,
@@ -4362,7 +4368,8 @@ resize(struct ws_win *win, union arg *args)
 		cursor, XCB_CURRENT_TIME),
 		NULL);
 	if (!gpr) {
-		XFreeCursor(display, cursor);
+		xcb_free_cursor(conn, cursor);
+		xcb_close_font(conn, cursor_font);
 		free(xpr);
 		return;
 	}
@@ -4439,7 +4446,9 @@ resize(struct ws_win *win, union arg *args)
 	store_float_geom(win,r);
 
 	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
-	XFreeCursor(display, cursor);
+	xcb_free_cursor(conn, cursor);
+	xcb_close_font(conn, cursor_font);
+	free(gpr);
 	free(xpr);
 
 	/* drain events */
@@ -4468,6 +4477,8 @@ move(struct ws_win *win, union arg *args)
 	Time			time = 0;
 	int			move_step = 0;
 	struct swm_region	*r = NULL;
+	xcb_font_t			cursor_font;
+	xcb_cursor_t			cursor;
 	xcb_grab_pointer_reply_t	*gpr;
 	xcb_query_pointer_reply_t	*qpr;
 
@@ -4524,20 +4535,33 @@ move(struct ws_win *win, union arg *args)
 		return;
 	}
 
+	cursor_font = xcb_generate_id(conn);
+	xcb_open_font(conn, cursor_font, strlen("cursor"), "cursor");
+	
+	cursor = xcb_generate_id(conn);
+	xcb_create_glyph_cursor(conn, cursor, cursor_font, cursor_font,
+		XC_fleur, XC_fleur + 1, 0, 0, 0, 0xffff, 0xffff, 0xffff);
+
 	gpr = xcb_grab_pointer_reply(conn,
 		xcb_grab_pointer(conn, False, win->id, MOUSEMASK,
 			XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC,
-			XCB_WINDOW_NONE, XCreateFontCursor(display, XC_fleur),
-			XCB_CURRENT_TIME),
+			XCB_WINDOW_NONE, cursor, XCB_CURRENT_TIME),
 		NULL);
-	if (!gpr)
-		return;	
+	if (!gpr) {
+		xcb_free_cursor(conn, cursor);
+		xcb_close_font(conn, cursor_font);
+		return;
+	}
 
 	/* get cursor offset from window root */
 	qpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn, win->id),
 		NULL);
-	if (!qpr)
+	if (!qpr) {
+		xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
+		xcb_free_cursor(conn, cursor);
+		xcb_close_font(conn, cursor_font);
 		return;
+	}
 	do {
 		XMaskEvent(display, MOUSEMASK | ExposureMask |
 		    SubstructureRedirectMask, &ev);
@@ -4567,8 +4591,10 @@ move(struct ws_win *win, union arg *args)
 		update_window(win);
 	}
 	store_float_geom(win, r);
-	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
 	free(qpr);
+	xcb_free_cursor(conn, cursor);
+	xcb_close_font(conn, cursor_font);
+	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
 
 	/* drain events */
 	drain_enter_notify();
