@@ -7032,20 +7032,27 @@ maprequest(XEvent *e)
 {
 	struct ws_win		*win;
 	struct swm_region	*r;
-	XWindowAttributes	wa;
 	XMapRequestEvent	*ev = &e->xmaprequest;
+	xcb_get_window_attributes_reply_t *war;
 
 	DNPRINTF(SWM_D_EVENT, "maprequest: window: 0x%lx\n",
 	    e->xmaprequest.window);
 
-	if (!XGetWindowAttributes(display, ev->window, &wa))
+	war = xcb_get_window_attributes_reply(conn,
+		xcb_get_window_attributes(conn, ev->window),
+		NULL);
+	if (!war)
 		return;
-	if (wa.override_redirect)
+	if (war->override_redirect) {
+		free(war);
 		return;
+	}	
+	free(war);
 
 	win = manage_window(e->xmaprequest.window);
-	if (win == NULL)
+	if (win == NULL) {
 		return; /* can't happen */
+	}
 
 	stack();
 
