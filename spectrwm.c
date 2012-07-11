@@ -7521,8 +7521,10 @@ setup_screens(void)
 {
 	int			i, j, k, num_screens;
 	struct workspace	*ws;
-	uint32_t		gcv[1];
+	uint32_t		gcv[1], wa[1];
 	const xcb_query_extension_reply_t *qep;
+	xcb_cursor_t				cursor;
+	xcb_font_t				cursor_font;
 	xcb_randr_query_version_cookie_t	c;
 	xcb_randr_query_version_reply_t		*r;
 
@@ -7543,6 +7545,14 @@ setup_screens(void)
 	}
 	qep = xcb_get_extension_data(conn, &xcb_randr_id);
 	xrandr_eventbase = qep->first_event;
+
+	cursor_font = xcb_generate_id(conn);
+	xcb_open_font(conn, cursor_font, strlen("cursor"), "cursor");
+
+	cursor = xcb_generate_id(conn);
+	xcb_create_glyph_cursor(conn, cursor, cursor_font, cursor_font,
+		XC_left_ptr, XC_left_ptr + 1, 0, 0, 0, 0xffff, 0xffff, 0xffff);
+	wa[0] = cursor;
 
 	/* map physical screens */
 	for (i = 0; i < num_screens; i++) {
@@ -7566,8 +7576,8 @@ setup_screens(void)
 			XCB_GC_GRAPHICS_EXPOSURES, gcv);
 
 		/* set default cursor */
-		XDefineCursor(display, screens[i].root,
-		    XCreateFontCursor(display, XC_left_ptr));
+		xcb_change_window_attributes(conn, screens[i].root,
+			XCB_CW_CURSOR, wa); 	
 
 		/* init all workspaces */
 		/* XXX these should be dynamically allocated too */
@@ -7595,6 +7605,8 @@ setup_screens(void)
 			xcb_randr_select_input(conn, screens[i].root,
 				XCB_RANDR_NOTIFY_MASK_SCREEN_CHANGE);
 	}
+	xcb_free_cursor(conn, cursor);
+	xcb_close_font(conn, cursor_font);
 }
 
 void
