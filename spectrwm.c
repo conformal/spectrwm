@@ -6394,6 +6394,7 @@ manage_window(xcb_window_t id)
 	int			i, ws_idx, border_me = 0;
 	xcb_atom_t		ws_idx_atom = XCB_ATOM_NONE;
 	char			ws_idx_str[SWM_PROPLEN], *prop = NULL;
+	size_t			proplen;
 	struct swm_region	*r;
 	const char		*errstr;
 	struct pid_e		*p;
@@ -6449,21 +6450,25 @@ manage_window(xcb_window_t id)
 
 	/* Get all the window data in one shot */
 	ws_idx_atom = get_atom_from_string("_SWM_WS");
+	fprintf(stderr, "ws_idx_atom: %d\n", ws_idx_atom);
 	if (ws_idx_atom) {
 		gpr = xcb_get_property_reply(conn,
 			xcb_get_property(conn, False, id, ws_idx_atom,
 				XCB_ATOM_STRING, 0, SWM_PROPLEN),
 			NULL);
 		if (gpr) {
-			prop = malloc(xcb_get_property_value_length(gpr) + 1);
-			if (prop) {
-				memcpy(prop, xcb_get_property_value(gpr),
-					xcb_get_property_value_length(gpr));
-				prop[xcb_get_property_value_length(gpr)] = '\0';
+			proplen = xcb_get_property_value_length(gpr);
+			if (proplen > 0) {
+				prop = malloc(proplen + 1);
+				if (prop) {
+					memcpy(prop,
+					    xcb_get_property_value(gpr),
+					    proplen);	
+					prop[proplen] = '\0';
+				}
 			}
 			free(gpr);
 		}
-		
 	}
 	win->wa = xcb_get_geometry_reply(conn,
 		xcb_get_geometry(conn, id),
