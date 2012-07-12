@@ -387,7 +387,7 @@ struct ws_win {
 	unsigned long		quirks;
 	struct workspace	*ws;	/* always valid */
 	struct swm_screen	*s;	/* always valid, never changes */
-	XWindowAttributes	wa;
+	xcb_get_geometry_reply_t	*wa;
 	XSizeHints		sh;
 	long			sh_mask;
 	XClassHint		ch;
@@ -6320,7 +6320,7 @@ set_child_transient(struct ws_win *win, xcb_window_t *trans)
 		DNPRINTF(SWM_D_MISC, "set_child_transient: parent doesn't exist"
 		    " for 0x%x trans 0x%x\n", win->id, win->transient);
 
-		r = root_to_region(win->wa.root);
+		r = root_to_region(win->wa->root);
 		ws = r->ws;
 		/* parent doen't exist in our window list */
 		TAILQ_FOREACH(w, &ws->winlist, entry) {
@@ -6465,7 +6465,9 @@ manage_window(xcb_window_t id)
 		}
 		
 	}
-	XGetWindowAttributes(display, id, &win->wa);
+	win->wa = xcb_get_geometry_reply(conn,
+		xcb_get_geometry(conn, id),
+		NULL);	
 	XGetWMNormalHints(display, id, &win->sh, &win->sh_mask);
 	xcb_icccm_get_wm_hints_reply(conn,
 		xcb_icccm_get_wm_hints(conn, id),
@@ -6504,7 +6506,7 @@ manage_window(xcb_window_t id)
 	 * a workspace (either by spawn() or manually moving), and isn't
 	 * transient, * put it in the same workspace
 	 */
-	r = root_to_region(win->wa.root);
+	r = root_to_region(win->wa->root);
 	if (p) {
 		ws = &r->s->ws[p->ws];
 		TAILQ_REMOVE(&pidlist, p, entry);
@@ -6558,10 +6560,10 @@ manage_window(xcb_window_t id)
 	}
 
 	/* ignore window border if there is one. */
-	WIDTH(win) = win->wa.width;
-	HEIGHT(win) = win->wa.height;
-	X(win) = win->wa.x + win->wa.border_width;
-	Y(win) = win->wa.y + win->wa.border_width;
+	WIDTH(win) = win->wa->width;
+	HEIGHT(win) = win->wa->height;
+	X(win) = win->wa->x + win->wa->border_width;
+	Y(win) = win->wa->y + win->wa->border_width;
 	win->bordered = 0;
 	win->g_floatvalid = 0;
 	win->floatmaxed = 0;
@@ -6669,6 +6671,8 @@ free_window(struct ws_win *win)
 
 	TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
 
+	if (win->wa)
+		free(win->wa);
 	if (win->ch.res_class)
 		XFree(win->ch.res_class);
 	if (win->ch.res_name)
@@ -7111,7 +7115,7 @@ maprequest(XEvent *e)
 	stack();
 
 	/* make new win focused */
-	r = root_to_region(win->wa.root);
+	r = root_to_region(win->wa->root);
 	if (win->ws == r->ws)
 		focus_magic(win);
 }
