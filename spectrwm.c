@@ -1015,10 +1015,10 @@ ewmh_get_win_state(struct ws_win *win)
 	states = xcb_get_property_value(r);
 	n = xcb_get_property_value_length(r);
 
-	free(r);
-
 	for (i = 0; i < n; i++)
 		ewmh_update_win_state(win, states[i], _NET_WM_STATE_ADD);
+
+	free(r);
 }
 
 /* events */
