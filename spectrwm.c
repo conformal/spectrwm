@@ -6392,16 +6392,16 @@ manage_window(xcb_window_t id)
 	xcb_window_t		trans = XCB_WINDOW_NONE;
 	struct workspace	*ws;
 	struct ws_win		*win, *ww;
-	int			format, i, ws_idx, border_me = 0;
-	unsigned long		nitems, bytes;
-	Atom			ws_idx_atom = 0, type;
-	unsigned char		ws_idx_str[SWM_PROPLEN], *prop = NULL;
+	int			i, ws_idx, border_me = 0;
+	xcb_atom_t		ws_idx_atom = XCB_ATOM_NONE;
+	char			ws_idx_str[SWM_PROPLEN], *prop = NULL;
 	struct swm_region	*r;
 	const char		*errstr;
 	struct pid_e		*p;
 	struct quirk		*qp;
 	uint32_t		event_mask;
 	xcb_atom_t		prot;
+	xcb_get_property_reply_t	*gpr;
 	xcb_get_wm_protocols_reply_t	wpr;
 
 	if ((win = find_window(id)) != NULL)
@@ -6449,10 +6449,22 @@ manage_window(xcb_window_t id)
 	p = find_pid(window_get_pid(id));
 
 	/* Get all the window data in one shot */
-	ws_idx_atom = XInternAtom(display, "_SWM_WS", False);
+	ws_idx_atom = get_atom_from_string("_SWM_WS");
 	if (ws_idx_atom) {
-		XGetWindowProperty(display, id, ws_idx_atom, 0, SWM_PROPLEN,
-		    False, XA_STRING, &type, &format, &nitems, &bytes, &prop);
+		gpr = xcb_get_property_reply(conn,
+			xcb_get_property(conn, False, id, ws_idx_atom,
+				XCB_ATOM_STRING, 0, SWM_PROPLEN),
+			NULL);
+		if (gpr) {
+			prop = malloc(xcb_get_property_value_length(gpr) + 1);
+			if (prop) {
+				memcpy(prop, xcb_get_property_value(gpr),
+					xcb_get_property_value_length(gpr));
+				prop[xcb_get_property_value_length(gpr)] = '\0';
+			}
+			free(gpr);
+		}
+		
 	}
 	XGetWindowAttributes(display, id, &win->wa);
 	XGetWMNormalHints(display, id, &win->sh, &win->sh_mask);
@@ -6501,7 +6513,7 @@ manage_window(xcb_window_t id)
 		p = NULL;
 	} else if (prop && win->transient == 0) {
 		DNPRINTF(SWM_D_PROP, "manage_window: get _SWM_WS: %s\n", prop);
-		ws_idx = strtonum((const char *)prop, 0, workspace_limit - 1,
+		ws_idx = strtonum(prop, 0, workspace_limit - 1,
 		    &errstr);
 		if (errstr) {
 			DNPRINTF(SWM_D_EVENT, "manage_window: window: #%s: %s",
@@ -6564,15 +6576,16 @@ manage_window(xcb_window_t id)
 
 	/* Set window properties so we can remember this after reincarnation */
 	if (ws_idx_atom && prop == NULL &&
-	    snprintf((char *)ws_idx_str, SWM_PROPLEN, "%d", ws->idx) <
+	    snprintf(ws_idx_str, SWM_PROPLEN, "%d", ws->idx) <
 	        SWM_PROPLEN) {
 		DNPRINTF(SWM_D_PROP, "manage_window: set _SWM_WS: %s\n",
 		    ws_idx_str);
-		XChangeProperty(display, win->id, ws_idx_atom, XA_STRING, 8,
-		    PropModeReplace, ws_idx_str, strlen((char *)ws_idx_str));
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id,
+			ws_idx_atom, XCB_ATOM_STRING, 8, strlen(ws_idx_str),
+			ws_idx_str);
 	}
 	if (prop)
-		XFree(prop);
+		free(prop);
 
 	ewmh_autoquirk(win);
 
