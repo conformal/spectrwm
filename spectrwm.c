@@ -375,7 +375,7 @@ struct ws_win {
 	int			floatmaxed;	/* whether maxed by max_stack */
 	int			floating;
 	int			manual;
-	int			iconic;
+	int32_t			iconic;
 	int			bordered;
 	unsigned int		ewmh_flags;
 	int			font_size_boundary[SWM_MAX_FONT_STEPS];
@@ -733,29 +733,28 @@ update_iconic(struct ws_win *win, int newv)
 		xcb_delete_property(conn, win->id, iprop);
 }
 
-int
+int32_t
 get_iconic(struct ws_win *win)
 {
-	int32_t v = 0, *vtmp;
+	int32_t				v = 0;
 	xcb_atom_t			iprop;
-	xcb_get_property_cookie_t	pc;
 	xcb_get_property_reply_t	*pr = NULL;
 
 	iprop = get_atom_from_string("_SWM_ICONIC");
 	if (iprop == XCB_ATOM_NONE)
 		goto out;
 
-	pc = xcb_get_property(conn, False, win->id, iprop, XCB_ATOM_INTEGER,
-			0, 1);
-	pr = xcb_get_property_reply(conn, pc, NULL);
+	pr = xcb_get_property_reply(conn,
+		xcb_get_property(conn, False, win->id, iprop, XCB_ATOM_INTEGER,
+			0, 1),
+		NULL);
 	if (!pr)
 		goto out;
 	if (pr->type != XCB_ATOM_INTEGER || pr->format != 32)
 		goto out;
-	vtmp = xcb_get_property_value(pr);
-	v = *vtmp;
+	v = *((int32_t *)xcb_get_property_value(pr));
 out:
-	if (pr != NULL)
+	if (pr)	
 		free(pr);
 	return (v);
 }
