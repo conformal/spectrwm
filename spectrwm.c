@@ -136,7 +136,7 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #define xcb_icccm_get_wm_transient_for_reply	xcb_get_wm_transient_for_reply
 #endif
 
-/*#define SWM_DEBUG*/
+#define SWM_DEBUG
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while (0)
 #define DNPRINTF(n,x...)	do { if (swm_debug & n) fprintf(stderr, x); } while (0)
@@ -6600,7 +6600,7 @@ manage_window(xcb_window_t id)
 			xcb_get_wm_class(conn, win->id),
 			&win->ch, NULL)) {
 		DNPRINTF(SWM_D_CLASS, "manage_window: class: %s, name: %s\n",
-		    win->ch.class, win->ch.instance_name);
+		    win->ch.class_name, win->ch.instance_name);
 
 		/* java is retarded so treat it special */
 		if (strstr(win->ch.instance_name, "sun-awt")) {
@@ -7132,15 +7132,28 @@ propertynotify(XEvent *e)
 	struct ws_win		*win;
 	XPropertyEvent		*ev = &e->xproperty;
 #ifdef SWM_DEBUG
-	xcb_get_atom_name_reply_t *r;
+	char				*name;
+	size_t				len;
+	xcb_get_atom_name_reply_t	*r;
 
 	r = xcb_get_atom_name_reply(conn,
 		xcb_get_atom_name(conn, ev->atom),
 		NULL);
 	if (r) {
-		DNPRINTF(SWM_D_EVENT,
-			 "propertynotify: window: 0x%x, atom: %s\n",
-	    		ev->window, );
+		len = xcb_get_atom_name_name_length(r);
+		if (len > 0) {
+			name = malloc(len + 1);
+			if (name) {
+				memcpy(name, xcb_get_atom_name_name(r), len);
+				name[len] = '\0';
+				
+				DNPRINTF(SWM_D_EVENT,
+				 	"propertynotify: window: 0x%lx, "
+					"atom: %s\n",
+	    				ev->window, name);
+				free(name);
+			}
+		}
 		free(r);
 	}
 #endif
