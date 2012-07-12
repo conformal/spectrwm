@@ -639,6 +639,22 @@ xcb_atom_t	 get_atom_from_string(const char *);
 void		map_window_raised(xcb_window_t);
 void		do_sync(void);
 xcb_screen_t	*get_screen(int);
+int		parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
+
+int
+parse_rgb(const char *rgb, uint16_t *rr, uint16_t *gg, uint16_t *bb)
+{
+	unsigned int	tmpr, tmpg, tmpb;
+
+	if (sscanf(rgb, "rgb:%x/%x/%x", &tmpr, &tmpg, &tmpb) != 3)
+		return (-1);
+	
+	*rr = tmpr << 8;
+	*gg = tmpg << 8;
+	*bb = tmpb << 8;
+
+	return (0);
+}
 
 xcb_screen_t *
 get_screen(int screen)
@@ -1296,28 +1312,45 @@ name_to_color(const char *colorname)
 	char				cname[32] = "#";
 	xcb_screen_t			*screen;
 	xcb_colormap_t			cmap;
-	xcb_alloc_named_color_cookie_t	c;
-	xcb_alloc_named_color_reply_t	*r;
+	xcb_alloc_color_reply_t		*cr;
+	xcb_alloc_named_color_reply_t	*nr;
+	uint16_t			rr, gg, bb;
 
-	/* XXX - does not support rgb:/RR/GG/BB
-	 *       will need to use xcb_alloc_color
-	 */
 	screen = xcb_setup_roots_iterator(xcb_get_setup(conn)).data;
 	cmap = screen->default_colormap;
 
-	c = xcb_alloc_named_color(conn, cmap, strlen(colorname), colorname);
-	r = xcb_alloc_named_color_reply(conn, c, NULL);
-	if (!r) {
-		strlcat(cname, colorname + 2, sizeof cname - 1);
-		c = xcb_alloc_named_color(conn, cmap, strlen(cname),
-			cname);
-		r = xcb_alloc_named_color_reply(conn, c, NULL);
+	/* color is in format rgb://rr/gg/bb */
+	if (strncmp(colorname, "rgb:", 4) == 0) {
+		if (parse_rgb(colorname, &rr, &gg, &bb) == -1)
+			warnx("could not parse rgb %s", colorname);
+		else {
+			cr = xcb_alloc_color_reply(conn,
+				xcb_alloc_color(conn, cmap, rr, gg, bb),
+				NULL);
+			if (cr) {
+				result = cr->pixel;
+				free(cr);
+			} else
+				warnx("color '%s' not found", colorname);
+		}
+	} else {
+		nr = xcb_alloc_named_color_reply(conn,
+			xcb_alloc_named_color(conn, cmap, strlen(colorname),
+				colorname),
+			NULL);
+		if (!nr) {
+			strlcat(cname, colorname + 2, sizeof cname - 1);
+			nr = xcb_alloc_named_color_reply(conn,
+				xcb_alloc_named_color(conn, cmap, strlen(cname),
+					cname),
+				NULL);
+		}
+		if (nr) {
+			result = nr->pixel;
+			free(nr);
+		} else
+			warnx("color '%s' not found", colorname);
 	}
-	if (r) {
-		result = r->pixel;
-		free(r);
-	} else
-		warnx("color '%s' not found", colorname);
 
 	return (result);
 }
