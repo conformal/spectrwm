@@ -3786,9 +3786,9 @@ get_win_name(xcb_window_t win)
 		}
 		memcpy(name, r.name, r.name_len);
 		name[r.name_len] = '\0';
+		
+		xcb_get_text_property_reply_wipe(&r);
 	}
-
-	xcb_get_text_property_reply_wipe(&r);
 
 	return (name);
 }
