@@ -7122,11 +7122,17 @@ propertynotify(XEvent *e)
 	struct ws_win		*win;
 	XPropertyEvent		*ev = &e->xproperty;
 #ifdef SWM_DEBUG
-	char			*name;
-	name = XGetAtomName(display, ev->atom);
-	DNPRINTF(SWM_D_EVENT, "propertynotify: window: 0x%lx, atom: %s\n",
-	    ev->window, name);
-	XFree(name);
+	xcb_get_atom_name_reply_t *r;
+
+	r = xcb_get_atom_name_reply(conn,
+		xcb_get_atom_name(conn, ev->atom),
+		NULL);
+	if (r) {
+		DNPRINTF(SWM_D_EVENT,
+			 "propertynotify: window: 0x%x, atom: %s\n",
+	    		ev->window, );
+		free(r);
+	}
 #endif
 
 	win = find_window(ev->window);
