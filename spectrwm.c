@@ -194,13 +194,13 @@ u_int32_t		swm_debug = 0
 #define BORDER(w)		(w->bordered ? border_width : 0)
 #define MAX_X(r)		((r)->g.x + (r)->g.w)
 #define MAX_Y(r)		((r)->g.y + (r)->g.h)
-#define SH_MIN(w)		(w)->sh_mask & PMinSize
+#define SH_MIN(w)		(w)->sh.flags & XCB_SIZE_HINT_P_MIN_SIZE
 #define SH_MIN_W(w)		(w)->sh.min_width
 #define SH_MIN_H(w)		(w)->sh.min_height
-#define SH_MAX(w)		(w)->sh_mask & PMaxSize
+#define SH_MAX(w)		(w)->sh.flags & XCB_SIZE_HINT_P_MAX_SIZE
 #define SH_MAX_W(w)		(w)->sh.max_width
 #define SH_MAX_H(w)		(w)->sh.max_height
-#define SH_INC(w)		(w)->sh_mask & PResizeInc
+#define SH_INC(w)		(w)->sh.flags & XCB_SIZE_HINT_P_RESIZE_INC
 #define SH_INC_W(w)		(w)->sh.width_inc
 #define SH_INC_H(w)		(w)->sh.height_inc
 #define SWM_MAX_FONT_STEPS	(3)
@@ -388,8 +388,7 @@ struct ws_win {
 	struct workspace	*ws;	/* always valid */
 	struct swm_screen	*s;	/* always valid, never changes */
 	xcb_get_geometry_reply_t	*wa;
-	XSizeHints		sh;
-	long			sh_mask;
+	xcb_size_hints_t	sh;
 	xcb_get_wm_class_reply_t	ch;
 	xcb_wm_hints_t		hints;
 };
@@ -2147,10 +2146,10 @@ config_win(struct ws_win *win, XConfigureRequestEvent  *ev)
 		ce.window = ev->window;
 
 		/* make response appear more WM_SIZE_HINTS-compliant */
-		if (win->sh_mask)
+		if (win->sh.flags)
 			DNPRINTF(SWM_D_MISC, "config_win: hints: window: 0x%x,"
-			    " sh_mask: %ld, min: %d x %d, max: %d x %d, inc: "
-			    "%d x %d\n", win->id, win->sh_mask, SH_MIN_W(win),
+			    " sh.flags: %u, min: %d x %d, max: %d x %d, inc: "
+			    "%d x %d\n", win->id, win->sh.flags, SH_MIN_W(win),
 			    SH_MIN_H(win), SH_MAX_W(win), SH_MAX_H(win),
 			    SH_INC_W(win), SH_INC_H(win));
 
@@ -6474,7 +6473,9 @@ manage_window(xcb_window_t id)
 	win->wa = xcb_get_geometry_reply(conn,
 		xcb_get_geometry(conn, id),
 		NULL);	
-	XGetWMNormalHints(display, id, &win->sh, &win->sh_mask);
+	xcb_get_wm_normal_hints_reply(conn,
+		xcb_get_wm_normal_hints(conn, id),
+		&win->sh, NULL);
 	xcb_icccm_get_wm_hints_reply(conn,
 		xcb_icccm_get_wm_hints(conn, id),
 		&win->hints, NULL);
@@ -6833,7 +6834,7 @@ configurerequest(XEvent *e)
 
 		XConfigureWindow(display, ev->window, ev->value_mask, &wc);
 	} else if ((!win->manual || win->quirks & SWM_Q_ANYWHERE) &&
-	    !(win->sh_mask & EWMH_F_FULLSCREEN)) {
+	    !(win->ewmh_flags & EWMH_F_FULLSCREEN)) {
 		win->g_float.x = ev->x - X(win->ws->r);
 		win->g_float.y = ev->y - Y(win->ws->r);
 		win->g_float.w = ev->width;
@@ -6863,7 +6864,9 @@ configurenotify(XEvent *e)
 
 	win = find_window(e->xconfigure.window);
 	if (win) {
-		XGetWMNormalHints(display, win->id, &win->sh, &win->sh_mask);
+		xcb_get_wm_normal_hints_reply(conn,
+			xcb_get_wm_normal_hints(conn, win->id),
+			&win->sh, NULL);
 		adjust_font(win);
 		if (font_adjusted)
 			stack();
@@ -7176,7 +7179,7 @@ propertynotify(XEvent *e)
 		long		mask;
 		XGetWMNormalHints(display, win->id, &win->sh, &mask);
 		warnx("normal hints: flag 0x%x", win->sh.flags);
-		if (win->sh.flags & PMinSize) {
+		if (win->sh.flags & XCB_SIZE_HINT_P_MIN_SIZE) {
 			WIDTH(win) = win->sh.min_width;
 			HEIGHT(win) = win->sh.min_height;
 			warnx("min %d %d", WIDTH(win), HEIGHT(win));
