@@ -390,7 +390,7 @@ struct ws_win {
 	xcb_get_geometry_reply_t	*wa;
 	XSizeHints		sh;
 	long			sh_mask;
-	XClassHint		ch;
+	xcb_get_wm_class_reply_t	ch;
 	xcb_wm_hints_t		hints;
 };
 TAILQ_HEAD(ws_win_list, ws_win);
@@ -1518,8 +1518,8 @@ bar_class_name(char *s, size_t sz, struct swm_region *r)
 {
 	if (r == NULL || r->ws == NULL || r->ws->focus == NULL)
 		return;
-	if (r->ws->focus->ch.res_class != NULL)
-		strlcat(s, r->ws->focus->ch.res_class, sz);
+	if (r->ws->focus->ch.class_name != NULL)
+		strlcat(s, r->ws->focus->ch.class_name, sz);
 }
 
 void
@@ -1527,8 +1527,8 @@ bar_title_name(char *s, size_t sz, struct swm_region *r)
 {
 	if (r == NULL || r->ws == NULL || r->ws->focus == NULL)
 		return;
-	if (r->ws->focus->ch.res_name != NULL)
-		strlcat(s, r->ws->focus->ch.res_name, sz);
+	if (r->ws->focus->ch.instance_name != NULL)
+		strlcat(s, r->ws->focus->ch.instance_name, sz);
 }
 
 void
@@ -6590,22 +6590,24 @@ manage_window(xcb_window_t id)
 
 	ewmh_autoquirk(win);
 
-	if (XGetClassHint(display, win->id, &win->ch)) {
+	if (xcb_get_wm_class_reply(conn,
+			xcb_get_wm_class(conn, win->id),
+			&win->ch, NULL)) {
 		DNPRINTF(SWM_D_CLASS, "manage_window: class: %s, name: %s\n",
-		    win->ch.res_class, win->ch.res_name);
+		    win->ch.class, win->ch.instance_name);
 
 		/* java is retarded so treat it special */
-		if (strstr(win->ch.res_name, "sun-awt")) {
+		if (strstr(win->ch.instance_name, "sun-awt")) {
 			win->java = 1;
 			border_me = 1;
 		}
 
 		TAILQ_FOREACH(qp, &quirks, entry) {
-			if (!strcmp(win->ch.res_class, qp->class) &&
-			    !strcmp(win->ch.res_name, qp->name)) {
+			if (!strcmp(win->ch.class_name, qp->class) &&
+			    !strcmp(win->ch.instance_name, qp->name)) {
 				DNPRINTF(SWM_D_CLASS, "manage_window: found: "
-				    "class: %s, name: %s\n", win->ch.res_class,
-				    win->ch.res_name);
+				    "class: %s, name: %s\n", win->ch.class_name,
+				    win->ch.instance_name);
 				if (qp->quirk & SWM_Q_FLOAT) {
 					win->floating = 1;
 					border_me = 1;
@@ -6673,10 +6675,8 @@ free_window(struct ws_win *win)
 
 	if (win->wa)
 		free(win->wa);
-	if (win->ch.res_class)
-		XFree(win->ch.res_class);
-	if (win->ch.res_name)
-		XFree(win->ch.res_name);
+	
+	xcb_get_wm_class_reply_wipe(&win->ch);
 
 	kill_refs(win);
 
