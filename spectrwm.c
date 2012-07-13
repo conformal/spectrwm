@@ -7193,8 +7193,8 @@ propertynotify(XEvent *e)
 		XMoveResizeWindow(display, win->id,
 		    X(win), Y(win), WIDTH(win), HEIGHT(win));
 #endif
-	case XA_WM_CLASS:
-	case XA_WM_NAME:
+	case XCB_ATOM_WM_CLASS:
+	case XCB_ATOM_WM_NAME:
 		bar_update();
 		break;
 	default:
@@ -7231,7 +7231,7 @@ unmapnotify(XEvent *e)
 		    SubstructureNotifyMask, &cne))
 			;
 		/* resend unmap because we ated it */
-		XUnmapWindow(display, e->xunmap.window);
+		xcb_unmap_window(conn, e->xunmap.window);
 	}
 
 	if (focus_mode == SWM_FOCUS_DEFAULT)
