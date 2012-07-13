@@ -13,7 +13,7 @@ CFLAGS+=-std=gnu89 -Wall -Wno-uninitialized -g
 # Uncomment define below to disallow user settable clock format string
 #CFLAGS+=-DSWM_DENY_CLOCK_FORMAT
 CPPFLAGS+= -I${X11BASE}/include
-LDADD+=-lutil -L${X11BASE}/lib -lX11-xcb -lxcb-keysyms -lxcb-randr -lxcb-icccm -lXrandr -lXtst
+LDADD+=-lutil -L${X11BASE}/lib -lX11-xcb -lxcb-aux -lxcb-keysyms -lxcb-randr -lxcb-icccm -lXrandr -lXtst
 BUILDVERSION != sh "${.CURDIR}/buildver.sh"
 .if !${BUILDVERSION} == ""
 CPPFLAGS+= -DSPECTRWM_BUILDSTR=\"$(BUILDVERSION)\"

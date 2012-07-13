@@ -93,6 +93,7 @@
 #include <X11/Xlib-xcb.h>
 #include <xcb/randr.h>
 #include <xcb/xcb_atom.h>
+#include <xcb/xcb_aux.h>
 #include <xcb/xcb_event.h>
 #include <xcb/xcb_icccm.h>
 #include <xcb/xcb_keysyms.h>
@@ -2025,18 +2026,6 @@ bar_cleanup(struct swm_region *r)
 }
 
 void
-drain_enter_notify(void)
-{
-	int			i = 0;
-	XEvent			cne;
-
-	while (XCheckMaskEvent(display, EnterWindowMask, &cne))
-		i++;
-
-	DNPRINTF(SWM_D_EVENT, "drain_enter_notify: drained: %d\n", i);
-}
-
-void
 set_win_state(struct ws_win *win, uint16_t state)
 {
 	uint16_t		data[2] = { state, XCB_ATOM_NONE };
@@ -2065,6 +2054,8 @@ getstate(xcb_window_t w)
 		free(r);
 	}
 
+	DNPRINTF(SWM_D_MISC, "getstate property: win 0x%x state %u\n", w,
+result);
 	return (result);
 }
 
@@ -2505,7 +2496,6 @@ validate_ws(struct workspace *testws)
 void
 unfocus_win(struct ws_win *win)
 {
-	XEvent			cne;
 	xcb_window_t		none = XCB_WINDOW_NONE;
 
 	DNPRINTF(SWM_D_FOCUS, "unfocus_win: window: 0x%x\n", WINID(win));
@@ -2540,10 +2530,6 @@ unfocus_win(struct ws_win *win)
 		win->ws->focus_prev = NULL;
 	}
 
-	/* drain all previous unfocus events */
-	while (XCheckTypedEvent(display, FocusOut, &cne) == True)
-		;
-
 	grabbuttons(win, 0);
 	xcb_change_window_attributes(conn, win->id, XCB_CW_BORDER_PIXEL,
 		&win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
@@ -2570,7 +2556,6 @@ unfocus_all(void)
 void
 focus_win(struct ws_win *win)
 {
-	XEvent			cne;
 	struct ws_win		*cfw = NULL;
 	xcb_get_input_focus_cookie_t	c;
 	xcb_get_input_focus_reply_t	*r;
@@ -2616,10 +2601,6 @@ focus_win(struct ws_win *win)
 	win->ws->focus = win;
 
 	if (win->ws->r != NULL) {
-		/* drain all previous focus events */
-		while (XCheckTypedEvent(display, FocusIn, &cne) == True)
-			;
-
 		if (win->java == 0)
 			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
 				win->id, XCB_CURRENT_TIME);
@@ -2692,9 +2673,6 @@ switchws(struct swm_region *r, union arg *args)
 	if (unmap_old)
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
 			unmap_window(win);
-
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		drain_enter_notify();
 }
 
 void
@@ -3102,9 +3080,9 @@ cycle_layout(struct swm_region *r, union arg *args)
 		ws->cur_layout = &layouts[0];
 
 	stack();
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		drain_enter_notify();
+	
 	a.id = SWM_ARG_ID_FOCUSCUR;
+
 	focus(r, &a);
 }
 
@@ -3161,9 +3139,6 @@ stack(void) {
 	}
 	if (font_adjusted)
 		font_adjusted--;
-
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		drain_enter_notify();
 
 	DNPRINTF(SWM_D_STACK, "stack: end\n");
 }
@@ -3751,8 +3726,7 @@ iconify(struct swm_region *r, union arg *args)
 	unmap_window(r->ws->focus);
 	update_iconic(r->ws->focus, 1);
 	stack();
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		drain_enter_notify();
+	
 	r->ws->focus = NULL;
 	a.id = SWM_ARG_ID_FOCUSCUR;
 	focus(r, &a);
@@ -4217,8 +4191,6 @@ floating_toggle(struct swm_region *r, union arg *args)
 	    _NET_WM_STATE_TOGGLE);
 
 	stack();
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		drain_enter_notify();
 
 	if (win == win->ws->focus) {
 		a.id = SWM_ARG_ID_FOCUSCUR;
@@ -4357,9 +4329,6 @@ resize(struct ws_win *win, union arg *args)
 		return;
 	}
 
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		drain_enter_notify();
-
 	/* get cursor offset from window root */
 	xpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn, win->id),
 		NULL);
@@ -4482,9 +4451,6 @@ resize(struct ws_win *win, union arg *args)
 	xcb_close_font(conn, cursor_font);
 	free(gpr);
 	free(xpr);
-
-	/* drain events */
-	drain_enter_notify();
 }
 
 void
@@ -4635,9 +4601,6 @@ move(struct ws_win *win, union arg *args)
 	xcb_free_cursor(conn, cursor);
 	xcb_close_font(conn, cursor_font);
 	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
-
-	/* drain events */
-	drain_enter_notify();
 }
 
 void
@@ -6907,8 +6870,6 @@ configurenotify(xcb_configure_notify_event_t *e)
 		adjust_font(win);
 		if (font_adjusted)
 			stack();
-		if (focus_mode == SWM_FOCUS_DEFAULT)
-			drain_enter_notify();
 	}
 }
 
@@ -6931,15 +6892,12 @@ destroynotify(xcb_destroy_notify_event_t *e)
 
 	unmanage_window(win);
 	stack();
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		drain_enter_notify();
 	free_window(win);
 }
 
 void
 enternotify(xcb_enter_notify_event_t *e)
 {
-	XEvent			cne;
 	struct ws_win		*win;
 #if 0
 	struct ws_win		*w;
@@ -7038,18 +6996,6 @@ enternotify(xcb_enter_notify_event_t *e)
 		DNPRINTF(SWM_D_EVENT, "skip enternotify: window is NULL\n");
 		return;
 	}
-
-#if 0
-	/*
-	 * if we have more enternotifies let them handle it in due time
-	 */
-	if (XCheckTypedEvent(display, EnterNotify, &cne) == True) {
-		DNPRINTF(SWM_D_EVENT,
-		    "ignoring enternotify: got more enternotify\n");
-		XPutBackEvent(display, &cne);
-		return;
-	}
-#endif
 
 	focus_magic(win);
 }
@@ -7202,24 +7148,9 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 		unmanage_window(win);
 		stack();
 
-		/* giant hack for apps that don't destroy transient windows */
-		/* eat a bunch of events to prevent remanaging the window */
-		XEvent			cne;
-		while (XCheckWindowEvent(display, e->window,
-		    EnterWindowMask, &cne))
-			;
-		while (XCheckWindowEvent(display, e->window,
-		    StructureNotifyMask, &cne))
-			;
-		while (XCheckWindowEvent(display, e->window,
-		    SubstructureNotifyMask, &cne))
-			;
 		/* resend unmap because we ated it */
 		xcb_unmap_window(conn, e->window);
 	}
-
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		drain_enter_notify();
 }
 
 void
@@ -7508,8 +7439,6 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			bar_setup(r);
 	stack();
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		drain_enter_notify();
 }
 
 void
@@ -7779,12 +7708,6 @@ main(int argc, char *argv[])
 	if (!(display = XOpenDisplay(0)))
 		errx(1, "can not open display");
 
-	if (!(conn = XGetXCBConnection(display)))
-		errx(1, "can not get XCB connection");
-
-	if (active_wm())
-		errx(1, "other wm running");
-
 	/* handle some signals */
 	bzero(&sact, sizeof(sact));
 	sigemptyset(&sact.sa_mask);
@@ -7798,6 +7721,15 @@ main(int argc, char *argv[])
 	sact.sa_handler = sighdlr;
 	sact.sa_flags = SA_NOCLDSTOP;
 	sigaction(SIGCHLD, &sact, NULL);
+
+	conn = XGetXCBConnection(display);
+	if (xcb_connection_has_error(conn))
+		errx(1, "can not get XCB connection");
+
+	xfd = xcb_get_file_descriptor(conn);
+	syms = xcb_key_symbols_alloc(conn);
+	if (!syms)
+		errx(1, "unable to allocate key symbols");
 
 	astate = get_atom_from_string("WM_STATE");
 	aprot = get_atom_from_string("WM_PROTOCOLS");
@@ -7814,10 +7746,22 @@ main(int argc, char *argv[])
 	if (pwd == NULL)
 		errx(1, "invalid user: %d", getuid());
 
-	syms = xcb_key_symbols_alloc(conn);
-	if (syms == NULL)
-		errx(1, "unable to allocate key symbols");
+	xcb_grab_server(conn);
+	xcb_aux_sync(conn);
 
+	/* flush all events */
+	while ((evt = xcb_poll_for_event(conn))) {
+		uint8_t type = XCB_EVENT_RESPONSE_TYPE(evt);
+		if (type == 0)
+			event_handle(evt);
+		free(evt);
+	}
+	
+	if (active_wm())
+		errx(1, "other wm running");
+
+	xcb_aux_sync(conn);
+	
 	setup_globals();
 	setup_screens();
 	setup_keys();
@@ -7882,14 +7826,14 @@ noconfig:
 			bar_setup(r);
 		}
 
-	unfocus_all();
+	//unfocus_all();
 
 	grabkeys();
 	stack();
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		drain_enter_notify();
 
-	xfd = xcb_get_file_descriptor(conn);
+	xcb_ungrab_server(conn);
+	xcb_flush(conn);
+
 	while (running) {
 		while ((evt = xcb_poll_for_event(conn))) {
 			if (running == 0)
