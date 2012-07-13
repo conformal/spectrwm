@@ -5527,19 +5527,36 @@ setkeymapping(char *selector, char *value, int flags)
 void
 updatenumlockmask(void)
 {
-	unsigned int		i, j;
-	XModifierKeymap		*modmap;
+	unsigned int				i, j;
+	xcb_get_modifier_mapping_reply_t	*modmap_r;
+	xcb_keycode_t				*modmap, kc;
+	xcb_key_symbols_t			*syms;
 
 	DNPRINTF(SWM_D_MISC, "updatenumlockmask\n");
 	numlockmask = 0;
-	modmap = XGetModifierMapping(display);
-	for (i = 0; i < 8; i++)
-		for (j = 0; j < modmap->max_keypermod; j++)
-			if (modmap->modifiermap[i * modmap->max_keypermod + j]
-			    == XKeysymToKeycode(display, XK_Num_Lock))
-				numlockmask = (1 << i);
 
-	XFreeModifiermap(modmap);
+	syms = xcb_key_symbols_alloc(conn);
+	if (!syms)
+		return;
+	
+	modmap_r = xcb_get_modifier_mapping_reply(conn,
+		xcb_get_modifier_mapping(conn),
+		NULL);
+	if (modmap_r) {
+		modmap = xcb_get_modifier_mapping_keycodes(modmap_r);
+		for (i = 0; i < 8; i++) {
+			for (j = 0; j < modmap_r->keycodes_per_modifier; j++) {
+				kc = modmap[i * modmap_r->keycodes_per_modifier
+					+ j];
+
+			     	if (kc == *((xcb_keycode_t *)xcb_key_symbols_get_keycode(syms,
+						XK_Num_Lock))) 
+					numlockmask = (1 << i);
+			}
+		}
+		free(modmap_r);
+	}
+	xcb_key_symbols_free(syms);
 }
 
 void
