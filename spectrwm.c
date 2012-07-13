@@ -6474,7 +6474,6 @@ manage_window(xcb_window_t id)
 
 	/* Get all the window data in one shot */
 	ws_idx_atom = get_atom_from_string("_SWM_WS");
-	fprintf(stderr, "ws_idx_atom: %d\n", ws_idx_atom);
 	if (ws_idx_atom) {
 		gpr = xcb_get_property_reply(conn,
 			xcb_get_property(conn, False, id, ws_idx_atom,
