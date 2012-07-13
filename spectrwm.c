@@ -97,6 +97,7 @@
 #include <xcb/xcb_event.h>
 #include <xcb/xcb_icccm.h>
 #include <xcb/xcb_keysyms.h>
+#include <xcb/xtest.h>
 #include <X11/Xproto.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/Xrandr.h>
@@ -2241,6 +2242,9 @@ fake_keypress(struct ws_win *win, xcb_keysym_t keysym, uint16_t modifiers)
 
 	keycode = xcb_key_symbols_get_keycode(syms, keysym);
 
+	DNPRINTF(SWM_D_MISC, "fake_keypress: win 0x%x keycode %u\n",
+		win->id, *keycode);
+
 	event.event = win->id;
 	event.root = win->s->root;
 	event.child = XCB_WINDOW_NONE;
@@ -3699,8 +3703,10 @@ send_to_ws(struct swm_region *r, union arg *args)
 void
 pressbutton(struct swm_region *r, union arg *args)
 {
-	XTestFakeButtonEvent(display, args->id, True, CurrentTime);
-	XTestFakeButtonEvent(display, args->id, False, CurrentTime);
+	xcb_test_fake_input(conn, XCB_BUTTON_PRESS, args->id,
+		XCB_CURRENT_TIME, XCB_WINDOW_NONE, 0, 0, 0);
+	xcb_test_fake_input(conn, XCB_BUTTON_RELEASE, args->id,
+		XCB_CURRENT_TIME, XCB_WINDOW_NONE, 0, 0, 0); 
 }
 
 void
@@ -6753,6 +6759,9 @@ keypress(xcb_key_press_event_t *e)
 	struct swm_region	*r;
 
 	keysym = XkbKeycodeToKeysym(display, (KeyCode)e->detail, 0, 0);
+
+	DNPRINTF(SWM_D_EVENT, "keypress: %u\n", e->detail);
+
 	if ((kp = key_lookup(CLEANMASK(e->state), keysym)) == NULL)
 		return;
 	if (keyfuncs[kp->funcid].func == NULL)
