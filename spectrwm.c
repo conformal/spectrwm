@@ -3080,7 +3080,7 @@ cycle_layout(struct swm_region *r, union arg *args)
 		ws->cur_layout = &layouts[0];
 
 	stack();
-	
+
 	a.id = SWM_ARG_ID_FOCUSCUR;
 
 	focus(r, &a);
@@ -3726,7 +3726,7 @@ iconify(struct swm_region *r, union arg *args)
 	unmap_window(r->ws->focus);
 	update_iconic(r->ws->focus, 1);
 	stack();
-	
+
 	r->ws->focus = NULL;
 	a.id = SWM_ARG_ID_FOCUSCUR;
 	focus(r, &a);
@@ -4439,7 +4439,7 @@ resize(struct ws_win *win, union arg *args)
 			break;
 		}
 		free(evt);
-	} 
+	}
 	if (time) {
 		do_sync();
 		update_window(win);
@@ -4564,10 +4564,10 @@ move(struct ws_win *win, union arg *args)
 
 	buttonrelease = 0;
 	while ((evt = xcb_poll_for_event(conn)) && buttonrelease != 1) {
-		/*	
+		/*
 		XMaskEvent(display, MOUSEMASK | ExposureMask |
 		    SubstructureRedirectMask, &ev);
-		*/	
+		*/
 		switch (XCB_EVENT_RESPONSE_TYPE(evt)) {
 		case XCB_BUTTON_RELEASE:
 			buttonrelease = 1;
@@ -7422,7 +7422,7 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 	else
 		xcb_randr_set_screen_size(conn, e->root, e->width,
 			e->height, e->mwidth, e->mheight);
-	
+
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	/* silly event doesn't include the screen index */
 	for (i = 0; i < num_screens; i++)
@@ -7651,7 +7651,7 @@ void
 event_handle(xcb_generic_event_t *evt)
 {
 	uint8_t type = XCB_EVENT_RESPONSE_TYPE(evt);
-	
+
 	if (type == 0)
 	{
 		/* XXX - handle error */
@@ -7677,7 +7677,7 @@ event_handle(xcb_generic_event_t *evt)
 	EVENT(XCB_UNMAP_NOTIFY, unmapnotify);
 	EVENT(XCB_VISIBILITY_NOTIFY, visibilitynotify);
 #undef EVENT
-	}	
+	}
 	if (type - xrandr_eventbase == XCB_RANDR_SCREEN_CHANGE_NOTIFY)
 		screenchange((void *)evt);
 }
@@ -7756,12 +7756,12 @@ main(int argc, char *argv[])
 			event_handle(evt);
 		free(evt);
 	}
-	
+
 	if (active_wm())
 		errx(1, "other wm running");
 
 	xcb_aux_sync(conn);
-	
+
 	setup_globals();
 	setup_screens();
 	setup_keys();
