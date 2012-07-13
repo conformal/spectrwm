@@ -145,6 +145,7 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #define xcb_icccm_get_wm_protocols		xcb_get_wm_protocols
 #define xcb_icccm_get_wm_protocols_reply	xcb_get_wm_protocols_reply
 #define xcb_icccm_get_wm_protocols_reply_t	xcb_get_wm_protocols_reply_t
+#define xcb_icccm_get_wm_protocols_reply_wipe	xcb_get_wm_protocols_reply_wipe
 #define xcb_icccm_get_wm_transient_for		xcb_get_wm_transient_for
 #define xcb_icccm_get_wm_transient_for_reply	xcb_get_wm_transient_for_reply
 #define xcb_icccm_wm_hints_t			xcb_wm_hints_t
