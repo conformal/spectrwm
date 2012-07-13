@@ -7230,9 +7230,10 @@ propertynotify(XEvent *e)
 
 	switch (ev->atom) {
 #if 0
-	case XA_WM_NORMAL_HINTS:
-		long		mask;
-		XGetWMNormalHints(display, win->id, &win->sh, &mask);
+	case XCB_ATOM_WM_NORMAL_HINTS:
+		xcb_icccm_get_wm_normal_hints(conn,
+			xcb_iccom_get_wm_normal_hints(conn, win->id),
+			&win->sh, NULL);
 		warnx("normal hints: flag 0x%x", win->sh.flags);
 		if (win->sh.flags & XCB_SIZE_HINT_P_MIN_SIZE) {
 			WIDTH(win) = win->sh.min_width;
