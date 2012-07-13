@@ -7661,7 +7661,7 @@ event_handle(xcb_generic_event_t *evt)
 	switch (type) {
 #define EVENT(type, callback) case type: callback((void *)evt); return
 	EVENT(XCB_BUTTON_PRESS, buttonpress);
-	EVENT(XCB_BUTTON_RELEASE, buttonpress);
+	/*EVENT(XCB_BUTTON_RELEASE, buttonpress);*/
 	EVENT(XCB_CLIENT_MESSAGE, clientmessage);
 	EVENT(XCB_CONFIGURE_NOTIFY, configurenotify);
 	EVENT(XCB_CONFIGURE_REQUEST, configurerequest);
@@ -7669,7 +7669,7 @@ event_handle(xcb_generic_event_t *evt)
 	EVENT(XCB_ENTER_NOTIFY, enternotify);
 	EVENT(XCB_EXPOSE, expose);
 	EVENT(XCB_KEY_PRESS, keypress);
-	EVENT(XCB_KEY_RELEASE, keypress);
+	/*EVENT(XCB_KEY_RELEASE, keypress);*/
 	EVENT(XCB_MAP_NOTIFY, mapnotify);
 	EVENT(XCB_MAP_REQUEST, maprequest);
 	EVENT(XCB_MAPPING_NOTIFY, mappingnotify);
