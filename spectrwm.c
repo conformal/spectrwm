@@ -1042,108 +1042,108 @@ ewmh_get_win_state(struct ws_win *win)
 /* events */
 #ifdef SWM_DEBUG
 char *
-geteventname(XEvent *e)
+geteventname(xcb_generic_event_t *e)
 {
 	char			*name = NULL;
 
-	switch (e->type) {
-	case KeyPress:
+	switch (XCB_EVENT_RESPONSE_TYPE(e)) {
+	case XCB_KEY_PRESS:
 		name = "KeyPress";
 		break;
-	case KeyRelease:
+	case XCB_KEY_RELEASE:
 		name = "KeyRelease";
 		break;
-	case ButtonPress:
+	case XCB_BUTTON_PRESS:
 		name = "ButtonPress";
 		break;
-	case ButtonRelease:
+	case XCB_BUTTON_RELEASE:
 		name = "ButtonRelease";
 		break;
-	case MotionNotify:
+	case XCB_MOTION_NOTIFY:
 		name = "MotionNotify";
 		break;
-	case EnterNotify:
+	case XCB_ENTER_NOTIFY:
 		name = "EnterNotify";
 		break;
-	case LeaveNotify:
+	case XCB_LEAVE_NOTIFY:
 		name = "LeaveNotify";
 		break;
-	case FocusIn:
+	case XCB_FOCUS_IN:
 		name = "FocusIn";
 		break;
-	case FocusOut:
+	case XCB_FOCUS_OUT:
 		name = "FocusOut";
 		break;
-	case KeymapNotify:
+	case XCB_KEYMAP_NOTIFY:
 		name = "KeymapNotify";
 		break;
-	case Expose:
+	case XCB_EXPOSE:
 		name = "Expose";
 		break;
-	case GraphicsExpose:
-		name = "GraphicsExpose";
+	case XCB_GRAPHICS_EXPOSURE:
+		name = "GraphicsExposure";
 		break;
-	case NoExpose:
-		name = "NoExpose";
+	case XCB_NO_EXPOSURE:
+		name = "NoExposure";
 		break;
-	case VisibilityNotify:
+	case XCB_VISIBILITY_NOTIFY:
 		name = "VisibilityNotify";
 		break;
-	case CreateNotify:
+	case XCB_CREATE_NOTIFY:
 		name = "CreateNotify";
 		break;
-	case DestroyNotify:
+	case XCB_DESTROY_NOTIFY:
 		name = "DestroyNotify";
 		break;
-	case UnmapNotify:
+	case XCB_UNMAP_NOTIFY:
 		name = "UnmapNotify";
 		break;
-	case MapNotify:
+	case XCB_MAP_NOTIFY:
 		name = "MapNotify";
 		break;
-	case MapRequest:
+	case XCB_MAP_REQUEST:
 		name = "MapRequest";
 		break;
-	case ReparentNotify:
+	case XCB_REPARENT_NOTIFY:
 		name = "ReparentNotify";
 		break;
-	case ConfigureNotify:
+	case XCB_CONFIGURE_NOTIFY:
 		name = "ConfigureNotify";
 		break;
-	case ConfigureRequest:
+	case XCB_CONFIGURE_REQUEST:
 		name = "ConfigureRequest";
 		break;
-	case GravityNotify:
+	case XCB_GRAVITY_NOTIFY:
 		name = "GravityNotify";
 		break;
-	case ResizeRequest:
+	case XCB_RESIZE_REQUEST:
 		name = "ResizeRequest";
 		break;
-	case CirculateNotify:
+	case XCB_CIRCULATE_NOTIFY:
 		name = "CirculateNotify";
 		break;
-	case CirculateRequest:
+	case XCB_CIRCULATE_REQUEST:
 		name = "CirculateRequest";
 		break;
-	case PropertyNotify:
+	case XCB_PROPERTY_NOTIFY:
 		name = "PropertyNotify";
 		break;
-	case SelectionClear:
+	case XCB_SELECTION_CLEAR:
 		name = "SelectionClear";
 		break;
-	case SelectionRequest:
+	case XCB_SELECTION_REQUEST:
 		name = "SelectionRequest";
 		break;
-	case SelectionNotify:
+	case XCB_SELECTION_NOTIFY:
 		name = "SelectionNotify";
 		break;
-	case ColormapNotify:
+	case XCB_COLORMAP_NOTIFY:
 		name = "ColormapNotify";
 		break;
-	case ClientMessage:
+	case XCB_CLIENT_MESSAGE:
 		name = "ClientMessage";
 		break;
-	case MappingNotify:
+	case XCB_MAPPING_NOTIFY:
 		name = "MappingNotify";
 		break;
 	default:
@@ -7836,6 +7836,8 @@ noconfig:
 
 	while (running) {
 		while ((evt = xcb_poll_for_event(conn))) {
+			DNPRINTF(SWM_D_EVENT, "XCB Event: %s\n",
+			    geteventname(evt));
 			if (running == 0)
 				goto done;
 			event_handle(evt);
