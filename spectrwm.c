@@ -136,7 +136,7 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #define xcb_icccm_get_wm_transient_for_reply	xcb_get_wm_transient_for_reply
 #endif
 
-#define SWM_DEBUG
+/*#define SWM_DEBUG*/
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while (0)
 #define DNPRINTF(n,x...)	do { if (swm_debug & n) fprintf(stderr, x); } while (0)
