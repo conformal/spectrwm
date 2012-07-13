@@ -2306,6 +2306,7 @@ restart(struct swm_region *r, union arg *args)
 	bar_extra = 1;
 	unmap_all();
 	xcb_flush(conn);
+	xcb_disconnect(conn);
 
 	execvp(start_argv[0], start_argv);
 	warn("execvp failed");
