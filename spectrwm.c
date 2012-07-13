@@ -123,17 +123,31 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #endif
 
 #if defined(__OpenBSD__)
-#define xcb_icccm_wm_hints_t			xcb_wm_hints_t
-#define xcb_icccm_get_wm_hints			xcb_get_wm_hints
-#define xcb_icccm_get_wm_hints_reply		xcb_get_wm_hints_reply
+#define XCB_ICCCM_SIZE_HINT_P_MIN_SIZE		XCB_SIZE_HINT_P_MIN_SIZE
+#define XCB_ICCCM_SIZE_HINT_P_MAX_SIZE		XCB_SIZE_HINT_P_MAX_SIZE
+#define XCB_ICCCM_SIZE_HINT_P_RESIZE_INC	XCB_SIZE_HINT_P_RESIZE_INC
 #define XCB_ICCCM_WM_HINT_X_URGENCY		XCB_WM_HINT_X_URGENCY
 #define XCB_ICCCM_WM_STATE_ICONIC		XCB_WM_STATE_ICONIC
 #define XCB_ICCCM_WM_STATE_WITHDRAWN		XCB_WM_STATE_WITHDRAWN
 #define XCB_ICCCM_WM_STATE_NORMAL		XCB_WM_STATE_NORMAL
+#define xcb_icccm_get_text_property_reply_t	xcb_get_text_property_reply_t
+#define xcb_icccm_get_text_property_reply_wipe	xcb_get_text_property_reply_wipe
+#define xcb_icccm_get_wm_class			xcb_get_wm_class
+#define xcb_icccm_get_wm_class_reply		xcb_get_wm_class_reply
+#define xcb_icccm_get_wm_class_reply_t		xcb_get_wm_class_reply_t
+#define xcb_icccm_get_wm_class_reply_wipe	xcb_get_wm_class_reply_wipe
+#define xcb_icccm_get_wm_hints			xcb_get_wm_hints
+#define xcb_icccm_get_wm_hints_reply		xcb_get_wm_hints_reply
 #define	xcb_icccm_get_wm_name			xcb_get_wm_name
 #define xcb_icccm_get_wm_name_reply		xcb_get_wm_name_reply
+#define xcb_icccm_get_wm_normal_hints		xcb_get_wm_normal_hints
+#define xcb_icccm_get_wm_normal_hints_reply	xcb_get_wm_normal_hints_reply
+#define xcb_icccm_get_wm_protocols		xcb_get_wm_protocols
+#define xcb_icccm_get_wm_protocols_reply	xcb_get_wm_protocols_reply
+#define xcb_icccm_get_wm_protocols_reply_t	xcb_get_wm_protocols_reply_t
 #define xcb_icccm_get_wm_transient_for		xcb_get_wm_transient_for
 #define xcb_icccm_get_wm_transient_for_reply	xcb_get_wm_transient_for_reply
+#define xcb_icccm_wm_hints_t			xcb_wm_hints_t
 #endif
 
 /*#define SWM_DEBUG*/
@@ -194,13 +208,13 @@ u_int32_t		swm_debug = 0
 #define BORDER(w)		(w->bordered ? border_width : 0)
 #define MAX_X(r)		((r)->g.x + (r)->g.w)
 #define MAX_Y(r)		((r)->g.y + (r)->g.h)
-#define SH_MIN(w)		(w)->sh.flags & XCB_SIZE_HINT_P_MIN_SIZE
+#define SH_MIN(w)		(w)->sh.flags & XCB_ICCCM_SIZE_HINT_P_MIN_SIZE
 #define SH_MIN_W(w)		(w)->sh.min_width
 #define SH_MIN_H(w)		(w)->sh.min_height
-#define SH_MAX(w)		(w)->sh.flags & XCB_SIZE_HINT_P_MAX_SIZE
+#define SH_MAX(w)		(w)->sh.flags & XCB_ICCCM_SIZE_HINT_P_MAX_SIZE
 #define SH_MAX_W(w)		(w)->sh.max_width
 #define SH_MAX_H(w)		(w)->sh.max_height
-#define SH_INC(w)		(w)->sh.flags & XCB_SIZE_HINT_P_RESIZE_INC
+#define SH_INC(w)		(w)->sh.flags & XCB_ICCCM_SIZE_HINT_P_RESIZE_INC
 #define SH_INC_W(w)		(w)->sh.width_inc
 #define SH_INC_H(w)		(w)->sh.height_inc
 #define SWM_MAX_FONT_STEPS	(3)
@@ -390,8 +404,8 @@ struct ws_win {
 	struct swm_screen	*s;	/* always valid, never changes */
 	xcb_get_geometry_reply_t	*wa;
 	xcb_size_hints_t	sh;
-	xcb_get_wm_class_reply_t	ch;
-	xcb_wm_hints_t		hints;
+	xcb_icccm_get_wm_class_reply_t	ch;
+	xcb_icccm_wm_hints_t	hints;
 };
 TAILQ_HEAD(ws_win_list, ws_win);
 
@@ -3780,20 +3794,20 @@ get_win_name(xcb_window_t win)
 {
 	char				*name = NULL;
 	xcb_get_property_cookie_t	c;
-	xcb_get_text_property_reply_t	r;
+	xcb_icccm_get_text_property_reply_t	r;
 
 	c = xcb_icccm_get_wm_name(conn, win);
 	if (xcb_icccm_get_wm_name_reply(conn, c, &r, NULL)) {
 		if (r.name_len > 0) {
 			name = malloc(r.name_len + 1);
 			if (!name) {
-				xcb_get_text_property_reply_wipe(&r);
+				xcb_icccm_get_text_property_reply_wipe(&r);
 				return (NULL);
 			}
 			memcpy(name, r.name, r.name_len);
 			name[r.name_len] = '\0';
 		}
-		xcb_get_text_property_reply_wipe(&r);
+		xcb_icccm_get_text_property_reply_wipe(&r);
 	}
 
 	return (name);
@@ -6329,7 +6343,7 @@ set_child_transient(struct ws_win *win, xcb_window_t *trans)
 	struct ws_win		*parent, *w;
 	struct swm_region	*r;
 	struct workspace	*ws;
-	xcb_wm_hints_t		wmh;
+	xcb_icccm_wm_hints_t	wmh;
 
 	parent = find_window(win->transient);
 	if (parent)
@@ -6420,7 +6434,7 @@ manage_window(xcb_window_t id)
 	uint32_t		event_mask;
 	xcb_atom_t		prot;
 	xcb_get_property_reply_t	*gpr;
-	xcb_get_wm_protocols_reply_t	wpr;
+	xcb_icccm_get_wm_protocols_reply_t	wpr;
 
 	if ((win = find_window(id)) != NULL)
 		return (win);	/* already being managed */
@@ -6490,14 +6504,14 @@ manage_window(xcb_window_t id)
 	win->wa = xcb_get_geometry_reply(conn,
 		xcb_get_geometry(conn, id),
 		NULL);	
-	xcb_get_wm_normal_hints_reply(conn,
-		xcb_get_wm_normal_hints(conn, id),
+	xcb_icccm_get_wm_normal_hints_reply(conn,
+		xcb_icccm_get_wm_normal_hints(conn, id),
 		&win->sh, NULL);
 	xcb_icccm_get_wm_hints_reply(conn,
 		xcb_icccm_get_wm_hints(conn, id),
 		&win->hints, NULL);
-	xcb_get_wm_transient_for_reply(conn,
-		xcb_get_wm_transient_for(conn, id),
+	xcb_icccm_get_wm_transient_for_reply(conn,
+		xcb_icccm_get_wm_transient_for(conn, id),
 		&trans, NULL);
 	if (trans) {
 		win->transient = trans;
@@ -6506,13 +6520,11 @@ manage_window(xcb_window_t id)
 		    "transient: 0x%x\n", win->id, win->transient);
 	}
 
-	prot = xcb_atom_get_fast_reply(conn,
-		xcb_atom_get_fast(conn, False, strlen("WM_PROTOCOLS"),
-			"WM_PROTOCOLS"),
-		NULL);
+	prot = get_atom_from_string("WM_PROTOCOLS");
+
 	/* get supported protocols */
-	if (xcb_get_wm_protocols_reply(conn,
-			xcb_get_wm_protocols(conn, id, prot),
+	if (xcb_icccm_get_wm_protocols_reply(conn,
+			xcb_icccm_get_wm_protocols(conn, id, prot),
 			&wpr, NULL)) {
 		for (i = 0; i < wpr.atoms_len; i++) {
 			if (wpr.atoms[i] == takefocus)
@@ -6520,7 +6532,7 @@ manage_window(xcb_window_t id)
 			if (wpr.atoms[i] == adelete)
 				win->can_delete = 1;
 		}
-		xcb_get_wm_protocols_reply_wipe(&wpr);
+		xcb_icccm_get_wm_protocols_reply_wipe(&wpr);
 	}
 
 	win->iconic = get_iconic(win);
@@ -6614,8 +6626,8 @@ manage_window(xcb_window_t id)
 
 	ewmh_autoquirk(win);
 
-	if (xcb_get_wm_class_reply(conn,
-			xcb_get_wm_class(conn, win->id),
+	if (xcb_icccm_get_wm_class_reply(conn,
+			xcb_icccm_get_wm_class(conn, win->id),
 			&win->ch, NULL)) {
 		DNPRINTF(SWM_D_CLASS, "manage_window: class: %s, name: %s\n",
 		    win->ch.class_name, win->ch.instance_name);
@@ -6700,7 +6712,7 @@ free_window(struct ws_win *win)
 	if (win->wa)
 		free(win->wa);
 	
-	xcb_get_wm_class_reply_wipe(&win->ch);
+	xcb_icccm_get_wm_class_reply_wipe(&win->ch);
 
 	kill_refs(win);
 
@@ -6868,7 +6880,7 @@ configurerequest(XEvent *e)
 
 		DNPRINTF(SWM_D_EVENT, "configurerequest: new window: 0x%lx, "
 		    "new: %s, (x,y) w x h: (%d,%d) %d x %d\n", ev->window,
-		    YESNO(new), wc.x, wc.y, wc.width, wc.height);
+		    YESNO(new), wc[0], wc[1], wc[2], wc[3]);
 
 		xcb_configure_window(conn, ev->window, mask, wc);
 	} else if ((!win->manual || win->quirks & SWM_Q_ANYWHERE) &&
@@ -6902,8 +6914,8 @@ configurenotify(XEvent *e)
 
 	win = find_window(e->xconfigure.window);
 	if (win) {
-		xcb_get_wm_normal_hints_reply(conn,
-			xcb_get_wm_normal_hints(conn, win->id),
+		xcb_icccm_get_wm_normal_hints_reply(conn,
+			xcb_icccm_get_wm_normal_hints(conn, win->id),
 			&win->sh, NULL);
 		adjust_font(win);
 		if (font_adjusted)
