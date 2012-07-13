@@ -2044,8 +2044,9 @@ void
 drain_enter_notify(void)
 {
 	int			i = 0;
+	XEvent			cne;
 
-	while (xcb_poll_for_event(conn))
+	while (XCheckMaskEvent(display, EnterWindowMask, &cne))
 		i++;
 
 	DNPRINTF(SWM_D_EVENT, "drain_enter_notify: drained: %d\n", i);
