@@ -665,7 +665,7 @@ parse_rgb(const char *rgb, uint16_t *rr, uint16_t *gg, uint16_t *bb)
 
 	if (sscanf(rgb, "rgb:%x/%x/%x", &tmpr, &tmpg, &tmpb) != 3)
 		return (-1);
-	
+
 	*rr = tmpr << 8;
 	*gg = tmpg << 8;
 	*bb = tmpb << 8;
@@ -771,7 +771,7 @@ get_iconic(struct ws_win *win)
 		goto out;
 	v = *((int32_t *)xcb_get_property_value(pr));
 out:
-	if (pr)	
+	if (pr)
 		free(pr);
 	return (v);
 }
@@ -1941,7 +1941,7 @@ bar_setup(struct swm_region *r)
 	int			i;
 	xcb_screen_t		*screen = get_screen(r->s->idx);
 	uint32_t		wa[2];
-	
+
 	if (bar_fs) {
 		XFreeFontSet(display, bar_fs);
 		bar_fs = NULL;
@@ -1989,15 +1989,14 @@ bar_setup(struct swm_region *r)
 	r->bar->id = xcb_generate_id(conn);
 	wa[0] = r->s->c[SWM_S_COLOR_BAR].color;
 	wa[1] = r->s->c[SWM_S_COLOR_BAR_BORDER].color;
-	xcb_create_window(conn, screen->root_depth, r->bar->id, r->s->root,
-		X(r->bar), Y(r->bar), WIDTH(r->bar), HEIGHT(r->bar),
-		bar_border_width, XCB_WINDOW_CLASS_INPUT_OUTPUT,
-		screen->root_visual, XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL,
-		wa);
+	xcb_create_window(conn, XCB_COPY_FROM_PARENT, r->bar->id, r->s->root,
+	    X(r->bar), Y(r->bar), WIDTH(r->bar), HEIGHT(r->bar),
+	    bar_border_width, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+	    XCB_COPY_FROM_PARENT, XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);
 
 	r->bar->buffer = xcb_generate_id(conn);
 	xcb_create_pixmap(conn, screen->root_depth, r->bar->buffer, r->bar->id,
-		WIDTH(r->bar), HEIGHT(r->bar)); 
+		WIDTH(r->bar), HEIGHT(r->bar));
 
 	xcb_randr_select_input(conn, r->bar->id,
 		XCB_RANDR_NOTIFY_MASK_OUTPUT_CHANGE);
@@ -3903,13 +3902,12 @@ search_win(struct swm_region *r, union arg *args)
 	struct ws_win		*win = NULL;
 	struct search_window	*sw = NULL;
 	xcb_window_t		w;
-	uint32_t		gcv[1], wa[2];
+	uint32_t		gcv[3], wa[2];
 	int			i;
 	char			s[8];
 	FILE			*lfile;
 	size_t			len;
 	XRectangle		ibox, lbox;
-	xcb_screen_t		*screen; 
 	DNPRINTF(SWM_D_MISC, "search_win\n");
 
 	search_r = r;
@@ -3936,7 +3934,6 @@ search_win(struct swm_region *r, union arg *args)
 		}
 		sw->idx = i;
 		sw->win = win;
-		screen = get_screen(sw->idx);
 
 		snprintf(s, sizeof s, "%d", i);
 		len = strlen(s);
@@ -3946,23 +3943,27 @@ search_win(struct swm_region *r, union arg *args)
 		w = xcb_generate_id(conn);
 		wa[0] = r->s->c[SWM_S_COLOR_FOCUS].color;
 		wa[1] = r->s->c[SWM_S_COLOR_UNFOCUS].color;
-		xcb_create_window(conn, screen->root_depth, w, win->id,
-			0, 0, lbox.width + 4,
-			bar_fs_extents->max_logical_extent.height, 1,
-			XCB_WINDOW_CLASS_INPUT_OUTPUT, screen->root_visual,
-			XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);	
-		
+		xcb_create_window(conn, XCB_COPY_FROM_PARENT, w, win->id, 0, 0,
+		    lbox.width + 4, bar_fs_extents->max_logical_extent.height,
+		    1, XCB_WINDOW_CLASS_INPUT_OUTPUT, XCB_COPY_FROM_PARENT,
+		    XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);
+
 		sw->indicator = w;
 		TAILQ_INSERT_TAIL(&search_wl, sw, entry);
 
 		sw->gc = xcb_generate_id(conn);
-		gcv[0] = r->s->c[SWM_S_COLOR_BAR].color;		
-		xcb_create_gc(conn, sw->gc, w, XCB_GC_FOREGROUND, gcv); 
+		gcv[0] = r->s->c[SWM_S_COLOR_BAR].color;
+		gcv[1] = r->s->c[SWM_S_COLOR_FOCUS].color;
+		gcv[2] = 0;
+		xcb_create_gc(conn, sw->gc, w, XCB_GC_FOREGROUND |
+		    XCB_GC_BACKGROUND | XCB_GC_GRAPHICS_EXPOSURES, gcv);
 		map_window_raised(w);
 
 		xcb_image_text_8(conn, len, w, sw->gc, 2,
 		    (bar_fs_extents->max_logical_extent.height -
 		    lbox.height) / 2 - lbox.y, s);
+
+		DNPRINTF(SWM_D_MISC, "search_win: mapped window: 0x%x\n", w);
 
 		fprintf(lfile, "%d\n", i);
 		i++;
@@ -4364,7 +4365,7 @@ resize(struct ws_win *win, union arg *args)
 		NULL);
 	if (!xpr)
 		return;
-	
+
 	g = win->g;
 
 	if (xpr->win_x < WIDTH(win) / 2)
@@ -4569,7 +4570,7 @@ move(struct ws_win *win, union arg *args)
 
 	cursor_font = xcb_generate_id(conn);
 	xcb_open_font(conn, cursor_font, strlen("cursor"), "cursor");
-	
+
 	cursor = xcb_generate_id(conn);
 	xcb_create_glyph_cursor(conn, cursor, cursor_font, cursor_font,
 		XC_fleur, XC_fleur + 1, 0, 0, 0, 0xffff, 0xffff, 0xffff);
@@ -5545,7 +5546,7 @@ updatenumlockmask(void)
 					+ j];
 
 			     	if (kc == *((xcb_keycode_t *)xcb_key_symbols_get_keycode(syms,
-						XK_Num_Lock))) 
+						XK_Num_Lock)))
 					numlockmask = (1 << i);
 			}
 		}
@@ -6481,7 +6482,7 @@ manage_window(xcb_window_t id)
 				if (prop) {
 					memcpy(prop,
 					    xcb_get_property_value(gpr),
-					    proplen);	
+					    proplen);
 					prop[proplen] = '\0';
 				}
 			}
@@ -6490,7 +6491,7 @@ manage_window(xcb_window_t id)
 	}
 	win->wa = xcb_get_geometry_reply(conn,
 		xcb_get_geometry(conn, id),
-		NULL);	
+		NULL);
 	xcb_icccm_get_wm_normal_hints_reply(conn,
 		xcb_icccm_get_wm_normal_hints(conn, id),
 		&win->sh, NULL);
@@ -6698,7 +6699,7 @@ free_window(struct ws_win *win)
 
 	if (win->wa)
 		free(win->wa);
-	
+
 	xcb_icccm_get_wm_class_reply_wipe(&win->ch);
 
 	kill_refs(win);
@@ -6827,7 +6828,7 @@ configurerequest(xcb_configure_request_event_t *e)
 {
 	struct ws_win		*win;
 	int			new = 0, i = 0;
-	uint16_t		mask = 0;	
+	uint16_t		mask = 0;
 	uint32_t		wc[7];
 
 	if ((win = find_window(e->window)) == NULL)
@@ -7102,7 +7103,7 @@ maprequest(xcb_map_request_event_t *e)
 	if (war->override_redirect) {
 		free(war);
 		return;
-	}	
+	}
 	free(war);
 
 	win = manage_window(e->window);
@@ -7137,7 +7138,7 @@ propertynotify(xcb_property_notify_event_t *e)
 			if (name) {
 				memcpy(name, xcb_get_atom_name_name(r), len);
 				name[len] = '\0';
-				
+
 				DNPRINTF(SWM_D_EVENT,
 				 	"propertynotify: window: 0x%x, "
 					"atom: %s\n",
@@ -7642,7 +7643,7 @@ setup_screens(void)
 
 		/* set default cursor */
 		xcb_change_window_attributes(conn, screens[i].root,
-			XCB_CW_CURSOR, wa); 	
+			XCB_CW_CURSOR, wa);
 
 		/* init all workspaces */
 		/* XXX these should be dynamically allocated too */
@@ -7690,7 +7691,6 @@ workaround(void)
 	int			i, num_screens;
 	xcb_atom_t		netwmcheck, netwmname, utf8_string;
 	xcb_window_t		root, win;
-	xcb_screen_t		*screen;
 	uint32_t		wa[2];
 
 	/* work around sun jdk bugs, code from wmname */
@@ -7701,22 +7701,20 @@ workaround(void)
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	for (i = 0; i < num_screens; i++) {
 		root = screens[i].root;
-		screen = get_screen(i);
 
 		win = xcb_generate_id(conn);
 		wa[0] = screens[i].c[SWM_S_COLOR_UNFOCUS].color;
 		wa[1] = screens[i].c[SWM_S_COLOR_UNFOCUS].color;
-		xcb_create_window(conn, screen->root_depth, win, 0,
-			0, 0, 1, 1, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
-			screen->root_visual,
-			XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);
+		xcb_create_window(conn, XCB_COPY_FROM_PARENT, win, 0, 0, 0, 1,
+		    1, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT, XCB_COPY_FROM_PARENT,
+		    XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);
 
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, root,
-			netwmcheck, XCB_ATOM_WINDOW, 32, 1, &win);
+		    netwmcheck, XCB_ATOM_WINDOW, 32, 1, &win);
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win,
-			netwmcheck, XCB_ATOM_WINDOW, 32, 1, &win);
+		    netwmcheck, XCB_ATOM_WINDOW, 32, 1, &win);
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win,
-			netwmname, utf8_string, 8, strlen("LG3D"), "LG3D");
+		    netwmname, utf8_string, 8, strlen("LG3D"), "LG3D");
 	}
 }
 
@@ -7946,7 +7944,7 @@ done:
 		if (screens[i].bar_gc != 0)
 			xcb_free_gc(conn, screens[i].bar_gc);
 	XFreeFontSet(display, bar_fs);
-	
+
 	xcb_key_symbols_free(syms);
 	xcb_disconnect(conn);
 
