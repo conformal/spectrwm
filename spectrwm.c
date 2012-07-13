@@ -6835,28 +6835,49 @@ configurerequest(XEvent *e)
 {
 	XConfigureRequestEvent	*ev = &e->xconfigurerequest;
 	struct ws_win		*win;
-	int			new = 0;
-	XWindowChanges		wc;
+	int			new = 0, i = 0;
+	uint16_t		mask = 0;	
+	uint32_t		wc[7];
 
 	if ((win = find_window(ev->window)) == NULL)
 		if ((win = find_unmanaged_window(ev->window)) == NULL)
 			new = 1;
 
 	if (new) {
-		bzero(&wc, sizeof wc);
-		wc.x = ev->x;
-		wc.y = ev->y;
-		wc.width = ev->width;
-		wc.height = ev->height;
-		wc.border_width = ev->border_width;
-		wc.sibling = ev->above;
-		wc.stack_mode = ev->detail;
+		if (ev->value_mask & XCB_CONFIG_WINDOW_X) {
+			mask |= XCB_CONFIG_WINDOW_X;
+			wc[i++] = ev->x;
+		}
+		if (ev->value_mask & XCB_CONFIG_WINDOW_Y) {
+			mask |= XCB_CONFIG_WINDOW_Y;
+			wc[i++] = ev->y;
+		}
+		if (ev->value_mask & XCB_CONFIG_WINDOW_WIDTH) {
+			mask |= XCB_CONFIG_WINDOW_WIDTH;
+			wc[i++] = ev->width;
+		}
+		if (ev->value_mask & XCB_CONFIG_WINDOW_HEIGHT) {
+			mask |= XCB_CONFIG_WINDOW_HEIGHT;
+			wc[i++] = ev->height;
+		}
+		if (ev->value_mask & XCB_CONFIG_WINDOW_BORDER_WIDTH) {
+			mask |= XCB_CONFIG_WINDOW_BORDER_WIDTH;
+			wc[i++] = ev->border_width;
+		}
+		if (ev->value_mask & XCB_CONFIG_WINDOW_SIBLING) {
+			mask |= XCB_CONFIG_WINDOW_SIBLING;
+			wc[i++] = ev->above;
+		}
+		if (ev->value_mask & XCB_CONFIG_WINDOW_STACK_MODE) {
+			mask |= XCB_CONFIG_WINDOW_STACK_MODE;
+			wc[i++] = ev->detail;
+		}
 
 		DNPRINTF(SWM_D_EVENT, "configurerequest: new window: 0x%lx, "
 		    "new: %s, (x,y) w x h: (%d,%d) %d x %d\n", ev->window,
 		    YESNO(new), wc.x, wc.y, wc.width, wc.height);
 
-		XConfigureWindow(display, ev->window, ev->value_mask, &wc);
+		xcb_configure_window(conn, ev->window, mask, wc);
 	} else if ((!win->manual || win->quirks & SWM_Q_ANYWHERE) &&
 	    !(win->ewmh_flags & EWMH_F_FULLSCREEN)) {
 		win->g_float.x = ev->x - X(win->ws->r);
