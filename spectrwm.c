@@ -240,6 +240,7 @@ int			xrandr_eventbase;
 unsigned int		numlockmask = 0;
 Display			*display;
 xcb_connection_t	*conn;
+xcb_key_symbols_t	*syms;
 
 int			cycle_empty = 0;
 int			cycle_visible = 0;
@@ -2259,13 +2260,11 @@ void
 fake_keypress(struct ws_win *win, xcb_keysym_t keysym, uint16_t modifiers)
 {
 	xcb_key_press_event_t	event;
-	xcb_key_symbols_t	*syms;
 	xcb_keycode_t		*keycode;
 
 	if (win == NULL)
 		return;
 
-	syms = xcb_key_symbols_alloc(conn);
 	keycode = xcb_key_symbols_get_keycode(syms, keysym);
 
 	event.event = win->id;
@@ -2288,8 +2287,6 @@ fake_keypress(struct ws_win *win, xcb_keysym_t keysym, uint16_t modifiers)
 	xcb_send_event(conn, True, win->id,
 		XCB_EVENT_MASK_KEY_RELEASE, (char *)&event);
 	xcb_flush(conn);
-
-	xcb_key_symbols_free(syms);
 }
 
 void
@@ -2305,6 +2302,8 @@ restart(struct swm_region *r, union arg *args)
 	bar_extra_stop();
 	bar_extra = 1;
 	unmap_all();
+
+	xcb_key_symbols_free(syms);
 	xcb_flush(conn);
 	xcb_disconnect(conn);
 
@@ -5532,15 +5531,10 @@ updatenumlockmask(void)
 	unsigned int				i, j;
 	xcb_get_modifier_mapping_reply_t	*modmap_r;
 	xcb_keycode_t				*modmap, kc;
-	xcb_key_symbols_t			*syms;
 
 	DNPRINTF(SWM_D_MISC, "updatenumlockmask\n");
 	numlockmask = 0;
 
-	syms = xcb_key_symbols_alloc(conn);
-	if (!syms)
-		return;
-	
 	modmap_r = xcb_get_modifier_mapping_reply(conn,
 		xcb_get_modifier_mapping(conn),
 		NULL);
@@ -5558,7 +5552,6 @@ updatenumlockmask(void)
 		}
 		free(modmap_r);
 	}
-	xcb_key_symbols_free(syms);
 }
 
 void
@@ -7842,6 +7835,10 @@ main(int argc, char *argv[])
 	if (pwd == NULL)
 		errx(1, "invalid user: %d", getuid());
 
+	syms = xcb_key_symbols_alloc(conn);
+	if (syms == NULL)
+		errx(1, "unable to allocate key symbols");
+
 	setup_globals();
 	setup_screens();
 	setup_keys();
@@ -7989,6 +7986,8 @@ done:
 		if (screens[i].bar_gc != 0)
 			xcb_free_gc(conn, screens[i].bar_gc);
 	XFreeFontSet(display, bar_fs);
+	
+	xcb_key_symbols_free(syms);
 	xcb_disconnect(conn);
 
 	return (0);
