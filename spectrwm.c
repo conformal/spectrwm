@@ -1502,6 +1502,8 @@ bar_print(struct swm_region *r, const char *s)
 		sizeof(rect), &rect);
 
 	/* draw back buffer */
+	gcv[0] = r->s->c[SWM_S_COLOR_BAR].color;
+	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_BACKGROUND, gcv);
 	gcv[0] = r->s->c[SWM_S_COLOR_BAR_FONT].color;
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
 	xcb_image_text_8(conn, len, r->bar->buffer, r->s->bar_gc, x,
