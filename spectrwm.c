@@ -3305,7 +3305,6 @@ adjust_font(struct ws_win *win)
 void
 stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 {
-	XWindowAttributes	wa;
 	struct swm_geometry	win_g, r_g = *g;
 	struct ws_win		*win, *fs_win = NULL;
 	int			i, j, s, stacks;
@@ -3314,6 +3313,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	int			split, colno, winno, mwin, msize, mscale;
 	int			remain, missing, v_slice, reconfigure;
 	int			bordered = 1;
+	xcb_get_window_attributes_reply_t *war;
 
 	DNPRINTF(SWM_D_STACK, "stack_master: workspace: %d, rot: %s, "
 	    "flip: %s\n", ws->idx, YESNO(rot), YESNO(flip));
@@ -3476,9 +3476,14 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			update_window(win);
 		}
 
-		if (XGetWindowAttributes(display, win->id, &wa))
-			if (wa.map_state == IsUnmapped)
+		war = xcb_get_window_attributes_reply(conn,
+			xcb_get_window_attributes(conn, win->id),
+			NULL);
+		if (war) {
+			if (war->map_state == XCB_MAP_STATE_UNMAPPED)
 				map_window_raised(win->id);
+			free(war);
+		}
 
 		last_h = win_g.h;
 		i++;
