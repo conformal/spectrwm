@@ -5573,7 +5573,7 @@ grabkeys(void)
 {
 	int			num_screens;
 	unsigned int		j, k;
-	KeyCode			code;
+	xcb_keycode_t		*code;
 	unsigned int		modifiers[] =
 	    { 0, LockMask, numlockmask, numlockmask | LockMask };
 	struct key		*kp;
@@ -5588,12 +5588,14 @@ grabkeys(void)
 		xcb_ungrab_key(conn, XCB_GRAB_ANY, screens[k].root,
 			XCB_MOD_MASK_ANY);
 		RB_FOREACH(kp, key_tree, &keys) {
-			if ((code = XKeysymToKeycode(display, kp->keysym)))
+			if ((code = xcb_key_symbols_get_keycode(syms,
+					kp->keysym)))
 				for (j = 0; j < LENGTH(modifiers); j++)
-					XGrabKey(display, code,
+					xcb_grab_key(conn, True,
+					    screens[k].root,
 					    kp->mod | modifiers[j],
-					    screens[k].root, True,
-					    GrabModeAsync, GrabModeAsync);
+					    *code, XCB_GRAB_MODE_ASYNC,
+					    XCB_GRAB_MODE_ASYNC);
 		}
 	}
 }
