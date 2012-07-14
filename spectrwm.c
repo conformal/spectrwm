@@ -7094,18 +7094,18 @@ clientmessage(xcb_client_message_event_t *e)
 	DNPRINTF(SWM_D_EVENT, "clientmessage: window: 0x%x, type: %u\n",
 	    e->window, e->type);
 
-	if (e->response_type == ewmh[_NET_ACTIVE_WINDOW].atom) {
+	if (e->type == ewmh[_NET_ACTIVE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_ACTIVE_WINDOW\n");
 		focus_win(win);
 	}
-	if (e->response_type == ewmh[_NET_CLOSE_WINDOW].atom) {
+	if (e->type == ewmh[_NET_CLOSE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_CLOSE_WINDOW\n");
 		if (win->can_delete)
 			client_msg(win, adelete);
 		else
 			xcb_kill_client(conn, win->id);
 	}
-	if (e->response_type == ewmh[_NET_MOVERESIZE_WINDOW].atom) {
+	if (e->type == ewmh[_NET_MOVERESIZE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT,
 		    "clientmessage: _NET_MOVERESIZE_WINDOW\n");
 		if (win->floating) {
@@ -7126,7 +7126,7 @@ clientmessage(xcb_client_message_event_t *e)
 			config_win(win, NULL);
 		}
 	}
-	if (e->response_type == ewmh[_NET_WM_STATE].atom) {
+	if (e->type == ewmh[_NET_WM_STATE].atom) {
 		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_WM_STATE\n");
 		ewmh_update_win_state(win, e->data.data32[1], e->data.data32[0]);
 		if (e->data.data32[2])
