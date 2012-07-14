@@ -1114,7 +1114,7 @@ void			mappingnotify(xcb_mapping_notify_event_t *);
 void			maprequest(xcb_map_request_event_t *);
 void			propertynotify(xcb_property_notify_event_t *);
 void			unmapnotify(xcb_unmap_notify_event_t *);
-void			visibilitynotify(xcb_visibility_notify_event_t *);
+/*void			visibilitynotify(xcb_visibility_notify_event_t *);*/
 void			clientmessage(xcb_client_message_event_t *);
 void			screenchange(xcb_randr_screen_change_notify_event_t *);
 
@@ -4167,7 +4167,7 @@ resize(struct ws_win *win, union arg *args)
 	struct swm_region	*r = NULL;
 	int			resize_step = 0;
 	struct swm_geometry	g;
-	int			top = 0, left = 0, buttonrelease;
+	int			top = 0, left = 0, resizing;
 	int			dx, dy;
 	unsigned int		shape; /* cursor style */
 	xcb_cursor_t		cursor;
@@ -4185,7 +4185,7 @@ resize(struct ws_win *win, union arg *args)
 	if (win->ewmh_flags & EWMH_F_FULLSCREEN)
 		return;
 
-	DNPRINTF(SWM_D_MOUSE, "resize: window: 0x%x, floating: %s, "
+	DNPRINTF(SWM_D_EVENT, "resize: window: 0x%x, floating: %s, "
 	    "transient: 0x%x\n", win->id, YESNO(win->floating),
 	    win->transient);
 
@@ -4269,15 +4269,16 @@ resize(struct ws_win *win, union arg *args)
 	}
 
 	xcb_flush(conn);
-	buttonrelease = 0;
-	while ((evt = xcb_poll_for_event(conn)) && buttonrelease != 1) {
+	resizing = 1;
+	while ((evt = xcb_wait_for_event(conn)) && resizing) {
 		/*
 		XMaskEvent(display, MOUSEMASK | ExposureMask |
 		    SubstructureRedirectMask, &ev);
 		*/
 		switch (XCB_EVENT_RESPONSE_TYPE(evt)) {
 		case XCB_BUTTON_RELEASE:
-			buttonrelease = 1;
+			DNPRINTF(SWM_D_EVENT, "resize: BUTTON_RELEASE\n");
+			resizing = 0;
 			break;
 		case XCB_MOTION_NOTIFY:
 			mne = (xcb_motion_notify_event_t *)evt;
@@ -4351,6 +4352,7 @@ resize(struct ws_win *win, union arg *args)
 	xcb_close_font(conn, cursor_font);
 	free(gpr);
 	free(xpr);
+	DNPRINTF(SWM_D_EVENT, "resize: done\n");
 }
 
 void
@@ -4372,7 +4374,7 @@ void
 move(struct ws_win *win, union arg *args)
 {
 	xcb_timestamp_t		timestamp = 0;
-	int			move_step = 0, buttonrelease;
+	int			move_step = 0, moving;
 	struct swm_region	*r = NULL;
 	xcb_font_t			cursor_font;
 	xcb_cursor_t			cursor;
@@ -4389,7 +4391,7 @@ move(struct ws_win *win, union arg *args)
 	if (win->ewmh_flags & EWMH_F_FULLSCREEN)
 		return;
 
-	DNPRINTF(SWM_D_MOUSE, "move: window: 0x%x, floating: %s, transient: "
+	DNPRINTF(SWM_D_EVENT, "move: window: 0x%x, floating: %s, transient: "
 	    "0x%x\n", win->id, YESNO(win->floating), win->transient);
 
 	/* in max_stack mode should only move transients */
@@ -4463,15 +4465,12 @@ move(struct ws_win *win, union arg *args)
 	}
 
 	xcb_flush(conn);
-	buttonrelease = 0;
-	while ((evt = xcb_poll_for_event(conn)) && buttonrelease != 1) {
-		/*
-		XMaskEvent(display, MOUSEMASK | ExposureMask |
-		    SubstructureRedirectMask, &ev);
-		*/
+	moving = 1;
+	while ((evt = xcb_wait_for_event(conn)) && moving) {
 		switch (XCB_EVENT_RESPONSE_TYPE(evt)) {
 		case XCB_BUTTON_RELEASE:
-			buttonrelease = 1;
+			DNPRINTF(SWM_D_EVENT, "move: BUTTON_RELEASE\n");
+			moving = 0;
 			break;
 		case XCB_MOTION_NOTIFY:
 			mne = (xcb_motion_notify_event_t *)evt;
@@ -4502,6 +4501,7 @@ move(struct ws_win *win, union arg *args)
 	xcb_free_cursor(conn, cursor);
 	xcb_close_font(conn, cursor_font);
 	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
+	DNPRINTF(SWM_D_EVENT, "move: done\n");
 }
 
 void
@@ -6682,7 +6682,8 @@ buttonpress(xcb_button_press_event_t *e)
 	struct ws_win		*win;
 	int			i, action;
 
-	DNPRINTF(SWM_D_EVENT, "buttonpress: window 0x%x\n", e->event);
+	DNPRINTF(SWM_D_EVENT, "buttonpress: window 0x%x, detail: %u\n",
+	    e->event, e->detail);
 
 	if ((win = find_window(e->event)) == NULL)
 		return;
@@ -7063,23 +7064,12 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 	}
 }
 
-void
+/*void
 visibilitynotify(xcb_visibility_notify_event_t *e)
 {
-	int			i, num_screens;
-	struct swm_region	*r;
-
 	DNPRINTF(SWM_D_EVENT, "visibilitynotify: window: 0x%x\n",
 	    e->window);
-
-	if (e->state == XCB_VISIBILITY_UNOBSCURED) {
-		num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
-		for (i = 0; i < num_screens; i++)
-			TAILQ_FOREACH(r, &screens[i].rl, entry)
-				if (e->window == WINID(r->bar))
-					bar_update();
-	}
-}
+}*/
 
 void
 clientmessage(xcb_client_message_event_t *e)
@@ -7571,6 +7561,11 @@ void
 event_handle(xcb_generic_event_t *evt)
 {
 	uint8_t type = XCB_EVENT_RESPONSE_TYPE(evt);
+
+	DNPRINTF(SWM_D_EVENT, "XCB Event: %s(%d)\n",
+	    xcb_event_get_label(XCB_EVENT_RESPONSE_TYPE(evt)),
+	    XCB_EVENT_RESPONSE_TYPE(evt));
+
 	switch (type) {
 #define EVENT(type, callback) case type: callback((void *)evt); return
 	EVENT(0, event_error);
@@ -7606,7 +7601,7 @@ event_handle(xcb_generic_event_t *evt)
 	/*EVENT(XCB_SELECTION_NOTIFY, );*/
 	/*EVENT(XCB_SELECTION_REQUEST, );*/
 	EVENT(XCB_UNMAP_NOTIFY, unmapnotify);
-	EVENT(XCB_VISIBILITY_NOTIFY, visibilitynotify);
+	/*EVENT(XCB_VISIBILITY_NOTIFY, visibilitynotify);*/
 #undef EVENT
 	}
 	if (type - xrandr_eventbase == XCB_RANDR_SCREEN_CHANGE_NOTIFY)
@@ -7686,8 +7681,7 @@ main(int argc, char *argv[])
 
 	/* flush all events */
 	while ((evt = xcb_poll_for_event(conn))) {
-		uint8_t type = XCB_EVENT_RESPONSE_TYPE(evt);
-		if (type == 0)
+		if (XCB_EVENT_RESPONSE_TYPE(evt) == 0)
 			event_handle(evt);
 		free(evt);
 	}
@@ -7771,9 +7765,6 @@ noconfig:
 
 	while (running) {
 		while ((evt = xcb_poll_for_event(conn))) {
-			DNPRINTF(SWM_D_EVENT, "XCB Event: %s(%d)\n",
-			    xcb_event_get_label(XCB_EVENT_RESPONSE_TYPE(evt)),
-			    XCB_EVENT_RESPONSE_TYPE(evt));
 			if (running == 0)
 				goto done;
 			event_handle(evt);
