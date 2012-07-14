@@ -7092,7 +7092,7 @@ clientmessage(xcb_client_message_event_t *e)
 	}
 
 	DNPRINTF(SWM_D_EVENT, "clientmessage: window: 0x%x, type: %u\n",
-	    e->window, e->response_type);
+	    e->window, e->type);
 
 	if (e->response_type == ewmh[_NET_ACTIVE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_ACTIVE_WINDOW\n");
