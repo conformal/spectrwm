@@ -7618,14 +7618,16 @@ main(int argc, char *argv[])
 {
 	struct swm_region	*r, *rr;
 	struct ws_win		*winfocus = NULL;
-	struct timeval		tv;
 	union arg		a;
 	char			conf[PATH_MAX], *cfile = NULL;
 	struct stat		sb;
 	int			xfd, i, num_screens;
-	fd_set			rd;
 	struct sigaction	sact;
 	xcb_generic_event_t	*evt;
+#if 0
+	struct timeval          tv;
+	fd_set			rd;
+#endif
 
 	time_started = time(NULL);
 
@@ -7798,6 +7800,7 @@ noconfig:
 			continue;
 		}
 
+#if 0
 		FD_ZERO(&rd);
 		FD_SET(xfd, &rd);
 		tv.tv_sec = 1;
@@ -7805,6 +7808,7 @@ noconfig:
 		if (select(xfd + 1, &rd, NULL, NULL, &tv) == -1)
 			if (errno != EINTR)
 				DNPRINTF(SWM_D_MISC, "select failed");
+#endif
 		if (restart_wm == 1)
 			restart(NULL, NULL);
 		if (search_resp == 1)
