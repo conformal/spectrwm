@@ -1836,7 +1836,7 @@ bar_setup(struct swm_region *r)
 	int			num_missing_charsets = 0;
 	int			i;
 	xcb_screen_t		*screen = get_screen(r->s->idx);
-	uint32_t		wa[2];
+	uint32_t		wa[3];
 
 	if (bar_fs) {
 		XFreeFontSet(display, bar_fs);
@@ -1885,10 +1885,12 @@ bar_setup(struct swm_region *r)
 	r->bar->id = xcb_generate_id(conn);
 	wa[0] = r->s->c[SWM_S_COLOR_BAR].color;
 	wa[1] = r->s->c[SWM_S_COLOR_BAR_BORDER].color;
+	wa[2] = XCB_EVENT_MASK_EXPOSURE;
 	xcb_create_window(conn, XCB_COPY_FROM_PARENT, r->bar->id, r->s->root,
 	    X(r->bar), Y(r->bar), WIDTH(r->bar), HEIGHT(r->bar),
 	    bar_border_width, XCB_WINDOW_CLASS_INPUT_OUTPUT,
-	    XCB_COPY_FROM_PARENT, XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);
+	    XCB_COPY_FROM_PARENT, XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL
+	    | XCB_CW_EVENT_MASK, wa);
 
 	r->bar->buffer = xcb_generate_id(conn);
 	xcb_create_pixmap(conn, screen->root_depth, r->bar->buffer, r->bar->id,
@@ -6637,7 +6639,18 @@ focus_magic(struct ws_win *win)
 void
 expose(xcb_expose_event_t *e)
 {
+	int			i, num_screens;
+	struct swm_region	*r;
+
 	DNPRINTF(SWM_D_EVENT, "expose: window: 0x%x\n", e->window);
+
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++)
+		TAILQ_FOREACH(r, &screens[i].rl, entry)
+			if (e->window == WINID(r->bar))
+				bar_update();
+
+	xcb_flush(conn);
 }
 
 void
