@@ -1,6 +1,6 @@
 CFLAGS+= -Wall -g -D_GNU_SOURCE -I.
 CFLAGS+= -DSWM_LIB=\"$(LIBDIR)/libswmhack.so.$(LVERS)\"
-LDADD+= -lX11 -lXrandr -lXtst -lX11-xcb -lxcb -lxcb-icccm -lxcb-randr -lxcb-keysyms -lxcb-util
+LDADD+= -lX11 -lXrandr -lXtst -lX11-xcb -lxcb -lxcb-icccm -lxcb-randr -lxcb-keysyms -lxcb-util -lxcb-xtest
 
 PREFIX?= /usr/local
 BINDIR?= $(PREFIX)/bin
