@@ -249,7 +249,7 @@ xcb_atom_t		a_swm_iconic;
 volatile sig_atomic_t   running = 1;
 volatile sig_atomic_t   restart_wm = 0;
 int			outputs = 0;
-int			last_focus_event = FocusOut;
+/*int			last_focus_event = FocusOut;*/
 int			(*xerrorxlib)(Display *, XErrorEvent *);
 int			other_wm;
 int			ss_enabled = 0;
@@ -2477,11 +2477,11 @@ focus_win(struct ws_win *win)
 		unfocus_win(cfw);
 	else {
 		/* use larger hammer since the window was killed somehow */
-		TAILQ_FOREACH(cfw, &win->ws->winlist, entry)
+		/* TAILQ_FOREACH(cfw, &win->ws->winlist, entry)
 			if (cfw->ws && cfw->ws->r && cfw->ws->r->s)
 				xcb_change_window_attributes(conn, cfw->id,
 				    XCB_CW_BORDER_PIXEL,
-				    &cfw->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
+				    &cfw->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);*/
 	}
 
 	win->ws->focus = win;
@@ -7552,18 +7552,35 @@ event_handle(xcb_generic_event_t *evt)
 	EVENT(0, event_error);
 	EVENT(XCB_BUTTON_PRESS, buttonpress);
 	/*EVENT(XCB_BUTTON_RELEASE, buttonpress);*/
+	/*EVENT(XCB_CIRCULATE_NOTIFY, );*/
+	/*EVENT(XCB_CIRCULATE_REQUEST, );*/
 	EVENT(XCB_CLIENT_MESSAGE, clientmessage);
+	/*EVENT(XCB_COLORMAP_NOTIFY, );*/
 	EVENT(XCB_CONFIGURE_NOTIFY, configurenotify);
 	EVENT(XCB_CONFIGURE_REQUEST, configurerequest);
+	/*EVENT(XCB_CREATE_NOTIFY, );*/
 	EVENT(XCB_DESTROY_NOTIFY, destroynotify);
 	EVENT(XCB_ENTER_NOTIFY, enternotify);
 	EVENT(XCB_EXPOSE, expose);
+	/*EVENT(XCB_FOCUS_IN, );*/
+	/*EVENT(XCB_FOCUS_OUT, );*/
+	/*EVENT(XCB_GRAPHICS_EXPOSURE, );*/
+	/*EVENT(XCB_GRAVITY_NOTIFY, );*/
 	EVENT(XCB_KEY_PRESS, keypress);
 	/*EVENT(XCB_KEY_RELEASE, keypress);*/
+	/*EVENT(XCB_KEYMAP_NOTIFY, );*/
+	/*EVENT(XCB_LEAVE_NOTIFY, );*/
 	EVENT(XCB_MAP_NOTIFY, mapnotify);
 	EVENT(XCB_MAP_REQUEST, maprequest);
 	EVENT(XCB_MAPPING_NOTIFY, mappingnotify);
+	/*EVENT(XCB_MOTION_NOTIFY, );*/
+	/*EVENT(XCB_NO_EXPOSURE, );*/
 	EVENT(XCB_PROPERTY_NOTIFY, propertynotify);
+	/*EVENT(XCB_REPARENT_NOTIFY, );*/
+	/*EVENT(XCB_RESIZE_REQUEST, );*/
+	/*EVENT(XCB_SELECTION_CLEAR, );*/
+	/*EVENT(XCB_SELECTION_NOTIFY, );*/
+	/*EVENT(XCB_SELECTION_REQUEST, );*/
 	EVENT(XCB_UNMAP_NOTIFY, unmapnotify);
 	EVENT(XCB_VISIBILITY_NOTIFY, visibilitynotify);
 #undef EVENT
@@ -7726,7 +7743,7 @@ noconfig:
 
 	while (running) {
 		while ((evt = xcb_poll_for_event(conn))) {
-			DNPRINTF(SWM_D_EVENT, "XCB Event: %s (%d)\n",
+			DNPRINTF(SWM_D_EVENT, "XCB Event: %s(%d)\n",
 			    xcb_event_get_label(XCB_EVENT_RESPONSE_TYPE(evt)),
 			    XCB_EVENT_RESPONSE_TYPE(evt));
 			if (running == 0)
