@@ -1149,6 +1149,7 @@ geteventname(xcb_generic_event_t *e)
 		break;
 	default:
 		name = "Unknown";
+		break;
 	}
 
 	return (name);
@@ -1206,6 +1207,7 @@ dumpwins(struct swm_region *r, union arg *args)
 }
 #endif /* SWM_DEBUG */
 
+void			event_error(xcb_generic_error_t *);
 void			expose(xcb_expose_event_t *);
 void			keypress(xcb_key_press_event_t *);
 void			buttonpress(xcb_button_press_event_t *);
@@ -7655,18 +7657,86 @@ workaround(void)
 }
 
 void
+event_error(xcb_generic_error_t *e)
+{
+	const char *estr;
+
+	switch (e->error_code) {
+	case XCB_EVENT_ERROR_SUCESS:
+		estr = "Success";
+		break;
+	case XCB_EVENT_ERROR_BAD_REQUEST:
+		estr = "BadRequest";
+		break;
+	case XCB_EVENT_ERROR_BAD_VALUE:
+		estr = "BadValue";
+		break;
+	case XCB_EVENT_ERROR_BAD_WINDOW:
+		estr = "BadWindow";
+		break;
+	case XCB_EVENT_ERROR_BAD_PIXMAP:
+		estr = "BadPixmap";
+		break;
+	case XCB_EVENT_ERROR_BAD_ATOM:
+		estr = "BadAtom";
+		break;
+	case XCB_EVENT_ERROR_BAD_CURSOR:
+		estr = "BadCursor";
+		break;
+	case XCB_EVENT_ERROR_BAD_FONT:
+		estr = "BadFont";
+		break;
+	case XCB_EVENT_ERROR_BAD_MATCH:
+		estr = "BadMatch";
+		break;
+	case XCB_EVENT_ERROR_BAD_DRAWABLE:
+		estr = "BadDrawable";
+		break;
+	case XCB_EVENT_ERROR_BAD_ACCESS:
+		estr = "BadAccess";
+		break;
+	case XCB_EVENT_ERROR_BAD_ALLOC:
+		estr = "BadAlloc";
+		break;
+	case XCB_EVENT_ERROR_BAD_COLOR:
+		estr = "BadColor";
+		break;
+	case XCB_EVENT_ERROR_BAD_GC:
+		estr = "BadGC";
+		break;
+	case XCB_EVENT_ERROR_BAD_ID_CHOICE:
+		estr = "BadIdChoice";
+		break;
+	case XCB_EVENT_ERROR_BAD_NAME:
+		estr = "BadName";
+		break;
+	case XCB_EVENT_ERROR_BAD_LENGTH:
+		estr = "BadLength";
+		break;
+	case XCB_EVENT_ERROR_BAD_IMPLEMENTATION:
+		estr = "BadImplementation";
+		break;
+	default:
+		estr = "Unknown";
+		break;
+	}
+		
+	DNPRINTF(SWM_D_EVENT,
+		"event_error: %s: response_type:%u "
+		"error_code:%u sequence:%u resource_id:%u "
+		"minor_code:%u major_code:%u\n", estr,
+		e->response_type, e->error_code, e->sequence,
+		e->resource_id, e->minor_code, e->major_code
+	);
+}
+
+void
 event_handle(xcb_generic_event_t *evt)
 {
 	uint8_t type = XCB_EVENT_RESPONSE_TYPE(evt);
-
-	if (type == 0)
-	{
-		/* XXX - handle error */
-		return;
-	}
-
 	switch (type) {
 #define EVENT(type, callback) case type: callback((void *)evt); return
+	EVENT(0, event_error);
 	EVENT(XCB_BUTTON_PRESS, buttonpress);
 	/*EVENT(XCB_BUTTON_RELEASE, buttonpress);*/
 	EVENT(XCB_CLIENT_MESSAGE, clientmessage);
