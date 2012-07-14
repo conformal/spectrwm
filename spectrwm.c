@@ -156,8 +156,16 @@ static const char	*buildstr = SPECTRWM_VERSION;
 
 #define SWM_DEBUG
 #ifdef SWM_DEBUG
-#define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while (0)
-#define DNPRINTF(n,x...)	do { if (swm_debug & n) { fprintf(stderr, "%ld ", (long)time(NULL)); fprintf(stderr, x); } } while (0)
+#define DPRINTF(x...) do {							\
+	if (swm_debug)								\
+		fprintf(stderr, x);						\
+} while (0)
+#define DNPRINTF(n,x...) do {							\
+	if (swm_debug & n) {							\
+		fprintf(stderr, "%ld ", (long)(time(NULL) - time_started));	\
+		fprintf(stderr, x);						\
+	}									\
+} while (0)
 #define SWM_D_MISC		0x0001
 #define SWM_D_EVENT		0x0002
 #define SWM_D_WS		0x0004
@@ -343,6 +351,7 @@ int			spawn_position = SWM_STACK_TOP;
 int			disable_border = 0;
 int			border_width = 1;
 int			verbose_layout = 0;
+time_t			time_started;
 pid_t			bar_pid;
 XFontSet		bar_fs;
 XFontSetExtents		*bar_fs_extents;
@@ -7602,6 +7611,8 @@ main(int argc, char *argv[])
 	fd_set			rd;
 	struct sigaction	sact;
 	xcb_generic_event_t	*evt;
+
+	time_started = time(NULL);
 
 	start_argv = argv;
 	warnx("Welcome to spectrwm V%s Build: %s", SPECTRWM_VERSION, buildstr);
