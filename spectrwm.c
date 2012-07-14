@@ -6541,9 +6541,6 @@ free_window(struct ws_win *win)
 	if (win == NULL)
 		return;
 
-	/* needed for restart wm */
-	set_win_state(win, XCB_ICCCM_WM_STATE_WITHDRAWN);
-
 	TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
 
 	if (win->wa)
