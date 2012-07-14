@@ -2090,7 +2090,6 @@ client_msg(struct ws_win *win, xcb_atom_t a)
 
 	xcb_send_event(conn, False, win->id,
 		XCB_EVENT_MASK_NO_EVENT, (const char *)&ev);
-	xcb_flush(conn);
 }
 
 /* synthetic response to a ConfigureRequest when not making a change */
@@ -2171,7 +2170,6 @@ config_win(struct ws_win *win, xcb_configure_request_event_t *ev)
 
 	xcb_send_event(conn, False, win->id, XCB_EVENT_MASK_STRUCTURE_NOTIFY,
 		(char *)&ce);
-	xcb_flush(conn);
 }
 
 int
@@ -2245,6 +2243,7 @@ fake_keypress(struct ws_win *win, xcb_keysym_t keysym, uint16_t modifiers)
 	DNPRINTF(SWM_D_MISC, "fake_keypress: win 0x%x keycode %u\n",
 		win->id, *keycode);
 
+	bzero(&event, sizeof(event));
 	event.event = win->id;
 	event.root = win->s->root;
 	event.child = XCB_WINDOW_NONE;
@@ -2264,7 +2263,6 @@ fake_keypress(struct ws_win *win, xcb_keysym_t keysym, uint16_t modifiers)
 	event.response_type = XCB_KEY_RELEASE;
 	xcb_send_event(conn, True, win->id,
 		XCB_EVENT_MASK_KEY_RELEASE, (char *)&event);
-	xcb_flush(conn);
 }
 
 void
@@ -6801,7 +6799,7 @@ configurerequest(xcb_configure_request_event_t *e)
 	struct ws_win		*win;
 	int			new = 0, i = 0;
 	uint16_t		mask = 0;
-	uint32_t		wc[7];
+	uint32_t		wc[7] = {0};
 
 	if ((win = find_window(e->window)) == NULL)
 		if ((win = find_unmanaged_window(e->window)) == NULL)
