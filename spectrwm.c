@@ -7539,72 +7539,11 @@ workaround(void)
 void
 event_error(xcb_generic_error_t *e)
 {
-	const char *estr;
-
-	switch (e->error_code) {
-	case 0:
-		estr = "Success";
-		break;
-	case XCB_REQUEST:
-		estr = "BadRequest";
-		break;
-	case XCB_VALUE:
-		estr = "BadValue";
-		break;
-	case XCB_WINDOW:
-		estr = "BadWindow";
-		break;
-	case XCB_PIXMAP:
-		estr = "BadPixmap";
-		break;
-	case XCB_ATOM:
-		estr = "BadAtom";
-		break;
-	case XCB_CURSOR:
-		estr = "BadCursor";
-		break;
-	case XCB_FONT:
-		estr = "BadFont";
-		break;
-	case XCB_MATCH:
-		estr = "BadMatch";
-		break;
-	case XCB_DRAWABLE:
-		estr = "BadDrawable";
-		break;
-	case XCB_ACCESS:
-		estr = "BadAccess";
-		break;
-	case XCB_ALLOC:
-		estr = "BadAlloc";
-		break;
-	case XCB_COLORMAP:
-		estr = "BadColor";
-		break;
-	case XCB_G_CONTEXT:
-		estr = "BadGC";
-		break;
-	case XCB_ID_CHOICE:
-		estr = "BadIdChoice";
-		break;
-	case XCB_NAME:
-		estr = "BadName";
-		break;
-	case XCB_LENGTH:
-		estr = "BadLength";
-		break;
-	case XCB_IMPLEMENTATION:
-		estr = "BadImplementation";
-		break;
-	default:
-		estr = "Unknown";
-		break;
-	}
-
 	DNPRINTF(SWM_D_EVENT, "event_error: %s: response_type:%u error_code:%u "
-	    "sequence:%u resource_id:%u minor_code:%u major_code:%u\n", estr,
-	    e->response_type, e->error_code, e->sequence, e->resource_id,
-	    e->minor_code, e->major_code
+	    "sequence:%u resource_id:%u minor_code:%u major_code:%u\n",
+	    xcb_event_get_error_label(e->error_code), e->response_type,
+	    e->error_code, e->sequence, e->resource_id, e->minor_code,
+	    e->major_code
 	);
 }
 
