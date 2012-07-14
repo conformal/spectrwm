@@ -1046,6 +1046,9 @@ geteventname(xcb_generic_event_t *e)
 	char			*name = NULL;
 
 	switch (XCB_EVENT_RESPONSE_TYPE(e)) {
+	case 0:
+		name = "Error";
+		break;
 	case XCB_KEY_PRESS:
 		name = "KeyPress";
 		break;
@@ -6670,6 +6673,7 @@ free_window(struct ws_win *win)
 	memset(win, 0xff, sizeof *win);	/* XXX kill later */
 
 	free(win);
+	DNPRINTF(SWM_D_MISC, "free_window: done\n");
 }
 
 void
@@ -7903,8 +7907,8 @@ noconfig:
 
 	while (running) {
 		while ((evt = xcb_poll_for_event(conn))) {
-			DNPRINTF(SWM_D_EVENT, "XCB Event: %s\n",
-			    geteventname(evt));
+			DNPRINTF(SWM_D_EVENT, "XCB Event: %s (%d)\n",
+			    geteventname(evt), XCB_EVENT_RESPONSE_TYPE(evt));
 			if (running == 0)
 				goto done;
 			event_handle(evt);
