@@ -7539,12 +7539,11 @@ workaround(void)
 void
 event_error(xcb_generic_error_t *e)
 {
-	DNPRINTF(SWM_D_EVENT, "event_error: %s: response_type:%u error_code:%u "
-	    "sequence:%u resource_id:%u minor_code:%u major_code:%u\n",
-	    xcb_event_get_error_label(e->error_code), e->response_type,
-	    e->error_code, e->sequence, e->resource_id, e->minor_code,
-	    e->major_code
-	);
+	DNPRINTF(SWM_D_EVENT, "event_error: %s(%u) from %s(%u), sequence: %u, "
+	    "resource_id: %u, minor_code: %u\n",
+	    xcb_event_get_error_label(e->error_code), e->error_code,
+	    xcb_event_get_request_label(e->major_code), e->major_code,
+	    e->sequence, e->resource_id, e->minor_code);
 }
 
 void
