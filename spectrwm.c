@@ -152,23 +152,6 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #define xcb_icccm_get_wm_transient_for		xcb_get_wm_transient_for
 #define xcb_icccm_get_wm_transient_for_reply	xcb_get_wm_transient_for_reply
 #define xcb_icccm_wm_hints_t			xcb_wm_hints_t
-#define XCB_REQUEST				XCB_EVENT_ERROR_BAD_REQUEST
-#define XCB_VALUE				XCB_EVENT_ERROR_BAD_VALUE
-#define XCB_WINDOW				XCB_EVENT_ERROR_BAD_WINDOW
-#define XCB_PIXMAP				XCB_EVENT_ERROR_BAD_PIXMAP
-#define XCB_ATOM				XCB_EVENT_ERROR_BAD_ATOM
-#define XCB CURSOR				XCB_EVENT_ERROR_BAD_CURSOR
-#define XCB_FONT				XCB_EVENT_ERROR_BAD_FONT
-#define XCB_MATCH				XCB_EVENT_ERROR_BAD_MATCH
-#define XCB_DRAWABLE				XCB_EVENT_ERROR_BAD_DRAWABLE
-#define XCB_ACCESS				XCB_EVENT_ERROR_BAD_ACCESS
-#define XCB_ALLOC				XCB_EVENT_ERROR_BAD_ALLOC
-#define XCB_COLORMAP				XCB_EVENT_ERROR_BAD_COLOR
-#define XCB_G_CONTEXT				XCB_EVENT_ERROR_BAD_GC
-#define XCB_ID_CHOICE				XCB_EVENT_ERROR_BAD_ID_CHOICE
-#define XCB_NAME				XCB_EVENT_ERROR_BAD_NAME
-#define XCB_LENGTH				XCB_EVENT_ERROR_BAD_LENGTH
-#define XCB_IMPLEMENTATION			XCB_EVENT_ERROR_BAD_IMPLEMENTATION
 #endif
 
 #define SWM_DEBUG
