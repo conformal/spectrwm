@@ -4266,6 +4266,7 @@ resize(struct ws_win *win, union arg *args)
 		return;
 	}
 
+	xcb_flush(conn);
 	buttonrelease = 0;
 	while ((evt = xcb_poll_for_event(conn)) && buttonrelease != 1) {
 		/*
@@ -4459,6 +4460,7 @@ move(struct ws_win *win, union arg *args)
 		return;
 	}
 
+	xcb_flush(conn);
 	buttonrelease = 0;
 	while ((evt = xcb_poll_for_event(conn)) && buttonrelease != 1) {
 		/*
