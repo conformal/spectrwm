@@ -157,7 +157,7 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #define SWM_DEBUG
 #ifdef SWM_DEBUG
 #define DPRINTF(x...)		do { if (swm_debug) fprintf(stderr, x); } while (0)
-#define DNPRINTF(n,x...)	do { if (swm_debug & n) fprintf(stderr, x); } while (0)
+#define DNPRINTF(n,x...)	do { if (swm_debug & n) { fprintf(stderr, "%ld ", (long)time(NULL)); fprintf(stderr, x); } } while (0)
 #define SWM_D_MISC		0x0001
 #define SWM_D_EVENT		0x0002
 #define SWM_D_WS		0x0004
@@ -4152,7 +4152,7 @@ update_window(struct ws_win *win)
 void
 resize(struct ws_win *win, union arg *args)
 {
-	xcb_timestamp_t		time = 0;
+	xcb_timestamp_t		timestamp = 0;
 	struct swm_region	*r = NULL;
 	int			resize_step = 0;
 	struct swm_geometry	g;
@@ -4316,8 +4316,8 @@ resize(struct ws_win *win, union arg *args)
 			constrain_window(win, r, 1);
 
 			/* not free, don't sync more than 120 times / second */
-			if ((mne->time - time) > (1000 / 120) ) {
-				time = mne->time;
+			if ((mne->time - timestamp) > (1000 / 120) ) {
+				timestamp = mne->time;
 				do_sync();
 				update_window(win);
 			}
@@ -4328,7 +4328,7 @@ resize(struct ws_win *win, union arg *args)
 		}
 		free(evt);
 	}
-	if (time) {
+	if (timestamp) {
 		do_sync();
 		update_window(win);
 	}
@@ -4359,7 +4359,7 @@ resize_step(struct swm_region *r, union arg *args)
 void
 move(struct ws_win *win, union arg *args)
 {
-	xcb_timestamp_t		time = 0;
+	xcb_timestamp_t		timestamp = 0;
 	int			move_step = 0, buttonrelease;
 	struct swm_region	*r = NULL;
 	xcb_font_t			cursor_font;
@@ -4468,8 +4468,8 @@ move(struct ws_win *win, union arg *args)
 			constrain_window(win, r, 0);
 
 			/* not free, don't sync more than 120 times / second */
-			if ((mne->time - time) > (1000 / 120) ) {
-				time = mne->time;
+			if ((mne->time - timestamp) > (1000 / 120) ) {
+				timestamp = mne->time;
 				do_sync();
 				update_window(win);
 			}
@@ -4480,7 +4480,7 @@ move(struct ws_win *win, union arg *args)
 		}
 		free(evt);
 	}
-	if (time) {
+	if (timestamp) {
 		do_sync();
 		update_window(win);
 	}
