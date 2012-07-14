@@ -1040,122 +1040,6 @@ ewmh_get_win_state(struct ws_win *win)
 
 /* events */
 #ifdef SWM_DEBUG
-char *
-geteventname(xcb_generic_event_t *e)
-{
-	char			*name = NULL;
-
-	switch (XCB_EVENT_RESPONSE_TYPE(e)) {
-	case 0:
-		name = "Error";
-		break;
-	case XCB_KEY_PRESS:
-		name = "KeyPress";
-		break;
-	case XCB_KEY_RELEASE:
-		name = "KeyRelease";
-		break;
-	case XCB_BUTTON_PRESS:
-		name = "ButtonPress";
-		break;
-	case XCB_BUTTON_RELEASE:
-		name = "ButtonRelease";
-		break;
-	case XCB_MOTION_NOTIFY:
-		name = "MotionNotify";
-		break;
-	case XCB_ENTER_NOTIFY:
-		name = "EnterNotify";
-		break;
-	case XCB_LEAVE_NOTIFY:
-		name = "LeaveNotify";
-		break;
-	case XCB_FOCUS_IN:
-		name = "FocusIn";
-		break;
-	case XCB_FOCUS_OUT:
-		name = "FocusOut";
-		break;
-	case XCB_KEYMAP_NOTIFY:
-		name = "KeymapNotify";
-		break;
-	case XCB_EXPOSE:
-		name = "Expose";
-		break;
-	case XCB_GRAPHICS_EXPOSURE:
-		name = "GraphicsExposure";
-		break;
-	case XCB_NO_EXPOSURE:
-		name = "NoExposure";
-		break;
-	case XCB_VISIBILITY_NOTIFY:
-		name = "VisibilityNotify";
-		break;
-	case XCB_CREATE_NOTIFY:
-		name = "CreateNotify";
-		break;
-	case XCB_DESTROY_NOTIFY:
-		name = "DestroyNotify";
-		break;
-	case XCB_UNMAP_NOTIFY:
-		name = "UnmapNotify";
-		break;
-	case XCB_MAP_NOTIFY:
-		name = "MapNotify";
-		break;
-	case XCB_MAP_REQUEST:
-		name = "MapRequest";
-		break;
-	case XCB_REPARENT_NOTIFY:
-		name = "ReparentNotify";
-		break;
-	case XCB_CONFIGURE_NOTIFY:
-		name = "ConfigureNotify";
-		break;
-	case XCB_CONFIGURE_REQUEST:
-		name = "ConfigureRequest";
-		break;
-	case XCB_GRAVITY_NOTIFY:
-		name = "GravityNotify";
-		break;
-	case XCB_RESIZE_REQUEST:
-		name = "ResizeRequest";
-		break;
-	case XCB_CIRCULATE_NOTIFY:
-		name = "CirculateNotify";
-		break;
-	case XCB_CIRCULATE_REQUEST:
-		name = "CirculateRequest";
-		break;
-	case XCB_PROPERTY_NOTIFY:
-		name = "PropertyNotify";
-		break;
-	case XCB_SELECTION_CLEAR:
-		name = "SelectionClear";
-		break;
-	case XCB_SELECTION_REQUEST:
-		name = "SelectionRequest";
-		break;
-	case XCB_SELECTION_NOTIFY:
-		name = "SelectionNotify";
-		break;
-	case XCB_COLORMAP_NOTIFY:
-		name = "ColormapNotify";
-		break;
-	case XCB_CLIENT_MESSAGE:
-		name = "ClientMessage";
-		break;
-	case XCB_MAPPING_NOTIFY:
-		name = "MappingNotify";
-		break;
-	default:
-		name = "Unknown";
-		break;
-	}
-
-	return (name);
-}
-
 void
 dumpwins(struct swm_region *r, union arg *args)
 {
@@ -7908,7 +7792,8 @@ noconfig:
 	while (running) {
 		while ((evt = xcb_poll_for_event(conn))) {
 			DNPRINTF(SWM_D_EVENT, "XCB Event: %s (%d)\n",
-			    geteventname(evt), XCB_EVENT_RESPONSE_TYPE(evt));
+			    xcb_event_get_label(XCB_EVENT_RESPONSE_TYPE(evt)),
+			    XCB_EVENT_RESPONSE_TYPE(evt));
 			if (running == 0)
 				goto done;
 			event_handle(evt);
