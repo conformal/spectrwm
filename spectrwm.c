@@ -6936,6 +6936,8 @@ enternotify(xcb_enter_notify_event_t *e)
 	}
 
 	focus_magic(win);
+
+	xcb_flush(conn);
 }
 
 /* lets us use one switch statement for arbitrary mode/detail combinations */
