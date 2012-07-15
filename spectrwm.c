@@ -2515,6 +2515,20 @@ focus_win(struct ws_win *win)
 }
 
 void
+event_drain(uint8_t rt)
+{
+	xcb_generic_event_t	*evt;
+
+	xcb_flush(conn);
+	while ((evt = xcb_poll_for_event(conn))) {
+		if (XCB_EVENT_RESPONSE_TYPE(evt) != rt)
+			event_handle(evt);
+
+		free(evt);
+	}
+}
+
+void
 switchws(struct swm_region *r, union arg *args)
 {
 	int			wsid = args->id, unmap_old = 0;
@@ -2568,7 +2582,10 @@ switchws(struct swm_region *r, union arg *args)
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
 			unmap_window(win);
 
-	xcb_flush(conn);
+	if (focus_mode == SWM_FOCUS_DEFAULT)
+		event_drain(XCB_ENTER_NOTIFY);
+	else
+		xcb_flush(conn);
 }
 
 void
@@ -2981,8 +2998,10 @@ cycle_layout(struct swm_region *r, union arg *args)
 
 	stack();
 
-	a.id = SWM_ARG_ID_FOCUSCUR;
+	if (focus_mode == SWM_FOCUS_DEFAULT)
+		event_drain(XCB_ENTER_NOTIFY);
 
+	a.id = SWM_ARG_ID_FOCUSCUR;
 	focus(r, &a);
 }
 
@@ -4112,6 +4131,7 @@ floating_toggle(struct swm_region *r, union arg *args)
 	}
 
 	xcb_flush(conn);
+	event_drain(XCB_ENTER_NOTIFY);
 }
 
 void
