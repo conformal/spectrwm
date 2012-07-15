@@ -842,33 +842,33 @@ teardown_ewmh(void)
 void
 ewmh_autoquirk(struct ws_win *win)
 {
-	int			i;
-	unsigned long		n;
-	xcb_atom_t		type;
+	uint32_t		i, n;
+	xcb_atom_t		*type;
 
 	xcb_get_property_cookie_t	c;
 	xcb_get_property_reply_t	*r;
 
 	c = xcb_get_property(conn, False, win->id,
-	    ewmh[_NET_WM_WINDOW_TYPE].atom, XCB_ATOM_ATOM, 0, (~0L));
+	    ewmh[_NET_WM_WINDOW_TYPE].atom, XCB_ATOM_ATOM, 0, UINT32_MAX);
 	r = xcb_get_property_reply(conn, c, NULL);
 	if (!r)
 		return;
-	n = xcb_get_property_value_length(r);
 
+	n = xcb_get_property_value_length(r);
+	type = xcb_get_property_value(r);
+	
 	for (i = 0; i < n; i++) {
-		type = *((xcb_atom_t *)xcb_get_property_value(r));
-		if (type == ewmh[_NET_WM_WINDOW_TYPE_NORMAL].atom)
+		if (type[i] == ewmh[_NET_WM_WINDOW_TYPE_NORMAL].atom)
 			break;
-		if (type == ewmh[_NET_WM_WINDOW_TYPE_DOCK].atom ||
-		    type == ewmh[_NET_WM_WINDOW_TYPE_TOOLBAR].atom ||
-		    type == ewmh[_NET_WM_WINDOW_TYPE_UTILITY].atom) {
+		if (type[i] == ewmh[_NET_WM_WINDOW_TYPE_DOCK].atom ||
+		    type[i] == ewmh[_NET_WM_WINDOW_TYPE_TOOLBAR].atom ||
+		    type[i] == ewmh[_NET_WM_WINDOW_TYPE_UTILITY].atom) {
 			win->floating = 1;
 			win->quirks = SWM_Q_FLOAT | SWM_Q_ANYWHERE;
 			break;
 		}
-		if (type == ewmh[_NET_WM_WINDOW_TYPE_SPLASH].atom ||
-		    type == ewmh[_NET_WM_WINDOW_TYPE_DIALOG].atom) {
+		if (type[i] == ewmh[_NET_WM_WINDOW_TYPE_SPLASH].atom ||
+		    type[i] == ewmh[_NET_WM_WINDOW_TYPE_DIALOG].atom) {
 			win->floating = 1;
 			win->quirks = SWM_Q_FLOAT;
 			break;
