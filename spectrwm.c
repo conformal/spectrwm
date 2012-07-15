@@ -7472,6 +7472,19 @@ setup_globals(void)
 
 	if ((clock_format = strdup("%a %b %d %R %Z %Y")) == NULL)
 		err(1, "setup_globals: strdup: failed to allocate memory.");
+
+	if ((syms = xcb_key_symbols_alloc(conn)) == NULL)
+		errx(1, "unable to allocate key symbols");
+
+	astate = get_atom_from_string("WM_STATE");
+	aprot = get_atom_from_string("WM_PROTOCOLS");
+	adelete = get_atom_from_string("WM_DELETE_WINDOW");
+	takefocus = get_atom_from_string("WM_TAKE_FOCUS");
+	a_wmname = get_atom_from_string("WM_NAME");
+	a_netwmname = get_atom_from_string("_NET_WM_NAME");
+	a_utf8_string = get_atom_from_string("UTF8_STRING");
+	a_string = get_atom_from_string("STRING");
+	a_swm_iconic = get_atom_from_string("_SWM_ICONIC");
 }
 
 void
@@ -7615,19 +7628,6 @@ main(int argc, char *argv[])
 		errx(1, "can not get XCB connection");
 
 	xfd = xcb_get_file_descriptor(conn);
-	syms = xcb_key_symbols_alloc(conn);
-	if (!syms)
-		errx(1, "unable to allocate key symbols");
-
-	astate = get_atom_from_string("WM_STATE");
-	aprot = get_atom_from_string("WM_PROTOCOLS");
-	adelete = get_atom_from_string("WM_DELETE_WINDOW");
-	takefocus = get_atom_from_string("WM_TAKE_FOCUS");
-	a_wmname = get_atom_from_string("WM_NAME");
-	a_netwmname = get_atom_from_string("_NET_WM_NAME");
-	a_utf8_string = get_atom_from_string("UTF8_STRING");
-	a_string = get_atom_from_string("STRING");
-	a_swm_iconic = get_atom_from_string("_SWM_ICONIC");
 
 	/* look for local and global conf file */
 	pwd = getpwuid(getuid());
