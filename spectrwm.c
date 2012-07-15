@@ -1032,7 +1032,7 @@ ewmh_get_win_state(struct ws_win *win)
 		win->ewmh_flags |= SWM_F_MANUAL;
 
 	c = xcb_get_property(conn, False, win->id, ewmh[_NET_WM_STATE].atom,
-	    XCB_ATOM_ATOM, 0, (~0L));
+	    XCB_ATOM_ATOM, 0, UINT32_MAX);
 	r = xcb_get_property_reply(conn, c, NULL);
 	if (!r)
 		return;
