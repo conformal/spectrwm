@@ -354,8 +354,10 @@ int			border_width = 1;
 int			verbose_layout = 0;
 time_t			time_started;
 pid_t			bar_pid;
+#if 0
 XFontSet		bar_fs;
 XFontSetExtents		*bar_fs_extents;
+#endif
 char			*bar_fonts;
 struct passwd		*pwd;
 
@@ -1333,6 +1335,8 @@ bar_print(struct swm_region *r, const char *s)
 	XRectangle		ibox, lbox;
 
 	len = strlen(s);
+	/* FIXME fix bar font position calculations */
+#if 0
 	XmbTextExtents(bar_fs, s, len, &ibox, &lbox);
 
 	switch (bar_justify) {
@@ -1349,6 +1353,7 @@ bar_print(struct swm_region *r, const char *s)
 
 	if (x < SWM_BAR_OFFSET)
 		x = SWM_BAR_OFFSET;
+#endif
 
 	rect.x = 0;
 	rect.y = 0;
@@ -1366,9 +1371,14 @@ bar_print(struct swm_region *r, const char *s)
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_BACKGROUND, gcv);
 	gcv[0] = r->s->c[SWM_S_COLOR_BAR_FONT].color;
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
+#if 0
 	xcb_image_text_8(conn, len, r->bar->buffer, r->s->bar_gc, x,
 	    (bar_fs_extents->max_logical_extent.height - lbox.height) / 2 -
 	    lbox.y, s);
+#else
+	/* workaround */
+	xcb_image_text_8(conn, len, r->bar->buffer, r->s->bar_gc, 4, 14, s);
+#endif
 
 	/* blt */
 	xcb_copy_area(conn, r->bar->buffer, r->bar->id, r->s->bar_gc, 0, 0,
@@ -1837,18 +1847,20 @@ bar_setup(struct swm_region *r)
 	xcb_screen_t		*screen = get_screen(r->s->idx);
 	uint32_t		wa[3];
 
+#if 0
 	if (bar_fs) {
 		XFreeFontSet(display, bar_fs);
 		bar_fs = NULL;
 	}
+#endif
 
 	if ((r->bar = calloc(1, sizeof(struct swm_bar))) == NULL)
 		err(1, "bar_setup: calloc: failed to allocate memory.");
-
+#if 0
 	DNPRINTF(SWM_D_BAR, "bar_setup: loading bar_fonts: %s\n", bar_fonts);
 
 	bar_fs = XCreateFontSet(display, bar_fonts, &missing_charsets,
-	    &num_missing_charsets, &default_string);
+	    &num_missing_charsets, &default_string);*/
 
 	if (num_missing_charsets > 0) {
 		warnx("Unable to load charset(s):");
@@ -1875,7 +1887,10 @@ bar_setup(struct swm_region *r)
 
 	if (bar_height < 1)
 		bar_height = 1;
-
+#else
+	/* workaround */
+	bar_height = 24;
+#endif
 	X(r->bar) = X(r);
 	Y(r->bar) = bar_at_bottom ? (Y(r) + HEIGHT(r) - bar_height) : Y(r);
 	WIDTH(r->bar) = WIDTH(r) - 2 * bar_border_width;
@@ -1885,6 +1900,8 @@ bar_setup(struct swm_region *r)
 	wa[0] = r->s->c[SWM_S_COLOR_BAR].color;
 	wa[1] = r->s->c[SWM_S_COLOR_BAR_BORDER].color;
 	wa[2] = XCB_EVENT_MASK_EXPOSURE;
+	DNPRINTF(SWM_D_BAR, "bar_setup: create_window: (x,y) w x h: (%d,%d) "
+	    "%d x %d\n", X(r->bar), Y(r->bar), WIDTH(r->bar), HEIGHT(r->bar));
 	xcb_create_window(conn, XCB_COPY_FROM_PARENT, r->bar->id, r->s->root,
 	    X(r->bar), Y(r->bar), WIDTH(r->bar), HEIGHT(r->bar),
 	    bar_border_width, XCB_WINDOW_CLASS_INPUT_OUTPUT,
@@ -3815,6 +3832,7 @@ search_win(struct swm_region *r, union arg *args)
 	FILE			*lfile;
 	size_t			len;
 	XRectangle		ibox, lbox;
+
 	DNPRINTF(SWM_D_MISC, "search_win\n");
 
 	search_r = r;
@@ -3845,15 +3863,26 @@ search_win(struct swm_region *r, union arg *args)
 		snprintf(s, sizeof s, "%d", i);
 		len = strlen(s);
 
+		/* FIXME fix calculations */
+#if 0
 		XmbTextExtents(bar_fs, s, len, &ibox, &lbox);
+#endif
 
 		w = xcb_generate_id(conn);
 		wa[0] = r->s->c[SWM_S_COLOR_FOCUS].color;
 		wa[1] = r->s->c[SWM_S_COLOR_UNFOCUS].color;
+#if 0
 		xcb_create_window(conn, XCB_COPY_FROM_PARENT, w, win->id, 0, 0,
 		    lbox.width + 4, bar_fs_extents->max_logical_extent.height,
 		    1, XCB_WINDOW_CLASS_INPUT_OUTPUT, XCB_COPY_FROM_PARENT,
 		    XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);
+#else
+		/* workaround */
+		xcb_create_window(conn, XCB_COPY_FROM_PARENT, w, win->id, 0, 0,
+		    22, 20, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+		    XCB_COPY_FROM_PARENT, XCB_CW_BACK_PIXEL |
+		    XCB_CW_BORDER_PIXEL, wa);
+#endif
 
 		sw->indicator = w;
 		TAILQ_INSERT_TAIL(&search_wl, sw, entry);
@@ -3866,9 +3895,14 @@ search_win(struct swm_region *r, union arg *args)
 		    XCB_GC_BACKGROUND | XCB_GC_GRAPHICS_EXPOSURES, gcv);
 		map_window_raised(w);
 
+#if 0
 		xcb_image_text_8(conn, len, w, sw->gc, 2,
 		    (bar_fs_extents->max_logical_extent.height -
 		    lbox.height) / 2 - lbox.y, s);
+#else
+		/* workaround */
+		xcb_image_text_8(conn, len, w, sw->gc, 6, 14, s);
+#endif
 
 		DNPRINTF(SWM_D_MISC, "search_win: mapped window: 0x%x\n", w);
 
@@ -7770,8 +7804,9 @@ done:
 	for (i = 0; i < num_screens; ++i)
 		if (screens[i].bar_gc != 0)
 			xcb_free_gc(conn, screens[i].bar_gc);
+#if 0
 	XFreeFontSet(display, bar_fs);
-
+#endif
 	xcb_key_symbols_free(syms);
 	xcb_disconnect(conn);
 
