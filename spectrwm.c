@@ -856,7 +856,7 @@ ewmh_autoquirk(struct ws_win *win)
 
 	n = xcb_get_property_value_length(r);
 	type = xcb_get_property_value(r);
-	
+
 	for (i = 0; i < n; i++) {
 		if (type[i] == ewmh[_NET_WM_WINDOW_TYPE_NORMAL].atom)
 			break;
@@ -3716,6 +3716,7 @@ uniconify(struct swm_region *r, union arg *args)
 	}
 
 	fclose(lfile);
+
 	xcb_flush(conn);
 }
 
@@ -6722,6 +6723,8 @@ buttonpress(xcb_button_press_event_t *e)
 		    buttons[i].button == e->detail &&
 		    CLEANMASK(buttons[i].mask) == CLEANMASK(e->state))
 			buttons[i].func(win, &buttons[i].args);
+
+	xcb_flush(conn);
 }
 
 void
@@ -6790,6 +6793,8 @@ configurerequest(xcb_configure_request_event_t *e)
 	} else {
 		config_win(win, e);
 	}
+
+	xcb_flush(conn);
 }
 
 void
@@ -7154,6 +7159,8 @@ clientmessage(xcb_client_message_event_t *e)
 
 		stack();
 	}
+
+	xcb_flush(conn);
 }
 
 int
