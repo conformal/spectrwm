@@ -3059,6 +3059,9 @@ stack(void) {
 	if (font_adjusted)
 		font_adjusted--;
 
+	if (focus_mode == SWM_FOCUS_DEFAULT)
+		event_drain(XCB_ENTER_NOTIFY);
+
 	DNPRINTF(SWM_D_STACK, "stack: end\n");
 }
 
