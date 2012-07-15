@@ -246,10 +246,10 @@ u_int32_t		swm_debug = 0
 #endif
 
 char			**start_argv;
-xcb_atom_t		astate;
-xcb_atom_t		aprot;
-xcb_atom_t		adelete;
-xcb_atom_t		takefocus;
+xcb_atom_t		a_state;
+xcb_atom_t		a_prot;
+xcb_atom_t		a_delete;
+xcb_atom_t		a_takefocus;
 xcb_atom_t		a_wmname;
 xcb_atom_t		a_netwmname;
 xcb_atom_t		a_utf8_string;
@@ -1931,8 +1931,8 @@ set_win_state(struct ws_win *win, uint16_t state)
 	if (win == NULL)
 		return;
 
-	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id, astate,
-	    astate, 32, 2, data);
+	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id, a_state,
+	    a_state, 32, 2, data);
 }
 
 uint16_t
@@ -1942,7 +1942,7 @@ getstate(xcb_window_t w)
 	xcb_get_property_cookie_t	c;
 	xcb_get_property_reply_t	*r;
 
-	c = xcb_get_property(conn, False, w, astate, astate, 0L, 2L);
+	c = xcb_get_property(conn, False, w, a_state, a_state, 0L, 2L);
 	r = xcb_get_property_reply(conn, c, NULL);
 
 	if (r) {
@@ -1980,7 +1980,7 @@ client_msg(struct ws_win *win, xcb_atom_t a)
 	bzero(&ev, sizeof ev);
 	ev.response_type = XCB_CLIENT_MESSAGE;
 	ev.window = win->id;
-	ev.type = aprot;
+	ev.type = a_prot;
 	ev.format = 32;
 	ev.data.data32[0] = a;
 	ev.data.data32[1] = XCB_CURRENT_TIME;
@@ -4070,7 +4070,7 @@ wkill(struct swm_region *r, union arg *args)
 		xcb_kill_client(conn, r->ws->focus->id);
 	else
 		if (r->ws->focus->can_delete)
-			client_msg(r->ws->focus, adelete);
+			client_msg(r->ws->focus, a_delete);
 
 	xcb_flush(conn);
 }
@@ -6418,9 +6418,9 @@ manage_window(xcb_window_t id)
 	    xcb_icccm_get_wm_protocols(conn, id, prot),
 	    &wpr, NULL)) {
 		for (i = 0; i < wpr.atoms_len; i++) {
-			if (wpr.atoms[i] == takefocus)
+			if (wpr.atoms[i] == a_takefocus)
 				win->take_focus = 1;
-			if (wpr.atoms[i] == adelete)
+			if (wpr.atoms[i] == a_delete)
 				win->can_delete = 1;
 		}
 		xcb_icccm_get_wm_protocols_reply_wipe(&wpr);
@@ -6654,25 +6654,26 @@ focus_magic(struct ws_win *win)
 		if (win->java) {
 			focus_win(win->child_trans);
 			if (win->child_trans->take_focus)
-				client_msg(win, takefocus);
+				client_msg(win, a_takefocus);
 		} else {
 			/* make sure transient hasn't disappeared */
 			if (validate_win(win->child_trans) == 0) {
 				focus_win(win->child_trans);
 				if (win->child_trans->take_focus)
-					client_msg(win->child_trans, takefocus);
+					client_msg(win->child_trans,
+					    a_takefocus);
 			} else {
 				win->child_trans = NULL;
 				focus_win(win);
 				if (win->take_focus)
-					client_msg(win, takefocus);
+					client_msg(win, a_takefocus);
 			}
 		}
 	} else {
 		/* regular focus */
 		focus_win(win);
 		if (win->take_focus)
-			client_msg(win, takefocus);
+			client_msg(win, a_takefocus);
 	}
 }
 
@@ -7049,7 +7050,7 @@ clientmessage(xcb_client_message_event_t *e)
 	if (e->type == ewmh[_NET_CLOSE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_CLOSE_WINDOW\n");
 		if (win->can_delete)
-			client_msg(win, adelete);
+			client_msg(win, a_delete);
 		else
 			xcb_kill_client(conn, win->id);
 	}
@@ -7476,10 +7477,10 @@ setup_globals(void)
 	if ((syms = xcb_key_symbols_alloc(conn)) == NULL)
 		errx(1, "unable to allocate key symbols");
 
-	astate = get_atom_from_string("WM_STATE");
-	aprot = get_atom_from_string("WM_PROTOCOLS");
-	adelete = get_atom_from_string("WM_DELETE_WINDOW");
-	takefocus = get_atom_from_string("WM_TAKE_FOCUS");
+	a_state = get_atom_from_string("WM_STATE");
+	a_prot = get_atom_from_string("WM_PROTOCOLS");
+	a_delete = get_atom_from_string("WM_DELETE_WINDOW");
+	a_takefocus = get_atom_from_string("WM_TAKE_FOCUS");
 	a_wmname = get_atom_from_string("WM_NAME");
 	a_netwmname = get_atom_from_string("_NET_WM_NAME");
 	a_utf8_string = get_atom_from_string("UTF8_STRING");
