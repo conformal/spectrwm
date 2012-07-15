@@ -720,7 +720,6 @@ map_window_raised(xcb_window_t win)
 	    XCB_CONFIG_WINDOW_STACK_MODE, &val);
 
 	xcb_map_window(conn, win);
-	xcb_flush(conn);
 }
 
 xcb_atom_t
@@ -1777,6 +1776,8 @@ bar_toggle(struct swm_region *r, union arg *args)
 	stack();
 	/* must be after stack */
 	bar_update();
+
+	xcb_flush(conn);
 }
 
 void
@@ -1966,6 +1967,8 @@ version(struct swm_region *r, union arg *args)
 	else
 		strlcpy(bar_vertext, "", sizeof bar_vertext);
 	bar_update();
+
+	xcb_flush(conn);
 }
 
 void
@@ -2570,6 +2573,8 @@ switchws(struct swm_region *r, union arg *args)
 	if (unmap_old)
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
 			unmap_window(win);
+
+	xcb_flush(conn);
 }
 
 void
@@ -2774,6 +2779,8 @@ swapwin(struct swm_region *r, union arg *args)
 	sort_windows(wl);
 
 	stack();
+
+	xcb_flush(conn);
 }
 
 void
@@ -2962,6 +2969,8 @@ focus(struct swm_region *r, union arg *args)
 	}
 
 	focus_magic(winfocus);
+
+	xcb_flush(conn);
 }
 
 void
@@ -3591,6 +3600,8 @@ send_to_ws(struct swm_region *r, union arg *args)
 
 	stack();
 	bar_update();
+
+	xcb_flush(conn);
 }
 
 void
@@ -3613,6 +3624,8 @@ raise_toggle(struct swm_region *r, union arg *args)
 	/* bring floaters back to top */
 	if (r->ws->always_raise == 0)
 		stack();
+
+	xcb_flush(conn);
 }
 
 void
@@ -3629,6 +3642,8 @@ iconify(struct swm_region *r, union arg *args)
 	r->ws->focus = NULL;
 	a.id = SWM_ARG_ID_FOCUSCUR;
 	focus(r, &a);
+
+	xcb_flush(conn);
 }
 
 char *
@@ -3701,6 +3716,7 @@ uniconify(struct swm_region *r, union arg *args)
 	}
 
 	fclose(lfile);
+	xcb_flush(conn);
 }
 
 void
@@ -3843,6 +3859,8 @@ search_win(struct swm_region *r, union arg *args)
 	}
 
 	fclose(lfile);
+
+	xcb_flush(conn);
 }
 
 void
@@ -4097,6 +4115,8 @@ floating_toggle(struct swm_region *r, union arg *args)
 		a.id = SWM_ARG_ID_FOCUSCUR;
 		focus(win->ws->r, &a);
 	}
+
+	xcb_flush(conn);
 }
 
 void
@@ -7063,6 +7083,7 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 
 		/* resend unmap because we ated it */
 		xcb_unmap_window(conn, e->window);
+		xcb_flush(conn);
 	}
 }
 
