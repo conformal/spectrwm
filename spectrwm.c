@@ -6288,7 +6288,7 @@ tryharder:
 		return (0);
 	}
 
-	ret = strtonum(xcb_get_property_value(pr), 0, UINT_MAX, &errstr);
+	ret = strtonum(xcb_get_property_value(pr), 0, INT_MAX, &errstr);
 	free(pr);
 
 	return (ret);
