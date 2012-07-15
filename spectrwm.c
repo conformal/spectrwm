@@ -6697,12 +6697,12 @@ expose(xcb_expose_event_t *e)
 void
 keypress(xcb_key_press_event_t *e)
 {
-	KeySym			keysym;
+	xcb_keysym_t		keysym;
 	struct key		*kp;
 
-	keysym = XkbKeycodeToKeysym(display, (KeyCode)e->detail, 0, 0);
+	keysym = xcb_key_press_lookup_keysym(syms, e, 0);
 
-	DNPRINTF(SWM_D_EVENT, "keypress: %u\n", e->detail);
+	DNPRINTF(SWM_D_EVENT, "keypress: %u %u\n", e->detail, keysym);
 
 	if ((kp = key_lookup(CLEANMASK(e->state), keysym)) == NULL)
 		return;
