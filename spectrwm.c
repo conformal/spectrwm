@@ -7098,22 +7098,20 @@ xerror(Display *d, XErrorEvent *ee)
 	return (-1);
 }
 
-int
+void
 active_wm(void)
 {
-	other_wm = 0;
-	xerrorxlib = XSetErrorHandler(xerror_start);
+	int			num_screens, i;
+	const uint32_t		val = XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT;	
+	xcb_screen_t		*sc;
 
 	/* this causes an error if some other window manager is running */
-	XSelectInput(display, DefaultRootWindow(display),
-	    SubstructureRedirectMask);
-	do_sync();
-	if (other_wm)
-		return (1);
-
-	XSetErrorHandler(xerror);
-	do_sync();
-	return (0);
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++) {
+		sc = get_screen(i);
+		xcb_change_window_attributes(conn, sc->root,
+			XCB_CW_EVENT_MASK, &val);
+	}
 }
 
 void
@@ -7641,10 +7639,11 @@ main(int argc, char *argv[])
 		free(evt);
 	}
 
-	if (active_wm())
-		errx(1, "other wm running");
-
+	active_wm();
 	xcb_aux_sync(conn);
+
+	if (xcb_poll_for_event(conn) != NULL)
+		errx(1, "another window manager is currently running");
 
 	setup_globals();
 	setup_screens();
