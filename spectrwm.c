@@ -4035,6 +4035,8 @@ wkill(struct swm_region *r, union arg *args)
 	else
 		if (r->ws->focus->can_delete)
 			client_msg(r->ws->focus, adelete);
+
+	xcb_flush(conn);
 }
 
 
