@@ -54,21 +54,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <err.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <locale.h>
-#include <unistd.h>
-#include <time.h>
-#include <signal.h>
-#include <string.h>
-#include <util.h>
-#include <pwd.h>
-#include <paths.h>
-#include <ctype.h>
-
+/* kernel includes */
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
@@ -86,11 +72,30 @@
 #include "tree.h"
 #endif
 
+/* /usr/includes */
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <locale.h>
+#include <paths.h>
+#include <pwd.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+#include <util.h>
 #include <X11/cursorfont.h>
 #include <X11/keysym.h>
-#include <X11/XKBlib.h>
 #include <X11/Xatom.h>
+#include <X11/XKBlib.h>
 #include <X11/Xlib-xcb.h>
+#include <X11/Xproto.h>
+#include <X11/Xutil.h>
+#include <X11/extensions/Xrandr.h>
+#include <X11/extensions/XTest.h>
 #include <xcb/randr.h>
 #include <xcb/xcb_atom.h>
 #include <xcb/xcb_aux.h>
@@ -98,16 +103,12 @@
 #include <xcb/xcb_icccm.h>
 #include <xcb/xcb_keysyms.h>
 #include <xcb/xtest.h>
-#include <X11/Xproto.h>
-#include <X11/Xutil.h>
-#include <X11/extensions/Xrandr.h>
-#include <X11/extensions/XTest.h>
 
+/* local includes */
+#include "version.h"
 #ifdef __OSX__
 #include <osx.h>
 #endif
-
-#include "version.h"
 
 #ifdef SPECTRWM_BUILDSTR
 static const char	*buildstr = SPECTRWM_BUILDSTR;
@@ -204,7 +205,7 @@ u_int32_t		swm_debug = 0
 #define DNPRINTF(n,x...)
 #endif
 
-#define LENGTH(x)		(sizeof x / sizeof x[0])
+#define LENGTH(x)		(int)(sizeof x / sizeof x[0])
 #define MODKEY			Mod1Mask
 #define CLEANMASK(mask)		(mask & ~(numlockmask | LockMask))
 #define BUTTONMASK		(ButtonPressMask|ButtonReleaseMask)
@@ -441,15 +442,6 @@ void	max_stack(struct workspace *, struct swm_geometry *);
 void	plain_stacker(struct workspace *);
 void	fancy_stacker(struct workspace *);
 
-struct ws_win *find_window(xcb_window_t);
-
-void		grabbuttons(struct ws_win *, int);
-void		new_region(struct swm_screen *, int, int, int, int);
-void		unmanage_window(struct ws_win *);
-uint16_t	getstate(xcb_window_t);
-
-int		conf_load(char *, int);
-
 struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
 	void		(*l_config)(struct workspace *, int);
@@ -574,9 +566,6 @@ union arg {
 	char			**argv;
 };
 
-void	focus(struct swm_region *, union arg *);
-void	focus_magic(struct ws_win *);
-
 /* quirks */
 struct quirk {
 	TAILQ_ENTRY(quirk)	entry;
@@ -656,19 +645,29 @@ struct ewmh_hint {
     {"_SWM_WM_STATE_MANUAL", XCB_ATOM_NONE},
 };
 
-void		 store_float_geom(struct ws_win *, struct swm_region *);
-int		 floating_toggle_win(struct ws_win *);
-void		 constrain_window(struct ws_win *, struct swm_region *, int);
-void		 update_window(struct ws_win *);
-void		 spawn_select(struct swm_region *, union arg *, char *, int *);
-char		*get_win_name(xcb_window_t);
-xcb_atom_t	 get_atom_from_string(const char *);
-void		 map_window_raised(xcb_window_t);
-void		 do_sync(void);
+/* function prototypes */
+int	 conf_load(char *, int);
+void	 constrain_window(struct ws_win *, struct swm_region *, int);
+void	 do_sync(void);
+void	 event_handle(xcb_generic_event_t *);
+struct ws_win	*find_window(xcb_window_t);
+int	 floating_toggle_win(struct ws_win *);
+void	 focus(struct swm_region *, union arg *);
+void	 focus_magic(struct ws_win *);
+xcb_atom_t get_atom_from_string(const char *);
 xcb_screen_t	*get_screen(int);
-int		 parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
-void		 event_handle(xcb_generic_event_t *);
+char	*get_win_name(xcb_window_t);
+uint16_t getstate(xcb_window_t);
+void	 grabbuttons(struct ws_win *, int);
+void	 map_window_raised(xcb_window_t);
+void	 new_region(struct swm_screen *, int, int, int, int);
+int	 parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
+void	 spawn_select(struct swm_region *, union arg *, char *, int *);
+void	 store_float_geom(struct ws_win *, struct swm_region *);
+void	 unmanage_window(struct ws_win *);
+void	 update_window(struct ws_win *);
 
+/* function definitions */
 int
 parse_rgb(const char *rgb, uint16_t *rr, uint16_t *gg, uint16_t *bb)
 {
@@ -4546,128 +4545,168 @@ move_step(struct swm_region *r, union arg *args)
 
 /* user/key callable function IDs */
 enum keyfuncid {
-	kf_cycle_layout,
-	kf_flip_layout,
-	kf_stack_reset,
-	kf_master_shrink,
-	kf_master_grow,
-	kf_master_add,
-	kf_master_del,
-	kf_stack_inc,
-	kf_stack_dec,
-	kf_swap_main,
-	kf_focus_next,
-	kf_focus_prev,
-	kf_swap_next,
-	kf_swap_prev,
-	kf_quit,
-	kf_restart,
-	kf_focus_main,
-	kf_ws_1,
-	kf_ws_2,
-	kf_ws_3,
-	kf_ws_4,
-	kf_ws_5,
-	kf_ws_6,
-	kf_ws_7,
-	kf_ws_8,
-	kf_ws_9,
-	kf_ws_10,
-	kf_ws_11,
-	kf_ws_12,
-	kf_ws_13,
-	kf_ws_14,
-	kf_ws_15,
-	kf_ws_16,
-	kf_ws_17,
-	kf_ws_18,
-	kf_ws_19,
-	kf_ws_20,
-	kf_ws_21,
-	kf_ws_22,
-	kf_ws_next,
-	kf_ws_prev,
-	kf_ws_next_all,
-	kf_ws_prev_all,
-	kf_ws_prior,
-	kf_screen_next,
-	kf_screen_prev,
-	kf_mvws_1,
-	kf_mvws_2,
-	kf_mvws_3,
-	kf_mvws_4,
-	kf_mvws_5,
-	kf_mvws_6,
-	kf_mvws_7,
-	kf_mvws_8,
-	kf_mvws_9,
-	kf_mvws_10,
-	kf_mvws_11,
-	kf_mvws_12,
-	kf_mvws_13,
-	kf_mvws_14,
-	kf_mvws_15,
-	kf_mvws_16,
-	kf_mvws_17,
-	kf_mvws_18,
-	kf_mvws_19,
-	kf_mvws_20,
-	kf_mvws_21,
-	kf_mvws_22,
-	kf_bar_toggle,
-	kf_wind_kill,
-	kf_wind_del,
-	kf_float_toggle,
-	kf_version,
-	kf_spawn_custom,
-	kf_iconify,
-	kf_uniconify,
-	kf_raise_toggle,
-	kf_button2,
-	kf_width_shrink,
-	kf_width_grow,
-	kf_height_shrink,
-	kf_height_grow,
-	kf_move_left,
-	kf_move_right,
-	kf_move_up,
-	kf_move_down,
-	kf_name_workspace,
-	kf_search_workspace,
-	kf_search_win,
-	kf_dumpwins, /* MUST BE LAST */
-	kf_invalid
+	KF_BAR_TOGGLE,
+	KF_BUTTON2,
+	KF_CYCLE_LAYOUT,
+	KF_FLIP_LAYOUT,
+	KF_FLOAT_TOGGLE,
+	KF_FOCUS_MAIN,
+	KF_FOCUS_NEXT,
+	KF_FOCUS_PREV,
+	KF_HEIGHT_GROW,
+	KF_HEIGHT_SHRINK,
+	KF_ICONIFY,
+	KF_MASTER_SHRINK,
+	KF_MASTER_GROW,
+	KF_MASTER_ADD,
+	KF_MASTER_DEL,
+	KF_MOVE_DOWN,
+	KF_MOVE_LEFT,
+	KF_MOVE_RIGHT,
+	KF_MOVE_UP,
+	KF_MVWS_1,
+	KF_MVWS_2,
+	KF_MVWS_3,
+	KF_MVWS_4,
+	KF_MVWS_5,
+	KF_MVWS_6,
+	KF_MVWS_7,
+	KF_MVWS_8,
+	KF_MVWS_9,
+	KF_MVWS_10,
+	KF_MVWS_11,
+	KF_MVWS_12,
+	KF_MVWS_13,
+	KF_MVWS_14,
+	KF_MVWS_15,
+	KF_MVWS_16,
+	KF_MVWS_17,
+	KF_MVWS_18,
+	KF_MVWS_19,
+	KF_MVWS_20,
+	KF_MVWS_21,
+	KF_MVWS_22,
+	KF_NAME_WORKSPACE,
+	KF_QUIT,
+	KF_RAISE_TOGGLE,
+	KF_RESTART,
+	KF_SCREEN_NEXT,
+	KF_SCREEN_PREV,
+	KF_SEARCH_WIN,
+	KF_SEARCH_WORKSPACE,
+	KF_SPAWN_CUSTOM,
+	KF_STACK_INC,
+	KF_STACK_DEC,
+	KF_STACK_RESET,
+	KF_SWAP_MAIN,
+	KF_SWAP_NEXT,
+	KF_SWAP_PREV,
+	KF_UNICONIFY,
+	KF_VERSION,
+	KF_WIDTH_GROW,
+	KF_WIDTH_SHRINK,
+	KF_WIND_DEL,
+	KF_WIND_KILL,
+	KF_WS_1,
+	KF_WS_2,
+	KF_WS_3,
+	KF_WS_4,
+	KF_WS_5,
+	KF_WS_6,
+	KF_WS_7,
+	KF_WS_8,
+	KF_WS_9,
+	KF_WS_10,
+	KF_WS_11,
+	KF_WS_12,
+	KF_WS_13,
+	KF_WS_14,
+	KF_WS_15,
+	KF_WS_16,
+	KF_WS_17,
+	KF_WS_18,
+	KF_WS_19,
+	KF_WS_20,
+	KF_WS_21,
+	KF_WS_22,
+	KF_WS_NEXT,
+	KF_WS_NEXT_ALL,
+	KF_WS_PREV,
+	KF_WS_PREV_ALL,
+	KF_WS_PRIOR,
+	KF_DUMPWINS, /* MUST BE LAST */
+	KF_INVALID
 };
 
 /* key definitions */
-void
-dummykeyfunc(struct swm_region *r, union arg *args)
-{
-};
-
 struct keyfunc {
 	char			name[SWM_FUNCNAME_LEN];
 	void			(*func)(struct swm_region *r, union arg *);
 	union arg		args;
-} keyfuncs[kf_invalid + 1] = {
+} keyfuncs[KF_INVALID + 1] = {
 	/* name			function	argument */
+	{ "bar_toggle",		bar_toggle,	{0} },
+	{ "button2",		pressbutton,	{2} },
 	{ "cycle_layout",	cycle_layout,	{0} },
 	{ "flip_layout",	stack_config,	{.id = SWM_ARG_ID_FLIPLAYOUT} },
-	{ "stack_reset",	stack_config,	{.id = SWM_ARG_ID_STACKRESET} },
+	{ "float_toggle",	floating_toggle,{0} },
+	{ "focus_main",		focus,		{.id = SWM_ARG_ID_FOCUSMAIN} },
+	{ "focus_next",		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
+	{ "focus_prev",		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
+	{ "height_grow",	resize_step,	{.id = SWM_ARG_ID_HEIGHTGROW} },
+	{ "height_shrink",	resize_step,	{.id = SWM_ARG_ID_HEIGHTSHRINK} },
+	{ "iconify",		iconify,	{0} },
 	{ "master_shrink",	stack_config,	{.id = SWM_ARG_ID_MASTERSHRINK} },
 	{ "master_grow",	stack_config,	{.id = SWM_ARG_ID_MASTERGROW} },
 	{ "master_add",		stack_config,	{.id = SWM_ARG_ID_MASTERADD} },
 	{ "master_del",		stack_config,	{.id = SWM_ARG_ID_MASTERDEL} },
+	{ "move_down",		move_step,	{.id = SWM_ARG_ID_MOVEDOWN} },
+	{ "move_left",		move_step,	{.id = SWM_ARG_ID_MOVELEFT} },
+	{ "move_right",		move_step,	{.id = SWM_ARG_ID_MOVERIGHT} },
+	{ "move_up",		move_step,	{.id = SWM_ARG_ID_MOVEUP} },
+	{ "mvws_1",		send_to_ws,	{.id = 0} },
+	{ "mvws_2",		send_to_ws,	{.id = 1} },
+	{ "mvws_3",		send_to_ws,	{.id = 2} },
+	{ "mvws_4",		send_to_ws,	{.id = 3} },
+	{ "mvws_5",		send_to_ws,	{.id = 4} },
+	{ "mvws_6",		send_to_ws,	{.id = 5} },
+	{ "mvws_7",		send_to_ws,	{.id = 6} },
+	{ "mvws_8",		send_to_ws,	{.id = 7} },
+	{ "mvws_9",		send_to_ws,	{.id = 8} },
+	{ "mvws_10",		send_to_ws,	{.id = 9} },
+	{ "mvws_11",		send_to_ws,	{.id = 10} },
+	{ "mvws_12",		send_to_ws,	{.id = 11} },
+	{ "mvws_13",		send_to_ws,	{.id = 12} },
+	{ "mvws_14",		send_to_ws,	{.id = 13} },
+	{ "mvws_15",		send_to_ws,	{.id = 14} },
+	{ "mvws_16",		send_to_ws,	{.id = 15} },
+	{ "mvws_17",		send_to_ws,	{.id = 16} },
+	{ "mvws_18",		send_to_ws,	{.id = 17} },
+	{ "mvws_19",		send_to_ws,	{.id = 18} },
+	{ "mvws_20",		send_to_ws,	{.id = 19} },
+	{ "mvws_21",		send_to_ws,	{.id = 20} },
+	{ "mvws_22",		send_to_ws,	{.id = 21} },
+	{ "name_workspace",	name_workspace,	{0} },
+	{ "quit",		quit,		{0} },
+	{ "raise_toggle",	raise_toggle,	{0} },
+	{ "restart",		restart,	{0} },
+	{ "screen_next",	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_UP} },
+	{ "screen_prev",	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_DOWN} },
+	{ "search_win",		search_win,	{0} },
+	{ "search_workspace",	search_workspace,	{0} },
+	{ "spawn_custom",	NULL,		{0} },
 	{ "stack_inc",		stack_config,	{.id = SWM_ARG_ID_STACKINC} },
 	{ "stack_dec",		stack_config,	{.id = SWM_ARG_ID_STACKDEC} },
+	{ "stack_reset",	stack_config,	{.id = SWM_ARG_ID_STACKRESET} },
 	{ "swap_main",		swapwin,	{.id = SWM_ARG_ID_SWAPMAIN} },
-	{ "focus_next",		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
-	{ "focus_prev",		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
 	{ "swap_next",		swapwin,	{.id = SWM_ARG_ID_SWAPNEXT} },
 	{ "swap_prev",		swapwin,	{.id = SWM_ARG_ID_SWAPPREV} },
-	{ "quit",		quit,		{0} },
-	{ "restart",		restart,	{0} },
-	{ "focus_main",		focus,		{.id = SWM_ARG_ID_FOCUSMAIN} },
+	{ "uniconify",		uniconify,	{0} },
+	{ "version",		version,	{0} },
+	{ "width_grow",		resize_step,	{.id = SWM_ARG_ID_WIDTHGROW} },
+	{ "width_shrink",	resize_step,	{.id = SWM_ARG_ID_WIDTHSHRINK} },
+	{ "wind_del",		wkill,		{.id = SWM_ARG_ID_DELETEWINDOW} },
+	{ "wind_kill",		wkill,		{.id = SWM_ARG_ID_KILLWINDOW} },
 	{ "ws_1",		switchws,	{.id = 0} },
 	{ "ws_2",		switchws,	{.id = 1} },
 	{ "ws_3",		switchws,	{.id = 2} },
@@ -4691,55 +4730,10 @@ struct keyfunc {
 	{ "ws_21",		switchws,	{.id = 20} },
 	{ "ws_22",		switchws,	{.id = 21} },
 	{ "ws_next",		cyclews,	{.id = SWM_ARG_ID_CYCLEWS_UP} },
-	{ "ws_prev",		cyclews,	{.id = SWM_ARG_ID_CYCLEWS_DOWN} },
 	{ "ws_next_all",	cyclews,	{.id = SWM_ARG_ID_CYCLEWS_UP_ALL} },
+	{ "ws_prev",		cyclews,	{.id = SWM_ARG_ID_CYCLEWS_DOWN} },
 	{ "ws_prev_all",	cyclews,	{.id = SWM_ARG_ID_CYCLEWS_DOWN_ALL} },
 	{ "ws_prior",		priorws,	{0} },
-	{ "screen_next",	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_UP} },
-	{ "screen_prev",	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_DOWN} },
-	{ "mvws_1",		send_to_ws,	{.id = 0} },
-	{ "mvws_2",		send_to_ws,	{.id = 1} },
-	{ "mvws_3",		send_to_ws,	{.id = 2} },
-	{ "mvws_4",		send_to_ws,	{.id = 3} },
-	{ "mvws_5",		send_to_ws,	{.id = 4} },
-	{ "mvws_6",		send_to_ws,	{.id = 5} },
-	{ "mvws_7",		send_to_ws,	{.id = 6} },
-	{ "mvws_8",		send_to_ws,	{.id = 7} },
-	{ "mvws_9",		send_to_ws,	{.id = 8} },
-	{ "mvws_10",		send_to_ws,	{.id = 9} },
-	{ "mvws_11",		send_to_ws,	{.id = 10} },
-	{ "mvws_12",		send_to_ws,	{.id = 11} },
-	{ "mvws_13",		send_to_ws,	{.id = 12} },
-	{ "mvws_14",		send_to_ws,	{.id = 13} },
-	{ "mvws_15",		send_to_ws,	{.id = 14} },
-	{ "mvws_16",		send_to_ws,	{.id = 15} },
-	{ "mvws_17",		send_to_ws,	{.id = 16} },
-	{ "mvws_18",		send_to_ws,	{.id = 17} },
-	{ "mvws_19",		send_to_ws,	{.id = 18} },
-	{ "mvws_20",		send_to_ws,	{.id = 19} },
-	{ "mvws_21",		send_to_ws,	{.id = 20} },
-	{ "mvws_22",		send_to_ws,	{.id = 21} },
-	{ "bar_toggle",		bar_toggle,	{0} },
-	{ "wind_kill",		wkill,		{.id = SWM_ARG_ID_KILLWINDOW} },
-	{ "wind_del",		wkill,		{.id = SWM_ARG_ID_DELETEWINDOW} },
-	{ "float_toggle",	floating_toggle,{0} },
-	{ "version",		version,	{0} },
-	{ "spawn_custom",	dummykeyfunc,	{0} },
-	{ "iconify",		iconify,	{0} },
-	{ "uniconify",		uniconify,	{0} },
-	{ "raise_toggle",	raise_toggle,	{0} },
-	{ "button2",		pressbutton,	{2} },
-	{ "width_shrink",	resize_step,	{.id = SWM_ARG_ID_WIDTHSHRINK} },
-	{ "width_grow",		resize_step,	{.id = SWM_ARG_ID_WIDTHGROW} },
-	{ "height_shrink",	resize_step,	{.id = SWM_ARG_ID_HEIGHTSHRINK} },
-	{ "height_grow",	resize_step,	{.id = SWM_ARG_ID_HEIGHTGROW} },
-	{ "move_left",		move_step,	{.id = SWM_ARG_ID_MOVELEFT} },
-	{ "move_right",		move_step,	{.id = SWM_ARG_ID_MOVERIGHT} },
-	{ "move_up",		move_step,	{.id = SWM_ARG_ID_MOVEUP} },
-	{ "move_down",		move_step,	{.id = SWM_ARG_ID_MOVEDOWN} },
-	{ "name_workspace",	name_workspace,	{0} },
-	{ "search_workspace",	search_workspace,	{0} },
-	{ "search_win",		search_win,	{0} },
 	{ "dumpwins",		dumpwins,	{0} }, /* MUST BE LAST */
 	{ "invalid key func",	NULL,		{0} },
 };
@@ -5213,14 +5207,14 @@ setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid,
 	    keyfuncs[kfid].name, spawn_name);
 
 	if ((kp = key_lookup(mod, ks)) != NULL) {
-		if (kfid == kf_invalid)
+		if (kfid == KF_INVALID)
 			key_remove(kp);
 		else
 			key_replace(kp, mod, ks, kfid, spawn_name);
 		DNPRINTF(SWM_D_KEY, "setkeybinding: leave\n");
 		return;
 	}
-	if (kfid == kf_invalid) {
+	if (kfid == KF_INVALID) {
 		warnx("error: setkeybinding: cannot find mod/key combination");
 		DNPRINTF(SWM_D_KEY, "setkeybinding: leave\n");
 		return;
@@ -5241,14 +5235,14 @@ setconfbinding(char *selector, char *value, int flags)
 	if (selector == NULL) {
 		DNPRINTF(SWM_D_KEY, "setconfbinding: unbind %s\n", value);
 		if (parsekeys(value, mod_key, &mod, &ks) == 0) {
-			kfid = kf_invalid;
+			kfid = KF_INVALID;
 			setkeybinding(mod, ks, kfid, NULL);
 			return (0);
 		} else
 			return (1);
 	}
 	/* search by key function name */
-	for (kfid = 0; kfid < kf_invalid; (kfid)++) {
+	for (kfid = 0; kfid < KF_INVALID; (kfid)++) {
 		if (strncasecmp(selector, keyfuncs[kfid].name,
 		    SWM_FUNCNAME_LEN) == 0) {
 			DNPRINTF(SWM_D_KEY, "setconfbinding: %s: match\n",
@@ -5266,7 +5260,7 @@ setconfbinding(char *selector, char *value, int flags)
 			DNPRINTF(SWM_D_KEY, "setconfbinding: %s: match\n",
 			    selector);
 			if (parsekeys(value, mod_key, &mod, &ks) == 0) {
-				setkeybinding(mod, ks, kf_spawn_custom,
+				setkeybinding(mod, ks, KF_SPAWN_CUSTOM,
 				    sp->name);
 				return (0);
 			} else
@@ -5280,104 +5274,104 @@ setconfbinding(char *selector, char *value, int flags)
 void
 setup_keys(void)
 {
-	setkeybinding(MODKEY,		XK_space,	kf_cycle_layout,NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_backslash,	kf_flip_layout,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_space,	kf_stack_reset,	NULL);
-	setkeybinding(MODKEY,		XK_h,		kf_master_shrink,NULL);
-	setkeybinding(MODKEY,		XK_l,		kf_master_grow,	NULL);
-	setkeybinding(MODKEY,		XK_comma,	kf_master_add,	NULL);
-	setkeybinding(MODKEY,		XK_period,	kf_master_del,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_comma,	kf_stack_inc,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_period,	kf_stack_dec,	NULL);
-	setkeybinding(MODKEY,		XK_Return,	kf_swap_main,	NULL);
-	setkeybinding(MODKEY,		XK_j,		kf_focus_next,	NULL);
-	setkeybinding(MODKEY,		XK_k,		kf_focus_prev,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_j,		kf_swap_next,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_k,		kf_swap_prev,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_Return,	kf_spawn_custom,"term");
-	setkeybinding(MODKEY,		XK_p,		kf_spawn_custom,"menu");
-	setkeybinding(MODKEY|ShiftMask,	XK_q,		kf_quit,	NULL);
-	setkeybinding(MODKEY,		XK_q,		kf_restart,	NULL);
-	setkeybinding(MODKEY,		XK_m,		kf_focus_main,	NULL);
-	setkeybinding(MODKEY,		XK_1,		kf_ws_1,	NULL);
-	setkeybinding(MODKEY,		XK_2,		kf_ws_2,	NULL);
-	setkeybinding(MODKEY,		XK_3,		kf_ws_3,	NULL);
-	setkeybinding(MODKEY,		XK_4,		kf_ws_4,	NULL);
-	setkeybinding(MODKEY,		XK_5,		kf_ws_5,	NULL);
-	setkeybinding(MODKEY,		XK_6,		kf_ws_6,	NULL);
-	setkeybinding(MODKEY,		XK_7,		kf_ws_7,	NULL);
-	setkeybinding(MODKEY,		XK_8,		kf_ws_8,	NULL);
-	setkeybinding(MODKEY,		XK_9,		kf_ws_9,	NULL);
-	setkeybinding(MODKEY,		XK_0,		kf_ws_10,	NULL);
-	setkeybinding(MODKEY,		XK_F1,		kf_ws_11,	NULL);
-	setkeybinding(MODKEY,		XK_F2,		kf_ws_12,	NULL);
-	setkeybinding(MODKEY,		XK_F3,		kf_ws_13,	NULL);
-	setkeybinding(MODKEY,		XK_F4,		kf_ws_14,	NULL);
-	setkeybinding(MODKEY,		XK_F5,		kf_ws_15,	NULL);
-	setkeybinding(MODKEY,		XK_F6,		kf_ws_16,	NULL);
-	setkeybinding(MODKEY,		XK_F7,		kf_ws_17,	NULL);
-	setkeybinding(MODKEY,		XK_F8,		kf_ws_18,	NULL);
-	setkeybinding(MODKEY,		XK_F9,		kf_ws_19,	NULL);
-	setkeybinding(MODKEY,		XK_F10,		kf_ws_20,	NULL);
-	setkeybinding(MODKEY,		XK_F11,		kf_ws_21,	NULL);
-	setkeybinding(MODKEY,		XK_F12,		kf_ws_22,	NULL);
-	setkeybinding(MODKEY,		XK_Right,	kf_ws_next,	NULL);
-	setkeybinding(MODKEY,		XK_Left,	kf_ws_prev,	NULL);
-	setkeybinding(MODKEY,		XK_Up,		kf_ws_next_all,	NULL);
-	setkeybinding(MODKEY,		XK_Down,	kf_ws_prev_all,	NULL);
-	setkeybinding(MODKEY,		XK_a,		kf_ws_prior,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_Right,	kf_screen_next,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_Left,	kf_screen_prev,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_1,		kf_mvws_1,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_2,		kf_mvws_2,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_3,		kf_mvws_3,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_4,		kf_mvws_4,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_5,		kf_mvws_5,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_6,		kf_mvws_6,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_7,		kf_mvws_7,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_8,		kf_mvws_8,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_9,		kf_mvws_9,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_0,		kf_mvws_10,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F1,		kf_mvws_11,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F2,		kf_mvws_12,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F3,		kf_mvws_13,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F4,		kf_mvws_14,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F5,		kf_mvws_15,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F6,		kf_mvws_16,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F7,		kf_mvws_17,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F8,		kf_mvws_18,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F9,		kf_mvws_19,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F10,		kf_mvws_20,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F11,		kf_mvws_21,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F12,		kf_mvws_22,	NULL);
-	setkeybinding(MODKEY,		XK_b,		kf_bar_toggle,	NULL);
-	setkeybinding(MODKEY,		XK_Tab,		kf_focus_next,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_Tab,		kf_focus_prev,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_x,		kf_wind_kill,	NULL);
-	setkeybinding(MODKEY,		XK_x,		kf_wind_del,	NULL);
-	setkeybinding(MODKEY,		XK_s,		kf_spawn_custom,"screenshot_all");
-	setkeybinding(MODKEY|ShiftMask,	XK_s,		kf_spawn_custom,"screenshot_wind");
-	setkeybinding(MODKEY,		XK_t,		kf_float_toggle,NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_v,		kf_version,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_Delete,	kf_spawn_custom,"lock");
-	setkeybinding(MODKEY|ShiftMask,	XK_i,		kf_spawn_custom,"initscr");
-	setkeybinding(MODKEY,		XK_w,		kf_iconify,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_w,		kf_uniconify,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_r,		kf_raise_toggle,NULL);
-	setkeybinding(MODKEY,		XK_v,		kf_button2,	NULL);
-	setkeybinding(MODKEY,		XK_equal,	kf_width_grow,	NULL);
-	setkeybinding(MODKEY,		XK_minus,	kf_width_shrink,NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_equal,	kf_height_grow,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_minus,	kf_height_shrink,NULL);
-	setkeybinding(MODKEY,		XK_bracketleft,	kf_move_left,	NULL);
-	setkeybinding(MODKEY,		XK_bracketright,kf_move_right,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_bracketleft,	kf_move_up,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_bracketright,kf_move_down,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_slash,	kf_name_workspace,NULL);
-	setkeybinding(MODKEY,		XK_slash,	kf_search_workspace,NULL);
-	setkeybinding(MODKEY,		XK_f,		kf_search_win,	NULL);
+	setkeybinding(MODKEY,		XK_space,	KF_CYCLE_LAYOUT,NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_backslash,	KF_FLIP_LAYOUT,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_space,	KF_STACK_RESET,	NULL);
+	setkeybinding(MODKEY,		XK_h,		KF_MASTER_SHRINK, NULL);
+	setkeybinding(MODKEY,		XK_l,		KF_MASTER_GROW,	NULL);
+	setkeybinding(MODKEY,		XK_comma,	KF_MASTER_ADD,	NULL);
+	setkeybinding(MODKEY,		XK_period,	KF_MASTER_DEL,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_comma,	KF_STACK_INC,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_period,	KF_STACK_DEC,	NULL);
+	setkeybinding(MODKEY,		XK_Return,	KF_SWAP_MAIN,	NULL);
+	setkeybinding(MODKEY,		XK_j,		KF_FOCUS_NEXT,	NULL);
+	setkeybinding(MODKEY,		XK_k,		KF_FOCUS_PREV,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_j,		KF_SWAP_NEXT,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_k,		KF_SWAP_PREV,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_Return,	KF_SPAWN_CUSTOM,"term");
+	setkeybinding(MODKEY,		XK_p,		KF_SPAWN_CUSTOM,"menu");
+	setkeybinding(MODKEY|ShiftMask,	XK_q,		KF_QUIT,	NULL);
+	setkeybinding(MODKEY,		XK_q,		KF_RESTART,	NULL);
+	setkeybinding(MODKEY,		XK_m,		KF_FOCUS_MAIN,	NULL);
+	setkeybinding(MODKEY,		XK_1,		KF_WS_1,	NULL);
+	setkeybinding(MODKEY,		XK_2,		KF_WS_2,	NULL);
+	setkeybinding(MODKEY,		XK_3,		KF_WS_3,	NULL);
+	setkeybinding(MODKEY,		XK_4,		KF_WS_4,	NULL);
+	setkeybinding(MODKEY,		XK_5,		KF_WS_5,	NULL);
+	setkeybinding(MODKEY,		XK_6,		KF_WS_6,	NULL);
+	setkeybinding(MODKEY,		XK_7,		KF_WS_7,	NULL);
+	setkeybinding(MODKEY,		XK_8,		KF_WS_8,	NULL);
+	setkeybinding(MODKEY,		XK_9,		KF_WS_9,	NULL);
+	setkeybinding(MODKEY,		XK_0,		KF_WS_10,	NULL);
+	setkeybinding(MODKEY,		XK_F1,		KF_WS_11,	NULL);
+	setkeybinding(MODKEY,		XK_F2,		KF_WS_12,	NULL);
+	setkeybinding(MODKEY,		XK_F3,		KF_WS_13,	NULL);
+	setkeybinding(MODKEY,		XK_F4,		KF_WS_14,	NULL);
+	setkeybinding(MODKEY,		XK_F5,		KF_WS_15,	NULL);
+	setkeybinding(MODKEY,		XK_F6,		KF_WS_16,	NULL);
+	setkeybinding(MODKEY,		XK_F7,		KF_WS_17,	NULL);
+	setkeybinding(MODKEY,		XK_F8,		KF_WS_18,	NULL);
+	setkeybinding(MODKEY,		XK_F9,		KF_WS_19,	NULL);
+	setkeybinding(MODKEY,		XK_F10,		KF_WS_20,	NULL);
+	setkeybinding(MODKEY,		XK_F11,		KF_WS_21,	NULL);
+	setkeybinding(MODKEY,		XK_F12,		KF_WS_22,	NULL);
+	setkeybinding(MODKEY,		XK_Right,	KF_WS_NEXT,	NULL);
+	setkeybinding(MODKEY,		XK_Left,	KF_WS_PREV,	NULL);
+	setkeybinding(MODKEY,		XK_Up,		KF_WS_NEXT_ALL,	NULL);
+	setkeybinding(MODKEY,		XK_Down,	KF_WS_PREV_ALL,	NULL);
+	setkeybinding(MODKEY,		XK_a,		KF_WS_PRIOR,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_Right,	KF_SCREEN_NEXT,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_Left,	KF_SCREEN_PREV,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_1,		KF_MVWS_1,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_2,		KF_MVWS_2,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_3,		KF_MVWS_3,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_4,		KF_MVWS_4,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_5,		KF_MVWS_5,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_6,		KF_MVWS_6,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_7,		KF_MVWS_7,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_8,		KF_MVWS_8,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_9,		KF_MVWS_9,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_0,		KF_MVWS_10,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_F1,		KF_MVWS_11,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_F2,		KF_MVWS_12,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_F3,		KF_MVWS_13,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_F4,		KF_MVWS_14,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_F5,		KF_MVWS_15,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_F6,		KF_MVWS_16,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_F7,		KF_MVWS_17,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_F8,		KF_MVWS_18,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_F9,		KF_MVWS_19,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_F10,		KF_MVWS_20,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_F11,		KF_MVWS_21,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_F12,		KF_MVWS_22,	NULL);
+	setkeybinding(MODKEY,		XK_b,		KF_BAR_TOGGLE,	NULL);
+	setkeybinding(MODKEY,		XK_Tab,		KF_FOCUS_NEXT,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_Tab,		KF_FOCUS_PREV,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_x,		KF_WIND_KILL,	NULL);
+	setkeybinding(MODKEY,		XK_x,		KF_WIND_DEL,	NULL);
+	setkeybinding(MODKEY,		XK_s,		KF_SPAWN_CUSTOM,"screenshot_all");
+	setkeybinding(MODKEY|ShiftMask,	XK_s,		KF_SPAWN_CUSTOM,"screenshot_wind");
+	setkeybinding(MODKEY,		XK_t,		KF_FLOAT_TOGGLE,NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_v,		KF_VERSION,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_Delete,	KF_SPAWN_CUSTOM,"lock");
+	setkeybinding(MODKEY|ShiftMask,	XK_i,		KF_SPAWN_CUSTOM,"initscr");
+	setkeybinding(MODKEY,		XK_w,		KF_ICONIFY,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_w,		KF_UNICONIFY,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_r,		KF_RAISE_TOGGLE,NULL);
+	setkeybinding(MODKEY,		XK_v,		KF_BUTTON2,	NULL);
+	setkeybinding(MODKEY,		XK_equal,	KF_WIDTH_GROW,	NULL);
+	setkeybinding(MODKEY,		XK_minus,	KF_WIDTH_SHRINK,NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_equal,	KF_HEIGHT_GROW,NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_minus,	KF_HEIGHT_SHRINK,NULL);
+	setkeybinding(MODKEY,		XK_bracketleft,	KF_MOVE_LEFT,NULL);
+	setkeybinding(MODKEY,		XK_bracketright,KF_MOVE_RIGHT,NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_bracketleft,	KF_MOVE_UP,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_bracketright,KF_MOVE_DOWN,NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_slash,	KF_NAME_WORKSPACE,NULL);
+	setkeybinding(MODKEY,		XK_slash,	KF_SEARCH_WORKSPACE,NULL);
+	setkeybinding(MODKEY,		XK_f,		KF_SEARCH_WIN,	NULL);
 #ifdef SWM_DEBUG
-	setkeybinding(MODKEY|ShiftMask,	XK_d,		kf_dumpwins,	NULL);
+	setkeybinding(MODKEY|ShiftMask,	XK_d,		KF_DUMPWINS,	NULL);
 #endif
 }
 
@@ -6685,7 +6679,6 @@ keypress(xcb_key_press_event_t *e)
 {
 	KeySym			keysym;
 	struct key		*kp;
-	struct swm_region	*r;
 
 	keysym = XkbKeycodeToKeysym(display, (KeyCode)e->detail, 0, 0);
 
@@ -6693,14 +6686,13 @@ keypress(xcb_key_press_event_t *e)
 
 	if ((kp = key_lookup(CLEANMASK(e->state), keysym)) == NULL)
 		return;
-	if (keyfuncs[kp->funcid].func == NULL)
-		return;
 
-	r = root_to_region(e->root);
-	if (kp->funcid == kf_spawn_custom)
-		spawn_custom(r, &(keyfuncs[kp->funcid].args), kp->spawn_name);
-	else
-		keyfuncs[kp->funcid].func(r, &(keyfuncs[kp->funcid].args));
+	if (kp->funcid == KF_SPAWN_CUSTOM)
+		spawn_custom(root_to_region(e->root),
+		    &(keyfuncs[kp->funcid].args), kp->spawn_name);
+	else if (keyfuncs[kp->funcid].func)
+		keyfuncs[kp->funcid].func(root_to_region(e->root),
+		    &(keyfuncs[kp->funcid].args));
 }
 
 void
