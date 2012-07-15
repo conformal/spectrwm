@@ -843,7 +843,6 @@ ewmh_autoquirk(struct ws_win *win)
 {
 	uint32_t		i, n;
 	xcb_atom_t		*type;
-
 	xcb_get_property_cookie_t	c;
 	xcb_get_property_reply_t	*r;
 
@@ -2156,11 +2155,11 @@ fake_keypress(struct ws_win *win, xcb_keysym_t keysym, uint16_t modifiers)
 
 	event.response_type = XCB_KEY_PRESS;
 	xcb_send_event(conn, True, win->id,
-	    XCB_EVENT_MASK_KEY_PRESS, (char *)&event);
+	    XCB_EVENT_MASK_KEY_PRESS, (const char *)&event);
 
 	event.response_type = XCB_KEY_RELEASE;
 	xcb_send_event(conn, True, win->id,
-	    XCB_EVENT_MASK_KEY_RELEASE, (char *)&event);
+	    XCB_EVENT_MASK_KEY_RELEASE, (const char *)&event);
 }
 
 void
@@ -2189,8 +2188,8 @@ restart(struct swm_region *r, union arg *args)
 struct swm_region *
 root_to_region(xcb_window_t root)
 {
-	struct swm_region	*r = NULL;
-	int			i, num_screens;
+	struct swm_region		*r = NULL;
+	int				i, num_screens;
 	xcb_query_pointer_reply_t	*qpr;
 
 	DNPRINTF(SWM_D_MISC, "root_to_region: window: 0x%x\n", root);
@@ -2241,7 +2240,6 @@ find_window(xcb_window_t id)
 {
 	struct ws_win		*win;
 	int			i, j, num_screens;
-	xcb_query_tree_cookie_t	c;
 	xcb_query_tree_reply_t	*r;
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
@@ -2251,8 +2249,7 @@ find_window(xcb_window_t id)
 				if (id == win->id)
 					return (win);
 
-	c = xcb_query_tree(conn, id);
-	r = xcb_query_tree_reply(conn, c, NULL);
+	r = xcb_query_tree_reply(conn, xcb_query_tree(conn, id), NULL);
 	if (!r)
 		return (NULL);
 
@@ -2456,7 +2453,6 @@ void
 focus_win(struct ws_win *win)
 {
 	struct ws_win		*cfw = NULL;
-	xcb_get_input_focus_cookie_t	c;
 	xcb_get_input_focus_reply_t	*r;
 	xcb_window_t			cur_focus = XCB_WINDOW_NONE;
 
@@ -2480,8 +2476,7 @@ focus_win(struct ws_win *win)
 		return;
 	}
 
-	c = xcb_get_input_focus(conn);
-	r = xcb_get_input_focus_reply(conn, c, NULL);
+	r = xcb_get_input_focus_reply(conn, xcb_get_input_focus(conn), NULL);
 	if (r) {
 		cur_focus = r->focus;
 		free(r);
