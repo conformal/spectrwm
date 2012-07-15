@@ -425,7 +425,7 @@ TAILQ_HEAD(ws_win_list, ws_win);
 /* pid goo */
 struct pid_e {
 	TAILQ_ENTRY(pid_e)	entry;
-	long			pid;
+	pid_t			pid;
 	int			ws;
 };
 TAILQ_HEAD(pid_list, pid_e);
@@ -1166,11 +1166,11 @@ sighdlr(int sig)
 }
 
 struct pid_e *
-find_pid(long pid)
+find_pid(pid_t pid)
 {
 	struct pid_e		*p = NULL;
 
-	DNPRINTF(SWM_D_MISC, "find_pid: %lu\n", pid);
+	DNPRINTF(SWM_D_MISC, "find_pid: %d\n", pid);
 
 	if (pid == 0)
 		return (NULL);
@@ -5908,7 +5908,7 @@ setautorun(char *selector, char *value, int flags)
 	char			*ap, *sp = s;
 	union arg		a;
 	int			argc = 0;
-	long			pid;
+	pid_t			pid;
 	struct pid_e		*p;
 
 	if (getenv("SWM_STARTED"))
@@ -6249,10 +6249,10 @@ set_child_transient(struct ws_win *win, xcb_window_t *trans)
 	}
 }
 
-long
+pid_t
 window_get_pid(xcb_window_t win)
 {
-	long				ret = 0;
+	pid_t				ret = 0;
 	const char			*errstr;
 	xcb_atom_t			apid;
 	xcb_get_property_cookie_t	pc;
@@ -6266,10 +6266,12 @@ window_get_pid(xcb_window_t win)
 	pr = xcb_get_property_reply(conn, pc, NULL);
 	if (!pr)
 		goto tryharder;
-	if (pr->type != XCB_ATOM_CARDINAL)
+	if (pr->type != XCB_ATOM_CARDINAL) {
+		free(pr);
 		goto tryharder;
+	}
 
-	ret = *(long *)xcb_get_property_value(pr);
+	ret = *((pid_t *)xcb_get_property_value(pr));
 	free(pr);
 
 	return (ret);
@@ -6281,9 +6283,11 @@ tryharder:
 	pr = xcb_get_property_reply(conn, pc, NULL);
 	if (!pr)
 		return (0);
-	if (pr->type != XCB_ATOM_STRING)
+	if (pr->type != XCB_ATOM_STRING) {
 		free(pr);
 		return (0);
+	}
+
 	ret = strtonum(xcb_get_property_value(pr), 0, UINT_MAX, &errstr);
 	free(pr);
 
