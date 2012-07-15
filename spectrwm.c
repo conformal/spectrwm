@@ -6834,11 +6834,6 @@ void
 enternotify(xcb_enter_notify_event_t *e)
 {
 	struct ws_win		*win;
-#if 0
-	struct ws_win		*w;
-	Window			focus_return;
-	int			revert_to_return;
-#endif
 	DNPRINTF(SWM_D_FOCUS, "enternotify: window: 0x%x, mode: %d, detail: "
 	    "%d, root: 0x%x, subwindow: 0x%x, same_screen_focus: %s, "
 	    "state: %d\n", e->event, e->mode, e->detail, e->root,
@@ -6856,74 +6851,6 @@ enternotify(xcb_enter_notify_event_t *e)
 	case SWM_FOCUS_FOLLOW:
 		break;
 	case SWM_FOCUS_SYNERGY:
-#if 0
-	/*
-	 * all these checks need to be in this order because the
-	 * XCheckTypedWindowEvent relies on weeding out the previous events
-	 *
-	 * making this code an option would enable a follow mouse for focus
-	 * feature
-	 */
-
-	/*
-	 * state is set when we are switching workspaces and focus is set when
-	 * the window or a subwindow already has focus (occurs during restart).
-	 *
-	 * Only honor the focus flag if last_focus_event is not FocusOut,
-	 * this allows spectrwm to continue to control focus when another
-	 * program is also playing with it.
-	 */
-	if (ev->state || (ev->focus && last_focus_event != FocusOut)) {
-		DNPRINTF(SWM_D_EVENT, "ignoring enternotify: focus\n");
-		return;
-	}
-
-	/*
-	 * happens when a window is created or destroyed and the border
-	 * crosses the mouse pointer and when switching ws
-	 *
-	 * we need the subwindow test to see if we came from root in order
-	 * to give focus to floaters
-	 */
-	if (ev->mode == NotifyNormal && ev->detail == NotifyVirtual &&
-	    ev->subwindow == 0) {
-		DNPRINTF(SWM_D_EVENT, "ignoring enternotify: NotifyVirtual\n");
-		return;
-	}
-
-	/* this window already has focus */
-	if (ev->mode == NotifyNormal && ev->detail == NotifyInferior) {
-		DNPRINTF(SWM_D_EVENT, "ignoring enternotify: win has focus\n");
-		return;
-	}
-
-	/* this window is being deleted or moved to another ws */
-	if (XCheckTypedWindowEvent(display, ev->window, ConfigureNotify,
-	    &cne) == True) {
-		DNPRINTF(SWM_D_EVENT, "ignoring enternotify: configurenotify\n");
-		XPutBackEvent(display, &cne);
-		return;
-	}
-
-	if ((win = find_window(ev->window)) == NULL) {
-		DNPRINTF(SWM_D_EVENT, "ignoring enternotify: win == NULL\n");
-		return;
-	}
-
-	/*
-	 * In fullstack kill all enters unless they come from a different ws
-	 * (i.e. another region) or focus has been grabbed externally.
-	 */
-	if (win->ws->cur_layout->flags & SWM_L_FOCUSPREV &&
-	    last_focus_event != FocusOut) {
-		XGetInputFocus(display, &focus_return, &revert_to_return);
-		if ((w = find_window(focus_return)) == NULL ||
-		    w->ws == win->ws) {
-			DNPRINTF(SWM_D_EVENT, "ignoring event: fullstack\n");
-			return;
-		}
-	}
-#endif
 		break;
 	}
 
@@ -7045,20 +6972,6 @@ propertynotify(xcb_property_notify_event_t *e)
 	}
 
 	switch (e->atom) {
-#if 0
-	case XCB_ATOM_WM_NORMAL_HINTS:
-		xcb_icccm_get_wm_normal_hints(conn,
-			xcb_iccom_get_wm_normal_hints(conn, win->id),
-			&win->sh, NULL);
-		warnx("normal hints: flag 0x%x", win->sh.flags);
-		if (win->sh.flags & XCB_SIZE_HINT_P_MIN_SIZE) {
-			WIDTH(win) = win->sh.min_width;
-			HEIGHT(win) = win->sh.min_height;
-			warnx("min %d %d", WIDTH(win), HEIGHT(win));
-		}
-		XMoveResizeWindow(display, win->id,
-		    X(win), Y(win), WIDTH(win), HEIGHT(win));
-#endif
 	case XCB_ATOM_WM_CLASS:
 	case XCB_ATOM_WM_NAME:
 		bar_update();
