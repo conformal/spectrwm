@@ -5116,7 +5116,7 @@ parsekeys(char *keystr, unsigned int currmod, unsigned int *mod, KeySym *ks)
 		return (1);
 	}
 	cp = keystr;
-	*ks = NoSymbol;
+	*ks = XCB_NO_SYMBOL;
 	*mod = 0;
 	while ((name = strsep(&cp, SWM_KEY_WS)) != NULL) {
 		DNPRINTF(SWM_D_KEY, "parsekeys: key [%s]\n", name);
@@ -5139,7 +5139,7 @@ parsekeys(char *keystr, unsigned int currmod, unsigned int *mod, KeySym *ks)
 		else {
 			*ks = XStringToKeysym(name);
 			XConvertCase(*ks, ks, &uks);
-			if (ks == NoSymbol) {
+			if (ks == XCB_NO_SYMBOL) {
 				DNPRINTF(SWM_D_KEY,
 				    "parsekeys: invalid key %s\n",
 				    name);
