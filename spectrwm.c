@@ -7415,7 +7415,7 @@ setup_screens(void)
 		screens[i].idx = i;
 		TAILQ_INIT(&screens[i].rl);
 		TAILQ_INIT(&screens[i].orl);
-		screens[i].root = RootWindow(display, i);
+		screens[i].root = get_screen(i)->root;
 
 		/* set default colors */
 		setscreencolor("red", i + 1, SWM_S_COLOR_FOCUS);
