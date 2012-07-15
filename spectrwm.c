@@ -4312,10 +4312,6 @@ resize(struct ws_win *win, union arg *args)
 	xcb_flush(conn);
 	resizing = 1;
 	while ((evt = xcb_wait_for_event(conn)) && resizing) {
-		/*
-		XMaskEvent(display, MOUSEMASK | ExposureMask |
-		    SubstructureRedirectMask, &ev);
-		*/
 		switch (XCB_EVENT_RESPONSE_TYPE(evt)) {
 		case XCB_BUTTON_RELEASE:
 			DNPRINTF(SWM_D_EVENT, "resize: BUTTON_RELEASE\n");
