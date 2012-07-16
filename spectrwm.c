@@ -1317,15 +1317,15 @@ socket_setnonblock(int fd)
 void
 bar_print(struct swm_region *r, const char *s)
 {
-	int			x = 0;
 	size_t			len;
 	xcb_rectangle_t		rect;
 	uint32_t		gcv[1];
-	XRectangle		ibox, lbox;
 
 	len = strlen(s);
 	/* FIXME fix bar font position calculations */
 #if 0
+	int			x = 0;
+	XRectangle		ibox, lbox;
 	XmbTextExtents(bar_fs, s, len, &ibox, &lbox);
 
 	switch (bar_justify) {
@@ -1544,7 +1544,7 @@ void
 bar_replace_pad(char *tmp, int *limit, size_t sz)
 {
 	/* special case; no limit given, pad one space, instead */
-	if (*limit == sz - 1)
+	if (*limit == (int)sz - 1)
 		*limit = 1;
 	snprintf(tmp, sz, "%*s", *limit, " ");
 }
@@ -1567,7 +1567,7 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 	size = 0;
 	if (sscanf(fmt, "%d%n", &limit, &size) != 1)
 		limit = sizeof tmp - 1;
-	if (limit <= 0 || limit >= sizeof tmp)
+	if (limit <= 0 || limit >= (int)sizeof tmp)
 		limit = sizeof tmp - 1;
 
 	/* there is nothing to replace (ie EOL) */
@@ -1623,7 +1623,7 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 
 	len = strlen(tmp);
 	ptr = tmp;
-	if (len < limit)
+	if ((int)len < limit)
 		limit = len;
 	while (limit-- > 0) {
 		if (*offrep >= sz - 1)
