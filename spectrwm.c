@@ -89,20 +89,17 @@
 #include <util.h>
 #include <X11/cursorfont.h>
 #include <X11/keysym.h>
-#include <X11/Xatom.h>
-#include <X11/XKBlib.h>
-#include <X11/Xlib-xcb.h>
-#include <X11/Xproto.h>
-#include <X11/Xutil.h>
+#include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
 #include <X11/extensions/XTest.h>
-#include <xcb/randr.h>
+#include <xcb/xcb.h>
 #include <xcb/xcb_atom.h>
 #include <xcb/xcb_aux.h>
 #include <xcb/xcb_event.h>
 #include <xcb/xcb_icccm.h>
 #include <xcb/xcb_keysyms.h>
 #include <xcb/xtest.h>
+#include <xcb/randr.h>
 
 /* local includes */
 #include "version.h"
