@@ -7115,20 +7115,6 @@ clientmessage(xcb_client_message_event_t *e)
 	xcb_flush(conn);
 }
 
-int
-xerror_start(Display *d, XErrorEvent *ee)
-{
-	other_wm = 1;
-	return (-1);
-}
-
-int
-xerror(Display *d, XErrorEvent *ee)
-{
-	/* warnx("error: %p %p", display, ee); */
-	return (-1);
-}
-
 void
 active_wm(void)
 {
