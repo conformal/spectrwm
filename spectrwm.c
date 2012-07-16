@@ -356,12 +356,6 @@ XFontSetExtents		*bar_fs_extents;
 char			*bar_fonts;
 struct passwd		*pwd;
 
-#define SWM_MENU_FN	(2)
-#define SWM_MENU_NB	(4)
-#define SWM_MENU_NF	(6)
-#define SWM_MENU_SB	(8)
-#define SWM_MENU_SF	(10)
-
 /* layout manager data */
 struct swm_geometry {
 	int			x;
