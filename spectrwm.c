@@ -7650,6 +7650,7 @@ main(int argc, char *argv[])
 	if (xcb_connection_has_error(conn))
 		errx(1, "can not get XCB connection");
 
+	xcb_prefetch_extension_data(conn, &xcb_randr_id);
 	xfd = xcb_get_file_descriptor(conn);
 
 	/* look for local and global conf file */
