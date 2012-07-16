@@ -179,6 +179,7 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #define SWM_D_EVENTQ		0x1000
 #define SWM_D_CONF		0x2000
 #define SWM_D_BAR		0x4000
+#define SWM_D_INIT		0x8000
 
 u_int32_t		swm_debug = 0
 			    | SWM_D_MISC
@@ -196,6 +197,7 @@ u_int32_t		swm_debug = 0
 			    | SWM_D_EVENTQ
 			    | SWM_D_CONF
 			    | SWM_D_BAR
+			    | SWM_D_INIT
 			    ;
 #else
 #define DPRINTF(x...)
@@ -4992,7 +4994,7 @@ spawn_insert(char *name, char *args)
 	DNPRINTF(SWM_D_SPAWN, "spawn_insert: %s\n", name);
 
 	if ((sp = calloc(1, sizeof *sp)) == NULL)
-		err(1, "spawn_insert: malloc");
+		err(1, "spawn_insert: calloc");
 	if ((sp->name = strdup(name)) == NULL)
 		err(1, "spawn_insert: strdup");
 
@@ -6176,7 +6178,7 @@ conf_load(char *filename, int keymapping)
 		for (i = 0; i < LENGTH(configopt); i++) {
 			opt = &configopt[i];
 			if (!strncasecmp(cp, opt->optname, wordlen) &&
-			    strlen(opt->optname) == wordlen) {
+			    (int)strlen(opt->optname) == wordlen) {
 				optind = i;
 				break;
 			}
@@ -6758,6 +6760,24 @@ buttonpress(xcb_button_press_event_t *e)
 	xcb_flush(conn);
 }
 
+#ifdef SWM_DEBUG
+void
+print_win_geom(xcb_window_t w)
+{
+	xcb_get_geometry_reply_t	*wa;
+
+
+	wa = xcb_get_geometry_reply(conn, xcb_get_geometry(conn, w), NULL);
+
+	DNPRINTF(SWM_D_MISC, "print_win_geom: window: 0x%x, root: 0x%x, "
+	    "depth: %u, (x,y) w x h: (%d,%d) %d x %d, border: %d\n",
+	    w, wa->root, wa->depth, wa->x,  wa->y, wa->width, wa->height,
+	    wa->border_width);
+
+	free(wa);
+}
+#endif
+
 void
 configurerequest(xcb_configure_request_event_t *e)
 {
@@ -6769,42 +6789,52 @@ configurerequest(xcb_configure_request_event_t *e)
 	if ((win = find_window(e->window)) == NULL)
 		if ((win = find_unmanaged_window(e->window)) == NULL)
 			new = 1;
-
+#ifdef SWM_DEBUG
+	print_win_geom(e->window);
+#endif
 	if (new) {
+		DNPRINTF(SWM_D_EVENT, "configurerequest: new window: 0x%x, "
+		    "value_mask: 0x%x", e->window, e->value_mask);
 		if (e->value_mask & XCB_CONFIG_WINDOW_X) {
 			mask |= XCB_CONFIG_WINDOW_X;
 			wc[i++] = e->x;
+			DPRINTF(", X: %d", e->x);
 		}
 		if (e->value_mask & XCB_CONFIG_WINDOW_Y) {
 			mask |= XCB_CONFIG_WINDOW_Y;
 			wc[i++] = e->y;
+			DPRINTF(", Y: %d", e->y);
 		}
 		if (e->value_mask & XCB_CONFIG_WINDOW_WIDTH) {
 			mask |= XCB_CONFIG_WINDOW_WIDTH;
 			wc[i++] = e->width;
+			DPRINTF(", W: %u", e->width);
 		}
 		if (e->value_mask & XCB_CONFIG_WINDOW_HEIGHT) {
 			mask |= XCB_CONFIG_WINDOW_HEIGHT;
 			wc[i++] = e->height;
+			DPRINTF(", H: %u", e->height);
 		}
 		if (e->value_mask & XCB_CONFIG_WINDOW_BORDER_WIDTH) {
 			mask |= XCB_CONFIG_WINDOW_BORDER_WIDTH;
 			wc[i++] = e->border_width;
+			DPRINTF(", Border: %u", e->border_width);
 		}
 		if (e->value_mask & XCB_CONFIG_WINDOW_SIBLING) {
 			mask |= XCB_CONFIG_WINDOW_SIBLING;
 			wc[i++] = e->sibling;
+			DPRINTF(", Sibling: 0x%x", e->sibling);
 		}
 		if (e->value_mask & XCB_CONFIG_WINDOW_STACK_MODE) {
 			mask |= XCB_CONFIG_WINDOW_STACK_MODE;
 			wc[i++] = e->stack_mode;
+			DPRINTF(", StackMode: %u", e->stack_mode);
 		}
 
-		DNPRINTF(SWM_D_EVENT, "configurerequest: new window: 0x%x, "
-		    "new: %s, (x,y) w x h: (%d,%d) %d x %d\n", e->window,
-		    YESNO(new), wc[0], wc[1], wc[2], wc[3]);
+		if (mask != 0)
+			xcb_configure_window(conn, e->window, mask, wc);
 
-		xcb_configure_window(conn, e->window, mask, wc);
+		DPRINTF(", Sent: %s\n", YESNO((mask != 0)));
 	} else if ((!win->manual || win->quirks & SWM_Q_ANYWHERE) &&
 	    !(win->ewmh_flags & EWMH_F_FULLSCREEN)) {
 		win->g_float.x = e->x - X(win->ws->r);
@@ -6968,17 +6998,17 @@ maprequest(xcb_map_request_event_t *e)
 		focus_magic(win);
 }
 
-void
-propertynotify(xcb_property_notify_event_t *e)
-{
-	struct ws_win		*win;
 #ifdef SWM_DEBUG
+char *
+get_atom_name(xcb_atom_t atom)
+{
 	char				*name;
 	size_t				len;
 	xcb_get_atom_name_reply_t	*r;
+	xcb_map_request_event_t		mre;
 
 	r = xcb_get_atom_name_reply(conn,
-	    xcb_get_atom_name(conn, e->atom),
+	    xcb_get_atom_name(conn, atom),
 	    NULL);
 	if (r) {
 		len = xcb_get_atom_name_name_length(r);
@@ -6988,14 +7018,27 @@ propertynotify(xcb_property_notify_event_t *e)
 				memcpy(name, xcb_get_atom_name_name(r), len);
 				name[len] = '\0';
 
-				DNPRINTF(SWM_D_EVENT,
-				    "propertynotify: window: 0x%x, atom: %s\n",
-				    e->window, name);
-				free(name);
+				return name;
 			}
 		}
 		free(r);
 	}
+
+	return NULL;
+}
+#endif
+
+void
+propertynotify(xcb_property_notify_event_t *e)
+{
+	struct ws_win		*win;
+#ifdef SWM_DEBUG
+	char			*name;
+
+	name = get_atom_name(e->atom);
+	DNPRINTF(SWM_D_EVENT, "propertynotify: window: 0x%x, atom: %s(%u)\n",
+	    e->window, name, e->atom);
+	free(name);
 #endif
 
 	win = find_window(e->window);
@@ -7053,14 +7096,26 @@ void
 clientmessage(xcb_client_message_event_t *e)
 {
 	struct ws_win *win;
+	xcb_map_request_event_t	mre;
+#ifdef SWM_DEBUG
+	char			*name;
 
+	name = get_atom_name(e->type);
+	DNPRINTF(SWM_D_EVENT, "clientmessage: window: 0x%x, atom: %s(%u)\n",
+	    e->window, name, e->type);
+	free(name);
+#endif
 	win = find_window(e->window);
-	if (win == NULL)
+
+	if (win == NULL) {
+		if (e->type == ewmh[_NET_ACTIVE_WINDOW].atom) {
+			DNPRINTF(SWM_D_EVENT, "clientmessage: request focus on "
+			    "unmanaged window.\n");
+			mre.window = e->window;
+			maprequest(&mre);
+		}
 		return;
 	}
-
-	DNPRINTF(SWM_D_EVENT, "clientmessage: window: 0x%x, type: %u\n",
-	    e->window, e->type);
 
 	if (e->type == ewmh[_NET_ACTIVE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_ACTIVE_WINDOW\n");
@@ -7107,20 +7162,32 @@ clientmessage(xcb_client_message_event_t *e)
 	xcb_flush(conn);
 }
 
-void
-active_wm(void)
+int
+enable_wm(void)
 {
 	int			num_screens, i;
 	const uint32_t		val = XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT;	
 	xcb_screen_t		*sc;
+	xcb_void_cookie_t	wac;
+	xcb_generic_error_t	*error;
 
 	/* this causes an error if some other window manager is running */
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	for (i = 0; i < num_screens; i++) {
 		sc = get_screen(i);
-		xcb_change_window_attributes(conn, sc->root,
+		DNPRINTF(SWM_D_INIT, "enable_wm: screen %d, root: 0x%x\n",
+		    i, sc->root);
+		wac = xcb_change_window_attributes_checked(conn, sc->root,
 			XCB_CW_EVENT_MASK, &val);
+		if ((error = xcb_request_check(conn, wac))) {
+			DNPRINTF(SWM_D_INIT, "enable_wm: error_code: %u\n",
+			    error->error_code);
+			free(error);
+			return 1;
+		}
 	}
+
+	return 0;
 }
 
 void
@@ -7643,11 +7710,10 @@ main(int argc, char *argv[])
 		free(evt);
 	}
 
-	active_wm();
-	xcb_aux_sync(conn);
-
-	if (xcb_poll_for_event(conn) != NULL)
+	if (enable_wm() != 0)
 		errx(1, "another window manager is currently running");
+
+	xcb_aux_sync(conn);
 
 	setup_globals();
 	setup_screens();
