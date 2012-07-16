@@ -7286,6 +7286,7 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 	else
 		xcb_randr_set_screen_size(conn, e->root, e->width,
 		    e->height, e->mwidth, e->mheight);
+	xcb_flush(conn);
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	/* silly event doesn't include the screen index */
@@ -7777,6 +7778,7 @@ done:
 	XFreeFontSet(display, bar_fs);
 #endif
 	xcb_key_symbols_free(syms);
+	xcb_flush(conn);
 	xcb_disconnect(conn);
 
 	return (0);
