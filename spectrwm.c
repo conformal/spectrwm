@@ -7625,12 +7625,8 @@ main(int argc, char *argv[])
 
 	start_argv = argv;
 	warnx("Welcome to spectrwm V%s Build: %s", SPECTRWM_VERSION, buildstr);
-	if (!setlocale(LC_CTYPE, "") || !setlocale(LC_TIME, "") ||
-	    !XSupportsLocale())
+	if (!setlocale(LC_CTYPE, "") || !setlocale(LC_TIME, "")) 
 		warnx("no locale support");
-
-	if (!X_HAVE_UTF8_STRING)
-		warnx("no UTF-8 support");
 
 	/* handle some signals */
 	bzero(&sact, sizeof(sact));
