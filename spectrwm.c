@@ -3978,7 +3978,7 @@ search_resp_search_workspace(char *resp, unsigned long len)
 	p = strchr(q, ':');
 	if (p != NULL)
 		*p = '\0';
-	ws_idx = strtonum(q, 1, workspace_limit, &errstr);
+	ws_idx = (int)strtonum(q, 1, workspace_limit, &errstr);
 	if (errstr) {
 		DNPRINTF(SWM_D_MISC, "workspace idx is %s: %s",
 		    errstr, q);
@@ -4007,7 +4007,7 @@ search_resp_search_window(char *resp, unsigned long len)
 		return;
 	}
 
-	idx = strtonum(s, 1, INT_MAX, &errstr);
+	idx = (int)strtonum(s, 1, INT_MAX, &errstr);
 	if (errstr) {
 		DNPRINTF(SWM_D_MISC, "window idx is %s: %s",
 		    errstr, s);
@@ -6320,7 +6320,7 @@ tryharder:
 		return (0);
 	}
 
-	ret = strtonum(xcb_get_property_value(pr), 0, INT_MAX, &errstr);
+	ret = (pid_t)strtonum(xcb_get_property_value(pr), 0, INT_MAX, &errstr);
 	free(pr);
 
 	return (ret);
@@ -6459,7 +6459,7 @@ manage_window(xcb_window_t id)
 		p = NULL;
 	} else if (prop && win->transient == 0) {
 		DNPRINTF(SWM_D_PROP, "manage_window: get _SWM_WS: %s\n", prop);
-		ws_idx = strtonum(prop, 0, workspace_limit - 1,
+		ws_idx = (int)strtonum(prop, 0, workspace_limit - 1,
 		    &errstr);
 		if (errstr) {
 			DNPRINTF(SWM_D_EVENT, "manage_window: window: #%s: %s",
