@@ -259,13 +259,11 @@ volatile sig_atomic_t   running = 1;
 volatile sig_atomic_t   restart_wm = 0;
 int			outputs = 0;
 /*int			last_focus_event = FocusOut;*/
-int			(*xerrorxlib)(Display *, XErrorEvent *);
 int			other_wm;
 int			ss_enabled = 0;
 int			xrandr_support;
 int			xrandr_eventbase;
 unsigned int		numlockmask = 0;
-Display			*display;
 xcb_connection_t	*conn;
 xcb_key_symbols_t	*syms;
 
@@ -2295,8 +2293,7 @@ spawn(int ws_idx, union arg *args, int close_fd)
 
 	DNPRINTF(SWM_D_MISC, "spawn: %s\n", args->argv[0]);
 
-	if (display)
-		close(xcb_get_file_descriptor(conn));
+	close(xcb_get_file_descriptor(conn));
 
 	setenv("LD_PRELOAD", SWM_LIB, 1);
 
@@ -7635,9 +7632,6 @@ main(int argc, char *argv[])
 	if (!X_HAVE_UTF8_STRING)
 		warnx("no UTF-8 support");
 
-	if (!(display = XOpenDisplay(0)))
-		errx(1, "can not open display");
-
 	/* handle some signals */
 	bzero(&sact, sizeof(sact));
 	sigemptyset(&sact.sa_mask);
@@ -7652,7 +7646,7 @@ main(int argc, char *argv[])
 	sact.sa_flags = SA_NOCLDSTOP;
 	sigaction(SIGCHLD, &sact, NULL);
 
-	conn = XGetXCBConnection(display);
+	conn = xcb_connect(NULL, NULL);
 	if (xcb_connection_has_error(conn))
 		errx(1, "can not get XCB connection");
 
