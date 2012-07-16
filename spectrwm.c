@@ -1272,12 +1272,12 @@ plain_stacker(struct workspace *ws)
 void
 custom_region(char *val)
 {
-	unsigned int			sidx, x, y, w, h;
-	int				num_screens;
+	unsigned int			x, y, w, h;
+	int				sidx, num_screens;
 	xcb_screen_t			*screen;
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
-	if (sscanf(val, "screen[%u]:%ux%u+%u+%u", &sidx, &w, &h, &x, &y) != 5)
+	if (sscanf(val, "screen[%d]:%ux%u+%u+%u", &sidx, &w, &h, &x, &y) != 5)
 		errx(1, "invalid custom region, "
 		    "should be 'screen[<n>]:<n>x<n>+<n>+<n>");
 	if (sidx < 1 || sidx > num_screens)
@@ -5475,8 +5475,8 @@ updatenumlockmask(void)
 void
 grabkeys(void)
 {
-	int			num_screens;
-	unsigned int		j, k;
+	int			num_screens, k;
+	unsigned int		j;
 	xcb_keycode_t		*code;
 	unsigned int		modifiers[] =
 	    { 0, LockMask, numlockmask, numlockmask | LockMask };
@@ -6332,7 +6332,7 @@ manage_window(xcb_window_t id)
 	xcb_window_t		trans = XCB_WINDOW_NONE;
 	struct workspace	*ws;
 	struct ws_win		*win, *ww;
-	int			i, ws_idx, border_me = 0;
+	int			ws_idx, border_me = 0;
 	xcb_atom_t		ws_idx_atom = XCB_ATOM_NONE;
 	char			ws_idx_str[SWM_PROPLEN], *prop = NULL;
 	size_t			proplen;
@@ -6340,7 +6340,7 @@ manage_window(xcb_window_t id)
 	const char		*errstr;
 	struct pid_e		*p;
 	struct quirk		*qp;
-	uint32_t		event_mask;
+	uint32_t		event_mask, i;
 	xcb_atom_t		prot;
 	xcb_get_property_reply_t	*gpr;
 	xcb_icccm_get_wm_protocols_reply_t	wpr;
@@ -6737,7 +6737,8 @@ void
 buttonpress(xcb_button_press_event_t *e)
 {
 	struct ws_win		*win;
-	int			i, action;
+	int			i;
+	unsigned int		action;
 
 	DNPRINTF(SWM_D_EVENT, "buttonpress: window 0x%x, detail: %u\n",
 	    e->event, e->detail);
