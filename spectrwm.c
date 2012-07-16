@@ -6981,14 +6981,21 @@ visibilitynotify(XEvent *e)
 void
 clientmessage(XEvent *e)
 {
-	XClientMessageEvent *ev;
-	struct ws_win *win;
+	XClientMessageEvent	*ev;
+	struct ws_win		*win;
 
 	ev = &e->xclient;
 
 	win = find_window(ev->window);
-	if (win == NULL)
+	if (win == NULL) {
+		if (ev->message_type == ewmh[_NET_ACTIVE_WINDOW].atom) {
+			DNPRINTF(SWM_D_EVENT, "clientmessage: request focus on "
+			    "unmanaged window.\n");
+			e->xmaprequest.window = ev->window;
+			maprequest(e);
+		}
 		return;
+	}
 
 	DNPRINTF(SWM_D_EVENT, "clientmessage: window: 0x%lx, type: %ld\n",
 	    ev->window, ev->message_type);
