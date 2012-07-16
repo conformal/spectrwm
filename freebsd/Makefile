@@ -15,7 +15,7 @@ CFLAGS+= -DSPECTRWM_BUILDSTR=\"$(BUILDVERSION)\"
 
 CFLAGS+= -Wall -Wextra -I. -I${LOCALBASE}/include
 CFLAGS+= -DSWM_LIB=\"$(SWM_LIBDIR)/libswmhack.so.$(LVERS)\"
-LDADD+= -lutil -L${LOCALBASE}/lib -lX11 -lX11-xcb -lXrandr -lXtst -lxcb \
+LDADD+= -lutil -L${LOCALBASE}/lib -lX11 -lxcb \
 	-lxcb-icccm -lxcb-keysyms -lxcb-randr -lxcb-util -lxcb-xtest
 
 
