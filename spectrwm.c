@@ -1841,7 +1841,7 @@ bar_refresh(void)
 void
 bar_setup(struct swm_region *r)
 {
-	char			*bar_font;
+	char			*font;
 	xcb_screen_t		*screen = get_screen(r->s->idx);
 	uint32_t		wa[3];
 
@@ -1853,19 +1853,19 @@ bar_setup(struct swm_region *r)
 	if ((r->bar = calloc(1, sizeof(struct swm_bar))) == NULL)
 		err(1, "bar_setup: calloc: failed to allocate memory.");
 
-	while ((bar_font = strsep(&bar_fonts, " ,")) != NULL) {
-		if (*bar_font == '\0')
+	while ((font = strsep(&bar_fonts, " ,")) != NULL) {
+		if (*font == '\0')
 			continue;
 
-		DNPRINTF(SWM_D_INIT, "bar_setup: try font %s\n", bar_font);
+		DNPRINTF(SWM_D_INIT, "bar_setup: try font %s\n", font);
 		bar_font = XftFontOpenName(display, DefaultScreen(display),
-			    bar_font);
+			    font);
 		if (!bar_font) {
-			warnx("unable to load font %s", bar_font);
+			warnx("unable to load font %s", font);
 			continue;
 		} else {
 			DNPRINTF(SWM_D_INIT, "successfully opened font %s\n",
-			    bar_font);
+			    font);
 			break;
 		}
 	}
