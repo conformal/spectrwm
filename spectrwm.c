@@ -7346,7 +7346,6 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 
 	DNPRINTF(SWM_D_EVENT, "screenchange: root: 0x%x\n", e->root);
 
-
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	/* silly event doesn't include the screen index */
 	for (i = 0; i < num_screens; i++)
