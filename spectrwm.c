@@ -89,6 +89,7 @@
 #include <util.h>
 #include <X11/cursorfont.h>
 #include <X11/extensions/Xrandr.h>
+#include <X11/Xft/Xft.h>
 #include <X11/Xlib-xcb.h>
 #include <xcb/xcb_atom.h>
 #include <xcb/xcb_aux.h>
@@ -350,7 +351,7 @@ int			border_width = 1;
 int			verbose_layout = 0;
 time_t			time_started;
 pid_t			bar_pid;
-xcb_font_t		bar_fs;
+XftFont			*bar_fs;
 int32_t			bar_fs_height;
 char			*bar_fonts;
 struct passwd		*pwd;
@@ -1339,35 +1340,22 @@ bar_print(struct swm_region *r, const char *s)
 	size_t				len;
 	xcb_rectangle_t			rect;
 	uint32_t			gcv[1];
-	xcb_char2b_t			*c2b;
-	xcb_query_text_extents_reply_t	*ter;
-	int32_t				x, width;
-
+	int32_t				x;
+	XGlyphInfo			info;
+	
 	len = strlen(s);
-	c2b = char2b(s);
-	if (!c2b)
-		return;
-	ter = xcb_query_text_extents_reply(conn,
-		 xcb_query_text_extents(conn, bar_fs, len, c2b),
-		 NULL);
-	if (!ter) {
-		free(c2b);
-		return;
-	}
-	width = ter->overall_width;
 
-	free(ter);
-	free(c2b);
-
+	XftTextExtentsUtf8(display, bar_fs, (FcChar8 *)s, len, &info);
+	
 	switch (bar_justify) {
 	case SWM_BAR_JUSTIFY_LEFT:
 		x = SWM_BAR_OFFSET;
 		break;
 	case SWM_BAR_JUSTIFY_CENTER:
-		x = (WIDTH(r) - width) / 2;
+		x = (WIDTH(r) - info.width) / 2;
 		break;
 	case SWM_BAR_JUSTIFY_RIGHT:
-		x = WIDTH(r) - width - SWM_BAR_OFFSET;
+		x = WIDTH(r) - info.width - SWM_BAR_OFFSET;
 		break;
 	}
 
@@ -1390,8 +1378,6 @@ bar_print(struct swm_region *r, const char *s)
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_BACKGROUND, gcv);
 	gcv[0] = r->s->c[SWM_S_COLOR_BAR_FONT].color;
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
-	gcv[0] = bar_fs;
-	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FONT, gcv);
 
 	xcb_image_text_8(conn, len, r->bar->buffer, r->s->bar_gc, x,
 		bar_fs_height, s);
@@ -1859,51 +1845,33 @@ bar_setup(struct swm_region *r)
 	char			*bar_font;
 	xcb_screen_t		*screen = get_screen(r->s->idx);
 	uint32_t		wa[3];
-	xcb_generic_error_t	*error;
-	xcb_void_cookie_t	voc;
-	xcb_query_font_reply_t	*bar_fs_info;
 
 	if (bar_fs) {
-		xcb_close_font(conn, bar_fs);
-		bar_fs = 0;
+		XftFontClose(display, bar_fs);
+		bar_fs = NULL;
 	}
 
 	if ((r->bar = calloc(1, sizeof(struct swm_bar))) == NULL)
 		err(1, "bar_setup: calloc: failed to allocate memory.");
 
-	bar_fs = xcb_generate_id(conn);
 	while ((bar_font = strsep(&bar_fonts, " ,")) != NULL) {
 		if (*bar_font == '\0')
 			continue;
-
-		DNPRINTF(SWM_D_INIT, "bar_setup: try font %s\n", bar_font); 
-		voc = xcb_open_font_checked(conn, bar_fs, strlen(bar_font),
-			 bar_font);
-
-		if ((error = xcb_request_check(conn, voc))) {
-			DNPRINTF(SWM_D_INIT,
-			   "bar_setup: unable to open font: %s\n",
+	
+		DNPRINTF(SWM_D_INIT, "bar_setup: try font %s\n", bar_font);	
+		bar_fs = XftFontOpenName(display, DefaultScreen(display),
 			    bar_font);
-			free(error);
+		if (!bar_fs) {
 			warnx("unable to load font %s", bar_font);
+			continue;
 		} else {
-			DNPRINTF(SWM_D_INIT,
-			   "bar_setup: successfully opened font: %s\n",
-			   bar_font);
+			DNPRINTF(SWM_D_INIT, "successfully opened font %s\n",
+			    bar_font);
 			break;
 		}
 	}
 
-	bar_fs_info = xcb_query_font_reply(conn, xcb_query_font(conn, bar_fs),
-		NULL);
-	if (!bar_fs_info) {
-		warnx(1, "unable to get font information for font %s\n",
-		    bar_font);
-		return;
-	}
-	bar_fs_height = bar_fs_info->font_ascent + bar_fs_info->font_descent;
-	free(bar_fs_info);
-
+	bar_fs_height = bar_fs->height;
 	bar_height = bar_fs_height + 4 * bar_border_width;
 
 	if (bar_height < 1)
@@ -3843,13 +3811,12 @@ search_win(struct swm_region *r, union arg *args)
 	struct ws_win		*win = NULL;
 	struct search_window	*sw = NULL;
 	xcb_window_t		w;
-	uint32_t		gcv[4], wa[2];
-	int			i, width;
+	uint32_t		gcv[3], wa[2];
+	int			i;
 	char			s[8];
 	FILE			*lfile;
 	size_t			len;
-	xcb_char2b_t		*c2b;
-	xcb_query_text_extents_reply_t *ter;
+	XGlyphInfo		info;
 
 	DNPRINTF(SWM_D_MISC, "search_win\n");
 
@@ -3881,35 +3848,13 @@ search_win(struct swm_region *r, union arg *args)
 		snprintf(s, sizeof s, "%d", i);
 		len = strlen(s);
 
-		c2b = char2b(s);
-		if (!c2b) {
-			warn("search_win: char2b malloc");
-			free(sw);
-			fclose(lfile);
-			search_win_cleanup();
-			return;	
-		}	
-		ter = xcb_query_text_extents_reply(conn,
-			xcb_query_text_extents(conn, bar_fs,
-			    len, c2b),
-			NULL);
-		if (!ter) {
-			warn("search_win: query text failed");
-			free(c2b);
-			free(sw);
-			fclose(lfile);
-			search_win_cleanup();
-			return;
-		}
-		width = ter->overall_width;
-		free(ter);
-		free(c2b);
-
+		XftTextExtentsUtf8(display, bar_fs, (FcChar8 *)s, len, &info);
+	
 		w = xcb_generate_id(conn);
 		wa[0] = r->s->c[SWM_S_COLOR_FOCUS].color;
 		wa[1] = r->s->c[SWM_S_COLOR_UNFOCUS].color;
 		xcb_create_window(conn, XCB_COPY_FROM_PARENT, w, win->id, 0, 0,
-		    width + 4, bar_fs_height + 4,
+		    info.width + 4, bar_fs_height + 4,
 		    1, XCB_WINDOW_CLASS_INPUT_OUTPUT, XCB_COPY_FROM_PARENT,
 		    XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);
 
@@ -3919,10 +3864,9 @@ search_win(struct swm_region *r, union arg *args)
 		sw->gc = xcb_generate_id(conn);
 		gcv[0] = r->s->c[SWM_S_COLOR_BAR].color;
 		gcv[1] = r->s->c[SWM_S_COLOR_FOCUS].color;
-		gcv[2] = bar_fs;
-		gcv[3] = 0;
+		gcv[2] = 0;
 		xcb_create_gc(conn, sw->gc, w, XCB_GC_FOREGROUND |
-		    XCB_GC_BACKGROUND | XCB_GC_FONT | XCB_GC_GRAPHICS_EXPOSURES,
+		    XCB_GC_BACKGROUND | XCB_GC_GRAPHICS_EXPOSURES,
 		    gcv);
 		map_window_raised(w);
 

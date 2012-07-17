@@ -12,8 +12,8 @@ MAN=spectrwm.1
 CFLAGS+=-std=gnu89 -Wall -Wno-uninitialized -g
 # Uncomment define below to disallow user settable clock format string
 #CFLAGS+=-DSWM_DENY_CLOCK_FORMAT
-CPPFLAGS+= -I${X11BASE}/include
-LDADD+=-lutil -L${X11BASE}/lib -lX11 -lX11-xcb -lxcb-aux -lxcb-icccm -lxcb-keysyms -lxcb-randr -lxcb-xtest
+CPPFLAGS+= -I${X11BASE}/include -I${X11BASE}/include/freetype2
+LDADD+=-lutil -L${X11BASE}/lib -lX11 -lX11-xcb -lxcb-aux -lxcb-icccm -lxcb-keysyms -lxcb-randr -lxcb-xtest -lXft
 BUILDVERSION != sh "${.CURDIR}/buildver.sh"
 .if !${BUILDVERSION} == ""
 CPPFLAGS+= -DSPECTRWM_BUILDSTR=\"$(BUILDVERSION)\"
