@@ -349,9 +349,7 @@ int			verbose_layout = 0;
 time_t			time_started;
 pid_t			bar_pid;
 xcb_font_t		bar_fs;
-#if 0 
-XFontSetExtents		*bar_fs_extents;
-#endif
+int32_t			bar_fs_height;
 char			*bar_fonts;
 struct passwd		*pwd;
 
@@ -636,6 +634,7 @@ struct ewmh_hint {
 };
 
 /* function prototypes */
+xcb_char2b_t *char2b(const char *);
 int	 conf_load(char *, int);
 void	 constrain_window(struct ws_win *, struct swm_region *, int);
 void	 do_sync(void);
@@ -658,6 +657,25 @@ void	 unmanage_window(struct ws_win *);
 void	 update_window(struct ws_win *);
 
 /* function definitions */
+xcb_char2b_t *
+char2b(const char *str)
+{
+	xcb_char2b_t	*s;
+	size_t		i, len;
+
+	len = strlen(str);
+	s = malloc(len * sizeof(xcb_char2b_t));
+	if (!s)
+		return (NULL);
+	
+	for (i = 0; i < len; i++) {
+		s[i].byte1 = '\0';
+		s[i].byte2 = str[i];
+ 	}
+
+	return (s);
+}
+
 int
 parse_rgb(const char *rgb, uint16_t *rr, uint16_t *gg, uint16_t *bb)
 {
@@ -1316,33 +1334,44 @@ socket_setnonblock(int fd)
 void
 bar_print(struct swm_region *r, const char *s)
 {
-	size_t			len;
-	xcb_rectangle_t		rect;
-	uint32_t		gcv[1];
+	size_t				len;
+	xcb_rectangle_t			rect;
+	uint32_t			gcv[1];
+	xcb_char2b_t			*c2b;
+	xcb_query_text_extents_reply_t	*ter;
+	int32_t				x, width;
 
 	len = strlen(s);
-	/* FIXME fix bar font position calculations */
-#if 0
-	int			x = 0;
-	XRectangle		ibox, lbox;
-	XmbTextExtents(bar_fs, s, len, &ibox, &lbox);
-
+	c2b = char2b(s);
+	if (!c2b)
+		return;
+	ter = xcb_query_text_extents_reply(conn,
+		 xcb_query_text_extents(conn, bar_fs, len, c2b),
+		 NULL);
+	if (!ter) {
+		free(c2b);
+		return;
+	}
+	width = ter->overall_width;
+	
+	free(c2b);
+	free(ter);
+ 
 	switch (bar_justify) {
 	case SWM_BAR_JUSTIFY_LEFT:
 		x = SWM_BAR_OFFSET;
 		break;
 	case SWM_BAR_JUSTIFY_CENTER:
-		x = (WIDTH(r) - lbox.width) / 2;
+		x = (WIDTH(r) - width) / 2;
 		break;
 	case SWM_BAR_JUSTIFY_RIGHT:
-		x = WIDTH(r) - lbox.width - SWM_BAR_OFFSET;
+		x = WIDTH(r) - width - SWM_BAR_OFFSET;
 		break;
 	}
 
 	if (x < SWM_BAR_OFFSET)
 		x = SWM_BAR_OFFSET;
-#endif
-
+	
 	rect.x = 0;
 	rect.y = 0;
 	rect.width = WIDTH(r->bar);
@@ -1361,14 +1390,9 @@ bar_print(struct swm_region *r, const char *s)
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
 	gcv[0] = bar_fs;
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FONT, gcv);
-#if 0
+	
 	xcb_image_text_8(conn, len, r->bar->buffer, r->s->bar_gc, x,
-	    (bar_fs_extents->max_logical_extent.height - lbox.height) / 2 -
-	    lbox.y, s);
-#else
-	/* workaround */
-	xcb_image_text_8(conn, len, r->bar->buffer, r->s->bar_gc, 4, 14, s);
-#endif
+		bar_fs_height, s);
 
 	/* blt */
 	xcb_copy_area(conn, r->bar->buffer, r->bar->id, r->s->bar_gc, 0, 0,
@@ -1835,6 +1859,7 @@ bar_setup(struct swm_region *r)
 	uint32_t		wa[3];
 	xcb_generic_error_t	*error;
 	xcb_void_cookie_t	voc;
+	xcb_query_font_reply_t	*bar_fs_info;
 
 	if (bar_fs) {
 		xcb_close_font(conn, bar_fs);
@@ -1868,41 +1893,21 @@ bar_setup(struct swm_region *r)
 		}
 	}
 
-#if 0
-	DNPRINTF(SWM_D_BAR, "bar_setup: loading bar_fonts: %s\n", bar_fonts);
+	bar_fs_info = xcb_query_font_reply(conn,
+		xcb_query_font(conn, bar_fs),
+		NULL);
+	if (!bar_fs_info)
+		errx(1, "unable to get font information for font %s\n",
+		    bar_font);
+	bar_fs_height = bar_fs_info->font_ascent + bar_fs_info->font_descent;
+	free(bar_fs_info);	
 
-	bar_fs = XCreateFontSet(display, bar_fonts, &missing_charsets,
-	    &num_missing_charsets, &default_string);*/
-
-	if (num_missing_charsets > 0) {
-		warnx("Unable to load charset(s):");
-
-		for (i = 0; i < num_missing_charsets; ++i)
-			warnx("%s", missing_charsets[i]);
-
-		XFreeStringList(missing_charsets);
-
-		if (strcmp(default_string, ""))
-			warnx("Glyphs from those sets will be replaced "
-			    "by '%s'.", default_string);
-		else
-			warnx("Glyphs from those sets won't be drawn.");
-	}
-
-	if (bar_fs == NULL)
-		errx(1, "Error creating font set structure.");
-
-	bar_fs_extents = XExtentsOfFontSet(bar_fs);
-
-	bar_height = bar_fs_extents->max_logical_extent.height +
-	    2 * bar_border_width;
+	bar_height = bar_fs_info->font_ascent + bar_fs_info->font_descent +
+	    4 * bar_border_width;
 
 	if (bar_height < 1)
 		bar_height = 1;
-#else
-	/* workaround */
-	bar_height = 24;
-#endif
+	
 	X(r->bar) = X(r);
 	Y(r->bar) = bar_at_bottom ? (Y(r) + HEIGHT(r) - bar_height) : Y(r);
 	WIDTH(r->bar) = WIDTH(r) - 2 * bar_border_width;
