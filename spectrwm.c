@@ -3840,7 +3840,7 @@ search_win(struct swm_region *r, union arg *args)
 	struct ws_win		*win = NULL;
 	struct search_window	*sw = NULL;
 	xcb_window_t		w;
-	uint32_t		gcv[3], wa[2];
+	uint32_t		gcv[4], wa[2];
 	int			i, width;
 	char			s[8];
 	FILE			*lfile;
@@ -3916,9 +3916,11 @@ search_win(struct swm_region *r, union arg *args)
 		sw->gc = xcb_generate_id(conn);
 		gcv[0] = r->s->c[SWM_S_COLOR_BAR].color;
 		gcv[1] = r->s->c[SWM_S_COLOR_FOCUS].color;
-		gcv[2] = 0;
+		gcv[2] = bar_fs;
+		gcv[3] = 0;
 		xcb_create_gc(conn, sw->gc, w, XCB_GC_FOREGROUND |
-		    XCB_GC_BACKGROUND | XCB_GC_GRAPHICS_EXPOSURES, gcv);
+		    XCB_GC_BACKGROUND | XCB_GC_FONT | XCB_GC_GRAPHICS_EXPOSURES,
+		    gcv);
 		map_window_raised(w);
 
 		xcb_image_text_8(conn, len, w, sw->gc, 2, bar_fs_height, s);
