@@ -89,7 +89,7 @@
 #include <util.h>
 #include <X11/cursorfont.h>
 #include <X11/extensions/Xrandr.h>
-#include <xcb/xcb.h>
+#include <X11/Xlib-xcb.h>
 #include <xcb/xcb_atom.h>
 #include <xcb/xcb_aux.h>
 #include <xcb/xcb_event.h>
@@ -260,6 +260,8 @@ int			ss_enabled = 0;
 int			xrandr_support;
 int			xrandr_eventbase;
 unsigned int		numlockmask = 0;
+
+Display			*display;
 xcb_connection_t	*conn;
 xcb_key_symbols_t	*syms;
 
@@ -7712,7 +7714,10 @@ main(int argc, char *argv[])
 	sact.sa_flags = SA_NOCLDSTOP;
 	sigaction(SIGCHLD, &sact, NULL);
 
-	conn = xcb_connect(NULL, NULL);
+	if (!(display = XOpenDisplay(0)))
+		errx(1, "can not open display");
+
+	conn = XGetXCBConnection(display); 
 	if (xcb_connection_has_error(conn))
 		errx(1, "can not get XCB connection");
 
