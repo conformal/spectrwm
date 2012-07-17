@@ -1355,10 +1355,10 @@ bar_print(struct swm_region *r, const char *s)
 		return;
 	}
 	width = ter->overall_width;
-	
+
 	free(ter);
 	free(c2b);
- 
+
 	switch (bar_justify) {
 	case SWM_BAR_JUSTIFY_LEFT:
 		x = SWM_BAR_OFFSET;
@@ -1373,7 +1373,7 @@ bar_print(struct swm_region *r, const char *s)
 
 	if (x < SWM_BAR_OFFSET)
 		x = SWM_BAR_OFFSET;
-	
+
 	rect.x = 0;
 	rect.y = 0;
 	rect.width = WIDTH(r->bar);
@@ -1392,7 +1392,7 @@ bar_print(struct swm_region *r, const char *s)
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
 	gcv[0] = bar_fs;
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FONT, gcv);
-	
+
 	xcb_image_text_8(conn, len, r->bar->buffer, r->s->bar_gc, x,
 		bar_fs_height, s);
 
@@ -1894,12 +1894,13 @@ bar_setup(struct swm_region *r)
 		}
 	}
 
-	bar_fs_info = xcb_query_font_reply(conn,
-		xcb_query_font(conn, bar_fs),
+	bar_fs_info = xcb_query_font_reply(conn, xcb_query_font(conn, bar_fs),
 		NULL);
-	if (!bar_fs_info)
-		errx(1, "unable to get font information for font %s\n",
+	if (!bar_fs_info) {
+		warnx(1, "unable to get font information for font %s\n",
 		    bar_font);
+		return;
+	}
 	bar_fs_height = bar_fs_info->font_ascent + bar_fs_info->font_descent;
 	free(bar_fs_info);
 
