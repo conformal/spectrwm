@@ -7346,14 +7346,6 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 
 	DNPRINTF(SWM_D_EVENT, "screenchange: root: 0x%x\n", e->root);
 
-	if (e->rotation & (XCB_RANDR_ROTATION_ROTATE_90
-	    | XCB_RANDR_ROTATION_ROTATE_270))
-		xcb_randr_set_screen_size(conn, e->root, e->height,
-		    e->width, e->mheight, e->mwidth);
-	else
-		xcb_randr_set_screen_size(conn, e->root, e->width,
-		    e->height, e->mwidth, e->mheight);
-	xcb_flush(conn);
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	/* silly event doesn't include the screen index */
@@ -7366,6 +7358,9 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 	/* brute force for now, just re-enumerate the regions */
 	scan_xrandr(i);
 
+#ifdef SWM_DEBUG
+	print_win_geom(e->root);
+#endif
 	/* add bars to all regions */
 	for (i = 0; i < num_screens; i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
