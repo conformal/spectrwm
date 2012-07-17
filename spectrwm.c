@@ -806,7 +806,7 @@ setup_ewmh(void)
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	for (i = 0; i < num_screens; i++) {
 		/* Support check window will be created by workaround(). */
-
+		
 		/* Report supported atoms */
 		xcb_delete_property(conn, screens[i].root, sup_list);
 		for (j = 0; j < LENGTH(ewmh); j++)
@@ -1354,8 +1354,8 @@ bar_print(struct swm_region *r, const char *s)
 	}
 	width = ter->overall_width;
 	
-	free(c2b);
 	free(ter);
+	free(c2b);
  
 	switch (bar_justify) {
 	case SWM_BAR_JUSTIFY_LEFT:
@@ -1870,7 +1870,6 @@ bar_setup(struct swm_region *r)
 		err(1, "bar_setup: calloc: failed to allocate memory.");
 
 	bar_fs = xcb_generate_id(conn);
-
 	while ((bar_font = strsep(&bar_fonts, " ,")) != NULL) {
 		if (*bar_font == '\0')
 			continue;
@@ -1900,14 +1899,13 @@ bar_setup(struct swm_region *r)
 		errx(1, "unable to get font information for font %s\n",
 		    bar_font);
 	bar_fs_height = bar_fs_info->font_ascent + bar_fs_info->font_descent;
-	free(bar_fs_info);	
+	free(bar_fs_info);
 
-	bar_height = bar_fs_info->font_ascent + bar_fs_info->font_descent +
-	    4 * bar_border_width;
+	bar_height = bar_fs_height + 4 * bar_border_width;
 
 	if (bar_height < 1)
 		bar_height = 1;
-	
+
 	X(r->bar) = X(r);
 	Y(r->bar) = bar_at_bottom ? (Y(r) + HEIGHT(r) - bar_height) : Y(r);
 	WIDTH(r->bar) = WIDTH(r) - 2 * bar_border_width;
@@ -3843,11 +3841,12 @@ search_win(struct swm_region *r, union arg *args)
 	struct search_window	*sw = NULL;
 	xcb_window_t		w;
 	uint32_t		gcv[3], wa[2];
-	int			i;
+	int			i, width;
 	char			s[8];
 	FILE			*lfile;
 	size_t			len;
-	XRectangle		ibox, lbox;
+	xcb_char2b_t		*c2b;
+	xcb_query_text_extents_reply_t *ter;
 
 	DNPRINTF(SWM_D_MISC, "search_win\n");
 
@@ -3879,26 +3878,37 @@ search_win(struct swm_region *r, union arg *args)
 		snprintf(s, sizeof s, "%d", i);
 		len = strlen(s);
 
-		/* FIXME fix calculations */
-#if 0
-		XmbTextExtents(bar_fs, s, len, &ibox, &lbox);
-#endif
+		c2b = char2b(s);
+		if (!c2b) {
+			warn("search_win: char2b malloc");
+			free(sw);
+			fclose(lfile);
+			search_win_cleanup();
+			return;	
+		}	
+		ter = xcb_query_text_extents_reply(conn,
+			xcb_query_text_extents(conn, bar_fs,
+			    len, c2b),
+			NULL);
+		if (!ter) {
+			warn("search_win: query text failed");
+			free(c2b);
+			free(sw);
+			fclose(lfile);
+			search_win_cleanup();
+			return;
+		}
+		width = ter->overall_width;
+		free(ter);
+		free(c2b);
 
 		w = xcb_generate_id(conn);
 		wa[0] = r->s->c[SWM_S_COLOR_FOCUS].color;
 		wa[1] = r->s->c[SWM_S_COLOR_UNFOCUS].color;
-#if 0
 		xcb_create_window(conn, XCB_COPY_FROM_PARENT, w, win->id, 0, 0,
-		    lbox.width + 4, bar_fs_extents->max_logical_extent.height,
+		    width + 4, bar_fs_height + 4,
 		    1, XCB_WINDOW_CLASS_INPUT_OUTPUT, XCB_COPY_FROM_PARENT,
 		    XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);
-#else
-		/* workaround */
-		xcb_create_window(conn, XCB_COPY_FROM_PARENT, w, win->id, 0, 0,
-		    22, 20, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
-		    XCB_COPY_FROM_PARENT, XCB_CW_BACK_PIXEL |
-		    XCB_CW_BORDER_PIXEL, wa);
-#endif
 
 		sw->indicator = w;
 		TAILQ_INSERT_TAIL(&search_wl, sw, entry);
@@ -3911,14 +3921,7 @@ search_win(struct swm_region *r, union arg *args)
 		    XCB_GC_BACKGROUND | XCB_GC_GRAPHICS_EXPOSURES, gcv);
 		map_window_raised(w);
 
-#if 0
-		xcb_image_text_8(conn, len, w, sw->gc, 2,
-		    (bar_fs_extents->max_logical_extent.height -
-		    lbox.height) / 2 - lbox.y, s);
-#else
-		/* workaround */
-		xcb_image_text_8(conn, len, w, sw->gc, 6, 14, s);
-#endif
+		xcb_image_text_8(conn, len, w, sw->gc, 2, bar_fs_height, s);
 
 		DNPRINTF(SWM_D_MISC, "search_win: mapped window: 0x%x\n", w);
 
