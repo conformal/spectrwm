@@ -348,8 +348,8 @@ int			border_width = 1;
 int			verbose_layout = 0;
 time_t			time_started;
 pid_t			bar_pid;
-#if 0
-XFontSet		bar_fs;
+xcb_font_t		bar_fs;
+#if 0 
 XFontSetExtents		*bar_fs_extents;
 #endif
 char			*bar_fonts;
@@ -1359,6 +1359,8 @@ bar_print(struct swm_region *r, const char *s)
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_BACKGROUND, gcv);
 	gcv[0] = r->s->c[SWM_S_COLOR_BAR_FONT].color;
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
+	gcv[0] = bar_fs;
+	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FONT, gcv);
 #if 0
 	xcb_image_text_8(conn, len, r->bar->buffer, r->s->bar_gc, x,
 	    (bar_fs_extents->max_logical_extent.height - lbox.height) / 2 -
@@ -1828,22 +1830,44 @@ bar_refresh(void)
 void
 bar_setup(struct swm_region *r)
 {
-	char			*default_string;
-	char			**missing_charsets;
-	int			num_missing_charsets = 0;
-	int			i;
+	char			*bar_font;
 	xcb_screen_t		*screen = get_screen(r->s->idx);
 	uint32_t		wa[3];
+	xcb_generic_error_t	*error;
+	xcb_void_cookie_t	voc;
 
-#if 0
 	if (bar_fs) {
-		XFreeFontSet(display, bar_fs);
-		bar_fs = NULL;
+		xcb_close_font(conn, bar_fs);
+		bar_fs = 0;
 	}
-#endif
 
 	if ((r->bar = calloc(1, sizeof(struct swm_bar))) == NULL)
 		err(1, "bar_setup: calloc: failed to allocate memory.");
+
+	bar_fs = xcb_generate_id(conn);
+
+	while ((bar_font = strsep(&bar_fonts, " ,")) != NULL) {
+		if (*bar_font == '\0')
+			continue;
+
+		DNPRINTF(SWM_D_INIT, "bar_setup: try font %s\n", bar_font); 
+		voc = xcb_open_font_checked(conn, bar_fs, strlen(bar_font),
+			 bar_font);
+
+		if ((error = xcb_request_check(conn, voc))) {
+			DNPRINTF(SWM_D_INIT,
+			   "bar_setup: unable to open font: %s\n",
+			    bar_font);
+			free(error);
+			warnx("unable to load font %s", bar_font);
+		} else {
+			DNPRINTF(SWM_D_INIT,
+			   "bar_setup: successfully opened font: %s\n",
+			   bar_font);
+			break;
+		}
+	}
+
 #if 0
 	DNPRINTF(SWM_D_BAR, "bar_setup: loading bar_fonts: %s\n", bar_fonts);
 
@@ -5758,7 +5782,6 @@ setconfvalue(char *selector, char *value, int flags)
 		if (asprintf(&bar_fonts, "%s,%s", value, bar_fonts) == -1)
 			err(1, "setconfvalue: asprintf: failed to allocate "
 				"memory for bar_fonts.");
-
 		free(b);
 		break;
 	case SWM_S_BAR_FORMAT:
