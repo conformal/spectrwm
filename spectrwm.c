@@ -351,8 +351,7 @@ int			border_width = 1;
 int			verbose_layout = 0;
 time_t			time_started;
 pid_t			bar_pid;
-XftFont			*bar_fs;
-int32_t			bar_fs_height;
+XftFont			*bar_font;
 char			*bar_fonts;
 struct passwd		*pwd;
 
@@ -670,7 +669,7 @@ char2b(const char *str)
 	s = malloc(len * sizeof(xcb_char2b_t));
 	if (!s)
 		return (NULL);
-	
+
 	for (i = 0; i < len; i++) {
 		s[i].byte1 = '\0';
 		s[i].byte2 = str[i];
@@ -809,7 +808,7 @@ setup_ewmh(void)
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	for (i = 0; i < num_screens; i++) {
 		/* Support check window will be created by workaround(). */
-		
+
 		/* Report supported atoms */
 		xcb_delete_property(conn, screens[i].root, sup_list);
 		for (j = 0; j < LENGTH(ewmh); j++)
@@ -1342,11 +1341,11 @@ bar_print(struct swm_region *r, const char *s)
 	uint32_t			gcv[1];
 	int32_t				x;
 	XGlyphInfo			info;
-	
+
 	len = strlen(s);
 
-	XftTextExtentsUtf8(display, bar_fs, (FcChar8 *)s, len, &info);
-	
+	XftTextExtentsUtf8(display, bar_font, (FcChar8 *)s, len, &info);
+
 	switch (bar_justify) {
 	case SWM_BAR_JUSTIFY_LEFT:
 		x = SWM_BAR_OFFSET;
@@ -1380,7 +1379,7 @@ bar_print(struct swm_region *r, const char *s)
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
 
 	xcb_image_text_8(conn, len, r->bar->buffer, r->s->bar_gc, x,
-		bar_fs_height, s);
+		bar_font->height, s);
 
 	/* blt */
 	xcb_copy_area(conn, r->bar->buffer, r->bar->id, r->s->bar_gc, 0, 0,
@@ -1846,9 +1845,9 @@ bar_setup(struct swm_region *r)
 	xcb_screen_t		*screen = get_screen(r->s->idx);
 	uint32_t		wa[3];
 
-	if (bar_fs) {
-		XftFontClose(display, bar_fs);
-		bar_fs = NULL;
+	if (bar_font) {
+		XftFontClose(display, bar_font);
+		bar_font = NULL;
 	}
 
 	if ((r->bar = calloc(1, sizeof(struct swm_bar))) == NULL)
@@ -1857,11 +1856,11 @@ bar_setup(struct swm_region *r)
 	while ((bar_font = strsep(&bar_fonts, " ,")) != NULL) {
 		if (*bar_font == '\0')
 			continue;
-	
-		DNPRINTF(SWM_D_INIT, "bar_setup: try font %s\n", bar_font);	
-		bar_fs = XftFontOpenName(display, DefaultScreen(display),
+
+		DNPRINTF(SWM_D_INIT, "bar_setup: try font %s\n", bar_font);
+		bar_font = XftFontOpenName(display, DefaultScreen(display),
 			    bar_font);
-		if (!bar_fs) {
+		if (!bar_font) {
 			warnx("unable to load font %s", bar_font);
 			continue;
 		} else {
@@ -1871,8 +1870,7 @@ bar_setup(struct swm_region *r)
 		}
 	}
 
-	bar_fs_height = bar_fs->height;
-	bar_height = bar_fs_height + 4 * bar_border_width;
+	bar_height = bar_font->height + 4 * bar_border_width;
 
 	if (bar_height < 1)
 		bar_height = 1;
@@ -3848,13 +3846,13 @@ search_win(struct swm_region *r, union arg *args)
 		snprintf(s, sizeof s, "%d", i);
 		len = strlen(s);
 
-		XftTextExtentsUtf8(display, bar_fs, (FcChar8 *)s, len, &info);
-	
+		XftTextExtentsUtf8(display, bar_font, (FcChar8 *)s, len, &info);
+
 		w = xcb_generate_id(conn);
 		wa[0] = r->s->c[SWM_S_COLOR_FOCUS].color;
 		wa[1] = r->s->c[SWM_S_COLOR_UNFOCUS].color;
 		xcb_create_window(conn, XCB_COPY_FROM_PARENT, w, win->id, 0, 0,
-		    info.width + 4, bar_fs_height + 4,
+		    info.width + 4, bar_font->height + 4,
 		    1, XCB_WINDOW_CLASS_INPUT_OUTPUT, XCB_COPY_FROM_PARENT,
 		    XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);
 
@@ -3866,11 +3864,10 @@ search_win(struct swm_region *r, union arg *args)
 		gcv[1] = r->s->c[SWM_S_COLOR_FOCUS].color;
 		gcv[2] = 0;
 		xcb_create_gc(conn, sw->gc, w, XCB_GC_FOREGROUND |
-		    XCB_GC_BACKGROUND | XCB_GC_GRAPHICS_EXPOSURES,
-		    gcv);
+		    XCB_GC_BACKGROUND | XCB_GC_GRAPHICS_EXPOSURES, gcv);
 		map_window_raised(w);
 
-		xcb_image_text_8(conn, len, w, sw->gc, 2, bar_fs_height, s);
+		xcb_image_text_8(conn, len, w, sw->gc, 2, bar_font->height, s);
 
 		DNPRINTF(SWM_D_MISC, "search_win: mapped window: 0x%x\n", w);
 
@@ -7143,7 +7140,7 @@ int
 enable_wm(void)
 {
 	int			num_screens, i;
-	const uint32_t		val = XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT;	
+	const uint32_t		val = XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT;
 	xcb_screen_t		*sc;
 	xcb_void_cookie_t	wac;
 	xcb_generic_error_t	*error;
@@ -7642,7 +7639,7 @@ main(int argc, char *argv[])
 
 	start_argv = argv;
 	warnx("Welcome to spectrwm V%s Build: %s", SPECTRWM_VERSION, buildstr);
-	if (!setlocale(LC_CTYPE, "") || !setlocale(LC_TIME, "")) 
+	if (!setlocale(LC_CTYPE, "") || !setlocale(LC_TIME, ""))
 		warnx("no locale support");
 
 	/* handle some signals */
@@ -7662,7 +7659,7 @@ main(int argc, char *argv[])
 	if (!(display = XOpenDisplay(0)))
 		errx(1, "can not open display");
 
-	conn = XGetXCBConnection(display); 
+	conn = XGetXCBConnection(display);
 	if (xcb_connection_has_error(conn))
 		errx(1, "can not get XCB connection");
 
@@ -7815,7 +7812,7 @@ done:
 		if (screens[i].bar_gc != 0)
 			xcb_free_gc(conn, screens[i].bar_gc);
 #if 0
-	XFreeFontSet(display, bar_fs);
+	XFreeFontSet(display, bar_font);
 #endif
 	xcb_key_symbols_free(syms);
 	xcb_flush(conn);
