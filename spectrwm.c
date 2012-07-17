@@ -88,10 +88,7 @@
 #include <unistd.h>
 #include <util.h>
 #include <X11/cursorfont.h>
-#include <X11/keysym.h>
-#include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
-#include <X11/extensions/XTest.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_atom.h>
 #include <xcb/xcb_aux.h>
