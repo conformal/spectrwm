@@ -256,6 +256,7 @@ volatile sig_atomic_t   running = 1;
 volatile sig_atomic_t   restart_wm = 0;
 int			outputs = 0;
 /*int			last_focus_event = FocusOut;*/
+int			(*xerrorxlib)(Display *, XErrorEvent *);
 int			other_wm;
 int			ss_enabled = 0;
 int			xrandr_support;
@@ -7621,6 +7622,17 @@ event_handle(xcb_generic_event_t *evt)
 		screenchange((void *)evt);
 }
 
+xerror(Display *d, XErrorEvent *ee)
+{
+#ifdef SWM_DEBUG
+	char error_text[1024];
+	XGetErrorText(display, ee->error_code, error_text, sizeof(error_text));
+	DNPRINTF(SWM_D_MISC, "xerror: error_code: %u, error_text: %s\n",
+	    ee->error_code, error_text);
+#endif
+	return -1;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -7658,6 +7670,9 @@ main(int argc, char *argv[])
 
 	if (!(display = XOpenDisplay(0)))
 		errx(1, "can not open display");
+
+	/* prevent xlib from exiting on an error */
+	xerrorxlib = XSetErrorHandler(xerror);
 
 	conn = XGetXCBConnection(display);
 	if (xcb_connection_has_error(conn))
