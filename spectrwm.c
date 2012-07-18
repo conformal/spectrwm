@@ -657,6 +657,9 @@ void	 spawn_select(struct swm_region *, union arg *, char *, int *);
 void	 store_float_geom(struct ws_win *, struct swm_region *);
 void	 unmanage_window(struct ws_win *);
 void	 update_window(struct ws_win *);
+#ifdef SWM_DEBUG
+char	*get_atom_name(xcb_atom_t);
+#endif
 
 /* function definitions */
 xcb_char2b_t *
@@ -956,6 +959,9 @@ ewmh_update_win_state(struct ws_win *win, long state, long action)
 
 	if (win == NULL)
 		return;
+
+	DNPRINTF(SWM_D_PROP, "ewmh_update_win_state: window: 0x%x, state: %d, "
+	    "action: %d\n", win->id, state, action);
 
 	if (state == ewmh[_NET_WM_STATE_FULLSCREEN].atom)
 		mask = EWMH_F_FULLSCREEN;
@@ -2100,14 +2106,16 @@ quit(struct swm_region *r, union arg *args)
 void
 unmap_window(struct ws_win *win)
 {
+	DNPRINTF(SWM_D_EVENT, "unmap_window: window: 0x%x\n", win->id);
+
 	if (win == NULL)
 		return;
 
 	/* don't unmap again */
-	if (getstate(win->id) == XCB_ICCCM_WM_STATE_ICONIC)
+	if (getstate(win->id) == XCB_ICCCM_WM_STATE_WITHDRAWN)
 		return;
 
-	set_win_state(win, XCB_ICCCM_WM_STATE_ICONIC);
+	set_win_state(win, XCB_ICCCM_WM_STATE_WITHDRAWN);
 
 	xcb_unmap_window(conn, win->id);
 	xcb_change_window_attributes(conn, win->id,
@@ -2586,6 +2594,8 @@ switchws(struct swm_region *r, union arg *args)
 		event_drain(XCB_ENTER_NOTIFY);
 	else
 		xcb_flush(conn);
+
+	DNPRINTF(SWM_D_WS, "switchws: done\n");
 }
 
 void
