@@ -234,7 +234,7 @@ void
 XtAppNextEvent(XtAppContext app_context, XEvent *event_return)
 {
 	static ANEF	*func = NULL;
-	static int	kp_add = 0, kp_subtract = 0;
+	static KeyCode	kp_add = 0, kp_subtract = 0;
 
 	/* find the real Xlib and the real X function */
 	if (!lib_xtlib)
