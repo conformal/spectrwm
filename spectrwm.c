@@ -1871,31 +1871,27 @@ bar_setup(struct swm_region *r)
 	uint32_t		wa[3];
 	XRenderColor		color;
 
-	if (bar_font) {
-		XftColorFree(display, DefaultVisual(display, r->s->idx),
-		    DefaultColormap(display, r->s->idx), &bar_font_color);
-		XftFontClose(display, bar_font);
-		bar_font = NULL;
-	}
-
 	if ((r->bar = calloc(1, sizeof(struct swm_bar))) == NULL)
 		err(1, "bar_setup: calloc: failed to allocate memory.");
 
-	while ((font = strsep(&bar_fonts, " ,")) != NULL) {
-		if (*font == '\0')
-			continue;
+	if (bar_font == NULL) {
+		while ((font = strsep(&bar_fonts, " ,")) != NULL) {
+			if (*font == '\0')
+				continue;
 
-		DNPRINTF(SWM_D_INIT, "bar_setup: try font %s\n", font);
-		bar_font = XftFontOpenName(display, r->s->idx, font);
-		if (!bar_font) {
-			warnx("unable to load font %s", font);
-			continue;
-		} else {
-			DNPRINTF(SWM_D_INIT, "successfully opened font %s\n",
-			    font);
-			break;
+			DNPRINTF(SWM_D_INIT, "bar_setup: try font %s\n", font);
+			bar_font = XftFontOpenName(display, r->s->idx, font);
+			if (!bar_font) {
+				warnx("unable to load font %s", font);
+				continue;
+			} else {
+				DNPRINTF(SWM_D_INIT, "successfully opened "
+				    "font %s\n", font);
+				break;
+			}
 		}
 	}
+
 	if (bar_font == NULL)
 		errx(1, "unable to open a font");
 
