@@ -1988,6 +1988,7 @@ uint16_t
 getstate(xcb_window_t w)
 {
 	uint16_t			result = 0;
+	uint16_t			*pv;
 	xcb_get_property_cookie_t	c;
 	xcb_get_property_reply_t	*r;
 
@@ -1995,7 +1996,8 @@ getstate(xcb_window_t w)
 	r = xcb_get_property_reply(conn, c, NULL);
 
 	if (r) {
-		result = *((uint16_t *)xcb_get_property_value(r));
+		pv = (uint16_t *)xcb_get_property_value(r);
+		result = *pv;
 		free(r);
 	}
 
