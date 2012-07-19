@@ -961,8 +961,8 @@ ewmh_update_win_state(struct ws_win *win, long state, long action)
 	if (win == NULL)
 		return;
 
-	DNPRINTF(SWM_D_PROP, "ewmh_update_win_state: window: 0x%x, state: %d, "
-	    "action: %d\n", win->id, state, action);
+	DNPRINTF(SWM_D_PROP, "ewmh_update_win_state: window: 0x%x, state: %ld, "
+	    "action: %ld\n", win->id, state, action);
 
 	if (state == ewmh[_NET_WM_STATE_FULLSCREEN].atom)
 		mask = EWMH_F_FULLSCREEN;
