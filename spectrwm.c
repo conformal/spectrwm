@@ -1878,7 +1878,7 @@ bar_setup(struct swm_region *r)
 		err(1, "bar_setup: calloc: failed to allocate memory.");
 
 	if (bar_font == NULL) {
-		while ((font = strsep(&bar_fonts, " ,")) != NULL) {
+		while ((font = strsep(&bar_fonts, ",")) != NULL) {
 			if (*font == '\0')
 				continue;
 
