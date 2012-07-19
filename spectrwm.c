@@ -3890,6 +3890,7 @@ search_win(struct swm_region *r, union arg *args)
 	char			s[8];
 	FILE			*lfile;
 	size_t			len;
+	XftDraw			*draw;
 	XGlyphInfo		info;
 
 	DNPRINTF(SWM_D_MISC, "search_win\n");
@@ -3943,7 +3944,15 @@ search_win(struct swm_region *r, union arg *args)
 		    XCB_GC_BACKGROUND | XCB_GC_GRAPHICS_EXPOSURES, gcv);
 		map_window_raised(w);
 
-		xcb_image_text_8(conn, len, w, sw->gc, 2, bar_font->height, s);
+		draw = XftDrawCreate(display, w,
+		    DefaultVisual(display, r->s->idx),
+		    DefaultColormap(display, r->s->idx));
+
+		XftDrawStringUtf8(draw, &bar_font_color, bar_font, 2,
+		    (HEIGHT(r->bar) + bar_font->height) / 2 - bar_font->descent,
+		    (FcChar8 *)s, len);
+
+		XftDrawDestroy(draw);
 
 		DNPRINTF(SWM_D_MISC, "search_win: mapped window: 0x%x\n", w);
 
