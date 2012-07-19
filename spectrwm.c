@@ -353,6 +353,7 @@ time_t			time_started;
 pid_t			bar_pid;
 XftFont			*bar_font;
 char			*bar_fonts;
+XftColor		bar_font_color;
 struct passwd		*pwd;
 
 /* layout manager data */
@@ -1347,6 +1348,7 @@ bar_print(struct swm_region *r, const char *s)
 	uint32_t			gcv[1];
 	int32_t				x;
 	XGlyphInfo			info;
+	XftDraw				*draw;
 
 	len = strlen(s);
 
@@ -1384,8 +1386,14 @@ bar_print(struct swm_region *r, const char *s)
 	gcv[0] = r->s->c[SWM_S_COLOR_BAR_FONT].color;
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
 
-	xcb_image_text_8(conn, len, r->bar->buffer, r->s->bar_gc, x,
-		bar_font->height, s);
+	draw = XftDrawCreate(display, r->bar->buffer,
+			DefaultVisual(display, r->s->idx),
+			DefaultColormap(display, r->s->idx));
+
+	XftDrawStringUtf8(draw, &bar_font_color, bar_font, x,
+		bar_font->height, (FcChar8 *)s, len);
+
+	XftDrawDestroy(draw);
 
 	/* blt */
 	xcb_copy_area(conn, r->bar->buffer, r->bar->id, r->s->bar_gc, 0, 0,
@@ -1850,8 +1858,11 @@ bar_setup(struct swm_region *r)
 	char			*font;
 	xcb_screen_t		*screen = get_screen(r->s->idx);
 	uint32_t		wa[3];
-
+	XRenderColor		color;
+	
 	if (bar_font) {
+		XftColorFree(display, DefaultVisual(display, r->s->idx),
+			DefaultColormap(display, r->s->idx), &bar_font_color);
 		XftFontClose(display, bar_font);
 		bar_font = NULL;
 	}
@@ -1864,7 +1875,7 @@ bar_setup(struct swm_region *r)
 			continue;
 
 		DNPRINTF(SWM_D_INIT, "bar_setup: try font %s\n", font);
-		bar_font = XftFontOpenName(display, DefaultScreen(display),
+		bar_font = XftFontOpenName(display, r->s->idx,
 			    font);
 		if (!bar_font) {
 			warnx("unable to load font %s", font);
@@ -1875,11 +1886,22 @@ bar_setup(struct swm_region *r)
 			break;
 		}
 	}
+	if (bar_font == NULL)
+		errx(1, "unable to open a font");
 
 	bar_height = bar_font->height + 4 * bar_border_width;
 
 	if (bar_height < 1)
 		bar_height = 1;
+
+	color.alpha = 0xffff; 
+	color.red = (r->s->c[SWM_S_COLOR_BAR_FONT].color >> 16) & 0xffff;
+	color.green = (r->s->c[SWM_S_COLOR_BAR_FONT].color >> 8) & 0xffff;
+	color.blue = r->s->c[SWM_S_COLOR_BAR_FONT].color & 0xffff;
+	if (!XftColorAllocValue(display, DefaultVisual(display, r->s->idx),
+			DefaultColormap(display, r->s->idx), &color,
+			&bar_font_color))
+		warn("unable to allocate Xft color");
 
 	X(r->bar) = X(r);
 	Y(r->bar) = bar_at_bottom ? (Y(r) + HEIGHT(r) - bar_height) : Y(r);
@@ -2185,6 +2207,9 @@ restart(struct swm_region *r, union arg *args)
 	bar_extra = 1;
 	unmap_all();
 
+	XftFontClose(display, bar_font);
+	XftColorFree(display, DefaultVisual(display, r->s->idx),
+		DefaultColormap(display, r->s->idx), &bar_font_color);
 	xcb_key_symbols_free(syms);
 	xcb_flush(conn);
 	xcb_disconnect(conn);
@@ -7823,9 +7848,10 @@ done:
 	for (i = 0; i < num_screens; ++i)
 		if (screens[i].bar_gc != 0)
 			xcb_free_gc(conn, screens[i].bar_gc);
-#if 0
-	XFreeFontSet(display, bar_font);
-#endif
+	
+	XftFontClose(display, bar_font);
+	XftColorFree(display, DefaultVisual(display, 0),
+		DefaultColormap(display, 0), &bar_font_color);
 	xcb_key_symbols_free(syms);
 	xcb_flush(conn);
 	xcb_disconnect(conn);
