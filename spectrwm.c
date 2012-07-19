@@ -1394,7 +1394,8 @@ bar_print(struct swm_region *r, const char *s)
 	    DefaultVisual(display, r->s->idx),
 	    DefaultColormap(display, r->s->idx));
 
-	XftDrawStringUtf8(draw, &bar_font_color, bar_font, x, bar_font->height,
+	XftDrawStringUtf8(draw, &bar_font_color, bar_font, x,
+	    (HEIGHT(r->bar) + bar_font->height) / 2 - bar_font->descent,
 	    (FcChar8 *)s, len);
 
 	XftDrawDestroy(draw);
@@ -1912,7 +1913,7 @@ bar_setup(struct swm_region *r)
 	if (bar_font == NULL)
 		errx(1, "unable to open a font");
 
-	bar_height = bar_font->height + 4 * bar_border_width;
+	bar_height = bar_font->height + 2 * bar_border_width;
 
 	if (bar_height < 1)
 		bar_height = 1;
