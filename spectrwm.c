@@ -1871,6 +1871,9 @@ bar_setup(struct swm_region *r)
 	uint32_t		wa[3];
 	XRenderColor		color;
 
+	if (r->bar != NULL)
+		return;
+
 	if ((r->bar = calloc(1, sizeof(struct swm_bar))) == NULL)
 		err(1, "bar_setup: calloc: failed to allocate memory.");
 
@@ -1915,8 +1918,7 @@ bar_setup(struct swm_region *r)
 	wa[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
 	wa[1] = r->s->c[SWM_S_COLOR_BAR_BORDER].pixel;
 	wa[2] = XCB_EVENT_MASK_EXPOSURE;
-	DNPRINTF(SWM_D_BAR, "bar_setup: create_window: (x,y) w x h: (%d,%d) "
-	    "%d x %d\n", X(r->bar), Y(r->bar), WIDTH(r->bar), HEIGHT(r->bar));
+
 	xcb_create_window(conn, XCB_COPY_FROM_PARENT, r->bar->id, r->s->root,
 	    X(r->bar), Y(r->bar), WIDTH(r->bar), HEIGHT(r->bar),
 	    bar_border_width, XCB_WINDOW_CLASS_INPUT_OUTPUT,
