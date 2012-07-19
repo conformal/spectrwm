@@ -677,7 +677,7 @@ char2b(const char *str)
 	for (i = 0; i < len; i++) {
 		s[i].byte1 = '\0';
 		s[i].byte2 = str[i];
- 	}
+	}
 
 	return (s);
 }
@@ -1387,11 +1387,11 @@ bar_print(struct swm_region *r, const char *s)
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
 
 	draw = XftDrawCreate(display, r->bar->buffer,
-			DefaultVisual(display, r->s->idx),
-			DefaultColormap(display, r->s->idx));
+	    DefaultVisual(display, r->s->idx),
+	    DefaultColormap(display, r->s->idx));
 
-	XftDrawStringUtf8(draw, &bar_font_color, bar_font, x,
-		bar_font->height, (FcChar8 *)s, len);
+	XftDrawStringUtf8(draw, &bar_font_color, bar_font, x, bar_font->height,
+	    (FcChar8 *)s, len);
 
 	XftDrawDestroy(draw);
 
@@ -1859,10 +1859,10 @@ bar_setup(struct swm_region *r)
 	xcb_screen_t		*screen = get_screen(r->s->idx);
 	uint32_t		wa[3];
 	XRenderColor		color;
-	
+
 	if (bar_font) {
 		XftColorFree(display, DefaultVisual(display, r->s->idx),
-			DefaultColormap(display, r->s->idx), &bar_font_color);
+		    DefaultColormap(display, r->s->idx), &bar_font_color);
 		XftFontClose(display, bar_font);
 		bar_font = NULL;
 	}
@@ -1875,8 +1875,7 @@ bar_setup(struct swm_region *r)
 			continue;
 
 		DNPRINTF(SWM_D_INIT, "bar_setup: try font %s\n", font);
-		bar_font = XftFontOpenName(display, r->s->idx,
-			    font);
+		bar_font = XftFontOpenName(display, r->s->idx, font);
 		if (!bar_font) {
 			warnx("unable to load font %s", font);
 			continue;
@@ -1894,13 +1893,12 @@ bar_setup(struct swm_region *r)
 	if (bar_height < 1)
 		bar_height = 1;
 
-	color.alpha = 0xffff; 
+	color.alpha = 0xffff;
 	color.red = (r->s->c[SWM_S_COLOR_BAR_FONT].color >> 16) & 0xffff;
 	color.green = (r->s->c[SWM_S_COLOR_BAR_FONT].color >> 8) & 0xffff;
 	color.blue = r->s->c[SWM_S_COLOR_BAR_FONT].color & 0xffff;
 	if (!XftColorAllocValue(display, DefaultVisual(display, r->s->idx),
-			DefaultColormap(display, r->s->idx), &color,
-			&bar_font_color))
+	    DefaultColormap(display, r->s->idx), &color, &bar_font_color))
 		warn("unable to allocate Xft color");
 
 	X(r->bar) = X(r);
@@ -2095,7 +2093,7 @@ config_win(struct ws_win *win, xcb_configure_request_event_t *ev)
 	    ce.y, ce.width, ce.height, ce.border_width);
 
 	xcb_send_event(conn, False, win->id, XCB_EVENT_MASK_STRUCTURE_NOTIFY,
-		(char *)&ce);
+	    (char *)&ce);
 }
 
 int
@@ -2209,7 +2207,7 @@ restart(struct swm_region *r, union arg *args)
 
 	XftFontClose(display, bar_font);
 	XftColorFree(display, DefaultVisual(display, r->s->idx),
-		DefaultColormap(display, r->s->idx), &bar_font_color);
+	    DefaultColormap(display, r->s->idx), &bar_font_color);
 	xcb_key_symbols_free(syms);
 	xcb_flush(conn);
 	xcb_disconnect(conn);
@@ -2517,12 +2515,14 @@ focus_win(struct ws_win *win)
 	if ((cfw = find_window(cur_focus)) != NULL)
 		unfocus_win(cfw);
 	else {
+#if 0
 		/* use larger hammer since the window was killed somehow */
-		/* TAILQ_FOREACH(cfw, &win->ws->winlist, entry)
+		TAILQ_FOREACH(cfw, &win->ws->winlist, entry)
 			if (cfw->ws && cfw->ws->r && cfw->ws->r->s)
 				xcb_change_window_attributes(conn, cfw->id,
 				    XCB_CW_BORDER_PIXEL,
-				    &cfw->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);*/
+				    &cfw->ws->r->s->c[SWM_S_COLOR_UNFOCUS].color);
+#endif
 	}
 
 	win->ws->focus = win;
@@ -2533,8 +2533,8 @@ focus_win(struct ws_win *win)
 			    win->id, XCB_CURRENT_TIME);
 		grabbuttons(win, 1);
 		xcb_change_window_attributes(conn, win->id,
-			XCB_CW_BORDER_PIXEL,
-			&win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
+		    XCB_CW_BORDER_PIXEL,
+		    &win->ws->r->s->c[SWM_S_COLOR_FOCUS].color);
 		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS ||
 		    win->ws->always_raise)
 			map_window_raised(win->id);
@@ -4218,8 +4218,8 @@ update_window(struct ws_win *win)
 	uint32_t	wc[5];
 
 	mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
-		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
-		XCB_CONFIG_WINDOW_BORDER_WIDTH;
+	    XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
+	    XCB_CONFIG_WINDOW_BORDER_WIDTH;
 	wc[0] = X(win);
 	wc[1] = Y(win);
 	wc[2] = WIDTH(win);
@@ -5475,7 +5475,7 @@ updatenumlockmask(void)
 				kc = modmap[i * modmap_r->keycodes_per_modifier
 				    + j];
 
-			     	if (kc == *((xcb_keycode_t *)xcb_key_symbols_get_keycode(syms,
+				if (kc == *((xcb_keycode_t *)xcb_key_symbols_get_keycode(syms,
 				    XK_Num_Lock)))
 					numlockmask = (1 << i);
 			}
@@ -6775,7 +6775,6 @@ print_win_geom(xcb_window_t w)
 {
 	xcb_get_geometry_reply_t	*wa;
 
-
 	wa = xcb_get_geometry_reply(conn, xcb_get_geometry(conn, w), NULL);
 
 	DNPRINTF(SWM_D_MISC, "print_win_geom: window: 0x%x, root: 0x%x, "
@@ -7094,12 +7093,14 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 	}
 }
 
-/*void
+#if 0
+void
 visibilitynotify(xcb_visibility_notify_event_t *e)
 {
 	DNPRINTF(SWM_D_EVENT, "visibilitynotify: window: 0x%x\n",
 	    e->window);
-}*/
+}
+#endif
 
 void
 clientmessage(xcb_client_message_event_t *e)
@@ -7187,7 +7188,7 @@ enable_wm(void)
 		DNPRINTF(SWM_D_INIT, "enable_wm: screen %d, root: 0x%x\n",
 		    i, sc->root);
 		wac = xcb_change_window_attributes_checked(conn, sc->root,
-			XCB_CW_EVENT_MASK, &val);
+		    XCB_CW_EVENT_MASK, &val);
 		if ((error = xcb_request_check(conn, wac))) {
 			DNPRINTF(SWM_D_INIT, "enable_wm: error_code: %u\n",
 			    error->error_code);
@@ -7481,7 +7482,7 @@ setup_screens(void)
 
 	cursor = xcb_generate_id(conn);
 	xcb_create_glyph_cursor(conn, cursor, cursor_font, cursor_font,
-		XC_left_ptr, XC_left_ptr + 1, 0, 0, 0, 0xffff, 0xffff, 0xffff);
+	    XC_left_ptr, XC_left_ptr + 1, 0, 0, 0, 0xffff, 0xffff, 0xffff);
 	wa[0] = cursor;
 
 	/* map physical screens */
@@ -7848,10 +7849,10 @@ done:
 	for (i = 0; i < num_screens; ++i)
 		if (screens[i].bar_gc != 0)
 			xcb_free_gc(conn, screens[i].bar_gc);
-	
+
 	XftFontClose(display, bar_font);
 	XftColorFree(display, DefaultVisual(display, 0),
-		DefaultColormap(display, 0), &bar_font_color);
+	    DefaultColormap(display, 0), &bar_font_color);
 	xcb_key_symbols_free(syms);
 	xcb_flush(conn);
 	xcb_disconnect(conn);
