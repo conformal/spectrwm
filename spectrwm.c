@@ -1866,7 +1866,8 @@ bar_refresh(void)
 void
 bar_setup(struct swm_region *r)
 {
-	char			*font;
+	char			*font, *fontpos;
+	int			count;
 	xcb_screen_t		*screen = get_screen(r->s->idx);
 	uint32_t		wa[3];
 	XRenderColor		color;
@@ -1883,7 +1884,20 @@ bar_setup(struct swm_region *r)
 				continue;
 
 			DNPRINTF(SWM_D_INIT, "bar_setup: try font %s\n", font);
-			bar_font = XftFontOpenName(display, r->s->idx, font);
+
+			count = 0;
+			fontpos = font;
+			while ((fontpos = index(fontpos, '-'))) {
+				count++;
+				fontpos++;
+			}
+
+			if (count == 14)
+				bar_font = XftFontOpenXlfd(display, r->s->idx,
+						font);
+			else
+				bar_font = XftFontOpenName(display, r->s->idx,
+						font);
 			if (!bar_font) {
 				warnx("unable to load font %s", font);
 				continue;
