@@ -13,10 +13,11 @@ BUILDVERSION!= sh "${.CURDIR}/../buildver.sh"
 CFLAGS+= -DSPECTRWM_BUILDSTR=\"$(BUILDVERSION)\"
 .endif
 
-CFLAGS+= -Wall -Wextra -I. -I${LOCALBASE}/include
+CFLAGS+= -Wall -Wextra -I. -I${LOCALBASE}/include \
+	 -I${LOCALBASE}/include/freetype2
 CFLAGS+= -DSWM_LIB=\"$(SWM_LIBDIR)/libswmhack.so.$(LVERS)\"
-LDADD+= -lutil -L${LOCALBASE}/lib -lX11 -lxcb \
-	-lxcb-icccm -lxcb-keysyms -lxcb-randr -lxcb-util -lxcb-xtest
+LDADD+= -lutil -L${LOCALBASE}/lib -lX11 -lX11-xcb -lxcb \
+	-lxcb-icccm -lxcb-keysyms -lxcb-randr -lxcb-util -lxcb-xtest -lXft
 
 
 all: spectrwm libswmhack.so.$(LVERS)
