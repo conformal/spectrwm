@@ -841,7 +841,7 @@ teardown_ewmh(void)
 		pc = xcb_get_property(conn, 0, screens[i].root, sup_check,
 		    XCB_ATOM_WINDOW, 0, 1);
 		pr = xcb_get_property_reply(conn, pc, NULL);
-		if (pr->format == sup_check) {
+		if (pr && pr->format == sup_check) {
 			id = *((xcb_window_t *)xcb_get_property_value(pr));
 
 			xcb_destroy_window(conn, id);
@@ -6443,7 +6443,7 @@ get_ws_idx(xcb_window_t id)
 		xcb_get_property(conn, 0, id, a_swm_ws,
 		    XCB_ATOM_STRING, 0, SWM_PROPLEN),
 		NULL);
-	if (gpr->type) {
+	if (gpr && gpr->type) {
 		proplen = xcb_get_property_value_length(gpr);
 		if (proplen > 0) {
 			prop = malloc(proplen + 1);
