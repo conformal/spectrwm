@@ -2299,8 +2299,10 @@ find_window(xcb_window_t id)
 		return (NULL);
 
 	/* if we were looking for the parent return that window instead */
-	if (r->parent == 0 || r->root == r->parent)
+	if (r->parent == 0 || r->root == r->parent) {
+		free(r);
 		return (NULL);
+	}
 
 	/* look for parent */
 	for (i = 0; i < num_screens; i++)
