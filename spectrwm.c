@@ -659,7 +659,7 @@ void	 focus_magic(struct ws_win *);
 xcb_atom_t get_atom_from_string(const char *);
 xcb_screen_t	*get_screen(int);
 char	*get_win_name(xcb_window_t);
-uint16_t getstate(xcb_window_t);
+uint32_t getstate(xcb_window_t);
 void	 grabbuttons(struct ws_win *, int);
 void	 map_window_raised(xcb_window_t);
 void	 new_region(struct swm_screen *, int, int, int, int);
@@ -841,7 +841,7 @@ teardown_ewmh(void)
 		pc = xcb_get_property(conn, 0, screens[i].root, sup_check,
 		    XCB_ATOM_WINDOW, 0, 1);
 		pr = xcb_get_property_reply(conn, pc, NULL);
-		if (pr) {
+		if (pr->format == sup_check) {
 			id = *((xcb_window_t *)xcb_get_property_value(pr));
 
 			xcb_destroy_window(conn, id);
@@ -1068,7 +1068,7 @@ void
 dumpwins(struct swm_region *r, union arg *args)
 {
 	struct ws_win				*win;
-	uint16_t				state;
+	uint32_t				state;
 	xcb_get_window_attributes_cookie_t	c;
 	xcb_get_window_attributes_reply_t	*wa;
 
@@ -1984,11 +1984,10 @@ set_win_state(struct ws_win *win, uint16_t state)
 	    a_state, 32, 2, data);
 }
 
-uint16_t
+uint32_t
 getstate(xcb_window_t w)
 {
-	uint16_t			result = 0;
-	uint16_t			*pv;
+	uint32_t			result = 0;
 	xcb_get_property_cookie_t	c;
 	xcb_get_property_reply_t	*r;
 
@@ -1996,8 +1995,8 @@ getstate(xcb_window_t w)
 	r = xcb_get_property_reply(conn, c, NULL);
 
 	if (r) {
-		pv = (uint16_t *)xcb_get_property_value(r);
-		result = *pv;
+		if (r->type == a_state && r->format == 32 && r->length == 2)
+			result = *((uint32_t *)xcb_get_property_value(r));
 		free(r);
 	}
 
@@ -6407,7 +6406,8 @@ window_get_pid(xcb_window_t win)
 		goto tryharder;
 	}
 
-	ret = *((pid_t *)xcb_get_property_value(pr));
+	if (pr->type == apid && pr->format == 32)
+		ret = *((pid_t *)xcb_get_property_value(pr));
 	free(pr);
 
 	return (ret);
@@ -6419,7 +6419,7 @@ tryharder:
 	pr = xcb_get_property_reply(conn, pc, NULL);
 	if (!pr)
 		return (0);
-	if (pr->type != XCB_ATOM_STRING) {
+	if (pr->type != apid) {
 		free(pr);
 		return (0);
 	}
@@ -6443,7 +6443,7 @@ get_ws_idx(xcb_window_t id)
 		xcb_get_property(conn, 0, id, a_swm_ws,
 		    XCB_ATOM_STRING, 0, SWM_PROPLEN),
 		NULL);
-	if (gpr) {
+	if (gpr->type) {
 		proplen = xcb_get_property_value_length(gpr);
 		if (proplen > 0) {
 			prop = malloc(proplen + 1);
