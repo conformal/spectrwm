@@ -7412,8 +7412,9 @@ scan_xrandr(int i)
 			return;
 		} else
 			ncrtc = srr->num_crtcs;
+
+		crtc = xcb_randr_get_screen_resources_current_crtcs(srr);
 		for (c = 0; c < ncrtc; c++) {
-			crtc = xcb_randr_get_screen_resources_current_crtcs(srr);
 			cic = xcb_randr_get_crtc_info(conn, crtc[c],
 			    XCB_CURRENT_TIME);
 			cir = xcb_randr_get_crtc_info_reply(conn, cic, NULL);
