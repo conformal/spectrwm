@@ -828,9 +828,8 @@ teardown_ewmh(void)
 			xcb_destroy_window(conn, id);
 			xcb_delete_property(conn, screens[i].root, sup_check);
 			xcb_delete_property(conn, screens[i].root, sup_list);
-
-			free(pr);
 		}
+		free(pr);
 	}
 }
 
