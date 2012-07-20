@@ -1992,7 +1992,7 @@ getstate(xcb_window_t w)
 	xcb_get_property_cookie_t	c;
 	xcb_get_property_reply_t	*r;
 
-	c = xcb_get_property(conn, 0, w, a_state, XCB_ATOM_ATOM, 0L, 2L);
+	c = xcb_get_property(conn, 0, w, a_state, a_state, 0L, 2L);
 	r = xcb_get_property_reply(conn, c, NULL);
 
 	if (r) {
