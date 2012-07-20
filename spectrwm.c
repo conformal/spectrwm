@@ -4561,6 +4561,7 @@ move(struct ws_win *win, union arg *args)
 		xcb_close_font(conn, cursor_font);
 		return;
 	}
+	free(gpr);
 
 	/* get cursor offset from window root */
 	qpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn, win->id),
