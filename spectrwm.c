@@ -3730,12 +3730,10 @@ get_win_name(xcb_window_t win)
 	if (xcb_icccm_get_wm_name_reply(conn, c, &r, NULL)) {
 		if (r.name_len > 0) {
 			name = malloc(r.name_len + 1);
-			if (!name) {
-				xcb_icccm_get_text_property_reply_wipe(&r);
-				return (NULL);
+			if (name) {
+				memcpy(name, r.name, r.name_len);
+				name[r.name_len] = '\0';
 			}
-			memcpy(name, r.name, r.name_len);
-			name[r.name_len] = '\0';
 		}
 		xcb_icccm_get_text_property_reply_wipe(&r);
 	}
