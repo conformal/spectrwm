@@ -8,6 +8,7 @@
  * Copyright (c) 2011-2012 Reginald Kennedy <rk@rejii.com>
  * Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
  * Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
+ * Copyright (c) 2012 David Hill <dhill@mindcry.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
