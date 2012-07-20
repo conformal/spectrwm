@@ -6441,8 +6441,8 @@ get_ws_idx(xcb_window_t id)
 				prop[proplen] = '\0';
 			}
 		}
-		free(gpr);
 	}
+	free(gpr);
 
 	if (prop) {
 		DNPRINTF(SWM_D_PROP, "get_ws_idx: _SWM_WS: %s\n", prop);
@@ -6470,6 +6470,7 @@ manage_window(xcb_window_t id)
 	struct quirk		*qp;
 	uint32_t		event_mask, i;
 	xcb_icccm_get_wm_protocols_reply_t	wpr;
+	xcb_icccm_get_wm_class_reply_t		tmpch;
 
 	if ((win = find_window(id)) != NULL)
 		return (win);	/* already being managed */
@@ -6635,7 +6636,12 @@ manage_window(xcb_window_t id)
 
 	if (xcb_icccm_get_wm_class_reply(conn,
 	    xcb_icccm_get_wm_class(conn, win->id),
-	    &win->ch, NULL)) {
+	    &tmpch, NULL)) {
+		win->ch.class_name = tmpch.class_name;
+		win->ch.instance_name = tmpch.instance_name;
+
+		xcb_get_wm_class_reply_wipe(&tmpch);
+
 		DNPRINTF(SWM_D_CLASS, "manage_window: class: %s, name: %s\n",
 		    win->ch.class_name, win->ch.instance_name);
 
@@ -6714,9 +6720,7 @@ free_window(struct ws_win *win)
 
 	if (win->wa)
 		free(win->wa);
-
-	xcb_icccm_get_wm_class_reply_wipe(&win->ch);
-
+	
 	kill_refs(win);
 
 	/* paint memory */
