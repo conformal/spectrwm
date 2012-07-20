@@ -6624,7 +6624,7 @@ manage_window(xcb_window_t id)
 		win->ch.class_name = tmpch.class_name;
 		win->ch.instance_name = tmpch.instance_name;
 
-		xcb_get_wm_class_reply_wipe(&tmpch);
+		xcb_icccm_get_wm_class_reply_wipe(&tmpch);
 
 		DNPRINTF(SWM_D_CLASS, "manage_window: class: %s, name: %s\n",
 		    win->ch.class_name, win->ch.instance_name);
