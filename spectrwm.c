@@ -4284,7 +4284,6 @@ resize(struct ws_win *win, union arg *args)
 	unsigned int		shape; /* cursor style */
 	xcb_cursor_t		cursor;
 	xcb_font_t		cursor_font;
-	xcb_grab_pointer_cookie_t	gpc;
 	xcb_query_pointer_reply_t	*xpr;
 	xcb_generic_event_t		*evt;
 	xcb_motion_notify_event_t	*mne;
@@ -4368,7 +4367,7 @@ resize(struct ws_win *win, union arg *args)
 	xcb_create_glyph_cursor(conn, cursor, cursor_font, cursor_font,
 	    shape, shape + 1, 0, 0, 0, 0xffff, 0xffff, 0xffff);
 
-	gpc = xcb_grab_pointer(conn, 0, win->id, MOUSEMASK,
+	xcb_grab_pointer(conn, 0, win->id, MOUSEMASK,
 	    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, XCB_WINDOW_NONE, cursor,
 	    XCB_CURRENT_TIME),
 
@@ -4477,7 +4476,6 @@ move(struct ws_win *win, union arg *args)
 	struct swm_region	*r = NULL;
 	xcb_font_t			cursor_font;
 	xcb_cursor_t			cursor;
-	xcb_grab_pointer_cookie_t	gpc;
 	xcb_query_pointer_reply_t	*qpr;
 	xcb_generic_event_t		*evt;
 	xcb_motion_notify_event_t	*mne;
@@ -4542,7 +4540,7 @@ move(struct ws_win *win, union arg *args)
 	xcb_create_glyph_cursor(conn, cursor, cursor_font, cursor_font,
 		XC_fleur, XC_fleur + 1, 0, 0, 0, 0xffff, 0xffff, 0xffff);
 
-	gpc = xcb_grab_pointer(conn, 0, win->id, MOUSEMASK,
+	xcb_grab_pointer(conn, 0, win->id, MOUSEMASK,
 	    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC,
 	    XCB_WINDOW_NONE, cursor, XCB_CURRENT_TIME);
 
@@ -5512,7 +5510,7 @@ updatenumlockmask(void)
 				    + j];
 				keycode = xcb_key_symbols_get_keycode(syms,
 						XK_Num_Lock);
-				if (kc == *keycode)  
+				if (kc == *keycode)
 					numlockmask = (1 << i);
 				free(keycode);
 			}
@@ -6704,7 +6702,7 @@ free_window(struct ws_win *win)
 
 	if (win->wa)
 		free(win->wa);
-	
+
 	kill_refs(win);
 
 	/* paint memory */
