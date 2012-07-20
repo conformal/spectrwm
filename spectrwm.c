@@ -647,7 +647,6 @@ struct ewmh_hint {
 };
 
 /* function prototypes */
-xcb_char2b_t *char2b(const char *);
 int	 conf_load(char *, int);
 void	 constrain_window(struct ws_win *, struct swm_region *, int);
 void	 do_sync(void);
@@ -671,26 +670,6 @@ void	 update_window(struct ws_win *);
 #ifdef SWM_DEBUG
 char	*get_atom_name(xcb_atom_t);
 #endif
-
-/* function definitions */
-xcb_char2b_t *
-char2b(const char *str)
-{
-	xcb_char2b_t	*s;
-	size_t		i, len;
-
-	len = strlen(str);
-	s = malloc(len * sizeof(xcb_char2b_t));
-	if (!s)
-		return (NULL);
-
-	for (i = 0; i < len; i++) {
-		s[i].byte1 = '\0';
-		s[i].byte2 = str[i];
-	}
-
-	return (s);
-}
 
 int
 parse_rgb(const char *rgb, uint16_t *rr, uint16_t *gg, uint16_t *bb)
