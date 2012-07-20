@@ -2201,6 +2201,8 @@ fake_keypress(struct ws_win *win, xcb_keysym_t keysym, uint16_t modifiers)
 	event.response_type = XCB_KEY_RELEASE;
 	xcb_send_event(conn, 1, win->id,
 	    XCB_EVENT_MASK_KEY_RELEASE, (const char *)&event);
+
+	free(keycode);
 }
 
 void
@@ -5510,7 +5512,7 @@ updatenumlockmask(void)
 {
 	unsigned int				i, j;
 	xcb_get_modifier_mapping_reply_t	*modmap_r;
-	xcb_keycode_t				*modmap, kc;
+	xcb_keycode_t				*modmap, kc, *keycode;
 
 	DNPRINTF(SWM_D_MISC, "updatenumlockmask\n");
 	numlockmask = 0;
@@ -5524,10 +5526,11 @@ updatenumlockmask(void)
 			for (j = 0; j < modmap_r->keycodes_per_modifier; j++) {
 				kc = modmap[i * modmap_r->keycodes_per_modifier
 				    + j];
-
-				if (kc == *((xcb_keycode_t *)xcb_key_symbols_get_keycode(syms,
-				    XK_Num_Lock)))
+				keycode = xcb_key_symbols_get_keycode(syms,
+						XK_Num_Lock);
+				if (kc == *keycode)  
 					numlockmask = (1 << i);
+				free(keycode);
 			}
 		}
 		free(modmap_r);
@@ -5562,6 +5565,7 @@ grabkeys(void)
 					    kp->mod | modifiers[j],
 					    *code, XCB_GRAB_MODE_ASYNC,
 					    XCB_GRAB_MODE_ASYNC);
+				free(code);
 		}
 	}
 }
