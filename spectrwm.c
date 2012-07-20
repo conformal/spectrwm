@@ -7116,7 +7116,7 @@ maprequest(xcb_map_request_event_t *e)
 char *
 get_atom_name(xcb_atom_t atom)
 {
-	char				*name;
+	char				*name = NULL;
 	size_t				len;
 	xcb_get_atom_name_reply_t	*r;
 
@@ -7130,14 +7130,12 @@ get_atom_name(xcb_atom_t atom)
 			if (name) {
 				memcpy(name, xcb_get_atom_name_name(r), len);
 				name[len] = '\0';
-
-				return name;
 			}
 		}
 		free(r);
 	}
 
-	return NULL;
+	return (name);
 }
 #endif
 
