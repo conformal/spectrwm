@@ -4285,7 +4285,6 @@ resize(struct ws_win *win, union arg *args)
 	xcb_cursor_t		cursor;
 	xcb_font_t		cursor_font;
 	xcb_grab_pointer_cookie_t	gpc;
-	xcb_grab_pointer_reply_t	*gpr;
 	xcb_query_pointer_reply_t	*xpr;
 	xcb_generic_event_t		*evt;
 	xcb_motion_notify_event_t	*mne;
@@ -4372,13 +4371,6 @@ resize(struct ws_win *win, union arg *args)
 	gpc = xcb_grab_pointer(conn, 0, win->id, MOUSEMASK,
 	    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, XCB_WINDOW_NONE, cursor,
 	    XCB_CURRENT_TIME),
-	gpr = xcb_grab_pointer_reply(conn, gpc, NULL);
-	if (!gpr) {
-		xcb_free_cursor(conn, cursor);
-		xcb_close_font(conn, cursor_font);
-		free(xpr);
-		return;
-	}
 
 	xcb_flush(conn);
 	resizing = 1;
@@ -4458,7 +4450,6 @@ resize(struct ws_win *win, union arg *args)
 	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
 	xcb_free_cursor(conn, cursor);
 	xcb_close_font(conn, cursor_font);
-	free(gpr);
 	free(xpr);
 	DNPRINTF(SWM_D_EVENT, "resize: done\n");
 }
@@ -4487,7 +4478,6 @@ move(struct ws_win *win, union arg *args)
 	xcb_font_t			cursor_font;
 	xcb_cursor_t			cursor;
 	xcb_grab_pointer_cookie_t	gpc;
-	xcb_grab_pointer_reply_t	*gpr;
 	xcb_query_pointer_reply_t	*qpr;
 	xcb_generic_event_t		*evt;
 	xcb_motion_notify_event_t	*mne;
@@ -4555,13 +4545,6 @@ move(struct ws_win *win, union arg *args)
 	gpc = xcb_grab_pointer(conn, 0, win->id, MOUSEMASK,
 	    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC,
 	    XCB_WINDOW_NONE, cursor, XCB_CURRENT_TIME);
-	gpr = xcb_grab_pointer_reply(conn, gpc, NULL);
-	if (!gpr) {
-		xcb_free_cursor(conn, cursor);
-		xcb_close_font(conn, cursor_font);
-		return;
-	}
-	free(gpr);
 
 	/* get cursor offset from window root */
 	qpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn, win->id),
