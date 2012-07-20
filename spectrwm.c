@@ -6464,6 +6464,7 @@ get_ws_idx(xcb_window_t id)
 			DNPRINTF(SWM_D_PROP, "get_ws_idx: window: #%s: %s",
 			    errstr, prop);
 		}
+		free(prop);
 	}
 
 	return ws_idx;
