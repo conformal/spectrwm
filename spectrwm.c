@@ -1848,7 +1848,7 @@ bar_refresh(void)
 void
 bar_setup(struct swm_region *r)
 {
-	char			*font, *fontpos;
+	char			*font, *fontpos, *dup, *search;
 	int			count;
 	xcb_screen_t		*screen = get_screen(r->s->idx);
 	uint32_t		wa[3];
@@ -1861,7 +1861,10 @@ bar_setup(struct swm_region *r)
 		err(1, "bar_setup: calloc: failed to allocate memory.");
 
 	if (bar_font == NULL) {
-		while ((font = strsep(&bar_fonts, ",")) != NULL) {
+		if ((dup = strdup(bar_fonts)) == NULL)
+			errx(1, "insufficient memory.");
+		search = dup;
+		while ((font = strsep(&search, ",")) != NULL) {
 			if (*font == '\0')
 				continue;
 
@@ -1889,6 +1892,7 @@ bar_setup(struct swm_region *r)
 				break;
 			}
 		}
+		free(dup);
 	}
 
 	if (bar_font == NULL)
