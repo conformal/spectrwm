@@ -648,29 +648,53 @@ struct ewmh_hint {
 };
 
 /* function prototypes */
+void	 buttonpress(xcb_button_press_event_t *);
+void	 clientmessage(xcb_client_message_event_t *);
 int	 conf_load(char *, int);
+void	 configurenotify(xcb_configure_notify_event_t *);
+void	 configurerequest(xcb_configure_request_event_t *);
 void	 constrain_window(struct ws_win *, struct swm_region *, int);
+void	 destroynotify(xcb_destroy_notify_event_t *);
 void	 do_sync(void);
+void	 enternotify(xcb_enter_notify_event_t *);
+void	 event_error(xcb_generic_error_t *);
 void	 event_handle(xcb_generic_event_t *);
+void	 expose(xcb_expose_event_t *);
 struct ws_win	*find_window(xcb_window_t);
 int	 floating_toggle_win(struct ws_win *);
 void	 focus(struct swm_region *, union arg *);
 void	 focus_magic(struct ws_win *);
+#ifdef SWM_DEBUG
+void	 focusin(xcb_focus_in_event_t *);
+#endif
 xcb_atom_t get_atom_from_string(const char *);
+#ifdef SWM_DEBUG
+char	*get_atom_name(xcb_atom_t);
+char	*get_notify_detail_label(uint8_t);
+char	*get_notify_mode_label(uint8_t);
+#endif
 xcb_screen_t	*get_screen(int);
 char	*get_win_name(xcb_window_t);
 uint32_t getstate(xcb_window_t);
 void	 grabbuttons(struct ws_win *, int);
+void	 keypress(xcb_key_press_event_t *);
+#ifdef SWM_DEBUG
+void	 leavenotify(xcb_leave_notify_event_t *);
+#endif
 void	 map_window_raised(xcb_window_t);
+void	 mapnotify(xcb_map_notify_event_t *);
+void	 mappingnotify(xcb_mapping_notify_event_t *);
+void	 maprequest(xcb_map_request_event_t *);
 void	 new_region(struct swm_screen *, int, int, int, int);
 int	 parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
+void	 propertynotify(xcb_property_notify_event_t *);
 void	 spawn_select(struct swm_region *, union arg *, char *, int *);
+void	 screenchange(xcb_randr_screen_change_notify_event_t *);
 void	 store_float_geom(struct ws_win *, struct swm_region *);
 void	 unmanage_window(struct ws_win *);
+void	 unmapnotify(xcb_unmap_notify_event_t *);
 void	 update_window(struct ws_win *);
-#ifdef SWM_DEBUG
-char	*get_atom_name(xcb_atom_t);
-#endif
+/*void	 visibilitynotify(xcb_visibility_notify_event_t *);*/
 
 int
 parse_rgb(const char *rgb, uint16_t *rr, uint16_t *gg, uint16_t *bb)
@@ -1099,23 +1123,6 @@ dumpwins(struct swm_region *r, union arg *args)
 {
 }
 #endif /* SWM_DEBUG */
-
-void			event_error(xcb_generic_error_t *);
-void			expose(xcb_expose_event_t *);
-void			keypress(xcb_key_press_event_t *);
-void			buttonpress(xcb_button_press_event_t *);
-void			configurerequest(xcb_configure_request_event_t *);
-void			configurenotify(xcb_configure_notify_event_t *);
-void			destroynotify(xcb_destroy_notify_event_t *);
-void			enternotify(xcb_enter_notify_event_t *);
-void			mapnotify(xcb_map_notify_event_t *);
-void			mappingnotify(xcb_mapping_notify_event_t *);
-void			maprequest(xcb_map_request_event_t *);
-void			propertynotify(xcb_property_notify_event_t *);
-void			unmapnotify(xcb_unmap_notify_event_t *);
-/*void			visibilitynotify(xcb_visibility_notify_event_t *);*/
-void			clientmessage(xcb_client_message_event_t *);
-void			screenchange(xcb_randr_screen_change_notify_event_t *);
 
 void
 sighdlr(int sig)
@@ -6684,6 +6691,9 @@ manage_window(xcb_window_t id)
 
 	event_mask = XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE |
 	    XCB_EVENT_MASK_PROPERTY_CHANGE | XCB_EVENT_MASK_STRUCTURE_NOTIFY;
+#ifdef SWM_DEBUG
+	event_mask |= XCB_EVENT_MASK_LEAVE_WINDOW;
+#endif
 
 	xcb_change_window_attributes(conn, id, XCB_CW_EVENT_MASK, &event_mask);
 
@@ -6799,6 +6809,16 @@ expose(xcb_expose_event_t *e)
 
 	xcb_flush(conn);
 }
+
+#ifdef SWM_DEBUG
+void
+focusin(xcb_focus_in_event_t *e)
+{
+	DNPRINTF(SWM_D_EVENT, "focusin: window: 0x%x, mode: %s(%u), "
+	    "detail: %s(%u)\n", e->event, get_notify_mode_label(e->mode),
+	    e->mode, get_notify_detail_label(e->detail), e->detail);
+}
+#endif
 
 void
 keypress(xcb_key_press_event_t *e)
@@ -6990,13 +7010,78 @@ destroynotify(xcb_destroy_notify_event_t *e)
 	free_window(win);
 }
 
+#ifdef SWM_DEBUG
+char *
+get_notify_detail_label(uint8_t detail)
+{
+	char *label;
+
+	switch (detail) {
+	case XCB_NOTIFY_DETAIL_ANCESTOR:
+		label = "Ancestor";
+		break;
+	case XCB_NOTIFY_DETAIL_VIRTUAL:
+		label = "Virtual";
+		break;
+	case XCB_NOTIFY_DETAIL_INFERIOR:
+		label = "Inferior";
+		break;
+	case XCB_NOTIFY_DETAIL_NONLINEAR:
+		label = "Nonlinear";
+		break;
+	case XCB_NOTIFY_DETAIL_NONLINEAR_VIRTUAL:
+		label = "NonlinearVirtual";
+		break;
+	case XCB_NOTIFY_DETAIL_POINTER:
+		label = "Pointer";
+		break;
+	case XCB_NOTIFY_DETAIL_POINTER_ROOT:
+		label = "PointerRoot";
+		break;
+	case XCB_NOTIFY_DETAIL_NONE:
+		label = "None";
+		break;
+	default:
+		label = "Unknown";
+	}
+
+	return label;
+}
+
+char *
+get_notify_mode_label(uint8_t mode)
+{
+	char *label;
+
+	switch (mode) {
+	case XCB_NOTIFY_MODE_NORMAL:
+		label = "Normal";
+		break;
+	case XCB_NOTIFY_MODE_GRAB:
+		label = "Grab";
+		break;
+	case XCB_NOTIFY_MODE_UNGRAB:
+		label = "Ungrab";
+		break;
+	case XCB_NOTIFY_MODE_WHILE_GRABBED:
+		label = "WhileGrabbed";
+		break;
+	default:
+		label = "Unknown";
+	}
+
+	return label;
+}
+#endif
+
 void
 enternotify(xcb_enter_notify_event_t *e)
 {
 	struct ws_win		*win;
-	DNPRINTF(SWM_D_FOCUS, "enternotify: window: 0x%x, mode: %d, detail: "
-	    "%d, root: 0x%x, subwindow: 0x%x, same_screen_focus: %s, "
-	    "state: %d\n", e->event, e->mode, e->detail, e->root,
+	DNPRINTF(SWM_D_FOCUS, "enternotify: window: 0x%x, mode: %s(%d), "
+	    "detail: %s(%d), root: 0x%x, subwindow: 0x%x, same_screen_focus: "
+	    "%s, state: %d\n", e->event, get_notify_mode_label(e->mode),
+	    e->mode, get_notify_detail_label(e->detail), e->detail, e->root,
 	    e->child, YESNO(e->same_screen_focus), e->state);
 
 	if (e->mode != XCB_NOTIFY_MODE_NORMAL) {
@@ -7023,6 +7108,19 @@ enternotify(xcb_enter_notify_event_t *e)
 
 	xcb_flush(conn);
 }
+
+#ifdef SWM_DEBUG
+void
+leavenotify(xcb_leave_notify_event_t *e)
+{
+	struct ws_win		*win;
+	DNPRINTF(SWM_D_FOCUS, "leavenotify: window: 0x%x, mode: %s(%d), "
+	    "detail: %s(%d), root: 0x%x, subwindow: 0x%x, same_screen_focus: "
+	    "%s, state: %d\n", e->event, get_notify_mode_label(e->mode),
+	    e->mode, get_notify_detail_label(e->detail), e->detail, e->root,
+	    e->child, YESNO(e->same_screen_focus), e->state);
+}
+#endif
 
 /* lets us use one switch statement for arbitrary mode/detail combinations */
 #define MERGE_MEMBERS(a,b)	(((a & 0xffff) << 16) | (b & 0xffff))
@@ -7712,14 +7810,18 @@ event_handle(xcb_generic_event_t *evt)
 	EVENT(XCB_DESTROY_NOTIFY, destroynotify);
 	EVENT(XCB_ENTER_NOTIFY, enternotify);
 	EVENT(XCB_EXPOSE, expose);
-	/*EVENT(XCB_FOCUS_IN, );*/
+#ifdef SWM_DEBUG
+	EVENT(XCB_FOCUS_IN, focusin);
+#endif
 	/*EVENT(XCB_FOCUS_OUT, );*/
 	/*EVENT(XCB_GRAPHICS_EXPOSURE, );*/
 	/*EVENT(XCB_GRAVITY_NOTIFY, );*/
 	EVENT(XCB_KEY_PRESS, keypress);
 	/*EVENT(XCB_KEY_RELEASE, keypress);*/
 	/*EVENT(XCB_KEYMAP_NOTIFY, );*/
-	/*EVENT(XCB_LEAVE_NOTIFY, );*/
+#ifdef SWM_DEBUG
+	EVENT(XCB_LEAVE_NOTIFY, leavenotify);
+#endif
 	EVENT(XCB_MAP_NOTIFY, mapnotify);
 	EVENT(XCB_MAP_REQUEST, maprequest);
 	EVENT(XCB_MAPPING_NOTIFY, mappingnotify);
