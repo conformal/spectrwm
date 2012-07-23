@@ -329,8 +329,6 @@ double			dialog_ratio = 0.6;
 				"-misc-fixed-medium-r-*-*-*-*-*-*-*-*-*-*,"  \
 				"-*-*-*-r-*--*-*-*-*-*-*-*-*"
 
-#define PSC			'/'	/* path separator char */
-
 char			*bar_argv[] = { NULL, NULL };
 int			bar_pipe[2];
 unsigned char		bar_ext[SWM_BAR_MAX];
@@ -717,7 +715,7 @@ expand_tilde(char *s)
 	}
 
 	++s;
-	for (i = 0; s[i] != PSC && s[i] != '\0'; ++i)
+	for (i = 0; s[i] != '/' && s[i] != '\0'; ++i)
 		user[i] = s[i];
 	user[i] = '\0';
 	s = &s[i];
