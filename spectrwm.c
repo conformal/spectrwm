@@ -329,6 +329,8 @@ double			dialog_ratio = 0.6;
 				"-misc-fixed-medium-r-*-*-*-*-*-*-*-*-*-*,"  \
 				"-*-*-*-r-*--*-*-*-*-*-*-*-*"
 
+#define PSC			'/'	/* path separator char */
+
 char			*bar_argv[] = { NULL, NULL };
 int			bar_pipe[2];
 unsigned char		bar_ext[SWM_BAR_MAX];
@@ -659,6 +661,7 @@ void	 do_sync(void);
 void	 enternotify(xcb_enter_notify_event_t *);
 void	 event_error(xcb_generic_error_t *);
 void	 event_handle(xcb_generic_event_t *);
+char	*expand_tilde(char *);
 void	 expose(xcb_expose_event_t *);
 struct ws_win	*find_window(xcb_window_t);
 int	 floating_toggle_win(struct ws_win *);
@@ -695,6 +698,42 @@ void	 unmanage_window(struct ws_win *);
 void	 unmapnotify(xcb_unmap_notify_event_t *);
 void	 update_window(struct ws_win *);
 /*void	 visibilitynotify(xcb_visibility_notify_event_t *);*/
+
+char *
+expand_tilde(char *s)
+{
+	struct passwd           *pwd;
+	int                     i;
+	char                    user[LOGIN_NAME_MAX];
+	const char              *sc = s;
+	char			*result;
+
+	if (s == NULL)
+		errx(1, "expand_tilde: NULL string.");
+
+	if (s[0] != '~') {
+		result = strdup(sc);
+		goto out;
+	}
+
+	++s;
+	for (i = 0; s[i] != PSC && s[i] != '\0'; ++i)
+		user[i] = s[i];
+	user[i] = '\0';
+	s = &s[i];
+
+	pwd = strlen(user) == 0 ? getpwuid(getuid()) : getpwnam(user);
+	if (pwd == NULL)
+		result = strdup(sc);
+	else
+		if (asprintf(&result, "%s%s", pwd->pw_dir, s) == -1)
+			result = NULL;
+out:
+	if (result == NULL)
+		errx(1, "expand_tilde: failed to allocate memory.");
+
+	return result;
+}
 
 int
 parse_rgb(const char *rgb, uint16_t *rr, uint16_t *gg, uint16_t *bb)
@@ -5122,12 +5161,17 @@ setspawn(char *name, char *args)
 int
 setconfspawn(char *selector, char *value, int flags)
 {
+	char *args;
+
 	/* suppress unused warning since var is needed */
 	(void)flags;
 
-	DNPRINTF(SWM_D_SPAWN, "setconfspawn: [%s] [%s]\n", selector, value);
+	args = expand_tilde(value);
 
-	setspawn(selector, value);
+	DNPRINTF(SWM_D_SPAWN, "setconfspawn: [%s] [%s]\n", selector, args);
+
+	setspawn(selector, args);
+	free(args);
 
 	DNPRINTF(SWM_D_SPAWN, "setconfspawn: done\n");
 	return (0);
@@ -5803,7 +5847,7 @@ setconfvalue(char *selector, char *value, int flags)
 	switch (flags) {
 	case SWM_S_BAR_ACTION:
 		free(bar_argv[0]);
-		if ((bar_argv[0] = strdup(value)) == NULL)
+		if ((bar_argv[0] = expand_tilde(value)) == NULL)
 			err(1, "setconfvalue: bar_action");
 		break;
 	case SWM_S_BAR_AT_BOTTOM:
