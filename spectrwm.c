@@ -6505,7 +6505,6 @@ manage_window(xcb_window_t id)
 	struct quirk		*qp;
 	uint32_t		event_mask, i;
 	xcb_icccm_get_wm_protocols_reply_t	wpr;
-	xcb_icccm_get_wm_class_reply_t		tmpch;
 
 	if ((win = find_window(id)) != NULL)
 		return (win);	/* already being managed */
@@ -6671,12 +6670,7 @@ manage_window(xcb_window_t id)
 
 	if (xcb_icccm_get_wm_class_reply(conn,
 	    xcb_icccm_get_wm_class(conn, win->id),
-	    &tmpch, NULL)) {
-		win->ch.class_name = tmpch.class_name;
-		win->ch.instance_name = tmpch.instance_name;
-
-		xcb_icccm_get_wm_class_reply_wipe(&tmpch);
-
+	    &win->ch, NULL)) {
 		DNPRINTF(SWM_D_CLASS, "manage_window: class: %s, name: %s\n",
 		    win->ch.class_name, win->ch.instance_name);
 
@@ -6758,6 +6752,8 @@ free_window(struct ws_win *win)
 
 	if (win->wa)
 		free(win->wa);
+
+	xcb_icccm_get_wm_class_reply_wipe(&win->ch);
 
 	kill_refs(win);
 
@@ -7155,7 +7151,6 @@ enternotify(xcb_enter_notify_event_t *e)
 void
 leavenotify(xcb_leave_notify_event_t *e)
 {
-	struct ws_win		*win;
 	DNPRINTF(SWM_D_FOCUS, "leavenotify: window: 0x%x, mode: %s(%d), "
 	    "detail: %s(%d), root: 0x%x, subwindow: 0x%x, same_screen_focus: "
 	    "%s, state: %d\n", e->event, get_notify_mode_label(e->mode),
