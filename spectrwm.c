@@ -701,8 +701,8 @@ char *
 expand_tilde(char *s)
 {
 	struct passwd           *pwd;
-	int                     i;
-	char                    user[LOGIN_NAME_MAX];
+	int                     i, max;
+	char                    *user;
 	const char              *sc = s;
 	char			*result;
 
@@ -715,6 +715,13 @@ expand_tilde(char *s)
 	}
 
 	++s;
+
+	if ((max = sysconf(_SC_LOGIN_NAME_MAX)) == -1)
+		errx(1, "expand_tilde: sysconf");
+
+	if ((user = calloc(1, max + 1)) == NULL)
+		errx(1, "expand_tilde: calloc");
+
 	for (i = 0; s[i] != '/' && s[i] != '\0'; ++i)
 		user[i] = s[i];
 	user[i] = '\0';
