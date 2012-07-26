@@ -758,12 +758,12 @@ parse_rgb(const char *rgb, uint16_t *rr, uint16_t *gg, uint16_t *bb)
 xcb_screen_t *
 get_screen(int screen)
 {
-	xcb_screen_iterator_t i;
+	xcb_screen_iterator_t	iter;
 
-	i = xcb_setup_roots_iterator(xcb_get_setup(conn));
-	for (; i.rem; --screen, xcb_screen_next(&i))
+	iter = xcb_setup_roots_iterator(xcb_get_setup(conn));
+	for (; iter.rem; --screen, xcb_screen_next(&iter))
 		if (screen == 0)
-			return (i.data);
+			return (iter.data);
 
 	return (NULL);
 }
@@ -1347,7 +1347,9 @@ custom_region(char *val)
 		    sidx, num_screens);
 	sidx--;
 
-	screen = get_screen(sidx);
+	if ((screen = get_screen(sidx)) == NULL)
+		errx(1, "ERROR: can't get screen %d.", sidx);
+
 	if (w < 1 || h < 1)
 		errx(1, "region %ux%u+%u+%u too small", w, h, x, y);
 
@@ -1901,9 +1903,12 @@ bar_setup(struct swm_region *r)
 {
 	char			*font, *fontpos, *dup, *search;
 	int			count;
-	xcb_screen_t		*screen = get_screen(r->s->idx);
+	xcb_screen_t		*screen;
 	uint32_t		wa[3];
 	XRenderColor		color;
+
+	if ((screen = get_screen(r->s->idx)) == NULL)
+		errx(1, "ERROR: can't get screen %d.", r->s->idx);
 
 	if (r->bar != NULL)
 		return;
@@ -7406,7 +7411,8 @@ enable_wm(void)
 	/* this causes an error if some other window manager is running */
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	for (i = 0; i < num_screens; i++) {
-		sc = get_screen(i);
+		if ((sc = get_screen(i)) == NULL)
+			errx(1, "ERROR: can't get screen %d.", i);
 		DNPRINTF(SWM_D_INIT, "enable_wm: screen %d, root: 0x%x\n",
 		    i, sc->root);
 		wac = xcb_change_window_attributes_checked(conn, sc->root,
@@ -7511,7 +7517,10 @@ scan_xrandr(int i)
 	xcb_randr_get_crtc_info_cookie_t		cic;
 	xcb_randr_get_crtc_info_reply_t			*cir = NULL;
 	xcb_randr_crtc_t				*crtc;
-	xcb_screen_t					*screen = get_screen(i);
+	xcb_screen_t					*screen;
+
+	if ((screen = get_screen(i)) == NULL)
+		errx(1, "ERROR: can't get screen %d.", i);
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	if (i >= num_screens)
@@ -7679,6 +7688,7 @@ setup_screens(void)
 	struct workspace	*ws;
 	uint32_t		gcv[1], wa[1];
 	const xcb_query_extension_reply_t *qep;
+	xcb_screen_t				*screen;
 	xcb_cursor_t				cursor;
 	xcb_font_t				cursor_font;
 	xcb_randr_query_version_cookie_t	c;
@@ -7719,7 +7729,9 @@ setup_screens(void)
 		screens[i].idx = i;
 		TAILQ_INIT(&screens[i].rl);
 		TAILQ_INIT(&screens[i].orl);
-		screens[i].root = get_screen(i)->root;
+		if ((screen = get_screen(i)) == NULL)
+			errx(1, "ERROR: can't get screen %d.", i);
+		screens[i].root = screen->root;
 
 		/* set default colors */
 		setscreencolor("red", i + 1, SWM_S_COLOR_FOCUS);
