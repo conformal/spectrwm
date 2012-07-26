@@ -649,6 +649,7 @@ struct ewmh_hint {
 
 /* function prototypes */
 void	 buttonpress(xcb_button_press_event_t *);
+void	 check_conn(void);
 void	 clientmessage(xcb_client_message_event_t *);
 int	 conf_load(char *, int);
 void	 configurenotify(xcb_configure_notify_event_t *);
@@ -761,7 +762,11 @@ get_screen(int screen)
 	const xcb_setup_t	*r;
 	xcb_screen_iterator_t	iter;
 
-	r = xcb_get_setup(conn);
+	if ((r = xcb_get_setup(conn)) == NULL) {
+		DNPRINTF(SWM_D_MISC, "get_screen: xcb_get_setup\n");
+		check_conn();
+	}
+
 	iter = xcb_setup_roots_iterator(r);
 	for (; iter.rem; --screen, xcb_screen_next(&iter))
 		if (screen == 0)
@@ -7399,6 +7404,36 @@ clientmessage(xcb_client_message_event_t *e)
 	}
 
 	xcb_flush(conn);
+}
+
+void
+check_conn(void)
+{
+	int	 err = xcb_connection_has_error(conn);
+	char	*s;
+
+	switch (err) {
+	case XCB_CONN_ERROR:
+		s = "Socket error, pipe error or other stream error.";
+		break;
+	case XCB_CONN_CLOSED_EXT_NOTSUPPORTED:
+		s = "Extension not supported.";
+		break;
+	case XCB_CONN_CLOSED_MEM_INSUFFICIENT:
+		s = "Insufficient memory.";
+		break;
+	case XCB_CONN_CLOSED_REQ_LEN_EXCEED:
+		s = "Request length was exceeded.";
+		break;
+	case XCB_CONN_CLOSED_PARSE_ERR:
+		s = "Error parsing display string.";
+		break;
+	default:
+		s = "Unknown error.";
+	}
+
+	if (err)
+		errx(err, "X CONNECTION ERROR: %s", s);
 }
 
 int
