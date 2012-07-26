@@ -758,9 +758,11 @@ parse_rgb(const char *rgb, uint16_t *rr, uint16_t *gg, uint16_t *bb)
 xcb_screen_t *
 get_screen(int screen)
 {
+	const xcb_setup_t	*r;
 	xcb_screen_iterator_t	iter;
 
-	iter = xcb_setup_roots_iterator(xcb_get_setup(conn));
+	r = xcb_get_setup(conn);
+	iter = xcb_setup_roots_iterator(r);
 	for (; iter.rem; --screen, xcb_screen_next(&iter))
 		if (screen == 0)
 			return (iter.data);
