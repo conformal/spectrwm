@@ -151,7 +151,7 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #define xcb_icccm_wm_hints_t			xcb_wm_hints_t
 #endif
 
-/* #define SWM_DEBUG */
+/*#define SWM_DEBUG*/
 #ifdef SWM_DEBUG
 #define DPRINTF(x...) do {							\
 	if (swm_debug)								\
@@ -329,43 +329,52 @@ double			dialog_ratio = 0.6;
 				"-misc-fixed-medium-r-*-*-*-*-*-*-*-*-*-*,"  \
 				"-*-*-*-r-*--*-*-*-*-*-*-*-*"
 
-char			*bar_argv[] = { NULL, NULL };
-int			bar_pipe[2];
-unsigned char		bar_ext[SWM_BAR_MAX];
-char			bar_vertext[SWM_BAR_MAX];
-int			bar_version = 0;
-sig_atomic_t		bar_alarm = 0;
-int			bar_delay = 30;
-int			bar_enabled = 1;
-int			bar_border_width = 1;
-int			bar_at_bottom = 0;
-int			bar_extra = 1;
-int			bar_extra_running = 0;
-int			bar_verbose = 1;
-int			bar_height = 0;
-int			bar_justify = SWM_BAR_JUSTIFY_LEFT;
-char			*bar_format = NULL;
-int			stack_enabled = 1;
-int			clock_enabled = 1;
-int			urgent_enabled = 0;
-char			*clock_format = NULL;
-int			title_name_enabled = 0;
-int			title_class_enabled = 0;
-int			window_name_enabled = 0;
-int			focus_mode = SWM_FOCUS_DEFAULT;
-int			focus_close = SWM_STACK_BELOW;
-int			focus_close_wrap = 1;
-int			focus_default = SWM_STACK_TOP;
-int			spawn_position = SWM_STACK_TOP;
-int			disable_border = 0;
-int			border_width = 1;
-int			verbose_layout = 0;
-time_t			time_started;
-pid_t			bar_pid;
-XftFont			*bar_font;
-char			*bar_fonts;
-XftColor		bar_font_color;
-struct passwd		*pwd;
+#ifdef X_HAVE_UTF8_STRING
+#define DRAWSTRING(x...)	Xutf8DrawString(x)
+#else
+#define DRAWSTRING(x...)	XmbDrawString(x)
+#endif
+
+char		*bar_argv[] = { NULL, NULL };
+int		 bar_pipe[2];
+unsigned char	 bar_ext[SWM_BAR_MAX];
+char		 bar_vertext[SWM_BAR_MAX];
+int		 bar_version = 0;
+sig_atomic_t	 bar_alarm = 0;
+int		 bar_delay = 30;
+int		 bar_enabled = 1;
+int		 bar_border_width = 1;
+int		 bar_at_bottom = 0;
+int		 bar_extra = 1;
+int		 bar_extra_running = 0;
+int		 bar_verbose = 1;
+int		 bar_height = 0;
+int		 bar_justify = SWM_BAR_JUSTIFY_LEFT;
+char		 *bar_format = NULL;
+int		 stack_enabled = 1;
+int		 clock_enabled = 1;
+int		 urgent_enabled = 0;
+char		*clock_format = NULL;
+int		 title_name_enabled = 0;
+int		 title_class_enabled = 0;
+int		 window_name_enabled = 0;
+int		 focus_mode = SWM_FOCUS_DEFAULT;
+int		 focus_close = SWM_STACK_BELOW;
+int		 focus_close_wrap = 1;
+int		 focus_default = SWM_STACK_TOP;
+int		 spawn_position = SWM_STACK_TOP;
+int		 disable_border = 0;
+int		 border_width = 1;
+int		 verbose_layout = 0;
+time_t		 time_started;
+pid_t		 bar_pid;
+XFontSet	 bar_fs;
+XFontSetExtents	*bar_fs_extents;
+XftFont		*bar_font;
+int		 bar_font_legacy = 0;
+char		*bar_fonts;
+XftColor	 bar_font_color;
+struct passwd	*pwd;
 
 /* layout manager data */
 struct swm_geometry {
@@ -522,6 +531,7 @@ struct swm_screen {
 	} c[SWM_S_COLOR_MAX];
 
 	xcb_gcontext_t		bar_gc;
+	GC			bar_gc_legacy;
 };
 struct swm_screen	*screens;
 
@@ -1388,6 +1398,60 @@ socket_setnonblock(int fd)
 }
 
 void
+bar_print_legacy(struct swm_region *r, const char *s)
+{
+	xcb_rectangle_t		rect;
+	uint32_t		gcv[1];
+	XGCValues		gcvd;
+	int			x = 0;
+	size_t			len;
+	XRectangle		ibox, lbox;
+	GC			draw;
+
+	len = strlen(s);
+	XmbTextExtents(bar_fs, s, len, &ibox, &lbox);
+
+	switch (bar_justify) {
+	case SWM_BAR_JUSTIFY_LEFT:
+		x = SWM_BAR_OFFSET;
+		break;
+	case SWM_BAR_JUSTIFY_CENTER:
+		x = (WIDTH(r) - lbox.width) / 2;
+		break;
+	case SWM_BAR_JUSTIFY_RIGHT:
+		x = WIDTH(r) - lbox.width - SWM_BAR_OFFSET;
+		break;
+	}
+
+	if (x < SWM_BAR_OFFSET)
+		x = SWM_BAR_OFFSET;
+
+	rect.x = 0;
+	rect.y = 0;
+	rect.width = WIDTH(r->bar);
+	rect.height = HEIGHT(r->bar);
+
+	/* clear back buffer */
+	gcv[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
+	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
+	xcb_poly_fill_rectangle(conn, r->bar->buffer, r->s->bar_gc,
+	    sizeof(rect), &rect);
+
+	/* draw back buffer */
+	gcvd.graphics_exposures = 0;
+	draw = XCreateGC(display, r->bar->buffer, GCGraphicsExposures, &gcvd);
+	XSetForeground(display, draw, r->s->c[SWM_S_COLOR_BAR_FONT].pixel);
+	DRAWSTRING(display, r->bar->buffer, bar_fs, draw,
+	    x, (bar_fs_extents->max_logical_extent.height - lbox.height) / 2 -
+	    lbox.y, s, len);
+	XFreeGC(display, draw);
+
+	/* blt */
+	xcb_copy_area(conn, r->bar->buffer, r->bar->id, r->s->bar_gc, 0, 0,
+	    0, 0, WIDTH(r->bar), HEIGHT(r->bar));
+}
+
+void
 bar_print(struct swm_region *r, const char *s)
 {
 	size_t				len;
@@ -1428,11 +1492,12 @@ bar_print(struct swm_region *r, const char *s)
 	    sizeof(rect), &rect);
 
 	/* draw back buffer */
+#if 0
 	gcv[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_BACKGROUND, gcv);
 	gcv[0] = r->s->c[SWM_S_COLOR_BAR_FONT].pixel;
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
-
+#endif
 	draw = XftDrawCreate(display, r->bar->buffer,
 	    DefaultVisual(display, r->s->idx),
 	    DefaultColormap(display, r->s->idx));
@@ -1784,7 +1849,10 @@ bar_fmt_print(void)
 				continue;
 			bar_fmt(fmtexp, fmtnew, r, sizeof fmtnew);
 			bar_replace(fmtnew, fmtrep, r, sizeof fmtrep);
-			bar_print(r, fmtrep);
+			if (bar_font_legacy)
+				bar_print_legacy(r, fmtrep);
+			else
+				bar_print(r, fmtrep);
 		}
 	}
 }
@@ -1907,23 +1975,69 @@ bar_refresh(void)
 	bar_update();
 }
 
-void
-bar_setup(struct swm_region *r)
+int
+isxlfd(char *s)
 {
-	char			*font, *fontpos, *d, *search;
-	int			count;
-	xcb_screen_t		*screen;
-	uint32_t		wa[3];
+	int	 count = 0;
+
+	while ((s = index(s, '-'))) {
+		++count;
+		++s;
+	}
+
+	return (count == 14);
+}
+
+void
+fontset_init()
+{
+	char			*default_string;
+	char			**missing_charsets;
+	int			num_missing_charsets = 0;
+	int			i;
+
+	if (bar_fs) {
+		XFreeFontSet(display, bar_fs);
+		bar_fs = NULL;
+	}
+
+	DNPRINTF(SWM_D_INIT, "fontset_init: loading bar_fonts: %s\n", bar_fonts);
+
+	bar_fs = XCreateFontSet(display, bar_fonts, &missing_charsets,
+	    &num_missing_charsets, &default_string);
+
+	if (num_missing_charsets > 0) {
+		warnx("Unable to load charset(s):");
+
+		for (i = 0; i < num_missing_charsets; ++i)
+			warnx("%s", missing_charsets[i]);
+
+		XFreeStringList(missing_charsets);
+
+		if (strcmp(default_string, ""))
+			warnx("Glyphs from those sets will be replaced "
+			    "by '%s'.", default_string);
+		else
+			warnx("Glyphs from those sets won't be drawn.");
+	}
+
+	if (bar_fs == NULL)
+		errx(1, "Error creating font set structure.");
+
+	bar_fs_extents = XExtentsOfFontSet(bar_fs);
+
+	bar_height = bar_fs_extents->max_logical_extent.height +
+	    2 * bar_border_width;
+
+	if (bar_height < 1)
+		bar_height = 1;
+}
+
+void
+xft_init(struct swm_region *r)
+{
+	char			*font, *d, *search;
 	XRenderColor		color;
-
-	if ((screen = get_screen(r->s->idx)) == NULL)
-		errx(1, "ERROR: can't get screen %d.", r->s->idx);
-
-	if (r->bar != NULL)
-		return;
-
-	if ((r->bar = calloc(1, sizeof(struct swm_bar))) == NULL)
-		err(1, "bar_setup: calloc: failed to allocate memory.");
 
 	if (bar_font == NULL) {
 		if ((d = strdup(bar_fonts)) == NULL)
@@ -1933,21 +2047,16 @@ bar_setup(struct swm_region *r)
 			if (*font == '\0')
 				continue;
 
-			DNPRINTF(SWM_D_INIT, "bar_setup: try font %s\n", font);
+			DNPRINTF(SWM_D_INIT, "xft_init: try font %s\n", font);
 
-			count = 0;
-			fontpos = font;
-			while ((fontpos = index(fontpos, '-'))) {
-				count++;
-				fontpos++;
-			}
-
-			if (count == 14)
+			if (isxlfd(font)) {
 				bar_font = XftFontOpenXlfd(display, r->s->idx,
 						font);
-			else
+			} else {
 				bar_font = XftFontOpenName(display, r->s->idx,
 						font);
+			}
+
 			if (!bar_font) {
 				warnx("unable to load font %s", font);
 				continue;
@@ -1963,16 +2072,40 @@ bar_setup(struct swm_region *r)
 	if (bar_font == NULL)
 		errx(1, "unable to open a font");
 
-	bar_height = bar_font->height + 2 * bar_border_width;
-
-	if (bar_height < 1)
-		bar_height = 1;
-
 	PIXEL_TO_XRENDERCOLOR(r->s->c[SWM_S_COLOR_BAR_FONT].pixel, color);
 
 	if (!XftColorAllocValue(display, DefaultVisual(display, r->s->idx),
 	    DefaultColormap(display, r->s->idx), &color, &bar_font_color))
 		warn("unable to allocate Xft color");
+
+	bar_height = bar_font->height + 2 * bar_border_width;
+
+	if (bar_height < 1)
+		bar_height = 1;
+}
+
+void
+bar_setup(struct swm_region *r)
+{
+	xcb_screen_t	*screen;
+	uint32_t	 wa[3];
+
+	DNPRINTF(SWM_D_BAR, "bar_setup: screen %d.\n",
+	    r->s->idx);
+
+	if ((screen = get_screen(r->s->idx)) == NULL)
+		errx(1, "ERROR: can't get screen %d.", r->s->idx);
+
+	if (r->bar != NULL)
+		return;
+
+	if ((r->bar = calloc(1, sizeof(struct swm_bar))) == NULL)
+		err(1, "bar_setup: calloc: failed to allocate memory.");
+
+	if (bar_font_legacy)
+		fontset_init();
+	else
+		xft_init(r);
 
 	X(r->bar) = X(r);
 	Y(r->bar) = bar_at_bottom ? (Y(r) + HEIGHT(r) - bar_height) : Y(r);
@@ -2124,12 +2257,13 @@ config_win(struct ws_win *win, xcb_configure_request_event_t *ev)
 		ce.window = ev->window;
 
 		/* make response appear more WM_SIZE_HINTS-compliant */
-		if (win->sh.flags)
+		if (win->sh.flags) {
 			DNPRINTF(SWM_D_MISC, "config_win: hints: window: 0x%x,"
 			    " sh.flags: %u, min: %d x %d, max: %d x %d, inc: "
 			    "%d x %d\n", win->id, win->sh.flags, SH_MIN_W(win),
 			    SH_MIN_H(win), SH_MAX_W(win), SH_MAX_H(win),
 			    SH_INC_W(win), SH_INC_H(win));
+		}
 
 		/* min size */
 		if (SH_MIN(win)) {
@@ -2292,9 +2426,13 @@ restart(struct swm_region *r, union arg *args)
 	bar_extra = 1;
 	unmap_all();
 
-	XftFontClose(display, bar_font);
-	XftColorFree(display, DefaultVisual(display, r->s->idx),
-	    DefaultColormap(display, r->s->idx), &bar_font_color);
+	if (bar_font_legacy)
+		XFreeFontSet(display, bar_fs);
+	else {
+		XftFontClose(display, bar_font);
+		XftColorFree(display, DefaultVisual(display, r->s->idx),
+		    DefaultColormap(display, r->s->idx), &bar_font_color);
+	}
 	xcb_key_symbols_free(syms);
 	xcb_flush(conn);
 	xcb_disconnect(conn);
@@ -3929,7 +4067,6 @@ search_win_cleanup(void)
 
 	while ((sw = TAILQ_FIRST(&search_wl)) != NULL) {
 		xcb_destroy_window(conn, sw->indicator);
-		xcb_free_gc(conn, sw->gc);
 		TAILQ_REMOVE(&search_wl, sw, entry);
 		free(sw);
 	}
@@ -3941,13 +4078,16 @@ search_win(struct swm_region *r, union arg *args)
 	struct ws_win		*win = NULL;
 	struct search_window	*sw = NULL;
 	xcb_window_t		w;
-	uint32_t		gcv[3], wa[2];
-	int			i;
+	uint32_t		gcv, wa[2];
+	int			i, width, height;
 	char			s[8];
 	FILE			*lfile;
 	size_t			len;
 	XftDraw			*draw;
 	XGlyphInfo		info;
+	GC			l_draw;
+	XGCValues		l_gcv;
+	XRectangle		l_ibox, l_lbox;
 
 	DNPRINTF(SWM_D_MISC, "search_win\n");
 
@@ -3979,36 +4119,62 @@ search_win(struct swm_region *r, union arg *args)
 		snprintf(s, sizeof s, "%d", i);
 		len = strlen(s);
 
-		XftTextExtentsUtf8(display, bar_font, (FcChar8 *)s, len, &info);
-
 		w = xcb_generate_id(conn);
 		wa[0] = r->s->c[SWM_S_COLOR_FOCUS].pixel;
 		wa[1] = r->s->c[SWM_S_COLOR_UNFOCUS].pixel;
+
+		if (bar_font_legacy) {
+			XmbTextExtents(bar_fs, s, len, &l_ibox, &l_lbox);
+			width = l_lbox.width + 4;
+			height = bar_fs_extents->max_logical_extent.height + 4;
+		} else {
+			XftTextExtentsUtf8(display, bar_font, (FcChar8 *)s, len,
+			    &info);
+			width = info.width + 4;
+			height = bar_font->height + 4;
+		}
+
 		xcb_create_window(conn, XCB_COPY_FROM_PARENT, w, win->id, 0, 0,
-		    info.width + 4, bar_font->height + 4,
-		    1, XCB_WINDOW_CLASS_INPUT_OUTPUT, XCB_COPY_FROM_PARENT,
-		    XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);
+		    width, height, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+		    XCB_COPY_FROM_PARENT, XCB_CW_BACK_PIXEL |
+		    XCB_CW_BORDER_PIXEL, wa);
+
+		map_window_raised(w);
 
 		sw->indicator = w;
 		TAILQ_INSERT_TAIL(&search_wl, sw, entry);
 
-		sw->gc = xcb_generate_id(conn);
-		gcv[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
-		gcv[1] = r->s->c[SWM_S_COLOR_FOCUS].pixel;
-		gcv[2] = 0;
-		xcb_create_gc(conn, sw->gc, w, XCB_GC_FOREGROUND |
-		    XCB_GC_BACKGROUND | XCB_GC_GRAPHICS_EXPOSURES, gcv);
-		map_window_raised(w);
+		if (bar_font_legacy) {
+			l_gcv.graphics_exposures = 0;
+			l_draw = XCreateGC(display, w, 0, &l_gcv);
 
-		draw = XftDrawCreate(display, w,
-		    DefaultVisual(display, r->s->idx),
-		    DefaultColormap(display, r->s->idx));
+			XSetForeground(display, l_draw,
+				r->s->c[SWM_S_COLOR_BAR].pixel);
 
-		XftDrawStringUtf8(draw, &bar_font_color, bar_font, 2,
-		    (HEIGHT(r->bar) + bar_font->height) / 2 - bar_font->descent,
-		    (FcChar8 *)s, len);
+			DRAWSTRING(display, w, bar_fs, l_draw, 2,
+			    (bar_fs_extents->max_logical_extent.height -
+			    l_lbox.height) / 2 - l_lbox.y, s, len);
 
-		XftDrawDestroy(draw);
+			XFreeGC(display, l_draw);
+		} else {
+#if 0
+			sw->gc = xcb_generate_id(conn);
+			gcv = 0;
+			xcb_create_gc(conn, sw->gc, w, XCB_GC_GRAPHICS_EXPOSURES,
+			    &gcv);
+#endif
+
+			draw = XftDrawCreate(display, w,
+			    DefaultVisual(display, r->s->idx),
+			    DefaultColormap(display, r->s->idx));
+
+			XftDrawStringUtf8(draw, &bar_font_color, bar_font, 2,
+			    (HEIGHT(r->bar) + bar_font->height) / 2 -
+			    bar_font->descent, (FcChar8 *)s, len);
+
+			XftDrawDestroy(draw);
+/*			xcb_free_gc(conn, sw->gc);*/
+		}
 
 		DNPRINTF(SWM_D_MISC, "search_win: mapped window: 0x%x\n", w);
 
@@ -5892,6 +6058,9 @@ setconfvalue(char *selector, char *value, int flags)
 			err(1, "setconfvalue: asprintf: failed to allocate "
 				"memory for bar_fonts.");
 		free(b);
+
+		if (isxlfd(value))
+			bar_font_legacy = 1;
 		break;
 	case SWM_S_BAR_FORMAT:
 		free(bar_format);
@@ -7985,6 +8154,9 @@ main(int argc, char *argv[])
 	sact.sa_flags = SA_NOCLDSTOP;
 	sigaction(SIGCHLD, &sact, NULL);
 
+	if (!X_HAVE_UTF8_STRING)
+		warnx("no UTF-8 support");
+
 	if (!(display = XOpenDisplay(0)))
 		errx(1, "can not open display");
 
@@ -8122,8 +8294,9 @@ noconfig:
 		tv.tv_sec = 1;
 		tv.tv_usec = 0;
 		if (select(xfd + 1, &rd, NULL, NULL, &tv) == -1)
-			if (errno != EINTR)
+			if (errno != EINTR) {
 				DNPRINTF(SWM_D_MISC, "select failed");
+			}
 		if (restart_wm == 1)
 			restart(NULL, NULL);
 		if (search_resp == 1)
@@ -8143,9 +8316,13 @@ done:
 		if (screens[i].bar_gc != 0)
 			xcb_free_gc(conn, screens[i].bar_gc);
 
-	XftFontClose(display, bar_font);
-	XftColorFree(display, DefaultVisual(display, 0),
-	    DefaultColormap(display, 0), &bar_font_color);
+	if (bar_font_legacy) {
+		XFreeFontSet(display, bar_fs);
+	} else {
+		XftFontClose(display, bar_font);
+		XftColorFree(display, DefaultVisual(display, r->s->idx),
+		    DefaultColormap(display, r->s->idx), &bar_font_color);
+	}
 	xcb_key_symbols_free(syms);
 	xcb_flush(conn);
 	xcb_disconnect(conn);
