@@ -7407,6 +7407,7 @@ clientmessage(xcb_client_message_event_t *e)
 	xcb_flush(conn);
 }
 
+#ifdef XCB_CONN_ERROR
 void
 check_conn(void)
 {
@@ -7436,6 +7437,14 @@ check_conn(void)
 	if (err)
 		errx(err, "X CONNECTION ERROR: %s", s);
 }
+#else
+void
+check_conn(void)
+{
+	if (conn->has_error)
+		errx(err, "X CONNECTION ERROR");
+}
+#endif
 
 int
 enable_wm(void)
