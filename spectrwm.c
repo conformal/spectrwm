@@ -7739,17 +7739,17 @@ setup_screens(void)
 
 	/* initial Xrandr setup */
 	xrandr_support = 0;
-	c = xcb_randr_query_version(conn, 1, 1);
-	r = xcb_randr_query_version_reply(conn, c, NULL);
-	if (r) {
-		if (r->major_version >= 1) {
-			qep = xcb_get_extension_data(conn, &xcb_randr_id);
-			if (qep) {
+	qep = xcb_get_extension_data(conn, &xcb_randr_id);
+	if (qep->present) {
+		c = xcb_randr_query_version(conn, 1, 1);
+		r = xcb_randr_query_version_reply(conn, c, NULL);
+		if (r) {
+			if (r->major_version >= 1) {
 				xrandr_support = 1;
 				xrandr_eventbase = qep->first_event;
 			}
+			free(r);
 		}
-		free(r);
 	}
 
 	cursor_font = xcb_generate_id(conn);
