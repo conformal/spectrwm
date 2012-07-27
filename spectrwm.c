@@ -7442,7 +7442,7 @@ void
 check_conn(void)
 {
 	if (conn->has_error)
-		errx(err, "X CONNECTION ERROR");
+		errx(1, "X CONNECTION ERROR");
 }
 #endif
 
