@@ -1009,7 +1009,7 @@ ewmh_update_actions(struct ws_win *win)
 #define _NET_WM_STATE_TOGGLE	2    /* toggle property */
 
 void
-ewmh_update_win_state(struct ws_win *win, long state, long action)
+ewmh_update_win_state(struct ws_win *win, xcb_atom_t state, long action)
 {
 	unsigned int		mask = 0;
 	unsigned int		changed = 0;
