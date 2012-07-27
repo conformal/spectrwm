@@ -7411,10 +7411,10 @@ clientmessage(xcb_client_message_event_t *e)
 void
 check_conn(void)
 {
-	int	 err = xcb_connection_has_error(conn);
+	int	 errcode = xcb_connection_has_error(conn);
 	char	*s;
 
-	switch (err) {
+	switch (errcode) {
 	case XCB_CONN_ERROR:
 		s = "Socket error, pipe error or other stream error.";
 		break;
@@ -7434,8 +7434,8 @@ check_conn(void)
 		s = "Unknown error.";
 	}
 
-	if (err)
-		errx(err, "X CONNECTION ERROR: %s", s);
+	if (errcode)
+		errx(errcode, "X CONNECTION ERROR: %s", s);
 }
 #else
 void
