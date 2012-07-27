@@ -1992,8 +1992,9 @@ bar_setup(struct swm_region *r)
 	xcb_create_pixmap(conn, screen->root_depth, r->bar->buffer, r->bar->id,
 	    WIDTH(r->bar), HEIGHT(r->bar));
 
-	xcb_randr_select_input(conn, r->bar->id,
-	    XCB_RANDR_NOTIFY_MASK_OUTPUT_CHANGE);
+	if (xrandr_support)
+		xcb_randr_select_input(conn, r->bar->id,
+		    XCB_RANDR_NOTIFY_MASK_OUTPUT_CHANGE);
 
 	if (bar_enabled)
 		map_window_raised(r->bar->id);
