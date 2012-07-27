@@ -701,7 +701,7 @@ void	 update_window(struct ws_win *);
 char *
 expand_tilde(char *s)
 {
-	struct passwd           *pwd;
+	struct passwd           *ppwd;
 	int                     i, max;
 	char                    *user;
 	const char              *sc = s;
@@ -728,11 +728,11 @@ expand_tilde(char *s)
 	user[i] = '\0';
 	s = &s[i];
 
-	pwd = strlen(user) == 0 ? getpwuid(getuid()) : getpwnam(user);
-	if (pwd == NULL)
+	ppwd = strlen(user) == 0 ? getpwuid(getuid()) : getpwnam(user);
+	if (ppwd == NULL)
 		result = strdup(sc);
 	else
-		if (asprintf(&result, "%s%s", pwd->pw_dir, s) == -1)
+		if (asprintf(&result, "%s%s", ppwd->pw_dir, s) == -1)
 			result = NULL;
 out:
 	if (result == NULL)
@@ -5780,7 +5780,7 @@ setconfquirk(char *selector, char *value, int flags)
 {
 	char			*cp, *class, *name;
 	int			retval;
-	unsigned long		quirks;
+	unsigned long		qrks;
 
 	/* suppress unused warning since var is needed */
 	(void)flags;
@@ -5792,8 +5792,8 @@ setconfquirk(char *selector, char *value, int flags)
 	*cp = '\0';
 	class = selector;
 	name = cp + 1;
-	if ((retval = parsequirks(value, &quirks)) == 0)
-		setquirk(class, name, quirks);
+	if ((retval = parsequirks(value, &qrks)) == 0)
+		setquirk(class, name, qrks);
 	return (retval);
 }
 
@@ -7407,13 +7407,12 @@ clientmessage(xcb_client_message_event_t *e)
 	xcb_flush(conn);
 }
 
-#ifdef XCB_CONN_ERROR
 void
 check_conn(void)
 {
 	int	 errcode = xcb_connection_has_error(conn);
 	char	*s;
-
+#ifdef XCB_CONN_ERROR
 	switch (errcode) {
 	case XCB_CONN_ERROR:
 		s = "Socket error, pipe error or other stream error.";
@@ -7433,18 +7432,13 @@ check_conn(void)
 	default:
 		s = "Unknown error.";
 	}
-
 	if (errcode)
 		errx(errcode, "X CONNECTION ERROR: %s", s);
-}
 #else
-void
-check_conn(void)
-{
-	if (conn->has_error)
-		errx(1, "X CONNECTION ERROR");
-}
+	if (errcode)
+		errx(errcode, "X CONNECTION ERROR");
 #endif
+}
 
 int
 enable_wm(void)

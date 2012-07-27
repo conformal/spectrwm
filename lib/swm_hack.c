@@ -55,7 +55,7 @@ static void		*lib_xtlib = NULL;
 
 static Window		root = None;
 static int		xterm = 0;
-static Display		*dpy = NULL;
+static Display		*display = NULL;
 
 /* Find our root window */
 static              Window
@@ -120,7 +120,7 @@ typedef             Window(CWF) (Display * _display, Window _parent, int _x,
 
 /* XCreateWindow intercept hack */
 Window
-XCreateWindow(Display * display, Window parent, int x, int y,
+XCreateWindow(Display *dpy, Window parent, int x, int y,
    unsigned int width, unsigned int height,
    unsigned int border_width,
    int depth, unsigned int clss, Visual * visual,
@@ -135,7 +135,7 @@ XCreateWindow(Display * display, Window parent, int x, int y,
 		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
 	if (!func) {
 		func = (CWF *) dlsym(lib_xlib, "XCreateWindow");
-		dpy = display;
+		display = dpy;
 	}
 
 	if (parent == DefaultRootWindow(display))
@@ -166,7 +166,7 @@ typedef             Window(CSWF) (Display * _display, Window _parent, int _x,
 
 /* XCreateSimpleWindow intercept hack */
 Window
-XCreateSimpleWindow(Display * display, Window parent, int x, int y,
+XCreateSimpleWindow(Display *dpy, Window parent, int x, int y,
     unsigned int width, unsigned int height,
     unsigned int border_width,
     unsigned long border, unsigned long background)
@@ -181,17 +181,17 @@ XCreateSimpleWindow(Display * display, Window parent, int x, int y,
 	if (!func)
 		func = (CSWF *) dlsym(lib_xlib, "XCreateSimpleWindow");
 
-	if (parent == DefaultRootWindow(display))
-		parent = MyRoot(display);
+	if (parent == DefaultRootWindow(dpy))
+		parent = MyRoot(dpy);
 
-	id = (*func) (display, parent, x, y, width, height,
+	id = (*func) (dpy, parent, x, y, width, height,
 	    border_width, border, background);
 
 	if (id) {
 		if ((env = getenv("_SWM_WS")) != NULL) 
-			set_property(display, id, "_SWM_WS", env);
+			set_property(dpy, id, "_SWM_WS", env);
 		if ((env = getenv("_SWM_PID")) != NULL)
-			set_property(display, id, "_SWM_PID", env);
+			set_property(dpy, id, "_SWM_PID", env);
 		if ((env = getenv("_SWM_XTERM_FONTADJ")) != NULL) {
 			unsetenv("_SWM_XTERM_FONTADJ");
 			xterm = 1;
@@ -205,7 +205,7 @@ typedef int         (RWF) (Display * _display, Window _window, Window _parent,
 
 /* XReparentWindow intercept hack */
 int
-XReparentWindow(Display * display, Window window, Window parent, int x, int y)
+XReparentWindow(Display *dpy, Window window, Window parent, int x, int y)
 {
 	static RWF         *func = NULL;
 
@@ -215,10 +215,10 @@ XReparentWindow(Display * display, Window window, Window parent, int x, int y)
 	if (!func)
 		func = (RWF *) dlsym(lib_xlib, "XReparentWindow");
 
-	if (parent == DefaultRootWindow(display))
-		parent = MyRoot(display);
+	if (parent == DefaultRootWindow(dpy))
+		parent = MyRoot(dpy);
 
-	return (*func) (display, window, parent, x, y);
+	return (*func) (dpy, window, parent, x, y);
 }
 
 typedef		void (ANEF) (XtAppContext app_context, XEvent *event_return);
@@ -241,9 +241,9 @@ XtAppNextEvent(XtAppContext app_context, XEvent *event_return)
 		lib_xtlib = dlopen("libXt.so", RTLD_GLOBAL | RTLD_LAZY);
 	if (!func) {
 		func = (ANEF *) dlsym(lib_xtlib, "XtAppNextEvent");
-		if (dpy != NULL) {
-			kp_add = XKeysymToKeycode(dpy, XK_KP_Add);
-			kp_subtract = XKeysymToKeycode(dpy, XK_KP_Subtract);
+		if (display != NULL) {
+			kp_add = XKeysymToKeycode(display, XK_KP_Add);
+			kp_subtract = XKeysymToKeycode(display, XK_KP_Subtract);
 		}
 	}
 
