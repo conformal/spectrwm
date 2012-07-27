@@ -1908,7 +1908,7 @@ bar_refresh(void)
 void
 bar_setup(struct swm_region *r)
 {
-	char			*font, *fontpos, *dup, *search;
+	char			*font, *fontpos, *d, *search;
 	int			count;
 	xcb_screen_t		*screen;
 	uint32_t		wa[3];
@@ -1924,9 +1924,9 @@ bar_setup(struct swm_region *r)
 		err(1, "bar_setup: calloc: failed to allocate memory.");
 
 	if (bar_font == NULL) {
-		if ((dup = strdup(bar_fonts)) == NULL)
+		if ((d = strdup(bar_fonts)) == NULL)
 			errx(1, "insufficient memory.");
-		search = dup;
+		search = d;
 		while ((font = strsep(&search, ",")) != NULL) {
 			if (*font == '\0')
 				continue;
@@ -1955,7 +1955,7 @@ bar_setup(struct swm_region *r)
 				break;
 			}
 		}
-		free(dup);
+		free(d);
 	}
 
 	if (bar_font == NULL)
@@ -6139,7 +6139,7 @@ setautorun(char *selector, char *value, int flags)
 int
 setlayout(char *selector, char *value, int flags)
 {
-	int			ws_id, i, x, mg, ma, si, raise, f = 0;
+	int			ws_id, i, x, mg, ma, si, ar, f = 0;
 	int			st = SWM_V_STACK, num_screens;
 	char			s[1024];
 	struct workspace	*ws;
@@ -6153,7 +6153,7 @@ setlayout(char *selector, char *value, int flags)
 
 	bzero(s, sizeof s);
 	if (sscanf(value, "ws[%d]:%d:%d:%d:%d:%1023c",
-	    &ws_id, &mg, &ma, &si, &raise, s) != 6)
+	    &ws_id, &mg, &ma, &si, &ar, s) != 6)
 		errx(1, "invalid layout entry, should be 'ws[<idx>]:"
 		    "<master_grow>:<master_add>:<stack_inc>:<always_raise>:"
 		    "<type>'");
@@ -6183,7 +6183,7 @@ setlayout(char *selector, char *value, int flags)
 		ws = (struct workspace *)&screens[i].ws;
 		ws[ws_id].cur_layout = &layouts[st];
 
-		ws[ws_id].always_raise = raise;
+		ws[ws_id].always_raise = ar;
 		if (st == SWM_MAX_STACK)
 			continue;
 
@@ -6279,7 +6279,7 @@ conf_load(char *filename, int keymapping)
 	FILE			*config;
 	char			*line, *cp, *optsub, *optval;
 	size_t			linelen, lineno = 0;
-	int			wordlen, i, optind;
+	int			wordlen, i, optidx;
 	struct config_option	*opt;
 
 	DNPRINTF(SWM_D_CONF, "conf_load: begin\n");
@@ -6315,16 +6315,16 @@ conf_load(char *filename, int keymapping)
 			    filename, lineno);
 			goto out;
 		}
-		optind = -1;
+		optidx = -1;
 		for (i = 0; i < LENGTH(configopt); i++) {
 			opt = &configopt[i];
 			if (!strncasecmp(cp, opt->optname, wordlen) &&
 			    (int)strlen(opt->optname) == wordlen) {
-				optind = i;
+				optidx = i;
 				break;
 			}
 		}
-		if (optind == -1) {
+		if (optidx == -1) {
 			warnx("%s: line %zd: unknown option %.*s",
 			    filename, lineno, wordlen, cp);
 			goto out;
@@ -6363,10 +6363,10 @@ conf_load(char *filename, int keymapping)
 		/* get RHS value */
 		optval = strdup(cp);
 		/* call function to deal with it all */
-		if (configopt[optind].func(optsub, optval,
-		    configopt[optind].funcflags) != 0)
+		if (configopt[optidx].func(optsub, optval,
+		    configopt[optidx].funcflags) != 0)
 			errx(1, "%s: line %zd: invalid data for %s",
-			    filename, lineno, configopt[optind].optname);
+			    filename, lineno, configopt[optidx].optname);
 		free(optval);
 		free(optsub);
 		free(line);
@@ -7411,8 +7411,8 @@ void
 check_conn(void)
 {
 	int	 errcode = xcb_connection_has_error(conn);
-	char	*s;
 #ifdef XCB_CONN_ERROR
+	char	*s;
 	switch (errcode) {
 	case XCB_CONN_ERROR:
 		s = "Socket error, pipe error or other stream error.";
