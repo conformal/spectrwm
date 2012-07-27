@@ -151,7 +151,7 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #define xcb_icccm_wm_hints_t			xcb_wm_hints_t
 #endif
 
-#define SWM_DEBUG
+/* #define SWM_DEBUG */
 #ifdef SWM_DEBUG
 #define DPRINTF(x...) do {							\
 	if (swm_debug)								\
@@ -1019,7 +1019,7 @@ ewmh_update_win_state(struct ws_win *win, xcb_atom_t state, long action)
 		return;
 
 	DNPRINTF(SWM_D_PROP, "ewmh_update_win_state: window: 0x%x, state: %ld, "
-	    "action: %ld\n", win->id, state, action);
+	    "action: %ld\n", win->id, (unsigned long)state, action);
 
 	if (state == ewmh[_NET_WM_STATE_FULLSCREEN].atom)
 		mask = EWMH_F_FULLSCREEN;
@@ -1170,8 +1170,10 @@ dumpwins(struct swm_region *r, union arg *args)
 }
 #else
 void
-dumpwins(struct swm_region *r, union arg *args)
+dumpwins(struct swm_region *r, union arg *s)
 {
+	(void)r;
+	(void)s;
 }
 #endif /* SWM_DEBUG */
 
@@ -2759,6 +2761,8 @@ void
 priorws(struct swm_region *r, union arg *args)
 {
 	union arg		a;
+
+	(void)args;
 
 	DNPRINTF(SWM_D_WS, "priorws: id: %d, screen[%d]:%dx%d+%d+%d, ws: %d\n",
 	    args->id, r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
@@ -7879,6 +7883,8 @@ workaround(void)
 void
 event_error(xcb_generic_error_t *e)
 {
+	(void)e;
+
 	DNPRINTF(SWM_D_EVENT, "event_error: %s(%u) from %s(%u), sequence: %u, "
 	    "resource_id: %u, minor_code: %u\n",
 	    xcb_event_get_error_label(e->error_code), e->error_code,
