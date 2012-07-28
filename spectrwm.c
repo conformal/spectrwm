@@ -607,6 +607,7 @@ enum {
 	_NET_WM_ACTION_MOVE,
 	_NET_WM_ACTION_RESIZE,
 	_NET_WM_ALLOWED_ACTIONS,
+	_NET_WM_NAME,
 	_NET_WM_STATE,
 	_NET_WM_STATE_ABOVE,
 	_NET_WM_STATE_FULLSCREEN,
@@ -639,6 +640,7 @@ struct ewmh_hint {
     {"_NET_WM_ACTION_MOVE", XCB_ATOM_NONE},
     {"_NET_WM_ACTION_RESIZE", XCB_ATOM_NONE},
     {"_NET_WM_ALLOWED_ACTIONS", XCB_ATOM_NONE},
+    {"_NET_WM_NAME", XCB_ATOM_NONE},
     {"_NET_WM_STATE", XCB_ATOM_NONE},
     {"_NET_WM_STATE_ABOVE", XCB_ATOM_NONE},
     {"_NET_WM_STATE_FULLSCREEN", XCB_ATOM_NONE},
@@ -3940,21 +3942,32 @@ get_win_name(xcb_window_t win)
 {
 	char				*name = NULL;
 	xcb_get_property_cookie_t	c;
-	xcb_icccm_get_text_property_reply_t	r;
+	xcb_get_property_reply_t	*r;
 
-	c = xcb_icccm_get_wm_name(conn, win);
-	if (xcb_icccm_get_wm_name_reply(conn, c, &r, NULL)) {
-		if (r.name_len > 0) {
-			name = malloc(r.name_len + 1);
-			if (name) {
-				memcpy(name, r.name, r.name_len);
-				name[r.name_len] = '\0';
-			}
+	/* First try _NET_WM_NAME for UTF-8. */
+	c = xcb_get_property(conn, 0, win, a_netwmname,
+	    XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX); 
+	r = xcb_get_property_reply(conn, c, NULL);
+
+	if (!r || r->type == XCB_NONE) {
+		free(r);
+		/* Use WM_NAME instead; no UTF-8. */
+		c = xcb_get_property(conn, 0, win, XCB_ATOM_WM_NAME,
+		    XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX);
+		r = xcb_get_property_reply(conn, c, NULL);
+
+		if(!r || r->type == XCB_NONE) {
+			free(r);
+			return NULL;
 		}
-		xcb_icccm_get_text_property_reply_wipe(&r);
 	}
 
-	return (name);
+	if (r->length > 0)
+		name = strndup(xcb_get_property_value(r),
+		    xcb_get_property_value_length(r));
+
+	free(r);
+	return name;
 }
 
 void
