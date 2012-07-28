@@ -78,6 +78,10 @@ For example:
 .Pp
 Enabling or disabling an option is done by using 1 or 0 respectively.
 .Pp
+Colors need to be specified per the
+.Xr XQueryColor 3
+specification.
+.Pp
 The file supports the following keywords:
 .Bl -tag -width 2m
 .It Ic autorun
@@ -103,7 +107,28 @@ Update frequency, in seconds, of external script that populates the status bar.
 .It Ic bar_enabled
 Enable or disable status bar.
 .It Ic bar_font
-Status bar font.
+Font used in the status bar.  Either Xft or X Logical Font Description (XLFD) may be used
+to specify the font.
+.Pp
+Example for Xft:
+.Bd -literal -offset indent
+bar_font = Terminus:style=Regular:pixelsize=14:antialias=true
+.Ed
+.Pp
+Example for XLFD:
+.Bd -literal -offset indent
+bar_font = -*-terminus-medium-*-*-*-14-*-*-*-*-*-*-*
+.Ed
+.Pp
+To list the available fonts in your system see
+.Xr fc-list 1
+or
+.Xr xlsfonts 1
+manpages.
+The
+.Xr xfontsel 1
+application can help with the XLFD setting.
+.Pp
 .It Ic bar_font_color Ns Bq Ar x
 Color of the font in status bar in screen
 .Ar x .
@@ -331,23 +356,6 @@ option for more details.
 .It Ic workspace_limit
 Set the total number of workspaces available.  Minimum is 1, maximum is 22, default is 10.
 .El
-.Pp
-Colors need to be specified per the
-.Xr XQueryColor 3
-specification and fonts need to be specified per the
-.Xr XQueryFont 3
-specification.
-.Pp
-To list the available fonts in your system see
-.Xr fc-list 1
-or
-.Xr xlsfonts 1
-manpages.
-The
-.Xr xfontsel 1
-application can help you to show the X Logical Font Description ("XLFD") used
-as setting in the keyword
-.Pa bar_font .
 .Sh PROGRAMS
 .Nm
 allows you to define custom actions to launch programs of your choice and then

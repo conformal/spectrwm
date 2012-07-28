@@ -323,11 +323,11 @@ double			dialog_ratio = 0.6;
 #define SWM_BAR_JUSTIFY_CENTER	(1)
 #define SWM_BAR_JUSTIFY_RIGHT	(2)
 #define SWM_BAR_OFFSET		(4)
-#define SWM_BAR_FONTS		"-*-terminus-medium-*-*-*-*-*-*-*-*-*-*-*," \
-				"-*-profont-*-*-*-*-*-*-*-*-*-*-*-*,"	    \
-				"-*-times-medium-r-*-*-*-*-*-*-*-*-*-*,"    \
-				"-misc-fixed-medium-r-*-*-*-*-*-*-*-*-*-*,"  \
-				"-*-*-*-r-*--*-*-*-*-*-*-*-*"
+#define SWM_BAR_FONTS		"-*-terminus-medium-*-*-*-12-*-*-*-*-*-*-*," \
+				"-*-profont-*-*-*-*-12-*-*-*-*-*-*-*,"	    \
+				"-*-times-medium-r-*-*-12-*-*-*-*-*-*-*,"    \
+				"-misc-fixed-medium-r-*-*-12-*-*-*-*-*-*-*,"  \
+				"-*-*-*-r-*-*-*-*-*-*-*-*-*-*"
 
 #ifdef X_HAVE_UTF8_STRING
 #define DRAWSTRING(x...)	Xutf8DrawString(x)
@@ -704,6 +704,7 @@ int	 parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
 void	 propertynotify(xcb_property_notify_event_t *);
 void	 spawn_select(struct swm_region *, union arg *, char *, int *);
 void	 screenchange(xcb_randr_screen_change_notify_event_t *);
+void	 shutdown_cleanup(void);
 void	 store_float_geom(struct ws_win *, struct swm_region *);
 void	 unmanage_window(struct ws_win *);
 void	 unmapnotify(xcb_unmap_notify_event_t *);
@@ -1494,12 +1495,6 @@ bar_print(struct swm_region *r, const char *s)
 	    sizeof(rect), &rect);
 
 	/* draw back buffer */
-#if 0
-	gcv[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
-	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_BACKGROUND, gcv);
-	gcv[0] = r->s->c[SWM_S_COLOR_BAR_FONT].pixel;
-	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
-#endif
 	draw = XftDrawCreate(display, r->bar->buffer,
 	    DefaultVisual(display, r->s->idx),
 	    DefaultColormap(display, r->s->idx));
@@ -2415,29 +2410,12 @@ void
 restart(struct swm_region *r, union arg *args)
 {
 	/* suppress unused warning since var is needed */
+	(void)r;
 	(void)args;
 
 	DNPRINTF(SWM_D_MISC, "restart: %s\n", start_argv[0]);
 
-	/* disable alarm because the following code may not be interrupted */
-	alarm(0);
-	if (signal(SIGALRM, SIG_IGN) == SIG_ERR)
-		err(1, "can't disable alarm");
-
-	bar_extra_stop();
-	bar_extra = 1;
-	unmap_all();
-
-	if (bar_font_legacy)
-		XFreeFontSet(display, bar_fs);
-	else {
-		XftFontClose(display, bar_font);
-		XftColorFree(display, DefaultVisual(display, r->s->idx),
-		    DefaultColormap(display, r->s->idx), &bar_font_color);
-	}
-	xcb_key_symbols_free(syms);
-	xcb_flush(conn);
-	xcb_disconnect(conn);
+	shutdown_cleanup();
 
 	execvp(start_argv[0], start_argv);
 	warn("execvp failed");
@@ -4091,7 +4069,7 @@ search_win(struct swm_region *r, union arg *args)
 	struct ws_win		*win = NULL;
 	struct search_window	*sw = NULL;
 	xcb_window_t		w;
-	uint32_t		gcv, wa[2];
+	uint32_t		wa[2];
 	int			i, width, height;
 	char			s[8];
 	FILE			*lfile;
@@ -4170,12 +4148,6 @@ search_win(struct swm_region *r, union arg *args)
 
 			XFreeGC(display, l_draw);
 		} else {
-#if 0
-			sw->gc = xcb_generate_id(conn);
-			gcv = 0;
-			xcb_create_gc(conn, sw->gc, w, XCB_GC_GRAPHICS_EXPOSURES,
-			    &gcv);
-#endif
 
 			draw = XftDrawCreate(display, w,
 			    DefaultVisual(display, r->s->idx),
@@ -4186,7 +4158,6 @@ search_win(struct swm_region *r, union arg *args)
 			    bar_font->descent, (FcChar8 *)s, len);
 
 			XftDrawDestroy(draw);
-/*			xcb_free_gc(conn, sw->gc);*/
 		}
 
 		DNPRINTF(SWM_D_MISC, "search_win: mapped window: 0x%x\n", w);
@@ -8063,6 +8034,42 @@ workaround(void)
 }
 
 void
+shutdown_cleanup(void)
+{
+	int i, num_screens;
+
+	/* disable alarm because the following code may not be interrupted */
+	alarm(0);
+	if (signal(SIGALRM, SIG_IGN) == SIG_ERR)
+		err(1, "can't disable alarm");
+
+	bar_extra_stop();
+	bar_extra = 1;
+	unmap_all();
+
+	teardown_ewmh();
+
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; ++i) {
+		if (screens[i].bar_gc != 0)
+			xcb_free_gc(conn, screens[i].bar_gc);
+		if (!bar_font_legacy)
+			XftColorFree(display, DefaultVisual(display, i),
+			    DefaultColormap(display, i), &bar_font_color);
+	}
+
+	if (bar_font_legacy)
+		XFreeFontSet(display, bar_fs);
+	else {
+		XftFontClose(display, bar_font);
+	}
+
+	xcb_key_symbols_free(syms);
+	xcb_flush(conn);
+	xcb_disconnect(conn);
+}
+
+void
 event_error(xcb_generic_error_t *e)
 {
 	(void)e;
@@ -8166,9 +8173,6 @@ main(int argc, char *argv[])
 	sact.sa_handler = sighdlr;
 	sact.sa_flags = SA_NOCLDSTOP;
 	sigaction(SIGCHLD, &sact, NULL);
-
-	if (!X_HAVE_UTF8_STRING)
-		warnx("no UTF-8 support");
 
 	if (!(display = XOpenDisplay(0)))
 		errx(1, "can not open display");
@@ -8322,23 +8326,7 @@ noconfig:
 		}
 	}
 done:
-	teardown_ewmh();
-	bar_extra_stop();
-
-	for (i = 0; i < num_screens; ++i)
-		if (screens[i].bar_gc != 0)
-			xcb_free_gc(conn, screens[i].bar_gc);
-
-	if (bar_font_legacy) {
-		XFreeFontSet(display, bar_fs);
-	} else {
-		XftFontClose(display, bar_font);
-		XftColorFree(display, DefaultVisual(display, r->s->idx),
-		    DefaultColormap(display, r->s->idx), &bar_font_color);
-	}
-	xcb_key_symbols_free(syms);
-	xcb_flush(conn);
-	xcb_disconnect(conn);
+	shutdown_cleanup();
 
 	return (0);
 }
