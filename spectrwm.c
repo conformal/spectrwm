@@ -6043,8 +6043,17 @@ setconfvalue(char *selector, char *value, int flags)
 				"memory for bar_fonts.");
 		free(b);
 
-		if (isxlfd(value))
-			bar_font_legacy = 1;
+		/* check if entry contains only xlfd entries */
+		bar_font_legacy = 1;
+
+		while ((b = strsep(&value, ",")) != NULL) {
+			if (*b == '\0')
+				continue;
+			if (!isxlfd(b)) {
+				bar_font_legacy = 0;
+				break;
+			}
+		}
 		break;
 	case SWM_S_BAR_FORMAT:
 		free(bar_format);

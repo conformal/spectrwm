@@ -103,21 +103,34 @@ Disable border by setting to 0.
 Color of the status bar window in screen
 .Ar x .
 .It Ic bar_delay
-Update frequency, in seconds, of external script that populates the status bar.
+Update frequency, in seconds, of external script that populates the status
+bar.
 .It Ic bar_enabled
 Enable or disable status bar.
 .It Ic bar_font
-Font used in the status bar.  Either Xft or X Logical Font Description (XLFD) may be used
-to specify the font.
+Font used in the status bar. Either Xft or X Logical Font Description (XLFD)
+may be used to specify fonts. Fallback fonts may be specified by separating
+each font with a comma. If all entries are XLFD syntax, font set will be
+used. If at least one entry is Xft, Xft will be used. Note that if Xft is in
+use, only the first font that successfully loads will be used regardless of
+missing glyphs. The default is to use font set. Also note that dmenu does
+not support Xft fonts.
 .Pp
-Example for Xft:
+Xft examples:
 .Bd -literal -offset indent
 bar_font = Terminus:style=Regular:pixelsize=14:antialias=true
+
+bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,Terminus:pixelsize=14,\
+-*-clean-medium-*-*-*-12-*-*-*-*-*-*-*
 .Ed
 .Pp
-Example for XLFD:
+Font set examples:
 .Bd -literal -offset indent
 bar_font = -*-terminus-medium-*-*-*-14-*-*-*-*-*-*-*
+
+bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,\
+-*-terminus-medium-*-*-*-14-*-*-*-*-*-*-*,\
+-*-clean-medium-*-*-*-12-*-*-*-*-*-*-*
 .Ed
 .Pp
 To list the available fonts in your system see
@@ -160,9 +173,9 @@ It may contain the following character sequences:
 .It Li "++" Ta "A literal" Ql +
 .El
 .Pp
-All character sequences may limit its output to a specific length, for example
-+64A.
-Any characters that don't match the specification are copied as-is.
+All character sequences may limit its output to a specific length, for
+example +64A. Any characters that don't match the specification are copied
+as-is.
 .It Ic bar_justify
 Justify the status bar text. Possible values are
 .Pa left ,
@@ -201,7 +214,8 @@ Some applications have dialogue windows that are too small to be useful.
 This ratio is the screen size to what they will be resized.
 For example, 0.6 is 60% of the physical screen size.
 .It Ic disable_border
-Remove border when bar is disabled and there is only one window on the screen.
+Remove border when bar is disabled and there is only one window on the
+screen.
 .It Ic focus_close
 Window to put focus when the focused window is closed.
 Possible values are
@@ -215,12 +229,10 @@ and
 .Pa previous
 are relative to the window that is closed.
 .It Ic focus_close_wrap
-Whether to allow the focus to jump to the last window when the first window is
-closed or vice versa.
-Disable by setting to 0.
+Whether to allow the focus to jump to the last window when the first window
+is closed or vice versa. Disable by setting to 0.
 .It Ic focus_default
-Window to put focus when no window has been focused.
-Possible values are
+Window to put focus when no window has been focused. Possible values are
 .Pa first
 and
 .Pa last
@@ -228,8 +240,8 @@ and
 .It Ic focus_mode
 Using a value of
 .Pa follow_cursor
-will make the window manager focus the window
-under the mouse when switching workspaces and creating windows.
+will make the window manager focus the window under the mouse when switching
+workspaces and creating windows.
 .It Ic keyboard_mapping
 Clear all key bindings and load new key bindings from the specified file.
 This allows you to load pre-defined key bindings for your keyboard layout.
@@ -238,8 +250,7 @@ See the
 section below for a list of keyboard mapping files that have been provided
 for several keyboard layouts.
 .It Ic layout
-Select layout to use at start-of-day.
-Defined in the format
+Select layout to use at start-of-day. Defined in the format
 ws[idx]:master_grow:master_add:stack_inc:layout:always_raise:stack_mode, e.g.
 ws[2]:-4:0:1:0:horizontal sets worskspace 2 to the horizontal stack mode and
 shrinks the master area by 4 ticks and adds one window to the stack, while
@@ -262,8 +273,8 @@ See
 and
 .Pa always_raise
 for more information.
-Note that the stacking options are complicated and have side-effects.
-One should familiarize oneself with these commands before experimenting with the
+Note that the stacking options are complicated and have side-effects. One
+should familiarize oneself with these commands before experimenting with the
 .Pa layout
 option.
 .Pp
@@ -286,8 +297,8 @@ See the
 .Sx QUIRKS
 section below.
 .It Ic region
-Allocates a custom region, removing any autodetected regions which occupy the same
-space on the screen.
+Allocates a custom region, removing any autodetected regions which occupy the
+same space on the screen.
 Defined in the format screen[<idx>]:WIDTHxHEIGHT+X+Y,
 e.g.\& screen[1]:800x1200+0+0.
 .Pp
@@ -308,7 +319,8 @@ and
 .Pa previous
 are relative to the focused window.
 .It Ic stack_enabled
-Enable or disable displaying the current stacking algorithm in the status bar.
+Enable or disable displaying the current stacking algorithm in the status
+bar.
 .It Ic term_width
 Set a preferred minimum width for the terminal.
 If this value is greater than 0,
@@ -341,9 +353,8 @@ In xterm, for example, one needs to add the following line
 to
 .Pa .Xdefaults .
 .It Ic verbose_layout
-Enable or disable displaying the current master and stack values in the status
-bar.
-Enable by setting to 1.
+Enable or disable displaying the current master and stack values in the
+status bar. Enable by setting to 1.
 .It Ic window_name_enabled
 Enable or disable displaying the window name in the status bar.
 Enable by setting to 1.
@@ -354,12 +365,13 @@ See the
 .Ic bar_format
 option for more details.
 .It Ic workspace_limit
-Set the total number of workspaces available.  Minimum is 1, maximum is 22, default is 10.
+Set the total number of workspaces available. Minimum is 1, maximum is 22,
+default is 10.
 .El
 .Sh PROGRAMS
 .Nm
-allows you to define custom actions to launch programs of your choice and then
-bind them the same as with built-in actions.
+allows you to define custom actions to launch programs of your choice and
+then bind them the same as with built-in actions.
 See the
 .Sx BINDINGS
 section below.
@@ -378,7 +390,8 @@ xlock
 .It Cm initscr
 initscreen.sh
 .It Cm menu
-dmenu_run \-fn $bar_font \-nb $bar_color \-nf $bar_font_color \-sb $bar_border \-sf $bar_color
+dmenu_run \-fn $bar_font \-nb $bar_color \-nf $bar_font_color \-sb
+$bar_border \-sf $bar_color
 .El
 .Pp
 Custom programs in the configuration file are specified as follows:
@@ -758,7 +771,8 @@ in a tiling window manager, such as some dialogs and fullscreen apps.
 .Pp
 The default quirks are described below:
 .Pp
-.Bl -tag -width "OpenOffice.org N.M:VCLSalFrame<TAB>XXX" -offset indent -compact
+.Bl -tag -width "OpenOffice.org N.M:VCLSalFrame<TAB>XXX" -offset indent \
+-compact
 .It Firefox\-bin:firefox\-bin
 TRANSSZ
 .It Firefox:Dialog
@@ -803,8 +817,8 @@ Adjust xterm fonts when resizing.
 .It FULLSCREEN
 Remove border to allow window to use full screen size.
 .It FOCUSPREV
-On exit force focus on previously focused application not previous application
-in the stack.
+On exit force focus on previously focused application not previous
+application in the stack.
 .El
 .Pp
 Custom quirks in the configuration file are specified as follows:
@@ -958,7 +972,8 @@ was inspired by xmonad & dwm.
 .Nm
 was written by:
 .Pp
-.Bl -tag -width "Ryan Thomas McBride Aq mcbride@countersiege.com " -offset indent -compact
+.Bl -tag -width "Ryan Thomas McBride Aq mcbride@countersiege.com " -offset \
+indent -compact
 .It Cm Marco Peereboom Aq marco@peereboom.us
 .It Cm Ryan Thomas McBride Aq mcbride@countersiege.com
 .It Cm Darrin Chandler Aq dwchandler@stilyagin.com
