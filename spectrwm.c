@@ -371,7 +371,7 @@ pid_t		 bar_pid;
 XFontSet	 bar_fs;
 XFontSetExtents	*bar_fs_extents;
 XftFont		*bar_font;
-int		 bar_font_legacy = 0;
+int		 bar_font_legacy = 1;
 char		*bar_fonts;
 XftColor	 bar_font_color;
 struct passwd	*pwd;
@@ -6043,9 +6043,11 @@ setconfvalue(char *selector, char *value, int flags)
 				"memory for bar_fonts.");
 		free(b);
 
-		/* check if entry contains only xlfd entries */
-		bar_font_legacy = 1;
+		/* If already in xft mode, then we are done. */
+		if (!bar_font_legacy)
+			break;
 
+		/* If there are any non-XLFD entries, switch to Xft mode. */
 		while ((b = strsep(&value, ",")) != NULL) {
 			if (*b == '\0')
 				continue;
