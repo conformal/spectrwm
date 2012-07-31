@@ -106,10 +106,6 @@
 #include <osx.h>
 #endif
 
-/* XXX REMOVE FOR 2.0 */
-#undef SPECTRWM_BUILDSTR
-#define SPECTRWM_BUILDSTR "BETA"
-
 #ifdef SPECTRWM_BUILDSTR
 static const char	*buildstr = SPECTRWM_BUILDSTR;
 #else
