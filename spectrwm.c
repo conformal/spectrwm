@@ -112,15 +112,17 @@ static const char	*buildstr = SPECTRWM_BUILDSTR;
 static const char	*buildstr = SPECTRWM_VERSION;
 #endif
 
-#if RANDR_MAJOR < 1
-#  error XRandR versions less than 1.0 are not supported
+#if !defined(__CYGWIN__) /* cygwin chokes on xrandr stuff */
+#  if RANDR_MAJOR < 1
+#    error XRandR versions less than 1.0 are not supported
 #endif
 
-#if RANDR_MAJOR >= 1
-#if RANDR_MINOR >= 2
-#define SWM_XRR_HAS_CRTC
-#endif
-#endif
+#  if RANDR_MAJOR >= 1
+#    if RANDR_MINOR >= 2
+#      define SWM_XRR_HAS_CRTC
+#    endif
+#  endif
+#endif /* __CYGWIN__ */
 
 #ifndef XCB_ICCCM_NUM_WM_HINTS_ELEMENTS
 #define XCB_ICCCM_SIZE_HINT_P_MIN_SIZE		XCB_SIZE_HINT_P_MIN_SIZE
