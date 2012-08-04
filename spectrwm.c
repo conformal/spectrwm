@@ -7179,16 +7179,25 @@ configurerequest(xcb_configure_request_event_t *e)
 		DPRINTF(", Sent: %s\n", YESNO((mask != 0)));
 	} else if ((!win->manual || win->quirks & SWM_Q_ANYWHERE) &&
 	    !(win->ewmh_flags & EWMH_F_FULLSCREEN)) {
-		win->g_float.x = e->x - X(win->ws->r);
-		win->g_float.y = e->y - Y(win->ws->r);
+		win->g_float.x = e->x;
+		win->g_float.y = e->y;
+		if (win->ws->r) {
+			win->g_float.x -= X(win->ws->r);
+			win->g_float.y -= Y(win->ws->r);
+		} else if (win->ws->old_r) {
+			win->g_float.x -= X(win->ws->old_r);
+			win->g_float.y -= Y(win->ws->old_r);
+		}
+
 		win->g_float.w = e->width;
 		win->g_float.h = e->height;
 		win->g_floatvalid = 1;
 
 		if (win->floating) {
-			win->g = win->g_float;
-			win->g.x += X(win->ws->r);
-			win->g.y += Y(win->ws->r);
+			win->g.x = e->x;
+			win->g.y = e->y;
+			win->g.w = e->width;
+			win->g.h = e->height;
 			update_window(win);
 		} else {
 			config_win(win, e);
