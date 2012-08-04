@@ -215,10 +215,11 @@ u_int32_t		swm_debug = 0
 	xrc.alpha = 0xffff;
 
 #define LENGTH(x)		(int)(sizeof (x) / sizeof (x)[0])
-#define MODKEY			Mod1Mask
-#define CLEANMASK(mask)		((mask) & ~(numlockmask | LockMask))
-#define BUTTONMASK		(ButtonPressMask|ButtonReleaseMask)
-#define MOUSEMASK		(BUTTONMASK|PointerMotionMask)
+#define MODKEY			XCB_MOD_MASK_1
+#define CLEANMASK(mask)		((mask) & ~(numlockmask | XCB_MOD_MASK_LOCK))
+#define BUTTONMASK		(XCB_EVENT_MASK_BUTTON_PRESS |		\
+    XCB_EVENT_MASK_BUTTON_RELEASE)
+#define MOUSEMASK		(BUTTONMASK|XCB_EVENT_MASK_POINTER_MOTION)
 #define SWM_PROPLEN		(16)
 #define SWM_FUNCNAME_LEN	(32)
 #define SWM_KEYS_LEN		(255)
@@ -3418,13 +3419,13 @@ adjust_font(struct ws_win *win)
 		win->font_steps++;
 		font_adjusted++;
 		win->last_inc = win->sh.width_inc;
-		fake_keypress(win, XK_KP_Subtract, ShiftMask);
+		fake_keypress(win, XK_KP_Subtract, XCB_MOD_MASK_SHIFT);
 	} else if (win->font_steps && win->last_inc != win->sh.width_inc &&
 	    WIDTH(win) > win->font_size_boundary[win->font_steps - 1]) {
 		win->font_steps--;
 		font_adjusted++;
 		win->last_inc = win->sh.width_inc;
-		fake_keypress(win, XK_KP_Add, ShiftMask);
+		fake_keypress(win, XK_KP_Add, XCB_MOD_MASK_SHIFT);
 	}
 }
 
@@ -3926,7 +3927,7 @@ get_win_name(xcb_window_t win)
 
 	/* First try _NET_WM_NAME for UTF-8. */
 	c = xcb_get_property(conn, 0, win, a_netwmname,
-	    XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX); 
+	    XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX);
 	r = xcb_get_property_reply(conn, c, NULL);
 
 	if (!r || r->type == XCB_NONE) {
@@ -5066,10 +5067,12 @@ struct button {
 	void			(*func)(struct ws_win *, union arg *);
 	union arg		args;
 } buttons[] = {
+#define MODKEY_SHIFT	MODKEY | XCB_MOD_MASK_SHIFT
 	  /* action	key		mouse button	func	args */
 	{ client_click,	MODKEY,		Button3,	resize,	{.id = SWM_ARG_ID_DONTCENTER} },
-	{ client_click,	MODKEY | ShiftMask, Button3,	resize,	{.id = SWM_ARG_ID_CENTER} },
+	{ client_click,	MODKEY_SHIFT,	Button3,	resize,	{.id = SWM_ARG_ID_CENTER} },
 	{ client_click,	MODKEY,		Button1,	move,	{0} },
+#undef MODKEY_SHIFT
 };
 
 void
@@ -5080,14 +5083,14 @@ update_modkey(unsigned int mod)
 
 	mod_key = mod;
 	RB_FOREACH(kp, key_tree, &keys)
-		if (kp->mod & ShiftMask)
-			kp->mod = mod | ShiftMask;
+		if (kp->mod & XCB_MOD_MASK_SHIFT)
+			kp->mod = mod | XCB_MOD_MASK_SHIFT;
 		else
 			kp->mod = mod;
 
 	for (i = 0; i < LENGTH(buttons); i++)
-		if (buttons[i].mask & ShiftMask)
-			buttons[i].mask = mod | ShiftMask;
+		if (buttons[i].mask & XCB_MOD_MASK_SHIFT)
+			buttons[i].mask = mod | XCB_MOD_MASK_SHIFT;
 		else
 			buttons[i].mask = mod;
 }
@@ -5409,17 +5412,17 @@ parsekeys(char *keystr, unsigned int currmod, unsigned int *mod, KeySym *ks)
 		if (strncasecmp(name, "MOD", SWM_MODNAME_SIZE) == 0)
 			*mod |= currmod;
 		else if (!strncasecmp(name, "Mod1", SWM_MODNAME_SIZE))
-			*mod |= Mod1Mask;
+			*mod |= XCB_MOD_MASK_1;
 		else if (!strncasecmp(name, "Mod2", SWM_MODNAME_SIZE))
-			*mod += Mod2Mask;
+			*mod += XCB_MOD_MASK_2;
 		else if (!strncmp(name, "Mod3", SWM_MODNAME_SIZE))
-			*mod |= Mod3Mask;
+			*mod |= XCB_MOD_MASK_3;
 		else if (!strncmp(name, "Mod4", SWM_MODNAME_SIZE))
-			*mod |= Mod4Mask;
+			*mod |= XCB_MOD_MASK_4;
 		else if (strncasecmp(name, "SHIFT", SWM_MODNAME_SIZE) == 0)
-			*mod |= ShiftMask;
+			*mod |= XCB_MOD_MASK_SHIFT;
 		else if (strncasecmp(name, "CONTROL", SWM_MODNAME_SIZE) == 0)
-			*mod |= ControlMask;
+			*mod |= XCB_MOD_MASK_CONTROL;
 		else {
 			*ks = XStringToKeysym(name);
 			XConvertCase(*ks, ks, &uks);
@@ -5581,23 +5584,24 @@ setconfbinding(char *selector, char *value, int flags)
 void
 setup_keys(void)
 {
+#define MODKEY_SHIFT	MODKEY | XCB_MOD_MASK_SHIFT
 	setkeybinding(MODKEY,		XK_space,	KF_CYCLE_LAYOUT,NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_backslash,	KF_FLIP_LAYOUT,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_space,	KF_STACK_RESET,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_backslash,	KF_FLIP_LAYOUT,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_space,	KF_STACK_RESET,	NULL);
 	setkeybinding(MODKEY,		XK_h,		KF_MASTER_SHRINK, NULL);
 	setkeybinding(MODKEY,		XK_l,		KF_MASTER_GROW,	NULL);
 	setkeybinding(MODKEY,		XK_comma,	KF_MASTER_ADD,	NULL);
 	setkeybinding(MODKEY,		XK_period,	KF_MASTER_DEL,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_comma,	KF_STACK_INC,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_period,	KF_STACK_DEC,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_comma,	KF_STACK_INC,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_period,	KF_STACK_DEC,	NULL);
 	setkeybinding(MODKEY,		XK_Return,	KF_SWAP_MAIN,	NULL);
 	setkeybinding(MODKEY,		XK_j,		KF_FOCUS_NEXT,	NULL);
 	setkeybinding(MODKEY,		XK_k,		KF_FOCUS_PREV,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_j,		KF_SWAP_NEXT,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_k,		KF_SWAP_PREV,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_Return,	KF_SPAWN_CUSTOM,"term");
+	setkeybinding(MODKEY_SHIFT,	XK_j,		KF_SWAP_NEXT,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_k,		KF_SWAP_PREV,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_Return,	KF_SPAWN_CUSTOM,"term");
 	setkeybinding(MODKEY,		XK_p,		KF_SPAWN_CUSTOM,"menu");
-	setkeybinding(MODKEY|ShiftMask,	XK_q,		KF_QUIT,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_q,		KF_QUIT,	NULL);
 	setkeybinding(MODKEY,		XK_q,		KF_RESTART,	NULL);
 	setkeybinding(MODKEY,		XK_m,		KF_FOCUS_MAIN,	NULL);
 	setkeybinding(MODKEY,		XK_1,		KF_WS_1,	NULL);
@@ -5627,59 +5631,60 @@ setup_keys(void)
 	setkeybinding(MODKEY,		XK_Up,		KF_WS_NEXT_ALL,	NULL);
 	setkeybinding(MODKEY,		XK_Down,	KF_WS_PREV_ALL,	NULL);
 	setkeybinding(MODKEY,		XK_a,		KF_WS_PRIOR,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_Right,	KF_SCREEN_NEXT,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_Left,	KF_SCREEN_PREV,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_1,		KF_MVWS_1,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_2,		KF_MVWS_2,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_3,		KF_MVWS_3,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_4,		KF_MVWS_4,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_5,		KF_MVWS_5,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_6,		KF_MVWS_6,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_7,		KF_MVWS_7,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_8,		KF_MVWS_8,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_9,		KF_MVWS_9,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_0,		KF_MVWS_10,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F1,		KF_MVWS_11,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F2,		KF_MVWS_12,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F3,		KF_MVWS_13,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F4,		KF_MVWS_14,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F5,		KF_MVWS_15,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F6,		KF_MVWS_16,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F7,		KF_MVWS_17,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F8,		KF_MVWS_18,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F9,		KF_MVWS_19,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F10,		KF_MVWS_20,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F11,		KF_MVWS_21,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_F12,		KF_MVWS_22,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_Right,	KF_SCREEN_NEXT,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_Left,	KF_SCREEN_PREV,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_1,		KF_MVWS_1,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_2,		KF_MVWS_2,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_3,		KF_MVWS_3,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_4,		KF_MVWS_4,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_5,		KF_MVWS_5,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_6,		KF_MVWS_6,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_7,		KF_MVWS_7,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_8,		KF_MVWS_8,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_9,		KF_MVWS_9,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_0,		KF_MVWS_10,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F1,		KF_MVWS_11,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F2,		KF_MVWS_12,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F3,		KF_MVWS_13,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F4,		KF_MVWS_14,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F5,		KF_MVWS_15,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F6,		KF_MVWS_16,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F7,		KF_MVWS_17,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F8,		KF_MVWS_18,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F9,		KF_MVWS_19,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F10,		KF_MVWS_20,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F11,		KF_MVWS_21,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F12,		KF_MVWS_22,	NULL);
 	setkeybinding(MODKEY,		XK_b,		KF_BAR_TOGGLE,	NULL);
 	setkeybinding(MODKEY,		XK_Tab,		KF_FOCUS_NEXT,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_Tab,		KF_FOCUS_PREV,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_x,		KF_WIND_KILL,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_Tab,		KF_FOCUS_PREV,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_x,		KF_WIND_KILL,	NULL);
 	setkeybinding(MODKEY,		XK_x,		KF_WIND_DEL,	NULL);
 	setkeybinding(MODKEY,		XK_s,		KF_SPAWN_CUSTOM,"screenshot_all");
-	setkeybinding(MODKEY|ShiftMask,	XK_s,		KF_SPAWN_CUSTOM,"screenshot_wind");
+	setkeybinding(MODKEY_SHIFT,	XK_s,		KF_SPAWN_CUSTOM,"screenshot_wind");
 	setkeybinding(MODKEY,		XK_t,		KF_FLOAT_TOGGLE,NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_v,		KF_VERSION,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_Delete,	KF_SPAWN_CUSTOM,"lock");
-	setkeybinding(MODKEY|ShiftMask,	XK_i,		KF_SPAWN_CUSTOM,"initscr");
+	setkeybinding(MODKEY_SHIFT,	XK_v,		KF_VERSION,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_Delete,	KF_SPAWN_CUSTOM,"lock");
+	setkeybinding(MODKEY_SHIFT,	XK_i,		KF_SPAWN_CUSTOM,"initscr");
 	setkeybinding(MODKEY,		XK_w,		KF_ICONIFY,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_w,		KF_UNICONIFY,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_r,		KF_RAISE_TOGGLE,NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_w,		KF_UNICONIFY,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_r,		KF_RAISE_TOGGLE,NULL);
 	setkeybinding(MODKEY,		XK_v,		KF_BUTTON2,	NULL);
 	setkeybinding(MODKEY,		XK_equal,	KF_WIDTH_GROW,	NULL);
 	setkeybinding(MODKEY,		XK_minus,	KF_WIDTH_SHRINK,NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_equal,	KF_HEIGHT_GROW,NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_minus,	KF_HEIGHT_SHRINK,NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_equal,	KF_HEIGHT_GROW,NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_minus,	KF_HEIGHT_SHRINK,NULL);
 	setkeybinding(MODKEY,		XK_bracketleft,	KF_MOVE_LEFT,NULL);
 	setkeybinding(MODKEY,		XK_bracketright,KF_MOVE_RIGHT,NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_bracketleft,	KF_MOVE_UP,	NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_bracketright,KF_MOVE_DOWN,NULL);
-	setkeybinding(MODKEY|ShiftMask,	XK_slash,	KF_NAME_WORKSPACE,NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_bracketleft,	KF_MOVE_UP,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_bracketright,KF_MOVE_DOWN,NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_slash,	KF_NAME_WORKSPACE,NULL);
 	setkeybinding(MODKEY,		XK_slash,	KF_SEARCH_WORKSPACE,NULL);
 	setkeybinding(MODKEY,		XK_f,		KF_SEARCH_WIN,	NULL);
 #ifdef SWM_DEBUG
-	setkeybinding(MODKEY|ShiftMask,	XK_d,		KF_DUMPWINS,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_d,		KF_DUMPWINS,	NULL);
 #endif
+#undef MODKEY_SHIFT
 }
 
 void
@@ -5725,7 +5730,6 @@ updatenumlockmask(void)
 	xcb_get_modifier_mapping_reply_t	*modmap_r;
 	xcb_keycode_t				*modmap, kc, *keycode;
 
-	DNPRINTF(SWM_D_MISC, "updatenumlockmask\n");
 	numlockmask = 0;
 
 	modmap_r = xcb_get_modifier_mapping_reply(conn,
@@ -5746,20 +5750,23 @@ updatenumlockmask(void)
 		}
 		free(modmap_r);
 	}
+	DNPRINTF(SWM_D_MISC, "updatenumlockmask: %d\n", numlockmask);
 }
 
 void
 grabkeys(void)
 {
-	int			num_screens, k;
-	unsigned int		j;
-	xcb_keycode_t		*code;
-	unsigned int		modifiers[] =
-	    { 0, LockMask, numlockmask, numlockmask | LockMask };
 	struct key		*kp;
+	int			num_screens, k, j;
+	unsigned int		modifiers[3];
+	xcb_keycode_t		*code;
 
 	DNPRINTF(SWM_D_MISC, "grabkeys\n");
 	updatenumlockmask();
+
+	modifiers[0] = 0;
+	modifiers[1] = numlockmask;
+	modifiers[2] = numlockmask | XCB_MOD_MASK_LOCK;
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	for (k = 0; k < num_screens; k++) {
@@ -5784,25 +5791,21 @@ grabkeys(void)
 void
 grabbuttons(struct ws_win *win, int focused)
 {
-	unsigned int		i, j;
-	unsigned int		modifiers[] =
-	    { 0, LockMask, numlockmask, numlockmask|LockMask };
+	int		i;
 
-	updatenumlockmask();
 	xcb_ungrab_button(conn, XCB_BUTTON_INDEX_ANY, win->id,
 	    XCB_BUTTON_MASK_ANY);
 	if (focused) {
 		for (i = 0; i < LENGTH(buttons); i++)
 			if (buttons[i].action == client_click)
-				for (j = 0; j < LENGTH(modifiers); j++)
-					xcb_grab_button(conn, 0, win->id,
-					    BUTTONMASK,
-					    XCB_GRAB_MODE_ASYNC,
-					    XCB_GRAB_MODE_SYNC,
-					    XCB_WINDOW_NONE,
-					    XCB_CURSOR_NONE,
-					    buttons[i].button,
-					    buttons[i].mask);
+				xcb_grab_button(conn, 0, win->id,
+				    BUTTONMASK,
+				    XCB_GRAB_MODE_ASYNC,
+				    XCB_GRAB_MODE_SYNC,
+				    XCB_WINDOW_NONE,
+				    XCB_CURSOR_NONE,
+				    buttons[i].button,
+				    buttons[i].mask);
 	} else
 		xcb_grab_button(conn, 0, win->id, BUTTONMASK,
 		    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_SYNC, XCB_WINDOW_NONE,
@@ -6207,13 +6210,13 @@ setconfmodkey(char *selector, char *value, int flags)
 	(void)flags;
 
 	if (!strncasecmp(value, "Mod1", strlen("Mod1")))
-		update_modkey(Mod1Mask);
+		update_modkey(XCB_MOD_MASK_1);
 	else if (!strncasecmp(value, "Mod2", strlen("Mod2")))
-		update_modkey(Mod2Mask);
+		update_modkey(XCB_MOD_MASK_2);
 	else if (!strncasecmp(value, "Mod3", strlen("Mod3")))
-		update_modkey(Mod3Mask);
+		update_modkey(XCB_MOD_MASK_3);
 	else if (!strncasecmp(value, "Mod4", strlen("Mod4")))
-		update_modkey(Mod4Mask);
+		update_modkey(XCB_MOD_MASK_4);
 	else
 		return (1);
 	return (0);
@@ -6898,9 +6901,9 @@ manage_window(xcb_window_t id)
 	/* Reset font sizes (the bruteforce way; no default keybinding). */
 	if (win->quirks & SWM_Q_XTERM_FONTADJ) {
 		for (i = 0; i < SWM_MAX_FONT_STEPS; i++)
-			fake_keypress(win, XK_KP_Subtract, ShiftMask);
+			fake_keypress(win, XK_KP_Subtract, XCB_MOD_MASK_SHIFT);
 		for (i = 0; i < SWM_MAX_FONT_STEPS; i++)
-			fake_keypress(win, XK_KP_Add, ShiftMask);
+			fake_keypress(win, XK_KP_Add, XCB_MOD_MASK_SHIFT);
 	}
 
 	ewmh_get_win_state(win);
