@@ -7128,6 +7128,36 @@ print_win_geom(xcb_window_t w)
 }
 #endif
 
+#ifdef SWM_DEBUG
+char *
+get_stack_mode_name(uint8_t mode)
+{
+	char	*name;
+
+	switch(mode) {
+	case XCB_STACK_MODE_ABOVE:
+		name = "Above";
+		break;
+	case XCB_STACK_MODE_BELOW:
+		name = "Below";
+		break;
+	case XCB_STACK_MODE_TOP_IF:
+		name = "TopIf";
+		break;
+	case XCB_STACK_MODE_BOTTOM_IF:
+		name = "BottomIf";
+		break;
+	case XCB_STACK_MODE_OPPOSITE:
+		name = "Opposite";
+		break;
+	default:
+		name = "Unknown";
+	}
+
+	return name;
+}
+#endif
+
 void
 configurerequest(xcb_configure_request_event_t *e)
 {
@@ -7140,72 +7170,95 @@ configurerequest(xcb_configure_request_event_t *e)
 		if ((win = find_unmanaged_window(e->window)) == NULL)
 			new = 1;
 #ifdef SWM_DEBUG
-	print_win_geom(e->window);
+	if (swm_debug & SWM_D_EVENT) {
+		print_win_geom(e->window);
+
+		DNPRINTF(SWM_D_EVENT, "configurerequest: window: 0x%x, "
+		    "parent: 0x%x, new: %s, value_mask: %u { ", e->window,
+		    e->parent, YESNO(new), e->value_mask);
+		if (e->value_mask & XCB_CONFIG_WINDOW_X)
+			DPRINTF("X: %d ", e->x);
+		if (e->value_mask & XCB_CONFIG_WINDOW_Y)
+			DPRINTF("Y: %d ", e->y);
+		if (e->value_mask & XCB_CONFIG_WINDOW_WIDTH)
+			DPRINTF("W: %u ", e->width);
+		if (e->value_mask & XCB_CONFIG_WINDOW_HEIGHT)
+			DPRINTF("H: %u ", e->height);
+		if (e->value_mask & XCB_CONFIG_WINDOW_BORDER_WIDTH)
+			DPRINTF("Border: %u ", e->border_width);
+		if (e->value_mask & XCB_CONFIG_WINDOW_SIBLING)
+			DPRINTF("Sibling: 0x%x ", e->sibling);
+		if (e->value_mask & XCB_CONFIG_WINDOW_STACK_MODE)
+			DPRINTF("StackMode: %s(%u) ",
+			    get_stack_mode_name(e->stack_mode), e->stack_mode);
+		DPRINTF("}\n");
+	}
 #endif
+
 	if (new) {
-		DNPRINTF(SWM_D_EVENT, "configurerequest: new window: 0x%x, "
-		    "value_mask: 0x%x", e->window, e->value_mask);
 		if (e->value_mask & XCB_CONFIG_WINDOW_X) {
 			mask |= XCB_CONFIG_WINDOW_X;
 			wc[i++] = e->x;
-			DPRINTF(", X: %d", e->x);
 		}
 		if (e->value_mask & XCB_CONFIG_WINDOW_Y) {
 			mask |= XCB_CONFIG_WINDOW_Y;
 			wc[i++] = e->y;
-			DPRINTF(", Y: %d", e->y);
 		}
 		if (e->value_mask & XCB_CONFIG_WINDOW_WIDTH) {
 			mask |= XCB_CONFIG_WINDOW_WIDTH;
 			wc[i++] = e->width;
-			DPRINTF(", W: %u", e->width);
 		}
 		if (e->value_mask & XCB_CONFIG_WINDOW_HEIGHT) {
 			mask |= XCB_CONFIG_WINDOW_HEIGHT;
 			wc[i++] = e->height;
-			DPRINTF(", H: %u", e->height);
 		}
 		if (e->value_mask & XCB_CONFIG_WINDOW_BORDER_WIDTH) {
 			mask |= XCB_CONFIG_WINDOW_BORDER_WIDTH;
 			wc[i++] = e->border_width;
-			DPRINTF(", Border: %u", e->border_width);
 		}
 		if (e->value_mask & XCB_CONFIG_WINDOW_SIBLING) {
 			mask |= XCB_CONFIG_WINDOW_SIBLING;
 			wc[i++] = e->sibling;
-			DPRINTF(", Sibling: 0x%x", e->sibling);
 		}
 		if (e->value_mask & XCB_CONFIG_WINDOW_STACK_MODE) {
 			mask |= XCB_CONFIG_WINDOW_STACK_MODE;
 			wc[i++] = e->stack_mode;
-			DPRINTF(", StackMode: %u", e->stack_mode);
 		}
 
 		if (mask != 0)
 			xcb_configure_window(conn, e->window, mask, wc);
-
-		DPRINTF(", Sent: %s\n", YESNO((mask != 0)));
 	} else if ((!win->manual || win->quirks & SWM_Q_ANYWHERE) &&
 	    !(win->ewmh_flags & EWMH_F_FULLSCREEN)) {
-		win->g_float.x = e->x;
-		win->g_float.y = e->y;
-		if (win->ws->r) {
-			win->g_float.x -= X(win->ws->r);
-			win->g_float.y -= Y(win->ws->r);
-		} else if (win->ws->old_r) {
-			win->g_float.x -= X(win->ws->old_r);
-			win->g_float.y -= Y(win->ws->old_r);
+		if (e->value_mask & XCB_CONFIG_WINDOW_X) {
+			win->g_float.x = e->x;
+			if (win->ws->r)
+				win->g_float.x -= X(win->ws->r);
+			else if (win->ws->old_r)
+				win->g_float.x -= X(win->ws->old_r);
 		}
 
-		win->g_float.w = e->width;
-		win->g_float.h = e->height;
+		if (e->value_mask & XCB_CONFIG_WINDOW_Y) {
+			win->g_float.y = e->y;
+			if (win->ws->r)
+				win->g_float.y -= Y(win->ws->r);
+			else if (win->ws->old_r)
+				win->g_float.y -= Y(win->ws->old_r);
+		}
+
+		if (e->value_mask & XCB_CONFIG_WINDOW_WIDTH)
+			win->g_float.w = e->width;
+
+		if (e->value_mask & XCB_CONFIG_WINDOW_HEIGHT)
+			win->g_float.h = e->height;
+
 		win->g_floatvalid = 1;
 
-		if (win->floating) {
-			win->g.x = e->x;
-			win->g.y = e->y;
-			win->g.w = e->width;
-			win->g.h = e->height;
+		if (win->floating && win->ws->r) {
+			/* window is visible and floating; update position. */
+			win->g = win->g_float;
+			X(win) += X(win->ws->r);
+			Y(win) += Y(win->ws->r);
+
 			update_window(win);
 		} else {
 			config_win(win, e);
