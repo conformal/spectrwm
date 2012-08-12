@@ -8114,7 +8114,6 @@ workaround(void)
 	int			i, num_screens;
 	xcb_atom_t		netwmcheck;
 	xcb_window_t		root, win;
-	uint32_t		wa[2];
 
 	/* work around sun jdk bugs, code from wmname */
 	netwmcheck = get_atom_from_string("_NET_SUPPORTING_WM_CHECK");
@@ -8124,11 +8123,9 @@ workaround(void)
 		root = screens[i].root;
 
 		win = xcb_generate_id(conn);
-		wa[0] = screens[i].c[SWM_S_COLOR_UNFOCUS].pixel;
-		wa[1] = screens[i].c[SWM_S_COLOR_UNFOCUS].pixel;
-		xcb_create_window(conn, XCB_COPY_FROM_PARENT, win, 0, 0, 0, 1,
-		    1, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT, XCB_COPY_FROM_PARENT,
-		    XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);
+		xcb_create_window(conn, XCB_COPY_FROM_PARENT, win, root,
+		    0, 0, 1, 1, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+		    XCB_COPY_FROM_PARENT, 0, NULL);
 
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, root,
 		    netwmcheck, XCB_ATOM_WINDOW, 32, 1, &win);
