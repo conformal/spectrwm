@@ -1442,8 +1442,7 @@ bar_print_legacy(struct swm_region *r, const char *s)
 	/* clear back buffer */
 	gcv[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
-	xcb_poly_fill_rectangle(conn, r->bar->buffer, r->s->bar_gc,
-	    sizeof(rect), &rect);
+	xcb_poly_fill_rectangle(conn, r->bar->buffer, r->s->bar_gc, 1, &rect);
 
 	/* draw back buffer */
 	gcvd.graphics_exposures = 0;
@@ -1496,8 +1495,7 @@ bar_print(struct swm_region *r, const char *s)
 	/* clear back buffer */
 	gcv[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
 	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
-	xcb_poly_fill_rectangle(conn, r->bar->buffer, r->s->bar_gc,
-	    sizeof(rect), &rect);
+	xcb_poly_fill_rectangle(conn, r->bar->buffer, r->s->bar_gc, 1, &rect);
 
 	/* draw back buffer */
 	draw = XftDrawCreate(display, r->bar->buffer,
