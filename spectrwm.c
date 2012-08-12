@@ -701,6 +701,7 @@ void	 keypress(xcb_key_press_event_t *);
 #ifdef SWM_DEBUG
 void	 leavenotify(xcb_leave_notify_event_t *);
 #endif
+void	 load_float_geom(struct ws_win *, struct swm_region *);
 void	 map_window_raised(xcb_window_t);
 void	 mapnotify(xcb_map_notify_event_t *);
 void	 mappingnotify(xcb_mapping_notify_event_t *);
@@ -992,12 +993,7 @@ ewmh_set_win_fullscreen(struct ws_win *win, int fs)
 		win->g = win->ws->r->g;
 		win->bordered = 0;
 	} else {
-		if (win->g_floatvalid) {
-			/* refloat at last floating relative position */
-			win->g = win->g_float;
-			X(win) += X(win->ws->r);
-			Y(win) += Y(win->ws->r);
-		}
+		load_float_geom(win, win->ws->r);
 	}
 
 	return (1);
@@ -2727,16 +2723,6 @@ focus_win(struct ws_win *win)
 	}
 	if ((cfw = find_window(cur_focus)) != NULL)
 		unfocus_win(cfw);
-	else {
-#if 0
-		/* use larger hammer since the window was killed somehow */
-		TAILQ_FOREACH(cfw, &win->ws->winlist, entry)
-			if (cfw->ws && cfw->ws->r && cfw->ws->r->s)
-				xcb_change_window_attributes(conn, cfw->id,
-				    XCB_CW_BORDER_PIXEL,
-				    &cfw->ws->r->s->c[SWM_S_COLOR_UNFOCUS].pixel);
-#endif
-	}
 
 	win->ws->focus = win;
 
@@ -2807,7 +2793,8 @@ event_drain(uint8_t rt)
 {
 	xcb_generic_event_t	*evt;
 
-	xcb_flush(conn);
+	/* ensure all pending requests have been processed before filtering. */
+	xcb_aux_sync(conn);
 	while ((evt = xcb_poll_for_event(conn))) {
 		if (XCB_EVENT_RESPONSE_TYPE(evt) != rt)
 			event_handle(evt);
@@ -3366,6 +3353,9 @@ stack(void) {
 void
 store_float_geom(struct ws_win *win, struct swm_region *r)
 {
+	if (win == NULL || r == NULL)
+		return;
+
 	/* retain window geom and region geom */
 	win->g_float = win->g;
 	win->g_float.x -= X(r);
@@ -3375,6 +3365,25 @@ store_float_geom(struct ws_win *win, struct swm_region *r)
 	    " %d x %d, g_float: (%d,%d) %d x %d\n", win->id, X(win), Y(win),
 	    WIDTH(win), HEIGHT(win), win->g_float.x, win->g_float.y,
 	    win->g_float.w, win->g_float.h);
+}
+
+void
+load_float_geom(struct ws_win *win, struct swm_region *r)
+{
+	if (win == NULL || r == NULL)
+		return;
+
+	if (win->g_floatvalid) {
+		win->g = win->g_float;
+		X(win) += X(r);
+		Y(win) += Y(r);
+		DNPRINTF(SWM_D_MISC, "load_float_geom: window: 0x%x, g: (%d,%d)"
+		    "%d x %d\n", win->id, X(win), Y(win), WIDTH(win),
+		    HEIGHT(win));
+	} else {
+		DNPRINTF(SWM_D_MISC, "load_float_geom: window: 0x%x, g_float "
+		    "is not set.\n", win->id);
+	}
 }
 
 void
@@ -3389,12 +3398,10 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 	 * to allow windows to change their size (e.g. mplayer fs) only retrieve
 	 * geom on ws switches or return from max mode
 	 */
-	if (win->g_floatvalid && (win->floatmaxed || (r != r->ws->old_r &&
-	    !(win->ewmh_flags & EWMH_F_FULLSCREEN)))) {
-		/* refloat at last floating relative position */
-		win->g = win->g_float;
-		X(win) += X(r);
-		Y(win) += Y(r);
+	if (win->floatmaxed || (r != r->ws->old_r &&
+	    !(win->ewmh_flags & EWMH_F_FULLSCREEN))) {
+		/* update geometry for the new region */
+		load_float_geom(win, r);
 	}
 
 	win->floatmaxed = 0;
@@ -3406,7 +3413,7 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 		if (!win->g_floatvalid)
 			store_float_geom(win, win->ws->r);
 
-		win->g = win->ws->r->g;
+		win->g = r->g;
 	}
 
 	/*
@@ -3432,13 +3439,16 @@ stack_floater(struct ws_win *win, struct swm_region *r)
 		HEIGHT(win) = (double)HEIGHT(r) * dialog_ratio;
 	}
 
-	if (!win->manual) {
+	if (!win->manual && !(win->ewmh_flags & EWMH_F_FULLSCREEN) &&
+	    !(win->quirks & SWM_Q_ANYWHERE)) {
 		/*
-		 * floaters and transients are auto-centred unless moved
-		 * or resized
+		 * floaters and transients are auto-centred unless moved,
+		 * resized or ANYWHERE quirk is set.
 		 */
 		X(win) = X(r) + (WIDTH(r) - WIDTH(win)) /  2 - BORDER(win);
 		Y(win) = Y(r) + (HEIGHT(r) - HEIGHT(win)) / 2 - BORDER(win);
+
+		store_float_geom(win, r);
 	}
 
 	/* keep window within region bounds */
@@ -4449,13 +4459,7 @@ floating_toggle_win(struct ws_win *win)
 		}
 		win->floating = 0;
 	} else {
-		if (win->g_floatvalid) {
-			/* refloat at last floating relative position */
-			X(win) = win->g_float.x + X(r);
-			Y(win) = win->g_float.y + Y(r);
-			WIDTH(win) = win->g_float.w;
-			HEIGHT(win) = win->g_float.h;
-		}
+		load_float_geom(win, r);
 		win->floating = 1;
 	}
 
@@ -4474,6 +4478,9 @@ floating_toggle(struct swm_region *r, union arg *args)
 	(void)args;
 
 	if (win == NULL)
+		return;
+
+	if (win->ewmh_flags & EWMH_F_FULLSCREEN)
 		return;
 
 	ewmh_update_win_state(win, ewmh[_NET_WM_STATE_ABOVE].atom,
@@ -6812,10 +6819,11 @@ manage_window(xcb_window_t id)
 	X(win) = win->wa->x + win->wa->border_width;
 	Y(win) = win->wa->y + win->wa->border_width;
 	win->bordered = 0;
-	win->g_floatvalid = 0;
 	win->floatmaxed = 0;
 	win->ewmh_flags = 0;
 	win->s = r->s;	/* this never changes */
+
+	store_float_geom(win, r);
 
 	/* Get WM_SIZE_HINTS. */
 	xcb_icccm_get_wm_normal_hints_reply(conn,
@@ -6891,6 +6899,8 @@ manage_window(xcb_window_t id)
 
 		/* java is retarded so treat it special */
 		if (strstr(win->ch.instance_name, "sun-awt")) {
+			DNPRINTF(SWM_D_CLASS, "manage_window: java window "
+			    "detected.\n");
 			win->java = 1;
 			border_me = 1;
 		}
@@ -6923,15 +6933,15 @@ manage_window(xcb_window_t id)
 			fake_keypress(win, XK_KP_Add, XCB_MOD_MASK_SHIFT);
 	}
 
-	/* Make sure window is positioned inside its region, if its active. */
-	if (win->ws->r)
-		constrain_window(win, win->ws->r, 0);
-
 	if (border_me) {
 		win->bordered = 1;
 		X(win) -= border_width;
 		Y(win) -= border_width;
 	}
+
+	/* Make sure window is positioned inside its region, if its active. */
+	if (win->ws->r)
+		constrain_window(win, win->ws->r, 0);
 
 	if (win->ws->r || border_me)
 		update_window(win);
@@ -6943,7 +6953,8 @@ manage_window(xcb_window_t id)
 	event_mask |= XCB_EVENT_MASK_LEAVE_WINDOW;
 #endif
 
-	xcb_change_window_attributes(conn, id, XCB_CW_EVENT_MASK, &event_mask);
+	xcb_change_window_attributes(conn, win->id, XCB_CW_EVENT_MASK,
+	    &event_mask);
 
 out:
 	/* Figure out where to stack the window in the workspace. */
@@ -7160,6 +7171,7 @@ void
 configurerequest(xcb_configure_request_event_t *e)
 {
 	struct ws_win		*win;
+	struct swm_region	*r = NULL;
 	int			new = 0, i = 0;
 	uint16_t		mask = 0;
 	uint32_t		wc[7] = {0};
@@ -7167,6 +7179,7 @@ configurerequest(xcb_configure_request_event_t *e)
 	if ((win = find_window(e->window)) == NULL)
 		if ((win = find_unmanaged_window(e->window)) == NULL)
 			new = 1;
+
 #ifdef SWM_DEBUG
 	if (swm_debug & SWM_D_EVENT) {
 		print_win_geom(e->window);
@@ -7227,20 +7240,24 @@ configurerequest(xcb_configure_request_event_t *e)
 			xcb_configure_window(conn, e->window, mask, wc);
 	} else if ((!win->manual || win->quirks & SWM_Q_ANYWHERE) &&
 	    !(win->ewmh_flags & EWMH_F_FULLSCREEN)) {
-		if (e->value_mask & XCB_CONFIG_WINDOW_X) {
-			win->g_float.x = e->x;
-			if (win->ws->r)
-				win->g_float.x -= X(win->ws->r);
-			else if (win->ws->old_r)
-				win->g_float.x -= X(win->ws->old_r);
-		}
+		if (win->ws->r)
+			r = win->ws->r;
+		else if (win->ws->old_r)
+			r = win->ws->old_r;
 
-		if (e->value_mask & XCB_CONFIG_WINDOW_Y) {
-			win->g_float.y = e->y;
-			if (win->ws->r)
-				win->g_float.y -= Y(win->ws->r);
-			else if (win->ws->old_r)
-				win->g_float.y -= Y(win->ws->old_r);
+		/* windows are centered unless ANYWHERE quirk is set. */
+		if (win->quirks & SWM_Q_ANYWHERE) {
+			if (e->value_mask & XCB_CONFIG_WINDOW_X) {
+				win->g_float.x = e->x;
+				if (r)
+					win->g_float.x -= X(r);
+			}
+
+			if (e->value_mask & XCB_CONFIG_WINDOW_Y) {
+				win->g_float.y = e->y;
+				if (r)
+					win->g_float.y -= Y(r);
+			}
 		}
 
 		if (e->value_mask & XCB_CONFIG_WINDOW_WIDTH)
@@ -7251,21 +7268,25 @@ configurerequest(xcb_configure_request_event_t *e)
 
 		win->g_floatvalid = 1;
 
-		if (win->floating && win->ws->r) {
-			/* window is visible and floating; update position. */
-			win->g = win->g_float;
-			X(win) += X(win->ws->r);
-			Y(win) += Y(win->ws->r);
+		if (win->floating && r) {
+			WIDTH(win) = win->g_float.w;
+			HEIGHT(win) = win->g_float.h;
 
-			update_window(win);
+			stack_floater(win, win->ws->r);
+
+			if (focus_mode == SWM_FOCUS_DEFAULT) {
+				event_drain(XCB_ENTER_NOTIFY);
+			} else {
+				xcb_flush(conn);
+			}
 		} else {
 			config_win(win, e);
+			xcb_flush(conn);
 		}
 	} else {
 		config_win(win, e);
+		xcb_flush(conn);
 	}
-
-	xcb_flush(conn);
 }
 
 void
@@ -7390,14 +7411,6 @@ enternotify(xcb_enter_notify_event_t *e)
 	    "%s, state: %d\n", e->event, get_notify_mode_label(e->mode),
 	    e->mode, get_notify_detail_label(e->detail), e->detail, e->root,
 	    e->child, YESNO(e->same_screen_focus), e->state);
-
-#if 0
-	if (e->mode != XCB_NOTIFY_MODE_NORMAL) {
-		DNPRINTF(SWM_D_EVENT, "skip enternotify: generated by "
-		    "cursor grab.\n");
-		return;
-	}
-#endif
 
 	switch (focus_mode) {
 	case SWM_FOCUS_DEFAULT:
