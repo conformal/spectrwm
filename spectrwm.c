@@ -245,8 +245,8 @@ u_int32_t		swm_debug = 0
 #define YESNO(x)		((x) ? "yes" : "no")
 
 #define SWM_FOCUS_DEFAULT	(0)
-#define SWM_FOCUS_SYNERGY	(1)
-#define SWM_FOCUS_FOLLOW	(2)
+#define SWM_FOCUS_FOLLOW	(1)
+#define SWM_FOCUS_MANUAL	(2)
 
 #define SWM_CONF_DEFAULT	(0)
 #define SWM_CONF_KEYMAPPING	(1)
@@ -673,7 +673,6 @@ void	 configurenotify(xcb_configure_notify_event_t *);
 void	 configurerequest(xcb_configure_request_event_t *);
 void	 constrain_window(struct ws_win *, struct swm_region *, int);
 void	 destroynotify(xcb_destroy_notify_event_t *);
-void	 do_sync(void);
 void	 enternotify(xcb_enter_notify_event_t *);
 void	 event_drain(uint8_t);
 void	 event_error(xcb_generic_error_t *);
@@ -683,6 +682,7 @@ void	 expose(xcb_expose_event_t *);
 struct ws_win	*find_window(xcb_window_t);
 int	 floating_toggle_win(struct ws_win *);
 void	 focus(struct swm_region *, union arg *);
+void	 focus_flush(void);
 struct ws_win	*focus_magic(struct ws_win *);
 #ifdef SWM_DEBUG
 void	 focusin(xcb_focus_in_event_t *);
@@ -796,17 +796,12 @@ get_screen(int screen)
 }
 
 void
-do_sync(void)
+focus_flush(void)
 {
-	xcb_get_input_focus_cookie_t	c;
-	xcb_get_input_focus_reply_t	*r;
-
-	/* mimic XSync() */
-	c = xcb_get_input_focus(conn);
-	xcb_flush(conn);
-	r = xcb_get_input_focus_reply(conn, c, NULL);
-	if (r)
-		free(r);
+	if (focus_mode == SWM_FOCUS_DEFAULT)
+		event_drain(XCB_ENTER_NOTIFY);
+	else
+		xcb_flush(conn);
 }
 
 void
@@ -1920,10 +1915,7 @@ bar_toggle(struct swm_region *r, union arg *args)
 	/* must be after stack */
 	bar_update();
 
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		event_drain(XCB_ENTER_NOTIFY);
-	else
-		xcb_flush(conn);
+	focus_flush();
 }
 
 void
@@ -2857,10 +2849,7 @@ switchws(struct swm_region *r, union arg *args)
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
 			unmap_window(win);
 
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		event_drain(XCB_ENTER_NOTIFY);
-	else
-		xcb_flush(conn);
+	focus_flush();
 
 	DNPRINTF(SWM_D_WS, "switchws: done\n");
 }
@@ -3070,10 +3059,7 @@ swapwin(struct swm_region *r, union arg *args)
 
 	stack();
 
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		event_drain(XCB_ENTER_NOTIFY);
-	else
-		xcb_flush(conn);
+	focus_flush();
 }
 
 void
@@ -3287,10 +3273,7 @@ cycle_layout(struct swm_region *r, union arg *args)
 	a.id = SWM_ARG_ID_FOCUSCUR;
 	focus(r, &a);
 
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		event_drain(XCB_ENTER_NOTIFY);
-	else
-		xcb_flush(conn);
+	focus_flush();
 }
 
 void
@@ -3921,10 +3904,7 @@ send_to_ws(struct swm_region *r, union arg *args)
 	stack();
 	bar_update();
 
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		event_drain(XCB_ENTER_NOTIFY);
-	else
-		xcb_flush(conn);
+	focus_flush();
 }
 
 void
@@ -3954,10 +3934,7 @@ raise_toggle(struct swm_region *r, union arg *args)
 	if (r->ws->always_raise == 0)
 		stack();
 
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		event_drain(XCB_ENTER_NOTIFY);
-	else
-		xcb_flush(conn);
+	focus_flush();
 }
 
 void
@@ -3978,10 +3955,7 @@ iconify(struct swm_region *r, union arg *args)
 	a.id = SWM_ARG_ID_FOCUSCUR;
 	focus(r, &a);
 
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		event_drain(XCB_ENTER_NOTIFY);
-	else
-		xcb_flush(conn);
+	focus_flush();
 }
 
 char *
@@ -4493,10 +4467,7 @@ floating_toggle(struct swm_region *r, union arg *args)
 		focus(win->ws->r, &a);
 	}
 
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		event_drain(XCB_ENTER_NOTIFY);
-	else
-		xcb_flush(conn);
+	focus_flush();
 }
 
 void
@@ -4602,10 +4573,7 @@ resize(struct ws_win *win, union arg *args)
 
 	stack();
 
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		event_drain(XCB_ENTER_NOTIFY);
-	else
-		xcb_flush(conn);
+	focus_flush();
 
 	switch (args->id) {
 	case SWM_ARG_ID_WIDTHSHRINK:
@@ -4725,8 +4693,8 @@ resize(struct ws_win *win, union arg *args)
 			/* not free, don't sync more than 120 times / second */
 			if ((mne->time - timestamp) > (1000 / 120) ) {
 				timestamp = mne->time;
-				do_sync();
 				update_window(win);
+				xcb_flush(conn);
 			}
 			break;
 		default:
@@ -4736,8 +4704,8 @@ resize(struct ws_win *win, union arg *args)
 		free(evt);
 	}
 	if (timestamp) {
-		do_sync();
 		update_window(win);
+		xcb_flush(conn);
 	}
 	store_float_geom(win,r);
 
@@ -4800,10 +4768,7 @@ move(struct ws_win *win, union arg *args)
 
 	stack();
 
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		event_drain(XCB_ENTER_NOTIFY);
-	else
-		xcb_flush(conn);
+	focus_flush();
 
 	move_step = 0;
 	switch (args->id) {
@@ -4872,8 +4837,8 @@ move(struct ws_win *win, union arg *args)
 			/* not free, don't sync more than 120 times / second */
 			if ((mne->time - timestamp) > (1000 / 120) ) {
 				timestamp = mne->time;
-				do_sync();
 				update_window(win);
+				xcb_flush(conn);
 			}
 			break;
 		default:
@@ -4883,8 +4848,8 @@ move(struct ws_win *win, union arg *args)
 		free(evt);
 	}
 	if (timestamp) {
-		do_sync();
 		update_window(win);
+		xcb_flush(conn);
 	}
 	store_float_geom(win, r);
 	free(qpr);
@@ -6209,8 +6174,8 @@ setconfvalue(char *selector, char *value, int flags)
 			focus_mode = SWM_FOCUS_DEFAULT;
 		else if (!strcmp(value, "follow_cursor"))
 			focus_mode = SWM_FOCUS_FOLLOW;
-		else if (!strcmp(value, "synergy"))
-			focus_mode = SWM_FOCUS_SYNERGY;
+		else if (!strcmp(value, "manual"))
+			focus_mode = SWM_FOCUS_MANUAL;
 		else
 			errx(1, "focus_mode");
 		break;
@@ -6464,10 +6429,7 @@ setlayout(char *selector, char *value, int flags)
 		}
 	}
 
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		event_drain(XCB_ENTER_NOTIFY);
-	else
-		xcb_flush(conn);
+	focus_flush();
 
 	return (0);
 }
@@ -7274,11 +7236,7 @@ configurerequest(xcb_configure_request_event_t *e)
 
 			stack_floater(win, win->ws->r);
 
-			if (focus_mode == SWM_FOCUS_DEFAULT) {
-				event_drain(XCB_ENTER_NOTIFY);
-			} else {
-				xcb_flush(conn);
-			}
+			focus_flush();
 		} else {
 			config_win(win, e);
 			xcb_flush(conn);
@@ -7332,10 +7290,7 @@ destroynotify(xcb_destroy_notify_event_t *e)
 
 	stack();
 
-	if (focus_mode == SWM_FOCUS_DEFAULT)
-		event_drain(XCB_ENTER_NOTIFY);
-	else
-		xcb_flush(conn);
+	focus_flush();
 }
 
 #ifdef SWM_DEBUG
@@ -7406,23 +7361,21 @@ void
 enternotify(xcb_enter_notify_event_t *e)
 {
 	struct ws_win		*win;
+
 	DNPRINTF(SWM_D_FOCUS, "enternotify: window: 0x%x, mode: %s(%d), "
 	    "detail: %s(%d), root: 0x%x, subwindow: 0x%x, same_screen_focus: "
 	    "%s, state: %d\n", e->event, get_notify_mode_label(e->mode),
 	    e->mode, get_notify_detail_label(e->detail), e->detail, e->root,
 	    e->child, YESNO(e->same_screen_focus), e->state);
 
-	switch (focus_mode) {
-	case SWM_FOCUS_DEFAULT:
-		break;
-	case SWM_FOCUS_FOLLOW:
-		break;
-	case SWM_FOCUS_SYNERGY:
-		break;
+	if (focus_mode == SWM_FOCUS_MANUAL &&
+	    e->mode == XCB_NOTIFY_MODE_NORMAL) {
+		DNPRINTF(SWM_D_EVENT, "enternotify: manual focus; ignoring.\n");
+		return;
 	}
 
 	if ((win = find_window(e->event)) == NULL) {
-		DNPRINTF(SWM_D_EVENT, "skip enternotify: window is NULL\n");
+		DNPRINTF(SWM_D_EVENT, "enternotify: window is NULL; ignoring\n");
 		return;
 	}
 
