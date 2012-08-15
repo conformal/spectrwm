@@ -5842,8 +5842,13 @@ grabkeys(void)
 void
 grabbuttons(struct ws_win *win)
 {
+#if 0
 	int		i;
+#endif
 
+	DNPRINTF(SWM_D_MOUSE, "grabbuttons: win 0x%x\n", win->id);
+
+#if 0
 	xcb_ungrab_button(conn, XCB_BUTTON_INDEX_ANY, win->id,
 	    XCB_BUTTON_MASK_ANY);
 
@@ -5853,6 +5858,10 @@ grabbuttons(struct ws_win *win)
 			    XCB_GRAB_MODE_SYNC, XCB_GRAB_MODE_ASYNC,
 			    XCB_WINDOW_NONE, XCB_CURSOR_NONE,
 			    buttons[i].button, buttons[i].mask);
+#endif
+	xcb_grab_button(conn, 0, win->id, BUTTONMASK, XCB_GRAB_MODE_SYNC,
+	    XCB_GRAB_MODE_ASYNC, XCB_WINDOW_NONE, XCB_CURSOR_NONE,
+	    XCB_BUTTON_INDEX_ANY, XCB_BUTTON_MASK_ANY);
 }
 
 const char *quirkname[] = {
