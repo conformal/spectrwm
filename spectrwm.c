@@ -684,6 +684,7 @@ int	 floating_toggle_win(struct ws_win *);
 void	 focus(struct swm_region *, union arg *);
 void	 focus_flush(void);
 struct ws_win	*focus_magic(struct ws_win *);
+void	 focus_win(struct ws_win *);
 #ifdef SWM_DEBUG
 void	 focusin(xcb_focus_in_event_t *);
 #endif
@@ -696,7 +697,7 @@ char	*get_notify_mode_label(uint8_t);
 xcb_screen_t	*get_screen(int);
 char	*get_win_name(xcb_window_t);
 uint32_t getstate(xcb_window_t);
-void	 grabbuttons(struct ws_win *, int);
+void	 grabbuttons(struct ws_win *);
 void	 keypress(xcb_key_press_event_t *);
 #ifdef SWM_DEBUG
 void	 leavenotify(xcb_leave_notify_event_t *);
@@ -2660,7 +2661,6 @@ unfocus_win(struct ws_win *win)
 		win->ws->focus_prev = NULL;
 	}
 
-	grabbuttons(win, 0);
 	xcb_change_window_attributes(conn, win->id, XCB_CW_BORDER_PIXEL,
 	    &win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].pixel);
 	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
@@ -2713,7 +2713,19 @@ focus_win(struct ws_win *win)
 		cur_focus = r->focus;
 		free(r);
 	}
-	if ((cfw = find_window(cur_focus)) != NULL)
+
+	cfw = find_window(cur_focus);
+
+	if (cfw == win) {
+		if (win->ws->focus == win) {
+			DNPRINTF(SWM_D_FOCUS, "focus_win: already focused; "
+			    "skipping.\n");
+			return;
+		} else {
+			DNPRINTF(SWM_D_FOCUS, "focus_win: already has input "
+			    "focus.\n");
+		}
+	} else
 		unfocus_win(cfw);
 
 	win->ws->focus = win;
@@ -2731,7 +2743,6 @@ focus_win(struct ws_win *win)
 		if (win->java == 0)
 			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
 			    win->id, XCB_CURRENT_TIME);
-		grabbuttons(win, 1);
 		xcb_change_window_attributes(conn, win->id,
 		    XCB_CW_BORDER_PIXEL,
 		    &win->ws->r->s->c[SWM_S_COLOR_FOCUS].pixel);
@@ -5829,27 +5840,19 @@ grabkeys(void)
 }
 
 void
-grabbuttons(struct ws_win *win, int focused)
+grabbuttons(struct ws_win *win)
 {
 	int		i;
 
 	xcb_ungrab_button(conn, XCB_BUTTON_INDEX_ANY, win->id,
 	    XCB_BUTTON_MASK_ANY);
-	if (focused) {
-		for (i = 0; i < LENGTH(buttons); i++)
-			if (buttons[i].action == client_click)
-				xcb_grab_button(conn, 0, win->id,
-				    BUTTONMASK,
-				    XCB_GRAB_MODE_ASYNC,
-				    XCB_GRAB_MODE_SYNC,
-				    XCB_WINDOW_NONE,
-				    XCB_CURSOR_NONE,
-				    buttons[i].button,
-				    buttons[i].mask);
-	} else
-		xcb_grab_button(conn, 0, win->id, BUTTONMASK,
-		    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_SYNC, XCB_WINDOW_NONE,
-		    XCB_CURSOR_NONE, XCB_BUTTON_INDEX_ANY, XCB_BUTTON_MASK_ANY);
+
+	for (i = 0; i < LENGTH(buttons); i++)
+		if (buttons[i].action == client_click)
+			xcb_grab_button(conn, 0, win->id, BUTTONMASK,
+			    XCB_GRAB_MODE_SYNC, XCB_GRAB_MODE_ASYNC,
+			    XCB_WINDOW_NONE, XCB_CURSOR_NONE,
+			    buttons[i].button, buttons[i].mask);
 }
 
 const char *quirkname[] = {
@@ -6943,6 +6946,8 @@ out:
 	/* Set initial _NET_WM_ALLOWED_ACTIONS */
 	ewmh_update_actions(win);
 
+	grabbuttons(win);
+
 	DNPRINTF(SWM_D_MISC, "manage_window: done. window: 0x%x, (x,y) w x h: "
 	    "(%d,%d) %d x %d, ws: %d, iconic: %s, transient: 0x%x\n", win->id,
 	    X(win), Y(win), WIDTH(win), HEIGHT(win), win->ws->idx,
@@ -7056,7 +7061,7 @@ buttonpress(xcb_button_press_event_t *e)
 {
 	struct ws_win		*win;
 	int			i;
-	unsigned int		action;
+	int			handled = 0;
 
 	DNPRINTF(SWM_D_EVENT, "buttonpress: window 0x%x, detail: %u\n",
 	    e->event, e->detail);
@@ -7065,13 +7070,19 @@ buttonpress(xcb_button_press_event_t *e)
 		return;
 
 	focus_win(focus_magic(win));
-	action = client_click;
 
 	for (i = 0; i < LENGTH(buttons); i++)
-		if (action == buttons[i].action && buttons[i].func &&
+		if (client_click == buttons[i].action && buttons[i].func &&
 		    buttons[i].button == e->detail &&
-		    CLEANMASK(buttons[i].mask) == CLEANMASK(e->state))
+		    CLEANMASK(buttons[i].mask) == CLEANMASK(e->state)) {
 			buttons[i].func(win, &buttons[i].args);
+			handled = 1;
+		}
+
+	if (!handled) {
+		DNPRINTF(SWM_D_EVENT, "buttonpress: passing to window\n");
+		xcb_allow_events(conn, XCB_ALLOW_REPLAY_POINTER, e->time);
+	}
 
 	xcb_flush(conn);
 }
