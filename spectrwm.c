@@ -2687,7 +2687,6 @@ focus_win(struct ws_win *win)
 {
 	struct ws_win		*cfw = NULL;
 	xcb_get_input_focus_reply_t	*r;
-	xcb_window_t			cur_focus = XCB_WINDOW_NONE;
 
 	DNPRINTF(SWM_D_FOCUS, "focus_win: window: 0x%x\n", WINID(win));
 
@@ -2701,7 +2700,7 @@ focus_win(struct ws_win *win)
 		return;
 
 	if (validate_ws(win->ws))
-		return; /* XXX this gets hit with thunderbird, needs fixing */
+		return;
 
 	if (validate_win(win)) {
 		kill_refs(win);
@@ -2710,25 +2709,14 @@ focus_win(struct ws_win *win)
 
 	r = xcb_get_input_focus_reply(conn, xcb_get_input_focus(conn), NULL);
 	if (r) {
-		cur_focus = r->focus;
+		cfw = find_window(r->focus);
 		free(r);
 	}
 
-	cfw = find_window(cur_focus);
-
-	if (cfw == win) {
-		if (win->ws->focus == win) {
-			DNPRINTF(SWM_D_FOCUS, "focus_win: already focused; "
-			    "skipping.\n");
-			return;
-		} else {
-			DNPRINTF(SWM_D_FOCUS, "focus_win: already has input "
-			    "focus.\n");
-		}
-	} else
-		unfocus_win(cfw);
-
-	win->ws->focus = win;
+	if (win->ws->focus != win) {
+		unfocus_win(win->ws->focus);
+		win->ws->focus = win;
+	}
 
 	/* Tell app it can set focus. */
 	if (win->take_focus) {
@@ -2739,20 +2727,28 @@ focus_win(struct ws_win *win)
 			client_msg(win, a_takefocus);
 	}
 
-	if (win->ws->r != NULL) {
-		if (win->java == 0)
-			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
-			    win->id, XCB_CURRENT_TIME);
-		xcb_change_window_attributes(conn, win->id,
-		    XCB_CW_BORDER_PIXEL,
-		    &win->ws->r->s->c[SWM_S_COLOR_FOCUS].pixel);
-		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS ||
-		    win->ws->always_raise)
-			map_window_raised(win->id);
+	if (cfw != win) {
+		if (cfw)
+			unfocus_win(cfw);
 
-		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
-		    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
-		    &win->id);
+		if (win->ws->r != NULL) {
+			if (win->java == 0)
+				xcb_set_input_focus(conn,
+				    XCB_INPUT_FOCUS_PARENT, win->id,
+				    XCB_CURRENT_TIME);
+
+			xcb_change_window_attributes(conn, win->id,
+			    XCB_CW_BORDER_PIXEL,
+			    &win->ws->r->s->c[SWM_S_COLOR_FOCUS].pixel);
+
+			if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS ||
+			    win->ws->always_raise)
+				map_window_raised(win->id);
+
+			xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
+			    win->s->root, ewmh[_NET_ACTIVE_WINDOW].atom,
+			    XCB_ATOM_WINDOW, 32, 1, &win->id);
+		}
 	}
 
 	bar_update();
@@ -5832,7 +5828,7 @@ grabkeys(void)
 					xcb_grab_key(conn, 1,
 					    screens[k].root,
 					    kp->mod | modifiers[j],
-					    *code, XCB_GRAB_MODE_ASYNC,
+					    *code, XCB_GRAB_MODE_SYNC,
 					    XCB_GRAB_MODE_ASYNC);
 				free(code);
 		}
