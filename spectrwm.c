@@ -683,7 +683,8 @@ struct ws_win	*find_window(xcb_window_t);
 int	 floating_toggle_win(struct ws_win *);
 void	 focus(struct swm_region *, union arg *);
 void	 focus_flush(void);
-struct ws_win	*focus_magic(struct ws_win *);
+struct ws_win	*get_focus_magic(struct ws_win *);
+struct ws_win	*get_focus_prev(struct ws_win *);
 void	 focus_win(struct ws_win *);
 #ifdef SWM_DEBUG
 void	 focusin(xcb_focus_in_event_t *);
@@ -2633,16 +2634,23 @@ unfocus_win(struct ws_win *win)
 
 	if (win == NULL)
 		return;
-	if (win->ws == NULL)
+	if (win->ws == NULL) {
+		DNPRINTF(SWM_D_FOCUS, "unfocus_win: NULL ws.\n");
 		return;
+	}
 
-	if (validate_ws(win->ws))
-		return; /* XXX this gets hit with thunderbird, needs fixing */
-
-	if (win->ws->r == NULL)
+	if (validate_ws(win->ws)) {
+		DNPRINTF(SWM_D_FOCUS, "unfocus_win: invalid ws.\n");
 		return;
+	}
+
+	if (win->ws->r == NULL) {
+		DNPRINTF(SWM_D_FOCUS, "unfocus_win: NULL region.\n");
+		return;
+	}
 
 	if (validate_win(win)) {
+		DNPRINTF(SWM_D_FOCUS, "unfocus_win: invalid win.\n");
 		kill_refs(win);
 		return;
 	}
@@ -2665,6 +2673,8 @@ unfocus_win(struct ws_win *win)
 	    &win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].pixel);
 	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
 	    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1, &none);
+
+	DNPRINTF(SWM_D_FOCUS, "unfocus_win: done.\n");
 }
 
 void
@@ -2710,11 +2720,14 @@ focus_win(struct ws_win *win)
 	r = xcb_get_input_focus_reply(conn, xcb_get_input_focus(conn), NULL);
 	if (r) {
 		cfw = find_window(r->focus);
+		if (cfw != win)
+			unfocus_win(cfw);
 		free(r);
 	}
 
 	if (win->ws->focus != win) {
-		unfocus_win(win->ws->focus);
+		if (win->ws->focus != cfw)
+			unfocus_win(win->ws->focus);
 		win->ws->focus = win;
 	}
 
@@ -2727,28 +2740,21 @@ focus_win(struct ws_win *win)
 			client_msg(win, a_takefocus);
 	}
 
-	if (cfw != win) {
-		if (cfw)
-			unfocus_win(cfw);
+	if (cfw != win && win->ws->r != NULL) {
+		if (win->java == 0)
+			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
+			    win->id, XCB_CURRENT_TIME);
 
-		if (win->ws->r != NULL) {
-			if (win->java == 0)
-				xcb_set_input_focus(conn,
-				    XCB_INPUT_FOCUS_PARENT, win->id,
-				    XCB_CURRENT_TIME);
+		xcb_change_window_attributes(conn, win->id, XCB_CW_BORDER_PIXEL,
+		    &win->ws->r->s->c[SWM_S_COLOR_FOCUS].pixel);
 
-			xcb_change_window_attributes(conn, win->id,
-			    XCB_CW_BORDER_PIXEL,
-			    &win->ws->r->s->c[SWM_S_COLOR_FOCUS].pixel);
+		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS ||
+		    win->ws->always_raise)
+			map_window_raised(win->id);
 
-			if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS ||
-			    win->ws->always_raise)
-				map_window_raised(win->id);
-
-			xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
-			    win->s->root, ewmh[_NET_ACTIVE_WINDOW].atom,
-			    XCB_ATOM_WINDOW, 32, 1, &win->id);
-		}
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
+		    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
+		    &win->id);
 	}
 
 	bar_update();
@@ -2756,11 +2762,11 @@ focus_win(struct ws_win *win)
 
 /* If a child window should have focus instead, return it. */
 struct ws_win *
-focus_magic(struct ws_win *win)
+get_focus_magic(struct ws_win *win)
 {
 	struct ws_win	*parent = NULL;
 
-	DNPRINTF(SWM_D_FOCUS, "focus_magic: window: 0x%x\n", WINID(win));
+	DNPRINTF(SWM_D_FOCUS, "get_focus_magic: window: 0x%x\n", WINID(win));
 	if (win == NULL)
 		return win;
 
@@ -3069,8 +3075,8 @@ swapwin(struct swm_region *r, union arg *args)
 	focus_flush();
 }
 
-void
-focus_prev(struct ws_win *win)
+struct ws_win *
+get_focus_prev(struct ws_win *win)
 {
 	struct ws_win		*winfocus = NULL;
 	struct ws_win		*cur_focus = NULL;
@@ -3078,13 +3084,13 @@ focus_prev(struct ws_win *win)
 	struct workspace	*ws = NULL;
 
 	if (!(win && win->ws))
-		return;
+		return NULL;
 
 	ws = win->ws;
 	wl = &ws->winlist;
 	cur_focus = ws->focus;
 
-	DNPRINTF(SWM_D_FOCUS, "focus_prev: window: 0x%x, cur_focus: 0x%x\n",
+	DNPRINTF(SWM_D_FOCUS, "get_focus_prev: window: 0x%x, cur_focus: 0x%x\n",
 	    WINID(win), WINID(cur_focus));
 
 	/* pickle, just focus on whatever */
@@ -3113,7 +3119,7 @@ focus_prev(struct ws_win *win)
 			goto done;
 	}
 
-	DNPRINTF(SWM_D_FOCUS, "focus_prev: focus_close: %d\n", focus_close);
+	DNPRINTF(SWM_D_FOCUS, "get_focus_prev: focus_close: %d\n", focus_close);
 
 	if (winfocus == NULL || winfocus == win) {
 		switch (focus_close) {
@@ -3152,7 +3158,8 @@ done:
 	}
 
 	kill_refs(win);
-	focus_win(focus_magic(winfocus));
+
+	return get_focus_magic(winfocus);
 }
 
 void
@@ -3180,7 +3187,8 @@ focus(struct swm_region *r, union arg *args)
 				if (winfocus->iconic == 0)
 					break;
 
-		focus_win(focus_magic(winfocus));
+		focus_win(get_focus_magic(winfocus));
+		xcb_flush(conn);
 		return;
 	}
 
@@ -3254,7 +3262,7 @@ focus(struct swm_region *r, union arg *args)
 		return;
 	}
 
-	focus_win(focus_magic(winfocus));
+	focus_win(get_focus_magic(winfocus));
 
 	xcb_flush(conn);
 }
@@ -3851,7 +3859,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		if (parent)
 			map_window_raised(parent->id);
 		stack_floater(wintrans, ws->r);
-		focus_win(focus_magic(wintrans));
+		focus_win(get_focus_magic(wintrans));
 	}
 }
 
@@ -5116,9 +5124,9 @@ struct button {
 } buttons[] = {
 #define MODKEY_SHIFT	MODKEY | XCB_MOD_MASK_SHIFT
 	  /* action	key		mouse button	func	args */
-	{ client_click,	MODKEY,		Button3,	resize,	{.id = SWM_ARG_ID_DONTCENTER} },
-	{ client_click,	MODKEY_SHIFT,	Button3,	resize,	{.id = SWM_ARG_ID_CENTER} },
-	{ client_click,	MODKEY,		Button1,	move,	{0} },
+	{ client_click,	MODKEY,		XCB_BUTTON_INDEX_3,	resize,	{.id = SWM_ARG_ID_DONTCENTER} },
+	{ client_click,	MODKEY_SHIFT,	XCB_BUTTON_INDEX_3,	resize,	{.id = SWM_ARG_ID_CENTER} },
+	{ client_click,	MODKEY,		XCB_BUTTON_INDEX_1,	move,	{0} },
 #undef MODKEY_SHIFT
 };
 
@@ -5838,15 +5846,9 @@ grabkeys(void)
 void
 grabbuttons(struct ws_win *win)
 {
-#if 0
 	int		i;
-#endif
 
 	DNPRINTF(SWM_D_MOUSE, "grabbuttons: win 0x%x\n", win->id);
-
-#if 0
-	xcb_ungrab_button(conn, XCB_BUTTON_INDEX_ANY, win->id,
-	    XCB_BUTTON_MASK_ANY);
 
 	for (i = 0; i < LENGTH(buttons); i++)
 		if (buttons[i].action == client_click)
@@ -5854,10 +5856,11 @@ grabbuttons(struct ws_win *win)
 			    XCB_GRAB_MODE_SYNC, XCB_GRAB_MODE_ASYNC,
 			    XCB_WINDOW_NONE, XCB_CURSOR_NONE,
 			    buttons[i].button, buttons[i].mask);
-#endif
+
+	/* click to focus */
 	xcb_grab_button(conn, 0, win->id, BUTTONMASK, XCB_GRAB_MODE_SYNC,
 	    XCB_GRAB_MODE_ASYNC, XCB_WINDOW_NONE, XCB_CURSOR_NONE,
-	    XCB_BUTTON_INDEX_ANY, XCB_BUTTON_MASK_ANY);
+	    XCB_BUTTON_INDEX_1, XCB_BUTTON_MASK_ANY);
 }
 
 const char *quirkname[] = {
@@ -6989,7 +6992,6 @@ void
 unmanage_window(struct ws_win *win)
 {
 	struct ws_win		*parent;
-	xcb_screen_t		*screen;
 
 	if (win == NULL)
 		return;
@@ -7002,12 +7004,7 @@ unmanage_window(struct ws_win *win)
 			parent->focus_child = NULL;
 	}
 
-	/* focus on root just in case */
-	screen = xcb_setup_roots_iterator(xcb_get_setup(conn)).data;
-	xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
-	    screen->root, XCB_CURRENT_TIME);
-
-	focus_prev(win);
+	focus_win(get_focus_prev(win));
 
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
 	TAILQ_INSERT_TAIL(&win->ws->unmanagedlist, win, entry);
@@ -7074,7 +7071,7 @@ buttonpress(xcb_button_press_event_t *e)
 	if ((win = find_window(e->event)) == NULL)
 		return;
 
-	focus_win(focus_magic(win));
+	focus_win(get_focus_magic(win));
 
 	for (i = 0; i < LENGTH(buttons); i++)
 		if (client_click == buttons[i].action && buttons[i].func &&
@@ -7085,8 +7082,10 @@ buttonpress(xcb_button_press_event_t *e)
 		}
 
 	if (!handled) {
-		DNPRINTF(SWM_D_EVENT, "buttonpress: passing to window\n");
+		DNPRINTF(SWM_D_EVENT, "buttonpress: passing to window.\n");
 		xcb_allow_events(conn, XCB_ALLOW_REPLAY_POINTER, e->time);
+	} else {
+		DNPRINTF(SWM_D_EVENT, "buttonpress: handled.\n");
 	}
 
 	xcb_flush(conn);
@@ -7395,7 +7394,7 @@ enternotify(xcb_enter_notify_event_t *e)
 		return;
 	}
 
-	focus_win(focus_magic(win));
+	focus_win(get_focus_magic(win));
 
 	xcb_flush(conn);
 }
@@ -7430,6 +7429,8 @@ mapnotify(xcb_map_notify_event_t *e)
 	/* Focus on window if it is selected. */
 	if (win->ws->focus == win)
 		focus_win(win);
+
+	xcb_flush(conn);
 }
 
 void
@@ -7471,7 +7472,7 @@ maprequest(xcb_map_request_event_t *e)
 		stack();
 
 	/* The new window should get focus. */
-	win->ws->focus = focus_magic(win);
+	win->ws->focus = get_focus_magic(win);
 
 	/* Ignore EnterNotify to handle the mapnotify without interference. */
 	if (focus_mode == SWM_FOCUS_DEFAULT)
@@ -7538,6 +7539,7 @@ propertynotify(xcb_property_notify_event_t *e)
 		map_window_raised(win->id);
 		stack();
 		focus_win(win);
+		xcb_flush(conn);
 		return;
 	}
 
@@ -7566,10 +7568,7 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 	if (getstate(e->window) == XCB_ICCCM_WM_STATE_NORMAL) {
 		unmanage_window(win);
 		stack();
-
-		/* resend unmap because we ated it */
-		xcb_unmap_window(conn, e->window);
-		xcb_flush(conn);
+		focus_flush();
 	}
 }
 
