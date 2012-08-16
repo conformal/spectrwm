@@ -4052,8 +4052,6 @@ uniconify(struct swm_region *r, union arg *args)
 	}
 
 	fclose(lfile);
-
-	xcb_flush(conn);
 }
 
 void
@@ -4404,6 +4402,8 @@ done:
 	search_resp_action = SWM_SEARCH_NONE;
 	close(select_resp_pipe[0]);
 	free(resp);
+
+	xcb_flush(conn);
 }
 
 void
