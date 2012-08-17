@@ -3305,6 +3305,8 @@ stack_config(struct swm_region *r, union arg *args)
 	if (args->id != SWM_ARG_ID_STACKINIT)
 		stack();
 	bar_update();
+
+	focus_flush();
 }
 
 void
