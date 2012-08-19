@@ -2862,7 +2862,7 @@ switchws(struct swm_region *r, union arg *args)
 	this_r->ws = new_ws;
 	new_ws->r = this_r;
 
-	unmap_window(old_ws->focus);
+	unfocus_win(old_ws->focus);
 
 	stack();
 
@@ -2877,10 +2877,6 @@ switchws(struct swm_region *r, union arg *args)
 	if (unmap_old)
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
 			unmap_window(win);
-
-	/* make sure bar gets updated if ws is empty */
-	if (!new_ws->focus)
-		bar_update();
 
 	/* make sure bar gets updated if ws is empty */
 	if (!new_ws->focus)
@@ -6754,12 +6750,12 @@ manage_window(xcb_window_t id, uint16_t mapped)
 {
 	xcb_window_t		trans = XCB_WINDOW_NONE;
 	struct ws_win		*win, *ww;
-	int			ws_idx, border_me = 0;
+	int			ws_idx;
 	char			ws_idx_str[SWM_PROPLEN];
 	struct swm_region	*r;
 	struct pid_e		*p;
 	struct quirk		*qp;
-	uint32_t		event_mask, i;
+	uint32_t		i, wa[2];
 	xcb_icccm_get_wm_protocols_reply_t	wpr;
 
 	if ((win = find_window(id)) != NULL) {
@@ -6800,9 +6796,9 @@ manage_window(xcb_window_t id, uint16_t mapped)
 	/* Ignore window border if there is one. */
 	WIDTH(win) = win->wa->width;
 	HEIGHT(win) = win->wa->height;
-	X(win) = win->wa->x + win->wa->border_width;
-	Y(win) = win->wa->y + win->wa->border_width;
-	win->bordered = 0;
+	X(win) = win->wa->x + win->wa->border_width - border_width;
+	Y(win) = win->wa->y + win->wa->border_width - border_width;
+	win->bordered = 1;
 	win->mapped = mapped;
 	win->floatmaxed = 0;
 	win->ewmh_flags = 0;
@@ -6857,7 +6853,6 @@ manage_window(xcb_window_t id, uint16_t mapped)
 	} else if (trans && (ww = find_window(trans)) != NULL) {
 		/* Launch transients in the same ws as parent. */
 		win->ws = ww->ws;
-		border_me = 1;
 	} else {
 		win->ws = r->ws;
 	}
@@ -6887,7 +6882,6 @@ manage_window(xcb_window_t id, uint16_t mapped)
 			DNPRINTF(SWM_D_CLASS, "manage_window: java window "
 			    "detected.\n");
 			win->java = 1;
-			border_me = 1;
 		}
 
 		TAILQ_FOREACH(qp, &quirks, entry) {
@@ -6895,20 +6889,16 @@ manage_window(xcb_window_t id, uint16_t mapped)
 			    !strcmp(win->ch.instance_name, qp->name)) {
 				DNPRINTF(SWM_D_CLASS, "manage_window: on quirks"
 				    "list; mask: 0x%lx\n", qp->quirk);
-				if (qp->quirk & SWM_Q_FLOAT) {
+				if (qp->quirk & SWM_Q_FLOAT)
 					win->floating = 1;
-					border_me = 1;
-				}
 				win->quirks = qp->quirk;
 			}
 		}
 	}
 
 	/* Alter window position if quirky */
-	if (win->quirks & SWM_Q_ANYWHERE) {
+	if (win->quirks & SWM_Q_ANYWHERE)
 		win->manual = 1;
-		border_me = 1;
-	}
 
 	/* Reset font sizes (the bruteforce way; no default keybinding). */
 	if (win->quirks & SWM_Q_XTERM_FONTADJ) {
@@ -6918,28 +6908,23 @@ manage_window(xcb_window_t id, uint16_t mapped)
 			fake_keypress(win, XK_KP_Add, XCB_MOD_MASK_SHIFT);
 	}
 
-	if (border_me) {
-		win->bordered = 1;
-		X(win) -= border_width;
-		Y(win) -= border_width;
+	/* Make sure window is positioned inside its region, if its active. */
+	if (win->ws->r) {
+		constrain_window(win, win->ws->r, 0);
+		update_window(win);
 	}
 
-	/* Make sure window is positioned inside its region, if its active. */
-	if (win->ws->r)
-		constrain_window(win, win->ws->r, 0);
 
-	if (win->ws->r || border_me)
-		update_window(win);
-
-	/* Select which X events to monitor. */
-	event_mask = XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE |
-	    XCB_EVENT_MASK_PROPERTY_CHANGE | XCB_EVENT_MASK_STRUCTURE_NOTIFY;
+	/* Select which X events to monitor and set border pixel color. */
+	wa[0] = win->s->c[SWM_S_COLOR_UNFOCUS].pixel;
+	wa[1] = XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_PROPERTY_CHANGE |
+	    XCB_EVENT_MASK_STRUCTURE_NOTIFY;
 #ifdef SWM_DEBUG
-	event_mask |= XCB_EVENT_MASK_LEAVE_WINDOW;
+	wa[1] |= XCB_EVENT_MASK_LEAVE_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE;
 #endif
 
-	xcb_change_window_attributes(conn, win->id, XCB_CW_EVENT_MASK,
-	    &event_mask);
+	xcb_change_window_attributes(conn, win->id, XCB_CW_BORDER_PIXEL |
+	    XCB_CW_EVENT_MASK, wa);
 
 out:
 	/* Figure out where to stack the window in the workspace. */
@@ -7554,7 +7539,6 @@ void
 propertynotify(xcb_property_notify_event_t *e)
 {
 	struct ws_win		*win;
-	union arg a;
 #ifdef SWM_DEBUG
 	char			*name;
 
