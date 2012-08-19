@@ -2882,6 +2882,10 @@ switchws(struct swm_region *r, union arg *args)
 	if (!new_ws->focus)
 		bar_update();
 
+	/* make sure bar gets updated if ws is empty */
+	if (!new_ws->focus)
+		bar_update();
+
 	focus_flush();
 
 	DNPRINTF(SWM_D_WS, "switchws: done.\n");
@@ -7550,6 +7554,7 @@ void
 propertynotify(xcb_property_notify_event_t *e)
 {
 	struct ws_win		*win;
+	union arg a;
 #ifdef SWM_DEBUG
 	char			*name;
 
