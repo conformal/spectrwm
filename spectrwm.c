@@ -128,6 +128,7 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #define XCB_ICCCM_SIZE_HINT_P_MIN_SIZE		XCB_SIZE_HINT_P_MIN_SIZE
 #define XCB_ICCCM_SIZE_HINT_P_MAX_SIZE		XCB_SIZE_HINT_P_MAX_SIZE
 #define XCB_ICCCM_SIZE_HINT_P_RESIZE_INC	XCB_SIZE_HINT_P_RESIZE_INC
+#define XCB_ICCCM_WM_HINT_INPUT			XCB_WM_HINT_INPUT
 #define XCB_ICCCM_WM_HINT_X_URGENCY		XCB_WM_HINT_X_URGENCY
 #define XCB_ICCCM_WM_STATE_ICONIC		XCB_WM_STATE_ICONIC
 #define XCB_ICCCM_WM_STATE_WITHDRAWN		XCB_WM_STATE_WITHDRAWN
@@ -2873,14 +2874,14 @@ switchws(struct swm_region *r, union arg *args)
 
 	new_ws->focus = get_region_focus(new_ws->r);
 
-	/* unmap old windows */
-	if (unmap_old)
-		TAILQ_FOREACH(win, &old_ws->winlist, entry)
-			unmap_window(win);
-
-	/* make sure bar gets updated if ws is empty */
-	if (!new_ws->focus)
+	if (new_ws->focus) {
+		/* if workspaces were swapped, then don't wait to set focus */
+		if (old_ws->r)
+			focus_win(new_ws->focus);
+	} else {
+		/* make sure bar gets updated if ws is empty */
 		bar_update();
+	}
 
 	focus_flush();
 
