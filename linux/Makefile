@@ -7,7 +7,7 @@ BINDIR?= $(PREFIX)/bin
 LIBDIR?= $(PREFIX)/lib
 MANDIR?= $(PREFIX)/share/man
 
-CC= gcc
+CC?= gcc
 
 LVERS= $(shell . ../lib/shlib_version; echo $$major.$$minor)
 

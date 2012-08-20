@@ -3523,7 +3523,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	int			w_inc = 1, h_inc, w_base = 1, h_base;
 	int			hrh, extra = 0, h_slice, last_h = 0;
 	int			split, colno, winno, mwin, msize, mscale;
-	int			remain, missing, v_slice, reconfigure;
+	int			remain, missing, v_slice, reconfigure = 0;
 	int			bordered = 1;
 
 	DNPRINTF(SWM_D_STACK, "stack_master: workspace: %d, rot: %s, "
@@ -6564,7 +6564,7 @@ conf_load(char *filename, int keymapping)
 			    filename, lineno, wordlen, cp);
 			goto out;
 		}
-		if (keymapping && strcmp(opt->optname, "bind")) {
+		if (keymapping && opt && strcmp(opt->optname, "bind")) {
 			warnx("%s: line %zd: invalid option %.*s",
 			    filename, lineno, wordlen, cp);
 			goto out;
