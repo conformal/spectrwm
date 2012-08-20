@@ -851,7 +851,6 @@ get_swm_iconic(struct ws_win *win)
 	int32_t				v = 0;
 	xcb_get_property_reply_t	*pr = NULL;
 
-
 	pr = xcb_get_property_reply(conn,
 	    xcb_get_property(conn, 0, win->id, a_swm_iconic,
 	    XCB_ATOM_INTEGER, 0, 1), NULL);
@@ -3029,7 +3028,6 @@ swapwin(struct swm_region *r, union arg *args)
 	struct ws_win		*cur_focus;
 	struct ws_win_list	*wl;
 
-
 	DNPRINTF(SWM_D_WS, "swapwin: id: %d, screen[%d]:%dx%d+%d+%d, ws: %d\n",
 	    args->id, r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
 
@@ -4434,7 +4432,6 @@ wkill(struct swm_region *r, union arg *args)
 	xcb_flush(conn);
 }
 
-
 int
 floating_toggle_win(struct ws_win *win)
 {
@@ -4897,7 +4894,6 @@ move_step(struct swm_region *r, union arg *args)
 
 	move(win, args);
 }
-
 
 /* user/key callable function IDs */
 enum keyfuncid {
@@ -6507,7 +6503,6 @@ struct config_option configopt[] = {
 	{ "layout",			setlayout,	0 },
 };
 
-
 int
 conf_load(char *filename, int keymapping)
 {
@@ -6915,7 +6910,6 @@ manage_window(xcb_window_t id, uint16_t mapped)
 		constrain_window(win, win->ws->r, 0);
 		update_window(win);
 	}
-
 
 	/* Select which X events to monitor and set border pixel color. */
 	wa[0] = win->s->c[SWM_S_COLOR_UNFOCUS].pixel;
@@ -7570,12 +7564,14 @@ propertynotify(xcb_property_notify_event_t *e)
 			focus_flush();
 			return;
 		} else if (e->state == XCB_PROPERTY_NEW_VALUE) {
+			win->ws->focus_pending = get_focus_prev(win);
 			unfocus_win(win);
 			unmap_window(win);
 
 			if (win->ws->r) {
-				focus_win(get_focus_prev(win));
 				stack();
+				focus_win(win->ws->focus_pending);
+				win->ws->focus_pending = NULL;
 				focus_flush();
 			}
 		}
