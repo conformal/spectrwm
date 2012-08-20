@@ -269,8 +269,8 @@ xcb_atom_t		a_swm_iconic;
 xcb_atom_t		a_swm_ws;
 volatile sig_atomic_t   running = 1;
 volatile sig_atomic_t   restart_wm = 0;
+xcb_timestamp_t		last_event_time = 0;
 int			outputs = 0;
-/*int			last_focus_event = FocusOut;*/
 int			other_wm;
 int			ss_enabled = 0;
 int			xrandr_support;
@@ -280,7 +280,6 @@ unsigned int		numlockmask = 0;
 Display			*display;
 xcb_connection_t	*conn;
 xcb_key_symbols_t	*syms;
-xcb_timestamp_t		last_event_time;
 
 int			cycle_empty = 0;
 int			cycle_visible = 0;
@@ -2147,7 +2146,8 @@ set_win_state(struct ws_win *win, uint16_t state)
 {
 	uint16_t		data[2] = { state, XCB_ATOM_NONE };
 
-	DNPRINTF(SWM_D_EVENT, "set_win_state: window: 0x%x\n", win->id);
+	DNPRINTF(SWM_D_EVENT, "set_win_state: window: 0x%x, state: %u\n",
+	    win->id, state);
 
 	if (win == NULL)
 		return;
@@ -7611,6 +7611,9 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 		/* If we were focused, make sure we focus on something else. */
 		if (win == win->ws->focus)
 			win->ws->focus_pending = get_focus_prev(win);
+
+		win->mapped = 0;
+		set_win_state(win, XCB_ICCCM_WM_STATE_ICONIC);
 
 		unmanage_window(win);
 		stack();
