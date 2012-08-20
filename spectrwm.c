@@ -491,6 +491,7 @@ struct workspace {
 	struct layout		*cur_layout;	/* current layout handlers */
 	struct ws_win		*focus;		/* may be NULL */
 	struct ws_win		*focus_prev;	/* may be NULL */
+	struct ws_win		*focus_pending;	/* may be NULL */
 	struct swm_region	*r;		/* may be NULL */
 	struct swm_region	*old_r;		/* may be NULL */
 	struct ws_win_list	winlist;	/* list of windows in ws */
@@ -2848,6 +2849,8 @@ switchws(struct swm_region *r, union arg *args)
 	if (new_ws == old_ws)
 		return;
 
+	unfocus_win(old_ws->focus);
+
 	other_r = new_ws->r;
 	if (other_r == NULL) {
 		/* the other workspace is hidden, hide this one */
@@ -2863,8 +2866,6 @@ switchws(struct swm_region *r, union arg *args)
 	this_r->ws = new_ws;
 	new_ws->r = this_r;
 
-	unfocus_win(old_ws->focus);
-
 	stack();
 
 	/* unmap old windows */
@@ -2872,9 +2873,9 @@ switchws(struct swm_region *r, union arg *args)
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
 			unmap_window(win);
 
-	new_ws->focus = get_region_focus(new_ws->r);
+	new_ws->focus_pending = get_region_focus(new_ws->r);
 
-	if (new_ws->focus) {
+	if (new_ws->focus_pending) {
 		/* if workspaces were swapped, then don't wait to set focus */
 		if (old_ws->r)
 			focus_win(new_ws->focus);
@@ -7002,8 +7003,6 @@ unmanage_window(struct ws_win *win)
 			parent->focus_child = NULL;
 	}
 
-	focus_win(get_focus_prev(win));
-
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
 	TAILQ_INSERT_TAIL(&win->ws->unmanagedlist, win, entry);
 }
@@ -7307,13 +7306,19 @@ destroynotify(xcb_destroy_notify_event_t *e)
 		return;
 	}
 
-	/* make sure we focus on something */
-	win->floating = 0;
+	/* If we were focused, make sure we focus on something else. */
+	if (win == win->ws->focus)
+		win->ws->focus_pending = get_focus_prev(win);
 
 	unmanage_window(win);
-	free_window(win);
-
 	stack();
+
+	if (win->ws->focus_pending) {
+		focus_win(win->ws->focus_pending);
+		win->ws->focus_pending = NULL;
+	}
+
+	free_window(win);
 
 	focus_flush();
 }
@@ -7445,9 +7450,10 @@ mapnotify(xcb_map_notify_event_t *e)
 	win->mapped = 1;
 	set_win_state(win, XCB_ICCCM_WM_STATE_NORMAL);
 
-	/* Focus on window if it is selected. */
-	if (win->ws->focus == win)
+	if (win->ws->focus_pending == win) {
 		focus_win(win);
+		win->ws->focus_pending = NULL;
+	}
 
 	xcb_flush(conn);
 }
@@ -7492,7 +7498,7 @@ maprequest(xcb_map_request_event_t *e)
 		stack();
 
 	/* The new window should get focus. */
-	win->ws->focus = get_focus_magic(win);
+	win->ws->focus_pending = get_focus_magic(win);
 
 	/* Ignore EnterNotify to handle the mapnotify without interference. */
 	if (focus_mode == SWM_FOCUS_DEFAULT)
@@ -7557,17 +7563,13 @@ propertynotify(xcb_property_notify_event_t *e)
 	if (e->atom == a_swm_iconic) {
 		if (e->state == XCB_PROPERTY_DELETE) {
 			/* The window is no longer iconic, restack ws. */
+			win->ws->focus_pending = get_focus_magic(win);
 			stack();
-
-			/* The window should get focus. */
-			win->ws->focus = get_focus_magic(win);
 
 			/* Flush EnterNotify for mapnotify, if needed. */
 			focus_flush();
 			return;
 		} else if (e->state == XCB_PROPERTY_NEW_VALUE) {
-			win->ws->focus = NULL;
-
 			unfocus_win(win);
 			unmap_window(win);
 
@@ -7578,9 +7580,11 @@ propertynotify(xcb_property_notify_event_t *e)
 			}
 		}
 	} else if (e->atom == a_state && e->state == XCB_PROPERTY_NEW_VALUE) {
-		/* Focus on window if it is selected. */
-		if (win->ws->focus == win)
+		/* State just changed, make sure it gets focused if mapped. */
+		if (win->mapped && win->ws->focus_pending == win) {
+			win->ws->focus_pending = NULL;
 			focus_win(win);
+		}
 	}
 
 	switch (e->atom) {
@@ -7608,8 +7612,18 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 		return;
 
 	if (getstate(e->window) == XCB_ICCCM_WM_STATE_NORMAL) {
+		/* If we were focused, make sure we focus on something else. */
+		if (win == win->ws->focus)
+			win->ws->focus_pending = get_focus_prev(win);
+
 		unmanage_window(win);
 		stack();
+
+		if (win->ws->focus_pending) {
+			focus_win(win->ws->focus_pending);
+			win->ws->focus_pending = NULL;
+		}
+
 		focus_flush();
 	}
 }
@@ -8086,6 +8100,8 @@ setup_screens(void)
 			ws->idx = j;
 			ws->name = NULL;
 			ws->focus = NULL;
+			ws->focus_prev = NULL;
+			ws->focus_pending = NULL;
 			ws->r = NULL;
 			ws->old_r = NULL;
 			TAILQ_INIT(&ws->winlist);
