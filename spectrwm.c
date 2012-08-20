@@ -6515,7 +6515,7 @@ conf_load(char *filename, int keymapping)
 	char			*line, *cp, *optsub, *optval;
 	size_t			linelen, lineno = 0;
 	int			wordlen, i, optidx;
-	struct config_option	*opt;
+	struct config_option	*opt = NULL;
 
 	DNPRINTF(SWM_D_CONF, "conf_load: begin\n");
 
