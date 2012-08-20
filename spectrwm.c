@@ -546,7 +546,6 @@ union arg {
 #define SWM_ARG_ID_FOCUSNEXT	(0)
 #define SWM_ARG_ID_FOCUSPREV	(1)
 #define SWM_ARG_ID_FOCUSMAIN	(2)
-#define SWM_ARG_ID_FOCUSCUR	(4)
 #define SWM_ARG_ID_SWAPNEXT	(10)
 #define SWM_ARG_ID_SWAPPREV	(11)
 #define SWM_ARG_ID_SWAPMAIN	(12)
@@ -697,6 +696,7 @@ char	*get_atom_name(xcb_atom_t);
 char	*get_notify_detail_label(uint8_t);
 char	*get_notify_mode_label(uint8_t);
 #endif
+struct ws_win	*get_region_focus(struct swm_region *);
 xcb_screen_t	*get_screen(int);
 char	*get_win_name(xcb_window_t);
 uint32_t getstate(xcb_window_t);
@@ -2828,7 +2828,6 @@ switchws(struct swm_region *r, union arg *args)
 	struct swm_region	*this_r, *other_r;
 	struct ws_win		*win;
 	struct workspace	*new_ws, *old_ws;
-	union arg		a;
 
 	if (!(r && r->s))
 		return;
@@ -2865,8 +2864,7 @@ switchws(struct swm_region *r, union arg *args)
 
 	stack();
 
-	a.id = SWM_ARG_ID_FOCUSCUR;
-	focus(new_ws->r, &a);
+	new_ws->focus = get_region_focus(new_ws->r);
 
 	/* unmap old windows */
 	if (unmap_old)
@@ -2948,7 +2946,6 @@ void
 cyclescr(struct swm_region *r, union arg *args)
 {
 	struct swm_region	*rr = NULL;
-	union arg		a;
 	int			i, x, y, num_screens;
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
@@ -2980,8 +2977,7 @@ cyclescr(struct swm_region *r, union arg *args)
 	xcb_warp_pointer(conn, XCB_WINDOW_NONE, rr->s[i].root, 0, 0, 0, 0,
 	    x, y);
 
-	a.id = SWM_ARG_ID_FOCUSCUR;
-	focus(rr, &a);
+	rr->ws->focus = get_region_focus(rr);
 
 	if (rr->ws->focus) {
 		/* move to focus window */
@@ -3179,11 +3175,30 @@ done:
 	return get_focus_magic(winfocus);
 }
 
+struct ws_win *
+get_region_focus(struct swm_region *r)
+{
+	struct ws_win		*winfocus = NULL;
+
+	if (!(r && r->ws))
+		return NULL;
+
+	if (r->ws->focus && !r->ws->focus->iconic)
+		winfocus = r->ws->focus;
+	else if (r->ws->focus_prev && !r->ws->focus_prev->iconic)
+		winfocus = r->ws->focus_prev;
+	else
+		TAILQ_FOREACH(winfocus, &r->ws->winlist, entry)
+			if (!winfocus->iconic)
+				break;
+
+	return get_focus_magic(winfocus);
+}
+
 void
 focus(struct swm_region *r, union arg *args)
 {
-	struct ws_win		*winfocus = NULL, *head;
-	struct ws_win		*cur_focus = NULL;
+	struct ws_win		*head, *cur_focus = NULL, *winfocus = NULL;
 	struct ws_win_list	*wl = NULL;
 	struct workspace	*ws = NULL;
 	int			all_iconics;
@@ -3192,21 +3207,6 @@ focus(struct swm_region *r, union arg *args)
 		return;
 
 	DNPRINTF(SWM_D_FOCUS, "focus: id: %d\n", args->id);
-
-	/* treat FOCUS_CUR special */
-	if (args->id == SWM_ARG_ID_FOCUSCUR) {
-		if (r->ws->focus && r->ws->focus->iconic == 0)
-			winfocus = r->ws->focus;
-		else if (r->ws->focus_prev && r->ws->focus_prev->iconic == 0)
-			winfocus = r->ws->focus_prev;
-		else
-			TAILQ_FOREACH(winfocus, &r->ws->winlist, entry)
-				if (winfocus->iconic == 0)
-					break;
-
-		r->ws->focus = get_focus_magic(winfocus);
-		return;
-	}
 
 	if ((cur_focus = r->ws->focus) == NULL)
 		return;
@@ -3287,7 +3287,6 @@ void
 cycle_layout(struct swm_region *r, union arg *args)
 {
 	struct workspace	*ws = r->ws;
-	union arg		a;
 
 	/* suppress unused warning since var is needed */
 	(void)args;
@@ -3301,9 +3300,7 @@ cycle_layout(struct swm_region *r, union arg *args)
 	stack();
 	bar_update();
 
-	a.id = SWM_ARG_ID_FOCUSCUR;
-	focus(r, &a);
-	focus_win(r->ws->focus);
+	focus_win(get_region_focus(r));
 
 	focus_flush();
 }
@@ -4466,7 +4463,6 @@ void
 floating_toggle(struct swm_region *r, union arg *args)
 {
 	struct ws_win		*win = r->ws->focus;
-	union arg		a;
 
 	/* suppress unused warning since var is needed */
 	(void)args;
@@ -4482,11 +4478,8 @@ floating_toggle(struct swm_region *r, union arg *args)
 
 	stack();
 
-	if (win == win->ws->focus) {
-		a.id = SWM_ARG_ID_FOCUSCUR;
-		focus(win->ws->r, &a);
-		focus_win(win->ws->focus);
-	}
+	if (win == win->ws->focus)
+		focus_win(win);
 
 	focus_flush();
 }
@@ -8279,7 +8272,6 @@ main(int argc, char *argv[])
 {
 	struct swm_region	*r, *rr;
 	struct ws_win		*winfocus = NULL;
-	union arg		a;
 	char			conf[PATH_MAX], *cfile = NULL;
 	struct stat		sb;
 	int			xfd, i, num_screens;
@@ -8436,9 +8428,7 @@ noconfig:
 				    rr->s[0].root, 0, 0, 0, 0, X(rr),
 				    Y(rr) + (bar_enabled ? bar_height : 0));
 
-			a.id = SWM_ARG_ID_FOCUSCUR;
-			focus(rr, &a);
-			focus_win(rr->ws->focus);
+			focus_win(get_region_focus(rr));
 			focus_flush();
 			winfocus = NULL;
 			continue;
