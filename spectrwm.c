@@ -2862,7 +2862,14 @@ switchws(struct swm_region *r, union arg *args)
 	this_r->ws = new_ws;
 	new_ws->r = this_r;
 
+	unmap_window(old_ws->focus);
+
 	stack();
+
+	/* unmap old windows */
+	if (unmap_old)
+		TAILQ_FOREACH(win, &old_ws->winlist, entry)
+			unmap_window(win);
 
 	new_ws->focus = get_region_focus(new_ws->r);
 
