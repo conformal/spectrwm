@@ -2872,9 +2872,10 @@ switchws(struct swm_region *r, union arg *args)
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
 			unmap_window(win);
 
-	new_ws->focus_pending = get_region_focus(new_ws->r);
+	if (focus_mode != SWM_FOCUS_FOLLOW)
+		new_ws->focus_pending = get_region_focus(new_ws->r);
 
-	if (new_ws->focus_pending) {
+	if (new_ws->focus_pending && focus_mode != SWM_FOCUS_FOLLOW) {
 		/* if workspaces were swapped, then don't wait to set focus */
 		if (old_ws->r)
 			focus_win(new_ws->focus_pending);
@@ -3883,7 +3884,7 @@ send_to_ws(struct swm_region *r, union arg *args)
 {
 	int			wsid = args->id;
 	struct ws_win		*win = NULL, *parent;
-	struct workspace	*ws, *nws;
+	struct workspace	*ws, *nws, *pws;
 	char			ws_idx_str[SWM_PROPLEN];
 
 	if (wsid >= workspace_limit)
@@ -3905,20 +3906,27 @@ send_to_ws(struct swm_region *r, union arg *args)
 
 	/* Update the window's workspace property: _SWM_WS */
 	if (snprintf(ws_idx_str, SWM_PROPLEN, "%d", nws->idx) < SWM_PROPLEN) {
-		ws->focus_pending = get_focus_prev(win);
+		if (focus_mode != SWM_FOCUS_FOLLOW)
+			ws->focus_pending = get_focus_prev(win);
 
 		/* Move the parent if this is a transient window. */
 		if (win->transient) {
 			parent = find_window(win->transient);
 			if (parent) {
+				pws = parent->ws;
 				/* Set new focus in parent's ws if needed. */
-				if (parent->ws->focus == parent) {
-					parent->ws->focus_pending =
-					    get_focus_prev(parent);
+				if (pws->focus == parent) {
+					if (focus_mode != SWM_FOCUS_FOLLOW)
+						pws->focus_pending =
+						    get_focus_prev(parent);
+
 					unfocus_win(parent);
-					parent->ws->focus =
-					    parent->ws->focus_pending;
-					parent->ws->focus_pending = NULL;
+
+					if (focus_mode != SWM_FOCUS_FOLLOW)
+						pws->focus = pws->focus_pending;
+
+					if (focus_mode != SWM_FOCUS_FOLLOW)
+						pws->focus_pending = NULL;
 				}
 
 				/* Don't unmap parent if new ws is visible */
@@ -3961,8 +3969,11 @@ send_to_ws(struct swm_region *r, union arg *args)
 
 		/* Restack and set new focus. */
 		stack();
-		focus_win(ws->focus_pending);
-		ws->focus_pending = NULL;
+
+		if (focus_mode != SWM_FOCUS_FOLLOW) {
+			focus_win(ws->focus_pending);
+			ws->focus_pending = NULL;
+		}
 
 		focus_flush();
 	}
@@ -6221,7 +6232,8 @@ setconfvalue(char *selector, char *value, int flags)
 	case SWM_S_FOCUS_MODE:
 		if (!strcmp(value, "default"))
 			focus_mode = SWM_FOCUS_DEFAULT;
-		else if (!strcmp(value, "follow_cursor"))
+		else if (!strcmp(value, "follow") ||
+		    !strcmp(value, "follow_cursor"))
 			focus_mode = SWM_FOCUS_FOLLOW;
 		else if (!strcmp(value, "manual"))
 			focus_mode = SWM_FOCUS_MANUAL;
@@ -7333,16 +7345,20 @@ destroynotify(xcb_destroy_notify_event_t *e)
 		return;
 	}
 
-	/* If we were focused, make sure we focus on something else. */
-	if (win == win->ws->focus)
-		win->ws->focus_pending = get_focus_prev(win);
+	if (focus_mode != SWM_FOCUS_FOLLOW) {
+		/* If we were focused, make sure we focus on something else. */
+		if (win == win->ws->focus)
+			win->ws->focus_pending = get_focus_prev(win);
+	}
 
 	unmanage_window(win);
 	stack();
 
-	if (win->ws->focus_pending) {
-		focus_win(win->ws->focus_pending);
-		win->ws->focus_pending = NULL;
+	if (focus_mode != SWM_FOCUS_FOLLOW) {
+		if (win->ws->focus_pending) {
+			focus_win(win->ws->focus_pending);
+			win->ws->focus_pending = NULL;
+		}
 	}
 
 	free_window(win);
@@ -7477,9 +7493,11 @@ mapnotify(xcb_map_notify_event_t *e)
 	win->mapped = 1;
 	set_win_state(win, XCB_ICCCM_WM_STATE_NORMAL);
 
-	if (win->ws->focus_pending == win) {
-		focus_win(win);
-		win->ws->focus_pending = NULL;
+	if (focus_mode != SWM_FOCUS_FOLLOW) {
+		if (win->ws->focus_pending == win) {
+			focus_win(win);
+			win->ws->focus_pending = NULL;
+		}
 	}
 
 	xcb_flush(conn);
@@ -7525,7 +7543,8 @@ maprequest(xcb_map_request_event_t *e)
 		stack();
 
 	/* The new window should get focus. */
-	win->ws->focus_pending = get_focus_magic(win);
+	if (focus_mode != SWM_FOCUS_FOLLOW)
+		win->ws->focus_pending = get_focus_magic(win);
 
 	/* Ignore EnterNotify to handle the mapnotify without interference. */
 	if (focus_mode == SWM_FOCUS_DEFAULT)
@@ -7589,19 +7608,25 @@ propertynotify(xcb_property_notify_event_t *e)
 
 	if (e->atom == a_swm_iconic) {
 		if (e->state == XCB_PROPERTY_NEW_VALUE) {
-			win->ws->focus_pending = get_focus_prev(win);
+			if (focus_mode != SWM_FOCUS_FOLLOW)
+				win->ws->focus_pending = get_focus_prev(win);
+
 			unfocus_win(win);
 			unmap_window(win);
 
 			if (win->ws->r) {
 				stack();
-				focus_win(win->ws->focus_pending);
-				win->ws->focus_pending = NULL;
+				if (focus_mode != SWM_FOCUS_FOLLOW) {
+					focus_win(win->ws->focus_pending);
+					win->ws->focus_pending = NULL;
+				}
 				focus_flush();
 			}
 		} else if (e->state == XCB_PROPERTY_DELETE) {
 			/* The window is no longer iconic, restack ws. */
-			win->ws->focus_pending = get_focus_magic(win);
+			if (focus_mode != SWM_FOCUS_FOLLOW)
+				win->ws->focus_pending = get_focus_magic(win);
+
 			stack();
 
 			/* Flush EnterNotify for mapnotify, if needed. */
@@ -7610,9 +7635,12 @@ propertynotify(xcb_property_notify_event_t *e)
 	} else if (e->atom == a_state) {
 		/* State just changed, make sure it gets focused if mapped. */
 		if (e->state == XCB_PROPERTY_NEW_VALUE) {
-			if (win->mapped && win->ws->focus_pending == win) {
-				win->ws->focus_pending = NULL;
-				focus_win(win);
+			if (focus_mode != SWM_FOCUS_FOLLOW) {
+				if (win->mapped &&
+				    win->ws->focus_pending == win) {
+					focus_win(win->ws->focus_pending);
+					win->ws->focus_pending = NULL;
+				}
 			}
 		}
 	} else if (e->atom == XCB_ATOM_WM_CLASS ||
@@ -7638,7 +7666,8 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 	if (getstate(e->window) == XCB_ICCCM_WM_STATE_NORMAL) {
 		/* If we were focused, make sure we focus on something else. */
 		if (win == win->ws->focus)
-			win->ws->focus_pending = get_focus_prev(win);
+			if (focus_mode != SWM_FOCUS_FOLLOW)
+				win->ws->focus_pending = get_focus_prev(win);
 
 		win->mapped = 0;
 		set_win_state(win, XCB_ICCCM_WM_STATE_ICONIC);
@@ -7646,9 +7675,11 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 		unmanage_window(win);
 		stack();
 
-		if (win->ws->focus_pending) {
-			focus_win(win->ws->focus_pending);
-			win->ws->focus_pending = NULL;
+		if (focus_mode != SWM_FOCUS_FOLLOW) {
+			if (win->ws->focus_pending) {
+				focus_win(win->ws->focus_pending);
+				win->ws->focus_pending = NULL;
+			}
 		}
 
 		focus_flush();
