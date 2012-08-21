@@ -831,7 +831,7 @@ get_atom_from_string(const char *str)
 }
 
 void
-update_iconic(struct ws_win *win, int newv)
+set_swm_iconic(struct ws_win *win, int newv)
 {
 	int32_t				v = newv;
 
@@ -2877,7 +2877,7 @@ switchws(struct swm_region *r, union arg *args)
 	if (new_ws->focus_pending) {
 		/* if workspaces were swapped, then don't wait to set focus */
 		if (old_ws->r)
-			focus_win(new_ws->focus);
+			focus_win(new_ws->focus_pending);
 	} else {
 		/* make sure bar gets updated if ws is empty */
 		bar_update();
@@ -3885,7 +3885,6 @@ send_to_ws(struct swm_region *r, union arg *args)
 	struct ws_win		*win = NULL, *parent;
 	struct workspace	*ws, *nws;
 	char			ws_idx_str[SWM_PROPLEN];
-	union arg		a;
 
 	if (wsid >= workspace_limit)
 		return;
@@ -3894,47 +3893,81 @@ send_to_ws(struct swm_region *r, union arg *args)
 		win = r->ws->focus;
 	else
 		return;
-	if (win == NULL)
-		return;
+
 	if (win->ws->idx == wsid)
 		return;
 
-	DNPRINTF(SWM_D_MOVE, "send_to_ws: window: 0x%x\n", win->id);
+	DNPRINTF(SWM_D_MOVE, "send_to_ws: win 0x%x, ws %d -> %d\n", win->id,
+	    win->ws->idx, wsid);
 
 	ws = win->ws;
 	nws = &win->s->ws[wsid];
 
-	a.id = SWM_ARG_ID_FOCUSPREV;
-	focus(r, &a);
-	if (win->transient) {
-		parent = find_window(win->transient);
-		if (parent) {
-			unmap_window(parent);
-			TAILQ_REMOVE(&ws->winlist, parent, entry);
-			TAILQ_INSERT_TAIL(&nws->winlist, parent, entry);
-			parent->ws = nws;
-		}
-	}
-	unmap_window(win);
-	TAILQ_REMOVE(&ws->winlist, win, entry);
-	TAILQ_INSERT_TAIL(&nws->winlist, win, entry);
-	if (TAILQ_EMPTY(&ws->winlist))
-		r->ws->focus = NULL;
-	win->ws = nws;
-
-	/* Try to update the window's workspace property */
+	/* Update the window's workspace property: _SWM_WS */
 	if (snprintf(ws_idx_str, SWM_PROPLEN, "%d", nws->idx) < SWM_PROPLEN) {
+		ws->focus_pending = get_focus_prev(win);
+
+		/* Move the parent if this is a transient window. */
+		if (win->transient) {
+			parent = find_window(win->transient);
+			if (parent) {
+				/* Set new focus in parent's ws if needed. */
+				if (parent->ws->focus == parent) {
+					parent->ws->focus_pending =
+					    get_focus_prev(parent);
+					unfocus_win(parent);
+					parent->ws->focus =
+					    parent->ws->focus_pending;
+					parent->ws->focus_pending = NULL;
+				}
+
+				/* Don't unmap parent if new ws is visible */
+				if (nws->r == NULL)
+					unmap_window(parent);
+
+				/* Transfer */
+				TAILQ_REMOVE(&ws->winlist, parent, entry);
+				TAILQ_INSERT_TAIL(&nws->winlist, parent, entry);
+				parent->ws = nws;
+
+				DNPRINTF(SWM_D_PROP, "send_to_ws: set "
+				    "property: _SWM_WS: %s\n", ws_idx_str);
+				xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
+				    parent->id, a_swm_ws, XCB_ATOM_STRING, 8,
+				    strlen(ws_idx_str), ws_idx_str);
+			}
+		}
+
+		unfocus_win(win);
+
+		/* Don't unmap if new ws is visible */
+		if (nws->r == NULL)
+			unmap_window(win);
+
+		/* Transfer */
+		TAILQ_REMOVE(&ws->winlist, win, entry);
+		TAILQ_INSERT_TAIL(&nws->winlist, win, entry);
+		win->ws = nws;
+
+		/* Set focus on new ws. */
+		unfocus_win(nws->focus);
+		nws->focus = win;
+
 		DNPRINTF(SWM_D_PROP, "send_to_ws: set property: _SWM_WS: %s\n",
 		    ws_idx_str);
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id,
 		    a_swm_ws, XCB_ATOM_STRING, 8, strlen(ws_idx_str),
 		    ws_idx_str);
+
+		/* Restack and set new focus. */
+		stack();
+		focus_win(ws->focus_pending);
+		ws->focus_pending = NULL;
+
+		focus_flush();
 	}
 
-	stack();
-	bar_update();
-
-	focus_flush();
+	DNPRINTF(SWM_D_MOVE, "send_to_ws: done.\n");
 }
 
 void
@@ -3976,7 +4009,7 @@ iconify(struct swm_region *r, union arg *args)
 	if (r->ws->focus == NULL)
 		return;
 
-	update_iconic(r->ws->focus, 1);
+	set_swm_iconic(r->ws->focus, 1);
 
 	xcb_flush(conn);
 }
@@ -4257,7 +4290,7 @@ search_resp_uniconify(char *resp, unsigned long len)
 		free(name);
 		if (strncmp(s, resp, len) == 0) {
 			/* XXX this should be a callback to generalize */
-			update_iconic(win, 0);
+			set_swm_iconic(win, 0);
 			xcb_flush(conn);
 			free(s);
 			break;
@@ -7555,15 +7588,7 @@ propertynotify(xcb_property_notify_event_t *e)
 	last_event_time = e->time;
 
 	if (e->atom == a_swm_iconic) {
-		if (e->state == XCB_PROPERTY_DELETE) {
-			/* The window is no longer iconic, restack ws. */
-			win->ws->focus_pending = get_focus_magic(win);
-			stack();
-
-			/* Flush EnterNotify for mapnotify, if needed. */
-			focus_flush();
-			return;
-		} else if (e->state == XCB_PROPERTY_NEW_VALUE) {
+		if (e->state == XCB_PROPERTY_NEW_VALUE) {
 			win->ws->focus_pending = get_focus_prev(win);
 			unfocus_win(win);
 			unmap_window(win);
@@ -7574,22 +7599,25 @@ propertynotify(xcb_property_notify_event_t *e)
 				win->ws->focus_pending = NULL;
 				focus_flush();
 			}
-		}
-	} else if (e->atom == a_state && e->state == XCB_PROPERTY_NEW_VALUE) {
-		/* State just changed, make sure it gets focused if mapped. */
-		if (win->mapped && win->ws->focus_pending == win) {
-			win->ws->focus_pending = NULL;
-			focus_win(win);
-		}
-	}
+		} else if (e->state == XCB_PROPERTY_DELETE) {
+			/* The window is no longer iconic, restack ws. */
+			win->ws->focus_pending = get_focus_magic(win);
+			stack();
 
-	switch (e->atom) {
-	case XCB_ATOM_WM_CLASS:
-	case XCB_ATOM_WM_NAME:
+			/* Flush EnterNotify for mapnotify, if needed. */
+			focus_flush();
+		}
+	} else if (e->atom == a_state) {
+		/* State just changed, make sure it gets focused if mapped. */
+		if (e->state == XCB_PROPERTY_NEW_VALUE) {
+			if (win->mapped && win->ws->focus_pending == win) {
+				win->ws->focus_pending = NULL;
+				focus_win(win);
+			}
+		}
+	} else if (e->atom == XCB_ATOM_WM_CLASS ||
+	    e->atom == XCB_ATOM_WM_NAME) {
 		bar_update();
-		break;
-	default:
-		break;
 	}
 
 	xcb_flush(conn);
