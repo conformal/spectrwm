@@ -703,6 +703,7 @@ char	*get_atom_name(xcb_atom_t);
 char	*get_notify_detail_label(uint8_t);
 char	*get_notify_mode_label(uint8_t);
 #endif
+struct ws_win	*get_pointer_win(xcb_window_t);
 struct ws_win	*get_region_focus(struct swm_region *);
 xcb_screen_t	*get_screen(int);
 char	*get_win_name(xcb_window_t);
@@ -2447,6 +2448,28 @@ restart(struct swm_region *r, union arg *args)
 	execvp(start_argv[0], start_argv);
 	warn("execvp failed");
 	quit(NULL, NULL);
+}
+
+struct ws_win *
+get_pointer_win(xcb_window_t root)
+{
+	struct ws_win			*win = NULL;
+	xcb_query_pointer_reply_t	*r;
+
+	DNPRINTF(SWM_D_EVENT, "get_pointer_win: root: 0x%x.\n", root);
+
+	r = xcb_query_pointer_reply(conn, xcb_query_pointer(conn, root), NULL);
+	if (r) {
+		win = find_window(r->child);
+		if (win) {
+			DNPRINTF(SWM_D_EVENT, "get_pointer_win: 0x%x.\n",
+			    win->id);
+		} else {
+			DNPRINTF(SWM_D_EVENT, "get_pointer_win: none.\n");
+		}
+	}
+
+	return win;
 }
 
 struct swm_region *
@@ -7753,10 +7776,10 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 	if (win == NULL)
 		return;
 
+	win->mapped = 0;
 	ws = win->ws;
 
 	if (getstate(e->window) == XCB_ICCCM_WM_STATE_NORMAL) {
-		win->mapped = 0;
 		set_win_state(win, XCB_ICCCM_WM_STATE_ICONIC);
 
 		/* If we were focused, make sure we focus on something else. */
@@ -7779,6 +7802,9 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 		}
 
 		focus_flush();
+	} else if (focus_mode == SWM_FOCUS_FOLLOW) {
+		if (ws->r)
+			focus_win(get_pointer_win(ws->r->s->root));
 	}
 }
 
