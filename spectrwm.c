@@ -2446,9 +2446,11 @@ restart(struct swm_region *r, union arg *args)
 struct swm_region *
 root_to_region(xcb_window_t root)
 {
+	struct ws_win			*cfw;
 	struct swm_region		*r = NULL;
 	int				i, num_screens;
 	xcb_query_pointer_reply_t	*qpr;
+	xcb_get_input_focus_reply_t	*gifr;
 
 	DNPRINTF(SWM_D_MISC, "root_to_region: window: 0x%x\n", root);
 
@@ -2457,20 +2459,33 @@ root_to_region(xcb_window_t root)
 		if (screens[i].root == root)
 			break;
 
-	qpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn,
-	    screens[i].root), NULL);
+	/* Try to find an actively focused window */
+	gifr = xcb_get_input_focus_reply(conn, xcb_get_input_focus(conn), NULL);
+	if (gifr) {
+		cfw = find_window(gifr->focus);
+		if (cfw && cfw->ws->r)
+			r = cfw->ws->r;
 
-	if (qpr) {
-		DNPRINTF(SWM_D_MISC, "root_to_region: pointer: (%d,%d)\n",
-		    qpr->root_x, qpr->root_y);
-		/* choose a region based on pointer location */
-		TAILQ_FOREACH(r, &screens[i].rl, entry)
-			if (X(r) <= qpr->root_x && qpr->root_x < MAX_X(r) &&
-			    Y(r) <= qpr->root_y && qpr->root_y < MAX_Y(r))
-				break;
-		free(qpr);
+		free(gifr);
 	}
 
+	if (r == NULL) {
+		/* No region with an active focus; try to use pointer. */
+		qpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn,
+		    screens[i].root), NULL);
+
+		if (qpr) {
+			DNPRINTF(SWM_D_MISC, "root_to_region: pointer: (%d,%d)\n",
+			    qpr->root_x, qpr->root_y);
+			TAILQ_FOREACH(r, &screens[i].rl, entry)
+				if (X(r) <= qpr->root_x && qpr->root_x < MAX_X(r) &&
+				    Y(r) <= qpr->root_y && qpr->root_y < MAX_Y(r))
+					break;
+			free(qpr);
+		}
+	}
+
+	/* Last resort. */
 	if (r == NULL)
 		r = TAILQ_FIRST(&screens[i].rl);
 
@@ -2956,7 +2971,7 @@ void
 cyclescr(struct swm_region *r, union arg *args)
 {
 	struct swm_region	*rr = NULL;
-	int			i, x, y, num_screens;
+	int			i, num_screens;
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	/* do nothing if we don't have more than one screen */
@@ -2981,21 +2996,7 @@ cyclescr(struct swm_region *r, union arg *args)
 	if (rr == NULL)
 		return;
 
-	/* move mouse to region */
-	x = X(rr) + 1;
-	y = Y(rr) + 1 + (bar_enabled ? bar_height : 0);
-	xcb_warp_pointer(conn, XCB_WINDOW_NONE, rr->s[i].root, 0, 0, 0, 0,
-	    x, y);
-
-	rr->ws->focus = get_region_focus(rr);
-
-	if (rr->ws->focus) {
-		/* move to focus window */
-		x = X(rr->ws->focus) + 1;
-		y = Y(rr->ws->focus) + 1;
-		xcb_warp_pointer(conn, XCB_WINDOW_NONE, rr->s[i].root, 0, 0, 0,
-		    0, x, y);
-	}
+	focus_win(get_region_focus(rr));
 
 	focus_flush();
 }
