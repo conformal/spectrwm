@@ -249,6 +249,12 @@ u_int32_t		swm_debug = 0
 #define SWM_FOCUS_FOLLOW	(1)
 #define SWM_FOCUS_MANUAL	(2)
 
+#define SWM_CK_NONE		0
+#define SWM_CK_ALL		0x7
+#define SWM_CK_FOCUS		0x1
+#define SWM_CK_POINTER		0x2
+#define SWM_CK_FALLBACK		0x4
+
 #define SWM_CONF_DEFAULT	(0)
 #define SWM_CONF_KEYMAPPING	(1)
 
@@ -2444,7 +2450,7 @@ restart(struct swm_region *r, union arg *args)
 }
 
 struct swm_region *
-root_to_region(xcb_window_t root)
+root_to_region(xcb_window_t root, int check)
 {
 	struct ws_win			*cfw;
 	struct swm_region		*r = NULL;
@@ -2459,34 +2465,39 @@ root_to_region(xcb_window_t root)
 		if (screens[i].root == root)
 			break;
 
-	/* Try to find an actively focused window */
-	gifr = xcb_get_input_focus_reply(conn, xcb_get_input_focus(conn), NULL);
-	if (gifr) {
-		cfw = find_window(gifr->focus);
-		if (cfw && cfw->ws->r)
-			r = cfw->ws->r;
+	if (check & SWM_CK_FOCUS) {
+		/* Try to find an actively focused window */
+		gifr = xcb_get_input_focus_reply(conn,
+		    xcb_get_input_focus(conn), NULL);
+		if (gifr) {
+			cfw = find_window(gifr->focus);
+			if (cfw && cfw->ws->r)
+				r = cfw->ws->r;
 
-		free(gifr);
+			free(gifr);
+		}
 	}
 
-	if (r == NULL) {
+	if (r == NULL && check & SWM_CK_POINTER) {
 		/* No region with an active focus; try to use pointer. */
 		qpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn,
 		    screens[i].root), NULL);
 
 		if (qpr) {
-			DNPRINTF(SWM_D_MISC, "root_to_region: pointer: (%d,%d)\n",
-			    qpr->root_x, qpr->root_y);
+			DNPRINTF(SWM_D_MISC, "root_to_region: pointer: "
+			    "(%d,%d)\n", qpr->root_x, qpr->root_y);
 			TAILQ_FOREACH(r, &screens[i].rl, entry)
-				if (X(r) <= qpr->root_x && qpr->root_x < MAX_X(r) &&
-				    Y(r) <= qpr->root_y && qpr->root_y < MAX_Y(r))
+				if (X(r) <= qpr->root_x &&
+				    qpr->root_x < MAX_X(r) &&
+				    Y(r) <= qpr->root_y &&
+				    qpr->root_y < MAX_Y(r))
 					break;
 			free(qpr);
 		}
 	}
 
 	/* Last resort. */
-	if (r == NULL)
+	if (r == NULL && check & SWM_CK_FALLBACK)
 		r = TAILQ_FIRST(&screens[i].rl);
 
 	return (r);
@@ -2888,17 +2899,25 @@ switchws(struct swm_region *r, union arg *args)
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
 			unmap_window(win);
 
-	if (focus_mode != SWM_FOCUS_FOLLOW)
+	if (focus_mode != SWM_FOCUS_FOLLOW) {
 		new_ws->focus_pending = get_region_focus(new_ws->r);
 
-	if (new_ws->focus_pending && focus_mode != SWM_FOCUS_FOLLOW) {
 		/* if workspaces were swapped, then don't wait to set focus */
-		if (old_ws->r)
-			focus_win(new_ws->focus_pending);
-	} else {
-		/* make sure bar gets updated if ws is empty */
-		bar_update();
+		if (old_ws->r) {
+			if (new_ws->focus_pending) {
+				focus_win(new_ws->focus_pending);
+			} else {
+				/* Empty region, focus on root. */
+				xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
+				    new_ws->r->s[new_ws->r->s->idx].root,
+				    XCB_CURRENT_TIME);
+			}
+		}
 	}
+
+	/* Clear bar if new ws is empty. */
+	if (new_ws->focus_pending == NULL)
+		bar_update();
 
 	focus_flush();
 
@@ -2970,6 +2989,7 @@ priorws(struct swm_region *r, union arg *args)
 void
 cyclescr(struct swm_region *r, union arg *args)
 {
+	struct ws_win		*nfw;
 	struct swm_region	*rr = NULL;
 	int			i, num_screens;
 
@@ -2996,7 +3016,18 @@ cyclescr(struct swm_region *r, union arg *args)
 	if (rr == NULL)
 		return;
 
-	focus_win(get_region_focus(rr));
+	nfw = get_region_focus(rr);
+	if (nfw) {
+		focus_win(nfw);
+	} else {
+		/* New region is empty; unfocus old region and warp pointer. */
+		unfocus_win(r->ws->focus);
+		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
+				rr->s[i].root, XCB_CURRENT_TIME);
+
+		/* Clear bar since empty. */
+		bar_update();
+	}
 
 	focus_flush();
 }
@@ -4474,7 +4505,7 @@ wkill(struct swm_region *r, union arg *args)
 		if (r->ws->focus->can_delete)
 			client_msg(r->ws->focus, a_delete, 0);
 
-	xcb_flush(conn);
+	focus_flush();
 }
 
 int
@@ -6676,7 +6707,7 @@ set_child_transient(struct ws_win *win, xcb_window_t *trans)
 		DNPRINTF(SWM_D_MISC, "set_child_transient: parent doesn't exist"
 		    " for 0x%x trans 0x%x\n", win->id, win->transient);
 
-		r = root_to_region(win->wa->root);
+		r = root_to_region(win->wa->root, SWM_CK_ALL);
 		ws = r->ws;
 		/* parent doen't exist in our window list */
 		TAILQ_FOREACH(w, &ws->winlist, entry) {
@@ -6834,7 +6865,7 @@ manage_window(xcb_window_t id, uint16_t mapped)
 	    NULL);
 
 	/* Figure out which region the window belongs to. */
-	r = root_to_region(win->wa->root);
+	r = root_to_region(win->wa->root, SWM_CK_ALL);
 
 	/* Ignore window border if there is one. */
 	WIDTH(win) = win->wa->width;
@@ -7098,10 +7129,10 @@ keypress(xcb_key_press_event_t *e)
 	last_event_time = e->time;
 
 	if (kp->funcid == KF_SPAWN_CUSTOM)
-		spawn_custom(root_to_region(e->root),
+		spawn_custom(root_to_region(e->root, SWM_CK_ALL),
 		    &(keyfuncs[kp->funcid].args), kp->spawn_name);
 	else if (keyfuncs[kp->funcid].func)
-		keyfuncs[kp->funcid].func(root_to_region(e->root),
+		keyfuncs[kp->funcid].func(root_to_region(e->root, SWM_CK_ALL),
 		    &(keyfuncs[kp->funcid].args));
 }
 
@@ -7438,6 +7469,7 @@ void
 enternotify(xcb_enter_notify_event_t *e)
 {
 	struct ws_win		*win;
+	struct swm_region	*old_r, *r;
 
 	DNPRINTF(SWM_D_FOCUS, "enternotify: time: %u, win (x,y): 0x%x "
 	    "(%d,%d), mode: %s(%d), detail: %s(%d), root (x,y): 0x%x (%d,%d), "
@@ -7454,12 +7486,31 @@ enternotify(xcb_enter_notify_event_t *e)
 		return;
 	}
 
+	last_event_time = e->time;
+
 	if ((win = find_window(e->event)) == NULL) {
-		DNPRINTF(SWM_D_EVENT, "enternotify: window is NULL; ignoring\n");
+		if (e->event == e->root) {
+			/* If no windows on pointer region, then focus root. */
+			r = root_to_region(e->root, SWM_CK_POINTER);
+			if (TAILQ_EMPTY(&r->ws->winlist)) {
+				old_r = root_to_region(e->root, SWM_CK_FOCUS);
+				if (old_r && old_r != r)
+					unfocus_win(old_r->ws->focus);
+
+				xcb_set_input_focus(conn,
+				    XCB_INPUT_FOCUS_PARENT, e->root, e->time);
+
+				/* Clear bar since empty. */
+				bar_update();
+
+				focus_flush();
+			}
+		} else {
+			DNPRINTF(SWM_D_EVENT, "enternotify: window is NULL; "
+			    "ignoring\n");
+		}
 		return;
 	}
-
-	last_event_time = e->time;
 
 	focus_win(get_focus_magic(win));
 
@@ -7813,7 +7864,8 @@ int
 enable_wm(void)
 {
 	int			num_screens, i;
-	const uint32_t		val = XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT;
+	const uint32_t		val = XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
+	    XCB_EVENT_MASK_ENTER_WINDOW;
 	xcb_screen_t		*sc;
 	xcb_void_cookie_t	wac;
 	xcb_generic_error_t	*error;
