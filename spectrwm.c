@@ -7293,8 +7293,10 @@ configurerequest(xcb_configure_request_event_t *e)
 			wc[i++] = e->stack_mode;
 		}
 
-		if (mask != 0)
+		if (mask != 0) {
 			xcb_configure_window(conn, e->window, mask, wc);
+			xcb_flush(conn);
+		}
 	} else if ((!win->manual || win->quirks & SWM_Q_ANYWHERE) &&
 	    !(win->ewmh_flags & EWMH_F_FULLSCREEN)) {
 		if (win->ws->r)
