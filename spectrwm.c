@@ -7157,7 +7157,7 @@ keypress(xcb_key_press_event_t *e)
 void
 buttonpress(xcb_button_press_event_t *e)
 {
-	struct ws_win		*win;
+	struct ws_win		*win = NULL;
 	struct swm_region	*r, *old_r;
 	int			i;
 	int			handled = 0;
