@@ -5937,11 +5937,6 @@ grabbuttons(struct ws_win *win)
 			    XCB_GRAB_MODE_SYNC, XCB_GRAB_MODE_ASYNC,
 			    XCB_WINDOW_NONE, XCB_CURSOR_NONE,
 			    buttons[i].button, buttons[i].mask);
-
-	/* click to focus */
-	xcb_grab_button(conn, 0, win->id, BUTTONMASK, XCB_GRAB_MODE_SYNC,
-	    XCB_GRAB_MODE_ASYNC, XCB_WINDOW_NONE, XCB_CURSOR_NONE,
-	    XCB_BUTTON_INDEX_1, XCB_BUTTON_MASK_ANY);
 }
 
 const char *quirkname[] = {
@@ -7140,13 +7135,46 @@ void
 buttonpress(xcb_button_press_event_t *e)
 {
 	struct ws_win		*win;
+	struct swm_region	*r, *old_r;
 	int			i;
 	int			handled = 0;
 
-	DNPRINTF(SWM_D_EVENT, "buttonpress: window 0x%x, detail: %u\n",
-	    e->event, e->detail);
+	DNPRINTF(SWM_D_EVENT, "buttonpress: win (x,y): 0x%x (%d,%d), "
+	    "detail: %u, time: %u, root (x,y): 0x%x (%d,%d), child: 0x%x, "
+	    "state: %u, same_screen: %s\n", e->event, e->event_x, e->event_y,
+	    e->detail, e->time, e->root, e->root_x, e->root_y, e->child,
+	    e->state, YESNO(e->same_screen));
 
-	if ((win = find_window(e->event)) == NULL)
+	if (e->event == e->root) {
+		if (e->child != 0) {
+			win = find_window(e->child);
+			/* Pass ButtonPress to window if it isn't managed. */
+			if (win == NULL)
+				goto out;
+		} else {
+			/* Focus on empty region */
+			/* If no windows on region if its empty. */
+			r = root_to_region(e->root, SWM_CK_POINTER);
+			if (TAILQ_EMPTY(&r->ws->winlist)) {
+				old_r = root_to_region(e->root, SWM_CK_FOCUS);
+				if (old_r && old_r != r)
+					unfocus_win(old_r->ws->focus);
+
+				xcb_set_input_focus(conn,
+				    XCB_INPUT_FOCUS_PARENT, e->root, e->time);
+
+				/* Clear bar since empty. */
+				bar_update();
+
+				handled = 1;
+				goto out;
+			}
+		}
+	} else {
+		win = find_window(e->event);
+	}
+
+	if (win == NULL)
 		return;
 
 	last_event_time = e->time;
@@ -7161,11 +7189,15 @@ buttonpress(xcb_button_press_event_t *e)
 			handled = 1;
 		}
 
+out:
 	if (!handled) {
 		DNPRINTF(SWM_D_EVENT, "buttonpress: passing to window.\n");
+		/* Replay event to event window */
 		xcb_allow_events(conn, XCB_ALLOW_REPLAY_POINTER, e->time);
 	} else {
 		DNPRINTF(SWM_D_EVENT, "buttonpress: handled.\n");
+		/* Unfreeze grab events. */
+		xcb_allow_events(conn, XCB_ALLOW_SYNC_POINTER, e->time);
 	}
 
 	xcb_flush(conn);
@@ -7887,6 +7919,11 @@ enable_wm(void)
 			free(error);
 			return 1;
 		}
+
+		/* click to focus on empty region */
+		xcb_grab_button(conn, 1, sc->root, BUTTONMASK,
+		    XCB_GRAB_MODE_SYNC, XCB_GRAB_MODE_ASYNC, XCB_WINDOW_NONE,
+		    XCB_CURSOR_NONE, XCB_BUTTON_INDEX_1, XCB_BUTTON_MASK_ANY);
 	}
 
 	return 0;
@@ -8558,11 +8595,6 @@ noconfig:
 				winfocus = NULL;
 				continue;
 			}
-			/* move pointer to first screen if multi screen */
-			if (num_screens > 1 || outputs > 1)
-				xcb_warp_pointer(conn, XCB_WINDOW_NONE,
-				    rr->s[0].root, 0, 0, 0, 0, X(rr),
-				    Y(rr) + (bar_enabled ? bar_height : 0));
 
 			focus_win(get_region_focus(rr));
 			focus_flush();
