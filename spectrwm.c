@@ -4357,7 +4357,6 @@ search_resp_uniconify(char *resp, unsigned long len)
 		if (strncmp(s, resp, len) == 0) {
 			/* XXX this should be a callback to generalize */
 			set_swm_iconic(win, 0);
-			xcb_flush(conn);
 			free(s);
 			break;
 		}
@@ -4846,6 +4845,7 @@ resize_step(struct swm_region *r, union arg *args)
 		return;
 
 	resize(win, args);
+	focus_flush();
 }
 
 #define SWM_MOVE_STEPS	(50)
@@ -4992,6 +4992,7 @@ move_step(struct swm_region *r, union arg *args)
 		return;
 
 	move(win, args);
+	focus_flush();
 }
 
 /* user/key callable function IDs */
@@ -7792,7 +7793,7 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 		stack();
 
 		DNPRINTF(SWM_D_EVENT, "unmapnotify: focus_pending: 0x%x\n",
-		    ws->focus_pending->id);
+		    WINID(ws->focus_pending));
 
 		if (focus_mode != SWM_FOCUS_FOLLOW) {
 			if (ws->focus_pending) {
@@ -7803,8 +7804,10 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 
 		focus_flush();
 	} else if (focus_mode == SWM_FOCUS_FOLLOW) {
-		if (ws->r)
+		if (ws->r) {
 			focus_win(get_pointer_win(ws->r->s->root));
+			xcb_flush(conn);
+		}
 	}
 }
 
