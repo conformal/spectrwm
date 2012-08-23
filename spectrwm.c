@@ -7398,6 +7398,8 @@ configurerequest(xcb_configure_request_event_t *e)
 		config_win(win, e);
 		xcb_flush(conn);
 	}
+
+	DNPRINTF(SWM_D_EVENT, "configurerequest: done.\n");
 }
 
 void
@@ -7610,6 +7612,7 @@ mapnotify(xcb_map_notify_event_t *e)
 		if (win->ws->focus_pending == win) {
 			focus_win(win);
 			win->ws->focus_pending = NULL;
+			focus_flush();
 		}
 	}
 
@@ -7710,7 +7713,8 @@ propertynotify(xcb_property_notify_event_t *e)
 
 	name = get_atom_name(e->atom);
 	DNPRINTF(SWM_D_EVENT, "propertynotify: window: 0x%x, atom: %s(%u), "
-	    "time: %#x\n", e->window, name, e->atom, e->time);
+	    "time: %#x, state: %u\n", e->window, name, e->atom, e->time,
+	    e->state);
 	free(name);
 #endif
 	win = find_window(e->window);
@@ -7772,43 +7776,53 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 
 	DNPRINTF(SWM_D_EVENT, "unmapnotify: window: 0x%x\n", e->window);
 
-	/* determine if we need to help unmanage this window */
+	/* If we aren't managing the window, then ignore. */
 	win = find_window(e->window);
 	if (win == NULL)
 		return;
 
-	win->mapped = 0;
 	ws = win->ws;
 
-	if (getstate(e->window) == XCB_ICCCM_WM_STATE_NORMAL) {
+	if (getstate(e->window) != XCB_ICCCM_WM_STATE_ICONIC)
 		set_win_state(win, XCB_ICCCM_WM_STATE_ICONIC);
 
-		/* If we were focused, make sure we focus on something else. */
-		if (win == ws->focus)
-			if (focus_mode != SWM_FOCUS_FOLLOW)
+	if (win->mapped) {
+		/* window unmapped itself */
+		/* do unmap/unfocus/restack and unmanage */
+		win->mapped = 0;
+
+		/* If win was focused, make sure to focus on something else. */
+		if (win == ws->focus) {
+			if (focus_mode != SWM_FOCUS_FOLLOW) {
 				ws->focus_pending = get_focus_prev(win);
+				DNPRINTF(SWM_D_EVENT, "unmapnotify: "
+				    "focus_pending: 0x%x\n",
+				    WINID(ws->focus_pending));
+			}
 
-		unfocus_win(win);
+			unfocus_win(win);
+		}
+
 		unmanage_window(win);
-		stack();
 
-		DNPRINTF(SWM_D_EVENT, "unmapnotify: focus_pending: 0x%x\n",
-		    WINID(ws->focus_pending));
+		if (ws->r)
+			stack();
 
-		if (focus_mode != SWM_FOCUS_FOLLOW) {
+		if (focus_mode == SWM_FOCUS_FOLLOW) {
+			if (ws->r)
+				focus_win(get_pointer_win(ws->r->s->root));
+		} else {
 			if (ws->focus_pending) {
 				focus_win(ws->focus_pending);
 				ws->focus_pending = NULL;
 			}
 		}
-
-		focus_flush();
-	} else if (focus_mode == SWM_FOCUS_FOLLOW) {
-		if (ws->r) {
-			focus_win(get_pointer_win(ws->r->s->root));
-			xcb_flush(conn);
-		}
 	}
+
+	if (getstate(e->window) == XCB_ICCCM_WM_STATE_NORMAL)
+		set_win_state(win, XCB_ICCCM_WM_STATE_ICONIC);
+
+	focus_flush();
 }
 
 #if 0
@@ -7837,6 +7851,7 @@ clientmessage(xcb_client_message_event_t *e)
 
 	if (win == NULL) {
 		if (e->type == ewmh[_NET_ACTIVE_WINDOW].atom) {
+			/* Manage the window with maprequest. */
 			DNPRINTF(SWM_D_EVENT, "clientmessage: request focus on "
 			    "unmanaged window.\n");
 			mre.window = e->window;
@@ -7887,7 +7902,7 @@ clientmessage(xcb_client_message_event_t *e)
 		stack();
 	}
 
-	xcb_flush(conn);
+	focus_flush();
 }
 
 void
