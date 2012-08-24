@@ -2754,7 +2754,8 @@ unfocus_win(struct ws_win *win)
 void
 focus_win(struct ws_win *win)
 {
-	struct ws_win			*cfw = NULL;
+	struct ws_win			*cfw = NULL, *parent = NULL, *w;
+	struct workspace		*ws;
 	xcb_get_input_focus_reply_t	*r;
 
 	DNPRINTF(SWM_D_FOCUS, "focus_win: window: 0x%x\n", WINID(win));
@@ -2765,7 +2766,9 @@ focus_win(struct ws_win *win)
 	if (win->ws == NULL)
 		goto out;
 
-	if (validate_ws(win->ws))
+	ws = win->ws;
+
+	if (validate_ws(ws))
 		goto out;
 
 	if (validate_win(win)) {
@@ -2781,13 +2784,24 @@ focus_win(struct ws_win *win)
 		free(r);
 	}
 
-	if (win->ws->focus != win) {
-		if (win->ws->focus && win->ws->focus != cfw)
-			unfocus_win(win->ws->focus);
-		win->ws->focus = win;
+	if (ws->focus != win) {
+		if (ws->focus && ws->focus != cfw)
+			unfocus_win(ws->focus);
+		ws->focus = win;
 	}
 
-	if (cfw != win && win->ws->r != NULL) {
+	/* If this window directs focus to a child window, then clear. */
+	if (win->focus_child)
+		win->focus_child = NULL;
+
+	/* If transient, adjust parent's focus child for focus_magic. */
+	if (win->transient) {
+		parent = find_window(win->transient);
+		if (parent && parent->focus_child != win)
+			parent->focus_child = win;
+	}
+
+	if (cfw != win && ws->r != NULL) {
 		/* Set input focus if no input hint, or indicated by hint. */
 		if (!(win->hints.flags & XCB_ICCCM_WM_HINT_INPUT) ||
 		    (win->hints.flags & XCB_ICCCM_WM_HINT_INPUT &&
@@ -2799,18 +2813,37 @@ focus_win(struct ws_win *win)
 		if (win->take_focus) {
 			/* java is special; always tell parent */
 			if (win->transient && win->java)
-				client_msg(find_window(win->transient),
-				    a_takefocus, last_event_time);
+				client_msg(parent, a_takefocus,
+				    last_event_time);
 			else
 				client_msg(win, a_takefocus, last_event_time);
 		}
 
 		xcb_change_window_attributes(conn, win->id, XCB_CW_BORDER_PIXEL,
-		    &win->ws->r->s->c[SWM_S_COLOR_FOCUS].pixel);
+		    &ws->r->s->c[SWM_S_COLOR_FOCUS].pixel);
 
-		if (win->ws->cur_layout->flags & SWM_L_MAPONFOCUS ||
-		    win->ws->always_raise)
+		if (ws->cur_layout->flags & SWM_L_MAPONFOCUS ||
+		    ws->always_raise) {
+			/* If a parent exists, map it first. */
+			if (parent) {
+				map_window(parent);
+
+				/* Map siblings next. */
+				TAILQ_FOREACH(w, &ws->winlist, entry)
+					if (w != win && !w->iconic &&
+					    w->transient == parent->id)
+						map_window(w);
+			}
+
+			/* Map focused window. */
 			map_window(win);
+
+			/* Finally, map children of focus window. */
+			TAILQ_FOREACH(w, &ws->winlist, entry)
+				if (w->transient == win->id && !w->iconic)
+					map_window(w);
+
+		}
 
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
 		    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
@@ -3344,7 +3377,7 @@ focus(struct swm_region *r, union arg *args)
 
 	focus_win(get_focus_magic(winfocus));
 
-	xcb_flush(conn);
+	focus_flush();
 }
 
 void
@@ -3764,6 +3797,7 @@ notiles:
 		map_window(win);
 	}
 
+	/* Make sure fs_win is stacked last so it's on top. */
 	if (fs_win) {
 		stack_floater(fs_win, ws->r);
 		map_window(fs_win);
@@ -3876,7 +3910,7 @@ void
 max_stack(struct workspace *ws, struct swm_geometry *g)
 {
 	struct swm_geometry	gg = *g;
-	struct ws_win		*win, *wintrans = NULL, *parent = NULL;
+	struct ws_win		*w, *win = NULL, *parent = NULL;
 	int			winno, num_screens;
 
 	DNPRINTF(SWM_D_STACK, "max_stack: workspace: %d\n", ws->idx);
@@ -3888,50 +3922,77 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 	if (winno == 0 && count_win(ws, 1) == 0)
 		return;
 
-	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
-	TAILQ_FOREACH(win, &ws->winlist, entry) {
-		if (win->transient) {
-			wintrans = win;
-			parent = find_window(win->transient);
-			continue;
-		}
+	/* Figure out which top level window should be visible. */
+	if (ws->focus_pending)
+		win = ws->focus_pending;
+	else if (ws->focus)
+		win = ws->focus;
+	else
+		win = TAILQ_FIRST(&ws->winlist);
 
-		if (win->floating && !win->floatmaxed ) {
+	if (win->transient)
+		parent = find_window(win->transient);
+
+	DNPRINTF(SWM_D_STACK, "max_stack: win: 0x%x\n", win->id);
+
+	/* maximize all top level windows */
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	TAILQ_FOREACH(w, &ws->winlist, entry) {
+		if (w->transient || w->iconic)
+			continue;
+
+		if (w->floating && !w->floatmaxed) {
 			/*
 			 * retain geometry for retrieval on exit from
 			 * max_stack mode
 			 */
-			store_float_geom(win, ws->r);
-			win->floatmaxed = 1;
+			store_float_geom(w, ws->r);
+			w->floatmaxed = 1;
 		}
 
 		/* only reconfigure if necessary */
-		if (X(win) != gg.x || Y(win) != gg.y || WIDTH(win) != gg.w ||
-		    HEIGHT(win) != gg.h) {
-			win->g = gg;
+		if (X(w) != gg.x || Y(w) != gg.y || WIDTH(w) != gg.w ||
+		    HEIGHT(w) != gg.h) {
+			w->g = gg;
 			if (bar_enabled){
-				win->bordered = 1;
+				w->bordered = 1;
 			} else {
-				win->bordered = 0;
-				WIDTH(win) += 2 * border_width;
-				HEIGHT(win) += 2 * border_width;
+				w->bordered = 0;
+				WIDTH(w) += 2 * border_width;
+				HEIGHT(w) += 2 * border_width;
 			}
 
-			update_window(win);
+			update_window(w);
 		}
-		/* unmap only if we don't have multi screen */
-		if (win != ws->focus)
-			if (!(num_screens > 1 || outputs > 1))
-				unmap_window(win);
+
+		/* Unmap unwanted windows if not multi-screen. */
+		if (!(num_screens > 1 || outputs > 1) && (w != win ||
+		    w != parent || w->transient != win->id))
+			unmap_window(w);
 	}
 
-	/* put the last transient on top */
-	if (wintrans) {
-		if (parent)
-			map_window(parent);
-		stack_floater(wintrans, ws->r);
-		ws->focus = get_focus_magic(wintrans);
+	/* If a parent exists, map it first. */
+	if (parent) {
+		map_window(parent);
+
+		/* Map siblings next. */
+		TAILQ_FOREACH(w, &ws->winlist, entry)
+			if (w != win && !w->iconic &&
+			    w->transient == parent->id) {
+				stack_floater(w, ws->r);
+				map_window(w);
+			}
 	}
+
+	/* Map focused window. */
+	map_window(win);
+
+	/* Finally, map children of focus window. */
+	TAILQ_FOREACH(w, &ws->winlist, entry)
+		if (w->transient == win->id && !w->iconic) {
+			stack_floater(w, ws->r);
+			map_window(w);
+		}
 }
 
 void
@@ -7179,7 +7240,7 @@ buttonpress(xcb_button_press_event_t *e)
 			/* Focus on empty region */
 			/* If no windows on region if its empty. */
 			r = root_to_region(e->root, SWM_CK_POINTER);
-			if (TAILQ_EMPTY(&r->ws->winlist)) {
+			if (r && TAILQ_EMPTY(&r->ws->winlist)) {
 				old_r = root_to_region(e->root, SWM_CK_FOCUS);
 				if (old_r && old_r != r)
 					unfocus_win(old_r->ws->focus);
@@ -7383,7 +7444,8 @@ configurerequest(xcb_configure_request_event_t *e)
 
 		win->g_floatvalid = 1;
 
-		if (win->floating && r) {
+		if (win->floating && r && (win->transient ||
+		    win->ws->cur_layout != &layouts[SWM_MAX_STACK])) {
 			WIDTH(win) = win->g_float.w;
 			HEIGHT(win) = win->g_float.h;
 
@@ -7654,13 +7716,13 @@ maprequest(xcb_map_request_event_t *e)
 	win = manage_window(e->window,
 	    (war->map_state == XCB_MAP_STATE_VIEWABLE));
 
+	/* The new window should get focus; prepare. */
+	if (focus_mode != SWM_FOCUS_FOLLOW)
+		win->ws->focus_pending = get_focus_magic(win);
+
 	/* All windows need to be mapped if they are in the current workspace.*/
 	if (win->ws->r)
 		stack();
-
-	/* The new window should get focus. */
-	if (focus_mode != SWM_FOCUS_FOLLOW)
-		win->ws->focus_pending = get_focus_magic(win);
 
 	/* Ignore EnterNotify to handle the mapnotify without interference. */
 	if (focus_mode == SWM_FOCUS_DEFAULT)
@@ -8157,7 +8219,7 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 void
 grab_windows(void)
 {
-	xcb_window_t		*wins	= NULL;
+	xcb_window_t		*wins = NULL, trans;
 	int			no;
 	int			i, j, num_screens;
 	uint16_t		state, manage, mapped;
@@ -8179,48 +8241,62 @@ grab_windows(void)
 		no = xcb_query_tree_children_length(qtr);
 		/* attach windows to a region */
 		/* normal windows */
+		DNPRINTF(SWM_D_INIT, "grab_windows: grab top level windows.\n");
 		for (j = 0; j < no; j++) {
 			c = xcb_get_window_attributes(conn, wins[j]);
 			r = xcb_get_window_attributes_reply(conn, c, NULL);
-			if (!r)
+			if (!r) {
+				DNPRINTF(SWM_D_INIT, "grab_windows: skip %#x; "
+				    "doesn't exist.\n", wins[j]);
 				continue;
+			}
 			if (r->override_redirect) {
+				DNPRINTF(SWM_D_INIT, "grab_windows: skip %#x; "
+				    "override_redirect set.\n", wins[j]);
 				free(r);
 				continue;
 			}
 
 			pc = xcb_icccm_get_wm_transient_for(conn, wins[j]);
 			if (xcb_icccm_get_wm_transient_for_reply(conn, pc,
-			    &wins[j], NULL)) {
+			    &trans, NULL)) {
+				DNPRINTF(SWM_D_INIT, "grab_windows: skip %#x; "
+				    "is transient for %#x.\n", wins[j], trans);
 				free(r);
 				continue;
 			}
 
 			state = getstate(wins[j]);
-			manage = state == XCB_ICCCM_WM_STATE_ICONIC;
+			manage = state != XCB_ICCCM_WM_STATE_WITHDRAWN;
 			mapped = r->map_state != XCB_MAP_STATE_UNMAPPED;
 			if (mapped || manage)
 				manage_window(wins[j], mapped);
 			free(r);
 		}
 		/* transient windows */
+		DNPRINTF(SWM_D_INIT, "grab_windows: grab transient windows.\n");
 		for (j = 0; j < no; j++) {
 			c = xcb_get_window_attributes(conn, wins[j]);
 			r = xcb_get_window_attributes_reply(conn, c, NULL);
-			if (!r)
+			if (!r) {
+				DNPRINTF(SWM_D_INIT, "grab_windows: skip %#x; "
+				    "doesn't exist.\n", wins[j]);
 				continue;
+			}
 			if (r->override_redirect) {
+				DNPRINTF(SWM_D_INIT, "grab_windows: skip %#x; "
+				    "override_redirect set.\n", wins[j]);
 				free(r);
 				continue;
 			}
 			free(r);
 
 			state = getstate(wins[j]);
-			manage = state == XCB_ICCCM_WM_STATE_ICONIC;
+			manage = state != XCB_ICCCM_WM_STATE_WITHDRAWN;
 			mapped = r->map_state != XCB_MAP_STATE_UNMAPPED;
 			pc = xcb_icccm_get_wm_transient_for(conn, wins[j]);
 			if (xcb_icccm_get_wm_transient_for_reply(conn, pc,
-			    &wins[j], NULL) && manage)
+			    &trans, NULL) && manage)
 				manage_window(wins[j], mapped);
 		}
 		free(qtr);

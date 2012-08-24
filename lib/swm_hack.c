@@ -138,17 +138,17 @@ XCreateWindow(Display *dpy, Window parent, int x, int y,
 		display = dpy;
 	}
 
-	if (parent == DefaultRootWindow(display))
-		parent = MyRoot(display);
+	if (parent == DefaultRootWindow(dpy))
+		parent = MyRoot(dpy);
 	
-	id = (*func) (display, parent, x, y, width, height, border_width,
+	id = (*func) (dpy, parent, x, y, width, height, border_width,
 	    depth, clss, visual, valuemask, attributes);
 
 	if (id) {
 		if ((env = getenv("_SWM_WS")) != NULL) 
-			set_property(display, id, "_SWM_WS", env);
+			set_property(dpy, id, "_SWM_WS", env);
 		if ((env = getenv("_SWM_PID")) != NULL)
-			set_property(display, id, "_SWM_PID", env);
+			set_property(dpy, id, "_SWM_PID", env);
 		if ((env = getenv("_SWM_XTERM_FONTADJ")) != NULL) {
 			unsetenv("_SWM_XTERM_FONTADJ");
 			xterm = 1;
