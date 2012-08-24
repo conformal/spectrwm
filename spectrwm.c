@@ -2948,6 +2948,10 @@ switchws(struct swm_region *r, union arg *args)
 	this_r->ws = new_ws;
 	new_ws->r = this_r;
 
+	/* Set focus_pending before stacking. */
+	if (focus_mode != SWM_FOCUS_FOLLOW)
+		new_ws->focus_pending = get_region_focus(new_ws->r);
+
 	stack();
 
 	/* unmap old windows */
@@ -2955,19 +2959,15 @@ switchws(struct swm_region *r, union arg *args)
 		TAILQ_FOREACH(win, &old_ws->winlist, entry)
 			unmap_window(win);
 
-	if (focus_mode != SWM_FOCUS_FOLLOW) {
-		new_ws->focus_pending = get_region_focus(new_ws->r);
-
-		/* if workspaces were swapped, then don't wait to set focus */
-		if (old_ws->r) {
-			if (new_ws->focus_pending) {
-				focus_win(new_ws->focus_pending);
-			} else {
-				/* Empty region, focus on root. */
-				xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
-				    new_ws->r->s[new_ws->r->s->idx].root,
-				    XCB_CURRENT_TIME);
-			}
+	/* if workspaces were swapped, then don't wait to set focus */
+	if (old_ws->r && focus_mode != SWM_FOCUS_FOLLOW) {
+		if (new_ws->focus_pending) {
+			focus_win(new_ws->focus_pending);
+		} else {
+			/* Empty region, focus on root. */
+			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
+			    new_ws->r->s[new_ws->r->s->idx].root,
+			    XCB_CURRENT_TIME);
 		}
 	}
 
@@ -8707,8 +8707,8 @@ noconfig:
 			free(evt);
 		}
 
-		/* if we are being restarted go focus on first window */
-		if (winfocus) {
+		/* If just (re)started, set default focus if needed. */
+		if (winfocus && focus_mode == SWM_FOCUS_MANUAL) {
 			rr = winfocus->ws->r;
 			if (rr == NULL) {
 				/* not a visible window */
