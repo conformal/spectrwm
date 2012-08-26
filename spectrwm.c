@@ -6173,6 +6173,7 @@ setquirk(const char *class, const char *name, unsigned long quirk)
 	DNPRINTF(SWM_D_QUIRK, "setquirk: enter %s:%s [%lu]\n", class, name,
 	   quirk);
 
+	/* Remove/replace existing quirk. */
 	TAILQ_FOREACH(qp, &quirks, entry) {
 		if (!strcmp(qp->class, class) && !strcmp(qp->name, name)) {
 			if (!quirk)
@@ -6183,12 +6184,11 @@ setquirk(const char *class, const char *name, unsigned long quirk)
 			return;
 		}
 	}
-	if (!quirk) {
-		warnx("error: setquirk: cannot find class/name combination");
-		return;
-	}
 
-	quirk_insert(class, name, quirk);
+	/* Only insert if quirk is not NONE. */
+	if (quirk)
+		quirk_insert(class, name, quirk);
+
 	DNPRINTF(SWM_D_QUIRK, "setquirk: leave\n");
 }
 
