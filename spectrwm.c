@@ -90,6 +90,7 @@
 #include <util.h>
 #include <X11/cursorfont.h>
 #include <X11/extensions/Xrandr.h>
+#include <X11/Xcursor/Xcursor.h>
 #include <X11/Xft/Xft.h>
 #include <X11/Xlib-xcb.h>
 #include <xcb/xcb_atom.h>
@@ -672,6 +673,32 @@ struct ewmh_hint {
     {"_SWM_WM_STATE_MANUAL", XCB_ATOM_NONE},
 };
 
+/* Cursors */
+enum {
+	XC_FLEUR,
+	XC_LEFT_PTR,
+	XC_BOTTOM_LEFT_CORNER,
+	XC_BOTTOM_RIGHT_CORNER,
+	XC_SIZING,
+	XC_TOP_LEFT_CORNER,
+	XC_TOP_RIGHT_CORNER,
+	XC_MAX
+};
+
+struct cursors {
+	char		*name; /* Name used by Xcursor .*/
+	uint8_t		cf_char; /* cursorfont index. */
+	xcb_cursor_t	cid;
+} cursors[XC_MAX] =	{
+	{"fleur", XC_fleur, XCB_CURSOR_NONE},
+	{"left_ptr", XC_left_ptr, XCB_CURSOR_NONE},
+	{"bottom_left_corner", XC_bottom_left_corner, XCB_CURSOR_NONE},
+	{"bottom_right_corner", XC_bottom_right_corner, XCB_CURSOR_NONE},
+	{"sizing", XC_sizing, XCB_CURSOR_NONE},
+	{"top_left_corner", XC_top_left_corner, XCB_CURSOR_NONE},
+	{"top_right_corner", XC_top_right_corner, XCB_CURSOR_NONE},
+};
+
 /* function prototypes */
 void	 buttonpress(xcb_button_press_event_t *);
 void	 check_conn(void);
@@ -731,6 +758,45 @@ void	 unmapnotify(xcb_unmap_notify_event_t *);
 void	 unfocus_win(struct ws_win *);
 void	 update_window(struct ws_win *);
 /*void	 visibilitynotify(xcb_visibility_notify_event_t *);*/
+
+void
+cursors_load(void)
+{
+	xcb_font_t	cf = XCB_NONE;
+	int		i;
+
+	for (i = 0; i < LENGTH(cursors); ++i) {
+		/* try to load Xcursor first. */
+		cursors[i].cid = XcursorLibraryLoadCursor(display,
+		    cursors[i].name);
+
+		/* fallback to cursorfont. */
+		if (cursors[i].cid == XCB_CURSOR_NONE) {
+			if (cf == XCB_NONE) {
+				cf = xcb_generate_id(conn);
+				xcb_open_font(conn, cf, strlen("cursor"),
+				    "cursor");
+			}
+
+			cursors[i].cid = xcb_generate_id(conn);
+			xcb_create_glyph_cursor(conn, cursors[i].cid, cf, cf,
+			    cursors[i].cf_char, cursors[i].cf_char + 1, 0, 0, 0,
+			    0xffff, 0xffff, 0xffff);
+
+		}
+	}
+
+	if (cf != XCB_NONE)
+		xcb_close_font(conn, cf);
+}
+
+void
+cursors_cleanup(void)
+{
+	int	i;
+	for (i = 0; i < LENGTH(cursors); ++i)
+		xcb_free_cursor(conn, cursors[i].cid);
+}
 
 char *
 expand_tilde(char *s)
@@ -4721,9 +4787,7 @@ resize(struct ws_win *win, union arg *args)
 	struct swm_geometry	g;
 	int			top = 0, left = 0, resizing;
 	int			dx, dy;
-	unsigned int		shape; /* cursor style */
-	xcb_cursor_t		cursor;
-	xcb_font_t		cursor_font;
+	xcb_cursor_t			cursor;
 	xcb_query_pointer_reply_t	*xpr;
 	xcb_generic_event_t		*evt;
 	xcb_motion_notify_event_t	*mne;
@@ -4796,18 +4860,13 @@ resize(struct ws_win *win, union arg *args)
 		top = 1;
 
 	if (args->id == SWM_ARG_ID_CENTER)
-		shape = XC_sizing;
+		cursor = cursors[XC_SIZING].cid;
 	else if (top)
-		shape = (left) ? XC_top_left_corner : XC_top_right_corner;
+		cursor = cursors[left ? XC_TOP_LEFT_CORNER :
+		    XC_TOP_RIGHT_CORNER].cid;
 	else
-		shape = (left) ? XC_bottom_left_corner : XC_bottom_right_corner;
-
-	cursor_font = xcb_generate_id(conn);
-	xcb_open_font(conn, cursor_font, strlen("cursor"), "cursor");
-
-	cursor = xcb_generate_id(conn);
-	xcb_create_glyph_cursor(conn, cursor, cursor_font, cursor_font,
-	    shape, shape + 1, 0, 0, 0, 0xffff, 0xffff, 0xffff);
+		cursor = cursors[left ? XC_BOTTOM_LEFT_CORNER :
+		    XC_BOTTOM_RIGHT_CORNER].cid;
 
 	xcb_grab_pointer(conn, 0, win->id, MOUSEMASK,
 	    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, XCB_WINDOW_NONE, cursor,
@@ -4889,8 +4948,6 @@ resize(struct ws_win *win, union arg *args)
 	store_float_geom(win,r);
 
 	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
-	xcb_free_cursor(conn, cursor);
-	xcb_close_font(conn, cursor_font);
 	free(xpr);
 	DNPRINTF(SWM_D_EVENT, "resize: done.\n");
 }
@@ -4917,8 +4974,6 @@ move(struct ws_win *win, union arg *args)
 	xcb_timestamp_t		timestamp = 0;
 	int			move_step = 0, moving;
 	struct swm_region	*r = NULL;
-	xcb_font_t			cursor_font;
-	xcb_cursor_t			cursor;
 	xcb_query_pointer_reply_t	*qpr;
 	xcb_generic_event_t		*evt;
 	xcb_motion_notify_event_t	*mne;
@@ -4978,24 +5033,15 @@ move(struct ws_win *win, union arg *args)
 		return;
 	}
 
-	cursor_font = xcb_generate_id(conn);
-	xcb_open_font(conn, cursor_font, strlen("cursor"), "cursor");
-
-	cursor = xcb_generate_id(conn);
-	xcb_create_glyph_cursor(conn, cursor, cursor_font, cursor_font,
-		XC_fleur, XC_fleur + 1, 0, 0, 0, 0xffff, 0xffff, 0xffff);
-
 	xcb_grab_pointer(conn, 0, win->id, MOUSEMASK,
 	    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC,
-	    XCB_WINDOW_NONE, cursor, XCB_CURRENT_TIME);
+	    XCB_WINDOW_NONE, cursors[XC_FLEUR].cid, XCB_CURRENT_TIME);
 
 	/* get cursor offset from window root */
 	qpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn, win->id),
 		NULL);
 	if (!qpr) {
 		xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
-		xcb_free_cursor(conn, cursor);
-		xcb_close_font(conn, cursor_font);
 		return;
 	}
 
@@ -5033,8 +5079,6 @@ move(struct ws_win *win, union arg *args)
 	}
 	store_float_geom(win, r);
 	free(qpr);
-	xcb_free_cursor(conn, cursor);
-	xcb_close_font(conn, cursor_font);
 	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
 	DNPRINTF(SWM_D_EVENT, "move: done.\n");
 }
@@ -8312,8 +8356,6 @@ setup_screens(void)
 	uint32_t		gcv[1], wa[1];
 	const xcb_query_extension_reply_t *qep;
 	xcb_screen_t				*screen;
-	xcb_cursor_t				cursor;
-	xcb_font_t				cursor_font;
 	xcb_randr_query_version_cookie_t	c;
 	xcb_randr_query_version_reply_t		*r;
 
@@ -8338,13 +8380,7 @@ setup_screens(void)
 		}
 	}
 
-	cursor_font = xcb_generate_id(conn);
-	xcb_open_font(conn, cursor_font, strlen("cursor"), "cursor");
-
-	cursor = xcb_generate_id(conn);
-	xcb_create_glyph_cursor(conn, cursor, cursor_font, cursor_font,
-	    XC_left_ptr, XC_left_ptr + 1, 0, 0, 0, 0xffff, 0xffff, 0xffff);
-	wa[0] = cursor;
+	wa[0] = cursors[XC_LEFT_PTR].cid;
 
 	/* map physical screens */
 	for (i = 0; i < num_screens; i++) {
@@ -8401,8 +8437,6 @@ setup_screens(void)
 			xcb_randr_select_input(conn, screens[i].root,
 			    XCB_RANDR_NOTIFY_MASK_SCREEN_CHANGE);
 	}
-	xcb_free_cursor(conn, cursor);
-	xcb_close_font(conn, cursor_font);
 }
 
 void
@@ -8470,6 +8504,8 @@ shutdown_cleanup(void)
 	bar_extra_stop();
 	bar_extra = 1;
 	unmap_all();
+
+	cursors_cleanup();
 
 	teardown_ewmh();
 
@@ -8626,6 +8662,9 @@ main(int argc, char *argv[])
 
 	if (enable_wm() != 0)
 		errx(1, "another window manager is currently running");
+
+	/* Load Xcursors and/or cursorfont glyph cursors. */
+	cursors_load();
 
 	xcb_aux_sync(conn);
 
