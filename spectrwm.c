@@ -8708,7 +8708,7 @@ noconfig:
 		}
 
 		/* If just (re)started, set default focus if needed. */
-		if (winfocus && focus_mode == SWM_FOCUS_MANUAL) {
+		if (winfocus && focus_mode != SWM_FOCUS_FOLLOW) {
 			rr = winfocus->ws->r;
 			if (rr == NULL) {
 				/* not a visible window */
