@@ -829,6 +829,8 @@ expand_tilde(char *s)
 	s = &s[i];
 
 	ppwd = strlen(user) == 0 ? getpwuid(getuid()) : getpwnam(user);
+	free(user);
+
 	if (ppwd == NULL)
 		result = strdup(sc);
 	else
@@ -8333,7 +8335,6 @@ grab_windows(void)
 				free(r);
 				continue;
 			}
-			free(r);
 
 			state = getstate(wins[j]);
 			manage = state != XCB_ICCCM_WM_STATE_WITHDRAWN;
@@ -8342,6 +8343,7 @@ grab_windows(void)
 			if (xcb_icccm_get_wm_transient_for_reply(conn, pc,
 			    &trans, NULL) && manage)
 				manage_window(wins[j], mapped);
+			free(r);
 		}
 		free(qtr);
 	}
