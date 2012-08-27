@@ -703,7 +703,7 @@ struct cursors {
 void	 buttonpress(xcb_button_press_event_t *);
 void	 check_conn(void);
 void	 clientmessage(xcb_client_message_event_t *);
-int	 conf_load(char *, int);
+int	 conf_load(const char *, int);
 void	 configurenotify(xcb_configure_notify_event_t *);
 void	 configurerequest(xcb_configure_request_event_t *);
 void	 constrain_window(struct ws_win *, struct swm_region *, int);
@@ -712,7 +712,7 @@ void	 enternotify(xcb_enter_notify_event_t *);
 void	 event_drain(uint8_t);
 void	 event_error(xcb_generic_error_t *);
 void	 event_handle(xcb_generic_event_t *);
-char	*expand_tilde(char *);
+char	*expand_tilde(const char *);
 void	 expose(xcb_expose_event_t *);
 struct ws_win	*find_window(xcb_window_t);
 int	 floating_toggle_win(struct ws_win *);
@@ -749,7 +749,7 @@ void	 maprequest(xcb_map_request_event_t *);
 void	 new_region(struct swm_screen *, int, int, int, int);
 int	 parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
 void	 propertynotify(xcb_property_notify_event_t *);
-void	 spawn_select(struct swm_region *, union arg *, char *, int *);
+void	 spawn_select(struct swm_region *, union arg *, const char *, int *);
 void	 screenchange(xcb_randr_screen_change_notify_event_t *);
 void	 shutdown_cleanup(void);
 void	 store_float_geom(struct ws_win *, struct swm_region *);
@@ -799,7 +799,7 @@ cursors_cleanup(void)
 }
 
 char *
-expand_tilde(char *s)
+expand_tilde(const char *s)
 {
 	struct passwd           *ppwd;
 	int                     i, max;
@@ -2051,7 +2051,7 @@ isxlfd(char *s)
 }
 
 void
-fontset_init()
+fontset_init(void)
 {
 	char			*default_string;
 	char			**missing_charsets;
@@ -4239,7 +4239,7 @@ get_win_name(xcb_window_t win)
 		    xcb_get_property_value_length(r));
 
 	free(r);
-	return name;
+	return (name);
 }
 
 void
@@ -4464,7 +4464,7 @@ search_win(struct swm_region *r, union arg *args)
 }
 
 void
-search_resp_uniconify(char *resp, unsigned long len)
+search_resp_uniconify(const char *resp, unsigned long len)
 {
 	char			*name;
 	struct ws_win		*win;
@@ -4494,7 +4494,7 @@ search_resp_uniconify(char *resp, unsigned long len)
 }
 
 void
-search_resp_name_workspace(char *resp, unsigned long len)
+search_resp_name_workspace(const char *resp, unsigned long len)
 {
 	struct workspace	*ws;
 
@@ -4520,7 +4520,7 @@ search_resp_name_workspace(char *resp, unsigned long len)
 }
 
 void
-search_resp_search_workspace(char *resp)
+search_resp_search_workspace(const char *resp)
 {
 	char			*p, *q;
 	int			ws_idx;
@@ -4551,7 +4551,7 @@ search_resp_search_workspace(char *resp)
 }
 
 void
-search_resp_search_window(char *resp)
+search_resp_search_window(const char *resp)
 {
 	char			*s;
 	int			idx;
@@ -5372,7 +5372,7 @@ TAILQ_HEAD(spawn_list, spawn_prog);
 struct spawn_list		spawns = TAILQ_HEAD_INITIALIZER(spawns);
 
 int
-spawn_expand(struct swm_region *r, union arg *args, char *spawn_name,
+spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
     char ***ret_args)
 {
 	struct spawn_prog	*prog = NULL;
@@ -5451,7 +5451,7 @@ spawn_expand(struct swm_region *r, union arg *args, char *spawn_name,
 }
 
 void
-spawn_custom(struct swm_region *r, union arg *args, char *spawn_name)
+spawn_custom(struct swm_region *r, union arg *args, const char *spawn_name)
 {
 	union arg		a;
 	char			**real_args;
@@ -5469,7 +5469,8 @@ spawn_custom(struct swm_region *r, union arg *args, char *spawn_name)
 }
 
 void
-spawn_select(struct swm_region *r, union arg *args, char *spawn_name, int *pid)
+spawn_select(struct swm_region *r, union arg *args, const char *spawn_name,
+    int *pid)
 {
 	union arg		a;
 	char			**real_args;
@@ -5511,7 +5512,7 @@ spawn_select(struct swm_region *r, union arg *args, char *spawn_name, int *pid)
 }
 
 void
-spawn_insert(char *name, char *args)
+spawn_insert(const char *name, const char *args)
 {
 	char			*arg, *cp, *ptr;
 	struct spawn_prog	*sp;
@@ -6710,7 +6711,7 @@ struct config_option configopt[] = {
 };
 
 int
-conf_load(char *filename, int keymapping)
+conf_load(const char *filename, int keymapping)
 {
 	FILE			*config;
 	char			*line, *cp, *optsub, *optval;
