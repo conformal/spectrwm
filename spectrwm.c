@@ -7442,7 +7442,13 @@ buttonpress(xcb_button_press_event_t *e)
 			/* Focus on empty region */
 			/* If no windows on region if its empty. */
 			r = root_to_region(e->root, SWM_CK_POINTER);
-			if (r && TAILQ_EMPTY(&r->ws->winlist)) {
+			if (r == NULL) {
+				DNPRINTF(SWM_D_EVENT, "buttonpress: "
+				    "NULL region; ignoring.\n");
+				goto out;
+			}
+
+			if (TAILQ_EMPTY(&r->ws->winlist)) {
 				old_r = root_to_region(e->root, SWM_CK_FOCUS);
 				if (old_r && old_r != r)
 					unfocus_win(old_r->ws->focus);
@@ -7816,6 +7822,12 @@ enternotify(xcb_enter_notify_event_t *e)
 		if (e->event == e->root) {
 			/* If no windows on pointer region, then focus root. */
 			r = root_to_region(e->root, SWM_CK_POINTER);
+			if (r == NULL) {
+				DNPRINTF(SWM_D_EVENT, "enterntoify: "
+				    "NULL region; ignoring.\n");
+				return;
+			}
+
 			if (TAILQ_EMPTY(&r->ws->winlist)) {
 				old_r = root_to_region(e->root, SWM_CK_FOCUS);
 				if (old_r && old_r != r)
