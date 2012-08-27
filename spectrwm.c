@@ -5563,7 +5563,7 @@ spawn_remove(struct spawn_prog *sp)
 }
 
 void
-spawn_replace(struct spawn_prog *sp, char *name, char *args)
+spawn_replace(struct spawn_prog *sp, const char *name, const char *args)
 {
 	DNPRINTF(SWM_D_SPAWN, "spawn_replace: %s [%s]\n", sp->name, name);
 
@@ -5574,7 +5574,7 @@ spawn_replace(struct spawn_prog *sp, char *name, char *args)
 }
 
 void
-setspawn(char *name, char *args)
+setspawn(const char *name, const char *args)
 {
 	struct spawn_prog	*sp;
 
@@ -5706,7 +5706,7 @@ parsekeys(char *keystr, unsigned int currmod, unsigned int *mod, KeySym *ks)
 }
 
 char *
-strdupsafe(char *str)
+strdupsafe(const char *str)
 {
 	if (str == NULL)
 		return (NULL);
@@ -5715,7 +5715,8 @@ strdupsafe(char *str)
 }
 
 void
-key_insert(unsigned int mod, KeySym ks, enum keyfuncid kfid, char *spawn_name)
+key_insert(unsigned int mod, KeySym ks, enum keyfuncid kfid,
+    const char *spawn_name)
 {
 	struct key		*kp;
 
@@ -5759,7 +5760,7 @@ key_remove(struct key *kp)
 
 void
 key_replace(struct key *kp, unsigned int mod, KeySym ks, enum keyfuncid kfid,
-    char *spawn_name)
+    const char *spawn_name)
 {
 	DNPRINTF(SWM_D_KEY, "key_replace: %s [%s]\n", keyfuncs[kp->funcid].name,
 	    spawn_name);
@@ -5772,7 +5773,7 @@ key_replace(struct key *kp, unsigned int mod, KeySym ks, enum keyfuncid kfid,
 
 void
 setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid,
-    char *spawn_name)
+    const char *spawn_name)
 {
 	struct key		*kp;
 
