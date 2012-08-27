@@ -6504,7 +6504,7 @@ setautorun(char *selector, char *value, int flags)
 {
 	int			ws_id;
 	char			s[1024];
-	char			*ap, *sp = s;
+	char			*ap, *sp;
 	union arg		a;
 	int			argc = 0;
 	pid_t			pid;
@@ -6524,6 +6524,8 @@ setautorun(char *selector, char *value, int flags)
 	if (ws_id < 0 || ws_id >= workspace_limit)
 		errx(1, "autorun: invalid workspace %d", ws_id + 1);
 
+	sp = expand_tilde((char *)&s);
+
 	/*
 	 * This is a little intricate
 	 *
@@ -6541,6 +6543,7 @@ setautorun(char *selector, char *value, int flags)
 			err(1, "setautorun: realloc");
 		a.argv[argc - 1] = ap;
 	}
+	free(sp);
 
 	if ((a.argv = realloc(a.argv, (argc + 1) * sizeof(char *))) == NULL)
 		err(1, "setautorun: realloc");
