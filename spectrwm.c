@@ -8177,6 +8177,8 @@ scan_xrandr(int i)
 	xcb_randr_crtc_t				*crtc;
 	xcb_screen_t					*screen;
 
+	DNPRINTF(SWM_D_MISC, "scan_xrandr: screen: %d\n", i);
+
 	if ((screen = get_screen(i)) == NULL)
 		errx(1, "ERROR: can't get screen %d.", i);
 
@@ -8204,7 +8206,7 @@ scan_xrandr(int i)
 			new_region(&screens[i], 0, 0,
 			    screen->width_in_pixels,
 			    screen->height_in_pixels);
-			return;
+			goto out;
 		} else
 			ncrtc = srr->num_crtcs;
 
@@ -8230,12 +8232,16 @@ scan_xrandr(int i)
 			free(cir);
 		}
 		free(srr);
-	} else
+	}
 #endif /* SWM_XRR_HAS_CRTC */
-	{
+
+	/* If detection failed, create a single region that spans the screen. */
+	if (TAILQ_EMPTY(&screens[i].rl))
 		new_region(&screens[i], 0, 0, screen->width_in_pixels,
 		    screen->height_in_pixels);
-	}
+
+out:
+	DNPRINTF(SWM_D_MISC, "scan_xrandr: done.\n");
 }
 
 void
