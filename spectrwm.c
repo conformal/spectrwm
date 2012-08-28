@@ -709,6 +709,110 @@ struct spawn_prog {
 TAILQ_HEAD(spawn_list, spawn_prog);
 struct spawn_list		spawns = TAILQ_HEAD_INITIALIZER(spawns);
 
+/* user/key callable function IDs */
+enum keyfuncid {
+	KF_BAR_TOGGLE,
+	KF_BUTTON2,
+	KF_CYCLE_LAYOUT,
+	KF_FLIP_LAYOUT,
+	KF_FLOAT_TOGGLE,
+	KF_FOCUS_MAIN,
+	KF_FOCUS_NEXT,
+	KF_FOCUS_PREV,
+	KF_HEIGHT_GROW,
+	KF_HEIGHT_SHRINK,
+	KF_ICONIFY,
+	KF_MASTER_SHRINK,
+	KF_MASTER_GROW,
+	KF_MASTER_ADD,
+	KF_MASTER_DEL,
+	KF_MOVE_DOWN,
+	KF_MOVE_LEFT,
+	KF_MOVE_RIGHT,
+	KF_MOVE_UP,
+	KF_MVWS_1,
+	KF_MVWS_2,
+	KF_MVWS_3,
+	KF_MVWS_4,
+	KF_MVWS_5,
+	KF_MVWS_6,
+	KF_MVWS_7,
+	KF_MVWS_8,
+	KF_MVWS_9,
+	KF_MVWS_10,
+	KF_MVWS_11,
+	KF_MVWS_12,
+	KF_MVWS_13,
+	KF_MVWS_14,
+	KF_MVWS_15,
+	KF_MVWS_16,
+	KF_MVWS_17,
+	KF_MVWS_18,
+	KF_MVWS_19,
+	KF_MVWS_20,
+	KF_MVWS_21,
+	KF_MVWS_22,
+	KF_NAME_WORKSPACE,
+	KF_QUIT,
+	KF_RAISE_TOGGLE,
+	KF_RESTART,
+	KF_SCREEN_NEXT,
+	KF_SCREEN_PREV,
+	KF_SEARCH_WIN,
+	KF_SEARCH_WORKSPACE,
+	KF_SPAWN_CUSTOM,
+	KF_STACK_INC,
+	KF_STACK_DEC,
+	KF_STACK_RESET,
+	KF_SWAP_MAIN,
+	KF_SWAP_NEXT,
+	KF_SWAP_PREV,
+	KF_UNICONIFY,
+	KF_VERSION,
+	KF_WIDTH_GROW,
+	KF_WIDTH_SHRINK,
+	KF_WIND_DEL,
+	KF_WIND_KILL,
+	KF_WS_1,
+	KF_WS_2,
+	KF_WS_3,
+	KF_WS_4,
+	KF_WS_5,
+	KF_WS_6,
+	KF_WS_7,
+	KF_WS_8,
+	KF_WS_9,
+	KF_WS_10,
+	KF_WS_11,
+	KF_WS_12,
+	KF_WS_13,
+	KF_WS_14,
+	KF_WS_15,
+	KF_WS_16,
+	KF_WS_17,
+	KF_WS_18,
+	KF_WS_19,
+	KF_WS_20,
+	KF_WS_21,
+	KF_WS_22,
+	KF_WS_NEXT,
+	KF_WS_NEXT_ALL,
+	KF_WS_PREV,
+	KF_WS_PREV_ALL,
+	KF_WS_PRIOR,
+	KF_DUMPWINS, /* MUST BE LAST */
+	KF_INVALID
+};
+
+struct key {
+        RB_ENTRY(key)           entry;
+        unsigned int            mod;
+        KeySym                  keysym;
+        enum keyfuncid          funcid;
+        char                    *spawn_name;
+};
+RB_HEAD(key_tree, key);
+
 /* function prototypes */
 void	 adjust_font(struct ws_win *);
 void	 bar_class_name(char *, size_t, struct swm_region *);
@@ -806,6 +910,12 @@ void	 grab_windows(void);
 void	 iconify(struct swm_region *, union arg *);
 int	 isxlfd(char *);
 void	 keypress(xcb_key_press_event_t *);
+int	 key_cmp(struct key *, struct key *);
+void	 key_insert(unsigned int, KeySym, enum keyfuncid, const char *);
+struct key	*key_lookup(unsigned int, KeySym);
+void	 key_remove(struct key *);
+void	 key_replace(struct key *, unsigned int, KeySym, enum keyfuncid,
+	     const char *);
 void	 kill_refs(struct ws_win *);
 #ifdef SWM_DEBUG
 void	 leavenotify(xcb_leave_notify_event_t *);
@@ -859,6 +969,7 @@ int	 setconfquirk(char *, char *, int);
 int	 setconfregion(char *, char *, int);
 int	 setconfspawn(char *, char *, int);
 int	 setconfvalue(char *, char *, int);
+void	 setkeybinding(unsigned int, KeySym, enum keyfuncid, const char *);
 int	 setkeymapping(char *, char *, int);
 int	 setlayout(char *, char *, int);
 void	 setquirk(const char *, const char *, unsigned long);
@@ -909,6 +1020,10 @@ pid_t	 window_get_pid(xcb_window_t);
 void	 wkill(struct swm_region *, union arg *);
 void	 workaround(void);
 void	 xft_init(struct swm_region *);
+
+RB_PROTOTYPE(key_tree, key, entry, key_cmp);
+RB_GENERATE(key_tree, key, entry, key_cmp);
+struct key_tree                 keys;
 
 void
 cursors_load(void)
@@ -5253,101 +5368,6 @@ move_step(struct swm_region *r, union arg *args)
 	focus_flush();
 }
 
-/* user/key callable function IDs */
-enum keyfuncid {
-	KF_BAR_TOGGLE,
-	KF_BUTTON2,
-	KF_CYCLE_LAYOUT,
-	KF_FLIP_LAYOUT,
-	KF_FLOAT_TOGGLE,
-	KF_FOCUS_MAIN,
-	KF_FOCUS_NEXT,
-	KF_FOCUS_PREV,
-	KF_HEIGHT_GROW,
-	KF_HEIGHT_SHRINK,
-	KF_ICONIFY,
-	KF_MASTER_SHRINK,
-	KF_MASTER_GROW,
-	KF_MASTER_ADD,
-	KF_MASTER_DEL,
-	KF_MOVE_DOWN,
-	KF_MOVE_LEFT,
-	KF_MOVE_RIGHT,
-	KF_MOVE_UP,
-	KF_MVWS_1,
-	KF_MVWS_2,
-	KF_MVWS_3,
-	KF_MVWS_4,
-	KF_MVWS_5,
-	KF_MVWS_6,
-	KF_MVWS_7,
-	KF_MVWS_8,
-	KF_MVWS_9,
-	KF_MVWS_10,
-	KF_MVWS_11,
-	KF_MVWS_12,
-	KF_MVWS_13,
-	KF_MVWS_14,
-	KF_MVWS_15,
-	KF_MVWS_16,
-	KF_MVWS_17,
-	KF_MVWS_18,
-	KF_MVWS_19,
-	KF_MVWS_20,
-	KF_MVWS_21,
-	KF_MVWS_22,
-	KF_NAME_WORKSPACE,
-	KF_QUIT,
-	KF_RAISE_TOGGLE,
-	KF_RESTART,
-	KF_SCREEN_NEXT,
-	KF_SCREEN_PREV,
-	KF_SEARCH_WIN,
-	KF_SEARCH_WORKSPACE,
-	KF_SPAWN_CUSTOM,
-	KF_STACK_INC,
-	KF_STACK_DEC,
-	KF_STACK_RESET,
-	KF_SWAP_MAIN,
-	KF_SWAP_NEXT,
-	KF_SWAP_PREV,
-	KF_UNICONIFY,
-	KF_VERSION,
-	KF_WIDTH_GROW,
-	KF_WIDTH_SHRINK,
-	KF_WIND_DEL,
-	KF_WIND_KILL,
-	KF_WS_1,
-	KF_WS_2,
-	KF_WS_3,
-	KF_WS_4,
-	KF_WS_5,
-	KF_WS_6,
-	KF_WS_7,
-	KF_WS_8,
-	KF_WS_9,
-	KF_WS_10,
-	KF_WS_11,
-	KF_WS_12,
-	KF_WS_13,
-	KF_WS_14,
-	KF_WS_15,
-	KF_WS_16,
-	KF_WS_17,
-	KF_WS_18,
-	KF_WS_19,
-	KF_WS_20,
-	KF_WS_21,
-	KF_WS_22,
-	KF_WS_NEXT,
-	KF_WS_NEXT_ALL,
-	KF_WS_PREV,
-	KF_WS_PREV_ALL,
-	KF_WS_PRIOR,
-	KF_DUMPWINS, /* MUST BE LAST */
-	KF_INVALID
-};
-
 /* key definitions */
 struct keyfunc {
 	char			name[SWM_FUNCNAME_LEN];
@@ -5447,14 +5467,6 @@ struct keyfunc {
 	{ "dumpwins",		dumpwins,	{0} }, /* MUST BE LAST */
 	{ "invalid key func",	NULL,		{0} },
 };
-struct key {
-	RB_ENTRY(key)		entry;
-	unsigned int		mod;
-	KeySym			keysym;
-	enum keyfuncid		funcid;
-	char			*spawn_name;
-};
-RB_HEAD(key_tree, key);
 
 int
 key_cmp(struct key *kp1, struct key *kp2)
@@ -5471,9 +5483,6 @@ key_cmp(struct key *kp1, struct key *kp2)
 
 	return (0);
 }
-
-RB_GENERATE(key_tree, key, entry, key_cmp);
-struct key_tree			keys;
 
 /* mouse */
 enum { client_click, root_click };
