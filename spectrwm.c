@@ -7856,9 +7856,6 @@ leavenotify(xcb_leave_notify_event_t *e)
 }
 #endif
 
-/* lets us use one switch statement for arbitrary mode/detail combinations */
-#define MERGE_MEMBERS(a,b)	(((a & 0xffff) << 16) | (b & 0xffff))
-
 void
 mapnotify(xcb_map_notify_event_t *e)
 {
