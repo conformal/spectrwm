@@ -826,7 +826,9 @@ int	 parsequirks(char *, unsigned long *);
 int	 parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
 void	 pressbutton(struct swm_region *, union arg *);
 void	 priorws(struct swm_region *, union arg *);
+#ifdef SWM_DEBUG
 void	 print_win_geom(xcb_window_t);
+#endif
 void	 propertynotify(xcb_property_notify_event_t *);
 void	 quirk_insert(const char *, const char *, unsigned long);
 void	 quirk_remove(struct quirk *);
