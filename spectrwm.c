@@ -5051,7 +5051,7 @@ resize(struct ws_win *win, union arg *args)
 {
 	xcb_timestamp_t		timestamp = 0;
 	struct swm_region	*r = NULL;
-	int			resize_step = 0;
+	int			resize_stp = 0;
 	struct swm_geometry	g;
 	int			top = 0, left = 0, resizing;
 	int			dx, dy;
@@ -5089,24 +5089,24 @@ resize(struct ws_win *win, union arg *args)
 	switch (args->id) {
 	case SWM_ARG_ID_WIDTHSHRINK:
 		WIDTH(win) -= SWM_RESIZE_STEPS;
-		resize_step = 1;
+		resize_stp = 1;
 		break;
 	case SWM_ARG_ID_WIDTHGROW:
 		WIDTH(win) += SWM_RESIZE_STEPS;
-		resize_step = 1;
+		resize_stp = 1;
 		break;
 	case SWM_ARG_ID_HEIGHTSHRINK:
 		HEIGHT(win) -= SWM_RESIZE_STEPS;
-		resize_step = 1;
+		resize_stp = 1;
 		break;
 	case SWM_ARG_ID_HEIGHTGROW:
 		HEIGHT(win) += SWM_RESIZE_STEPS;
-		resize_step = 1;
+		resize_stp = 1;
 		break;
 	default:
 		break;
 	}
-	if (resize_step) {
+	if (resize_stp) {
 		constrain_window(win, r, 1);
 		update_window(win);
 		store_float_geom(win,r);
@@ -5240,7 +5240,7 @@ void
 move(struct ws_win *win, union arg *args)
 {
 	xcb_timestamp_t		timestamp = 0;
-	int			move_step = 0, moving;
+	int			move_stp = 0, moving;
 	struct swm_region	*r = NULL;
 	xcb_query_pointer_reply_t	*qpr;
 	xcb_generic_event_t		*evt;
@@ -5273,28 +5273,28 @@ move(struct ws_win *win, union arg *args)
 
 	focus_flush();
 
-	move_step = 0;
+	move_stp = 0;
 	switch (args->id) {
 	case SWM_ARG_ID_MOVELEFT:
 		X(win) -= (SWM_MOVE_STEPS - border_width);
-		move_step = 1;
+		move_stp = 1;
 		break;
 	case SWM_ARG_ID_MOVERIGHT:
 		X(win) += (SWM_MOVE_STEPS - border_width);
-		move_step = 1;
+		move_stp = 1;
 		break;
 	case SWM_ARG_ID_MOVEUP:
 		Y(win) -= (SWM_MOVE_STEPS - border_width);
-		move_step = 1;
+		move_stp = 1;
 		break;
 	case SWM_ARG_ID_MOVEDOWN:
 		Y(win) += (SWM_MOVE_STEPS - border_width);
-		move_step = 1;
+		move_stp = 1;
 		break;
 	default:
 		break;
 	}
-	if (move_step) {
+	if (move_stp) {
 		constrain_window(win, r, 0);
 		update_window(win);
 		store_float_geom(win, r);
