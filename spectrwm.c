@@ -1068,7 +1068,8 @@ char *
 expand_tilde(const char *s)
 {
 	struct passwd           *ppwd;
-	int                     i, max;
+	int                     i;
+	long			max;
 	char                    *user;
 	const char              *sc = s;
 	char			*result;
