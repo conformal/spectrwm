@@ -699,6 +699,16 @@ struct cursors {
 	{"top_right_corner", XC_top_right_corner, XCB_CURSOR_NONE},
 };
 
+/* spawn */
+struct spawn_prog {
+	TAILQ_ENTRY(spawn_prog)	entry;
+	char			*name;
+	int			argc;
+	char			**argv;
+};
+TAILQ_HEAD(spawn_list, spawn_prog);
+struct spawn_list		spawns = TAILQ_HEAD_INITIALIZER(spawns);
+
 /* function prototypes */
 void	 adjust_font(struct ws_win *);
 void	 bar_class_name(char *, size_t, struct swm_region *);
@@ -869,6 +879,8 @@ void	 spawn(int, union arg *, int);
 void	 spawn_custom(struct swm_region *, union arg *, const char *);
 int	 spawn_expand(struct swm_region *, union arg *, const char *, char ***);
 void	 spawn_insert(const char *, const char *);
+void	 spawn_remove(struct spawn_prog *);
+void	 spawn_replace(struct spawn_prog *, const char *, const char *);
 void	 spawn_select(struct swm_region *, union arg *, const char *, int *);
 void	 stack_config(struct swm_region *, union arg *);
 void	 stack_floater(struct ws_win *, struct swm_region *);
@@ -5497,16 +5509,6 @@ update_modkey(unsigned int mod)
 		else
 			buttons[i].mask = mod;
 }
-
-/* spawn */
-struct spawn_prog {
-	TAILQ_ENTRY(spawn_prog)	entry;
-	char			*name;
-	int			argc;
-	char			**argv;
-};
-TAILQ_HEAD(spawn_list, spawn_prog);
-struct spawn_list		spawns = TAILQ_HEAD_INITIALIZER(spawns);
 
 int
 spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
