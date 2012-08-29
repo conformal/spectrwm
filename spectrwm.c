@@ -348,7 +348,7 @@ double			dialog_ratio = 0.6;
 
 char		*bar_argv[] = { NULL, NULL };
 int		 bar_pipe[2];
-unsigned char	 bar_ext[SWM_BAR_MAX];
+char		 bar_ext[SWM_BAR_MAX];
 char		 bar_vertext[SWM_BAR_MAX];
 int		 bar_version = 0;
 sig_atomic_t	 bar_alarm = 0;
@@ -1852,7 +1852,7 @@ bar_extra_stop(void)
 		kill(bar_pid, SIGTERM);
 		bar_pid = 0;
 	}
-	strlcpy((char *)bar_ext, "", sizeof bar_ext);
+	strlcpy(bar_ext, "", sizeof bar_ext);
 	bar_extra = 0;
 }
 
@@ -2198,14 +2198,14 @@ bar_update(void)
 		while ((b = fgetln(stdin, &len)) != NULL)
 			if (b && b[len - 1] == '\n') {
 				b[len - 1] = '\0';
-				strlcpy((char *)bar_ext, b, sizeof bar_ext);
+				strlcpy(bar_ext, b, sizeof bar_ext);
 			}
 		if (b == NULL && errno != EAGAIN) {
 			warn("bar_update: bar_extra failed");
 			bar_extra_stop();
 		}
 	} else
-		strlcpy((char *)bar_ext, "", sizeof bar_ext);
+		strlcpy(bar_ext, "", sizeof bar_ext);
 
 	bar_fmt_print();
 	alarm(bar_delay);
@@ -2405,7 +2405,7 @@ xft_init(struct swm_region *r)
 
 	if (!XftColorAllocValue(display, DefaultVisual(display, r->s->idx),
 	    DefaultColormap(display, r->s->idx), &color, &bar_font_color))
-		warn("unable to allocate Xft color");
+		warn("Xft error: unable to allocate color.");
 
 	bar_height = bar_font->height + 2 * bar_border_width;
 
@@ -5940,7 +5940,7 @@ setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid,
 		return;
 	}
 	if (kfid == KF_INVALID) {
-		warnx("error: setkeybinding: cannot find mod/key combination");
+		warnx("bind: Key combination already unbound.");
 		DNPRINTF(SWM_D_KEY, "setkeybinding: leave\n");
 		return;
 	}
