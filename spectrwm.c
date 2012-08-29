@@ -251,10 +251,11 @@ u_int32_t		swm_debug = 0
 #define SWM_FOCUS_MANUAL	(2)
 
 #define SWM_CK_NONE		0
-#define SWM_CK_ALL		0x7
+#define SWM_CK_ALL		0xf
 #define SWM_CK_FOCUS		0x1
 #define SWM_CK_POINTER		0x2
 #define SWM_CK_FALLBACK		0x4
+#define SWM_CK_REGION		0x8
 
 #define SWM_CONF_DEFAULT	(0)
 #define SWM_CONF_KEYMAPPING	(1)
@@ -405,6 +406,7 @@ struct swm_bar {
 /* virtual "screens" */
 struct swm_region {
 	TAILQ_ENTRY(swm_region)	entry;
+	xcb_window_t		id;
 	struct swm_geometry	g;
 	struct workspace	*ws;	/* current workspace on this region */
 	struct workspace	*ws_prior; /* prior workspace on this region */
@@ -535,6 +537,7 @@ struct swm_screen {
 	struct swm_region_list	orl;	/* list of old regions */
 	xcb_window_t		root;
 	struct workspace	ws[SWM_WS_MAX];
+	struct swm_region	*r_focus;
 
 	/* colors */
 	struct {
@@ -566,8 +569,8 @@ union arg {
 #define SWM_ARG_ID_STACKINIT	(31)
 #define SWM_ARG_ID_CYCLEWS_UP	(40)
 #define SWM_ARG_ID_CYCLEWS_DOWN	(41)
-#define SWM_ARG_ID_CYCLESC_UP	(42)
-#define SWM_ARG_ID_CYCLESC_DOWN	(43)
+#define SWM_ARG_ID_CYCLERG_UP	(42)
+#define SWM_ARG_ID_CYCLERG_DOWN	(43)
 #define SWM_ARG_ID_CYCLEWS_UP_ALL	(44)
 #define SWM_ARG_ID_CYCLEWS_DOWN_ALL	(45)
 #define SWM_ARG_ID_STACKINC	(50)
@@ -732,6 +735,15 @@ enum keyfuncid {
 	KF_MOVE_LEFT,
 	KF_MOVE_RIGHT,
 	KF_MOVE_UP,
+	KF_MVRG_1,
+	KF_MVRG_2,
+	KF_MVRG_3,
+	KF_MVRG_4,
+	KF_MVRG_5,
+	KF_MVRG_6,
+	KF_MVRG_7,
+	KF_MVRG_8,
+	KF_MVRG_9,
 	KF_MVWS_1,
 	KF_MVWS_2,
 	KF_MVWS_3,
@@ -758,6 +770,17 @@ enum keyfuncid {
 	KF_QUIT,
 	KF_RAISE_TOGGLE,
 	KF_RESTART,
+	KF_RG_1,
+	KF_RG_2,
+	KF_RG_3,
+	KF_RG_4,
+	KF_RG_5,
+	KF_RG_6,
+	KF_RG_7,
+	KF_RG_8,
+	KF_RG_9,
+	KF_RG_NEXT,
+	KF_RG_PREV,
 	KF_SCREEN_NEXT,
 	KF_SCREEN_PREV,
 	KF_SEARCH_WIN,
@@ -853,7 +876,7 @@ int	 count_win(struct workspace *, int);
 void	 cursors_cleanup(void);
 void	 cursors_load(void);
 void	 custom_region(char *);
-void	 cyclescr(struct swm_region *, union arg *);
+void	 cyclerg(struct swm_region *, union arg *);
 void	 cyclews(struct swm_region *, union arg *);
 void	 cycle_layout(struct swm_region *, union arg *);
 void	 destroynotify(xcb_destroy_notify_event_t *);
@@ -882,6 +905,8 @@ void	 focusin(xcb_focus_in_event_t *);
 void	 focusout(xcb_focus_out_event_t *);
 #endif
 void	 focus_flush(void);
+void	 focus_region(struct swm_region *);
+void	 focusrg(struct swm_region *, union arg *);
 void	 focus_win(struct ws_win *);
 void	 fontset_init(void);
 void	 free_window(struct ws_win *);
@@ -928,6 +953,7 @@ void	 map_window(struct ws_win *);
 void	 mapnotify(xcb_map_notify_event_t *);
 void	 mappingnotify(xcb_mapping_notify_event_t *);
 void	 maprequest(xcb_map_request_event_t *);
+void	 motionnotify(xcb_motion_notify_event_t *);
 void	 move(struct ws_win *, union arg *);
 void	 move_step(struct swm_region *, union arg *);
 uint32_t name_to_pixel(const char *);
@@ -962,7 +988,9 @@ void	 search_resp_uniconify(const char *, unsigned long);
 void	 search_win(struct swm_region *, union arg *);
 void	 search_win_cleanup(void);
 void	 search_workspace(struct swm_region *, union arg *);
+void	 send_to_rg(struct swm_region *, union arg *);
 void	 send_to_ws(struct swm_region *, union arg *);
+void	 set_region(struct swm_region *);
 int	 setautorun(char *, char *, int);
 int	 setconfbinding(char *, char *, int);
 int	 setconfcolor(char *, char *, int);
@@ -2302,10 +2330,6 @@ bar_toggle(struct swm_region *r, union arg *args)
 void
 bar_extra_setup(void)
 {
-	struct swm_region	*r;
-	uint32_t		wa[2];
-	int			i, num_screens;
-
 	/* do this here because the conf file is in memory */
 	if (bar_extra && !bar_extra_running && bar_argv[0]) {
 		/* launch external status app */
@@ -2341,20 +2365,6 @@ bar_extra_setup(void)
 
 		atexit(kill_bar_extra_atexit);
 	}
-
-	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
-	for (i = 0; i < num_screens; i++)
-		TAILQ_FOREACH(r, &screens[i].rl, entry) {
-			if (r->bar == NULL)
-				continue;
-			wa[0] = screens[i].c[SWM_S_COLOR_BAR].pixel;
-			wa[1] = screens[i].c[SWM_S_COLOR_BAR_BORDER].pixel;
-			xcb_change_window_attributes(conn, r->bar->id,
-			    XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);
-		}
-
-	bar_draw();
-	xcb_flush(conn);
 }
 
 void
@@ -2501,9 +2511,10 @@ bar_setup(struct swm_region *r)
 	WIDTH(r->bar) = WIDTH(r) - 2 * bar_border_width;
 	HEIGHT(r->bar) = bar_height - 2 * bar_border_width;
 
+	/* Assume region is unfocused when we create the bar. */
 	r->bar->id = xcb_generate_id(conn);
 	wa[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
-	wa[1] = r->s->c[SWM_S_COLOR_BAR_BORDER].pixel;
+	wa[1] = r->s->c[SWM_S_COLOR_UNFOCUS].pixel;
 	wa[2] = XCB_EVENT_MASK_EXPOSURE;
 
 	xcb_create_window(conn, XCB_COPY_FROM_PARENT, r->bar->id, r->s->root,
@@ -2882,7 +2893,10 @@ root_to_region(xcb_window_t root, int check)
 		if (screens[i].root == root)
 			break;
 
-	if (check & SWM_CK_FOCUS) {
+	if (check & SWM_CK_REGION)
+		r = screens[i].r_focus;
+
+	if (r == NULL && check & SWM_CK_FOCUS) {
 		/* Try to find an actively focused window */
 		gifr = xcb_get_input_focus_reply(conn,
 		    xcb_get_input_focus(conn), NULL);
@@ -3240,8 +3254,9 @@ focus_win(struct ws_win *win)
 			TAILQ_FOREACH(w, &ws->winlist, entry)
 				if (w->transient == win->id && !w->iconic)
 					map_window(w);
-
 		}
+
+		set_region(ws->r);
 
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
 		    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
@@ -3300,6 +3315,66 @@ event_drain(uint8_t rt)
 			event_handle(evt);
 
 		free(evt);
+	}
+}
+
+void
+set_region(struct swm_region *r)
+{
+	struct swm_region	*rf;
+
+	if (r == NULL)
+		return;
+
+	/* Skip if only one region on this screen. */
+	rf = TAILQ_FIRST(&r->s->rl);
+	if (TAILQ_NEXT(rf, entry) == NULL)
+		goto out;
+
+	rf = r->s->r_focus;
+	/* Unfocus old region bar. */
+	if (rf) {
+		if (rf == r)
+			return;
+
+		xcb_change_window_attributes(conn, rf->bar->id,
+		    XCB_CW_BORDER_PIXEL,
+		    &r->s->c[SWM_S_COLOR_UNFOCUS].pixel);
+	}
+
+	/* Set region bar border to focus_color. */
+	xcb_change_window_attributes(conn, r->bar->id,
+	    XCB_CW_BORDER_PIXEL, &r->s->c[SWM_S_COLOR_BAR_BORDER].pixel);
+
+out:
+	r->s->r_focus = r;
+}
+
+void
+focus_region(struct swm_region *r)
+{
+	struct ws_win		*nfw;
+	struct swm_region	*old_r;
+
+	if (r == NULL)
+		return;
+
+	old_r = r->s->r_focus;
+	set_region(r);
+
+	nfw = get_region_focus(r);
+	if (nfw) {
+		focus_win(nfw);
+	} else {
+		/* New region is empty; need to manually unfocus win. */
+		if (old_r)
+			unfocus_win(old_r->ws->focus);
+
+		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT, r->s->root,
+		    XCB_CURRENT_TIME);
+
+		/* Clear bar since empty. */
+		bar_draw();
 	}
 }
 
@@ -3441,9 +3516,32 @@ priorws(struct swm_region *r, union arg *args)
 }
 
 void
-cyclescr(struct swm_region *r, union arg *args)
+focusrg(struct swm_region *r, union arg *args)
 {
-	struct ws_win		*nfw;
+	int			ridx = args->id, i, num_screens;
+	struct swm_region	*rr = NULL;
+
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	/* do nothing if we don't have more than one screen */
+	if (!(num_screens > 1 || outputs > 1))
+		return;
+
+	DNPRINTF(SWM_D_FOCUS, "focusrg: id: %d\n", ridx);
+
+	rr = TAILQ_FIRST(&r->s->rl);
+	for (i = 0; i < ridx; ++i)
+		rr = TAILQ_NEXT(rr, entry);
+
+	if (rr == NULL)
+		return;
+
+	focus_region(rr);
+	focus_flush();
+}
+
+void
+cyclerg(struct swm_region *r, union arg *args)
+{
 	struct swm_region	*rr = NULL;
 	int			i, num_screens;
 
@@ -3454,12 +3552,12 @@ cyclescr(struct swm_region *r, union arg *args)
 
 	i = r->s->idx;
 	switch (args->id) {
-	case SWM_ARG_ID_CYCLESC_UP:
+	case SWM_ARG_ID_CYCLERG_UP:
 		rr = TAILQ_NEXT(r, entry);
 		if (rr == NULL)
 			rr = TAILQ_FIRST(&screens[i].rl);
 		break;
-	case SWM_ARG_ID_CYCLESC_DOWN:
+	case SWM_ARG_ID_CYCLERG_DOWN:
 		rr = TAILQ_PREV(r, swm_region_list, entry);
 		if (rr == NULL)
 			rr = TAILQ_LAST(&screens[i].rl, swm_region_list);
@@ -3470,19 +3568,7 @@ cyclescr(struct swm_region *r, union arg *args)
 	if (rr == NULL)
 		return;
 
-	nfw = get_region_focus(rr);
-	if (nfw) {
-		focus_win(nfw);
-	} else {
-		/* New region is empty; unfocus old region and warp pointer. */
-		unfocus_win(r->ws->focus);
-		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
-				rr->s[i].root, XCB_CURRENT_TIME);
-
-		/* Clear bar since empty. */
-		bar_draw();
-	}
-
+	focus_region(rr);
 	focus_flush();
 }
 
@@ -4425,6 +4511,32 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 			stack_floater(w, ws->r);
 			map_window(w);
 		}
+}
+
+void
+send_to_rg(struct swm_region *r, union arg *args)
+{
+	int			ridx = args->id, i, num_screens;
+	struct swm_region	*rr = NULL;
+	union arg		a;
+
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	/* do nothing if we don't have more than one screen */
+	if (!(num_screens > 1 || outputs > 1))
+		return;
+
+	DNPRINTF(SWM_D_FOCUS, "send_to_rg: id: %d\n", ridx);
+
+	rr = TAILQ_FIRST(&r->s->rl);
+	for (i = 0; i < ridx; ++i)
+		rr = TAILQ_NEXT(rr, entry);
+
+	if (rr == NULL)
+		return;
+
+	a.id = rr->ws->idx;
+
+	send_to_ws(r, &a);
 }
 
 void
@@ -5497,6 +5609,15 @@ struct keyfunc {
 	{ "move_left",		move_step,	{.id = SWM_ARG_ID_MOVELEFT} },
 	{ "move_right",		move_step,	{.id = SWM_ARG_ID_MOVERIGHT} },
 	{ "move_up",		move_step,	{.id = SWM_ARG_ID_MOVEUP} },
+	{ "mvrg_1",		send_to_rg,	{.id = 0} },
+	{ "mvrg_2",		send_to_rg,	{.id = 1} },
+	{ "mvrg_3",		send_to_rg,	{.id = 2} },
+	{ "mvrg_4",		send_to_rg,	{.id = 3} },
+	{ "mvrg_5",		send_to_rg,	{.id = 4} },
+	{ "mvrg_6",		send_to_rg,	{.id = 5} },
+	{ "mvrg_7",		send_to_rg,	{.id = 6} },
+	{ "mvrg_8",		send_to_rg,	{.id = 7} },
+	{ "mvrg_9",		send_to_rg,	{.id = 8} },
 	{ "mvws_1",		send_to_ws,	{.id = 0} },
 	{ "mvws_2",		send_to_ws,	{.id = 1} },
 	{ "mvws_3",		send_to_ws,	{.id = 2} },
@@ -5523,8 +5644,19 @@ struct keyfunc {
 	{ "quit",		quit,		{0} },
 	{ "raise_toggle",	raise_toggle,	{0} },
 	{ "restart",		restart,	{0} },
-	{ "screen_next",	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_UP} },
-	{ "screen_prev",	cyclescr,	{.id = SWM_ARG_ID_CYCLESC_DOWN} },
+	{ "rg_1",		focusrg,	{.id = 0} },
+	{ "rg_2",		focusrg,	{.id = 1} },
+	{ "rg_3",		focusrg,	{.id = 2} },
+	{ "rg_4",		focusrg,	{.id = 3} },
+	{ "rg_5",		focusrg,	{.id = 4} },
+	{ "rg_6",		focusrg,	{.id = 5} },
+	{ "rg_7",		focusrg,	{.id = 6} },
+	{ "rg_8",		focusrg,	{.id = 7} },
+	{ "rg_9",		focusrg,	{.id = 8} },
+	{ "rg_next",		cyclerg,	{.id = SWM_ARG_ID_CYCLERG_UP} },
+	{ "rg_prev",		cyclerg,	{.id = SWM_ARG_ID_CYCLERG_DOWN} },
+	{ "screen_next",	cyclerg,	{.id = SWM_ARG_ID_CYCLERG_UP} },
+	{ "screen_prev",	cyclerg,	{.id = SWM_ARG_ID_CYCLERG_DOWN} },
 	{ "search_win",		search_win,	{0} },
 	{ "search_workspace",	search_workspace,	{0} },
 	{ "spawn_custom",	NULL,		{0} },
@@ -6106,25 +6238,94 @@ void
 setup_keys(void)
 {
 #define MODKEY_SHIFT	MODKEY | XCB_MOD_MASK_SHIFT
+	setkeybinding(MODKEY,		XK_b,		KF_BAR_TOGGLE,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_b,		KF_BAR_TOGGLE_WS,NULL);
+	setkeybinding(MODKEY,		XK_v,		KF_BUTTON2,	NULL);
 	setkeybinding(MODKEY,		XK_space,	KF_CYCLE_LAYOUT,NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_backslash,	KF_FLIP_LAYOUT,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_space,	KF_STACK_RESET,	NULL);
+	setkeybinding(MODKEY,		XK_t,		KF_FLOAT_TOGGLE,NULL);
+	setkeybinding(MODKEY,		XK_m,		KF_FOCUS_MAIN,	NULL);
+	setkeybinding(MODKEY,		XK_j,		KF_FOCUS_NEXT,	NULL);
+	setkeybinding(MODKEY,		XK_Tab,		KF_FOCUS_NEXT,	NULL);
+	setkeybinding(MODKEY,		XK_k,		KF_FOCUS_PREV,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_Tab,		KF_FOCUS_PREV,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_equal,	KF_HEIGHT_GROW,NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_minus,	KF_HEIGHT_SHRINK,NULL);
+	setkeybinding(MODKEY,		XK_w,		KF_ICONIFY,	NULL);
 	setkeybinding(MODKEY,		XK_h,		KF_MASTER_SHRINK, NULL);
 	setkeybinding(MODKEY,		XK_l,		KF_MASTER_GROW,	NULL);
 	setkeybinding(MODKEY,		XK_comma,	KF_MASTER_ADD,	NULL);
 	setkeybinding(MODKEY,		XK_period,	KF_MASTER_DEL,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_bracketright,KF_MOVE_DOWN,NULL);
+	setkeybinding(MODKEY,		XK_bracketleft,	KF_MOVE_LEFT,NULL);
+	setkeybinding(MODKEY,		XK_bracketright,KF_MOVE_RIGHT,NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_bracketleft,	KF_MOVE_UP,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_KP_End,	KF_MVRG_1,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_KP_Down,	KF_MVRG_2,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_KP_Next,	KF_MVRG_3,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_KP_Left,	KF_MVRG_4,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_KP_Begin,	KF_MVRG_5,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_KP_Right,	KF_MVRG_6,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_KP_Home,	KF_MVRG_7,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_KP_Up,	KF_MVRG_8,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_KP_Prior,	KF_MVRG_9,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_1,		KF_MVWS_1,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_2,		KF_MVWS_2,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_3,		KF_MVWS_3,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_4,		KF_MVWS_4,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_5,		KF_MVWS_5,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_6,		KF_MVWS_6,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_7,		KF_MVWS_7,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_8,		KF_MVWS_8,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_9,		KF_MVWS_9,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_0,		KF_MVWS_10,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F1,		KF_MVWS_11,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F2,		KF_MVWS_12,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F3,		KF_MVWS_13,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F4,		KF_MVWS_14,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F5,		KF_MVWS_15,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F6,		KF_MVWS_16,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F7,		KF_MVWS_17,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F8,		KF_MVWS_18,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F9,		KF_MVWS_19,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F10,		KF_MVWS_20,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F11,		KF_MVWS_21,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_F12,		KF_MVWS_22,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_slash,	KF_NAME_WORKSPACE,NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_q,		KF_QUIT,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_r,		KF_RAISE_TOGGLE,NULL);
+	setkeybinding(MODKEY,		XK_q,		KF_RESTART,	NULL);
+	setkeybinding(MODKEY,		XK_KP_End,	KF_RG_1,	NULL);
+	setkeybinding(MODKEY,		XK_KP_Down,	KF_RG_2,	NULL);
+	setkeybinding(MODKEY,		XK_KP_Next,	KF_RG_3,	NULL);
+	setkeybinding(MODKEY,		XK_KP_Left,	KF_RG_4,	NULL);
+	setkeybinding(MODKEY,		XK_KP_Begin,	KF_RG_5,	NULL);
+	setkeybinding(MODKEY,		XK_KP_Right,	KF_RG_6,	NULL);
+	setkeybinding(MODKEY,		XK_KP_Home,	KF_RG_7,	NULL);
+	setkeybinding(MODKEY,		XK_KP_Up,	KF_RG_8,	NULL);
+	setkeybinding(MODKEY,		XK_KP_Prior,	KF_RG_9,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_Right,	KF_RG_NEXT,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_Left,	KF_RG_PREV,	NULL);
+	setkeybinding(MODKEY,		XK_f,		KF_SEARCH_WIN,	NULL);
+	setkeybinding(MODKEY,		XK_slash,	KF_SEARCH_WORKSPACE,NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_i,		KF_SPAWN_CUSTOM,"initscr");
+	setkeybinding(MODKEY_SHIFT,	XK_Delete,	KF_SPAWN_CUSTOM,"lock");
+	setkeybinding(MODKEY,		XK_p,		KF_SPAWN_CUSTOM,"menu");
+	setkeybinding(MODKEY,		XK_s,		KF_SPAWN_CUSTOM,"screenshot_all");
+	setkeybinding(MODKEY_SHIFT,	XK_s,		KF_SPAWN_CUSTOM,"screenshot_wind");
+	setkeybinding(MODKEY_SHIFT,	XK_Return,	KF_SPAWN_CUSTOM,"term");
 	setkeybinding(MODKEY_SHIFT,	XK_comma,	KF_STACK_INC,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_period,	KF_STACK_DEC,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_space,	KF_STACK_RESET,	NULL);
 	setkeybinding(MODKEY,		XK_Return,	KF_SWAP_MAIN,	NULL);
-	setkeybinding(MODKEY,		XK_j,		KF_FOCUS_NEXT,	NULL);
-	setkeybinding(MODKEY,		XK_k,		KF_FOCUS_PREV,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_j,		KF_SWAP_NEXT,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_k,		KF_SWAP_PREV,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_Return,	KF_SPAWN_CUSTOM,"term");
-	setkeybinding(MODKEY,		XK_p,		KF_SPAWN_CUSTOM,"menu");
-	setkeybinding(MODKEY_SHIFT,	XK_q,		KF_QUIT,	NULL);
-	setkeybinding(MODKEY,		XK_q,		KF_RESTART,	NULL);
-	setkeybinding(MODKEY,		XK_m,		KF_FOCUS_MAIN,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_w,		KF_UNICONIFY,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_v,		KF_VERSION,	NULL);
+	setkeybinding(MODKEY,		XK_equal,	KF_WIDTH_GROW,	NULL);
+	setkeybinding(MODKEY,		XK_minus,	KF_WIDTH_SHRINK,NULL);
+	setkeybinding(MODKEY,		XK_x,		KF_WIND_DEL,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_x,		KF_WIND_KILL,	NULL);
 	setkeybinding(MODKEY,		XK_1,		KF_WS_1,	NULL);
 	setkeybinding(MODKEY,		XK_2,		KF_WS_2,	NULL);
 	setkeybinding(MODKEY,		XK_3,		KF_WS_3,	NULL);
@@ -6152,57 +6353,6 @@ setup_keys(void)
 	setkeybinding(MODKEY,		XK_Up,		KF_WS_NEXT_ALL,	NULL);
 	setkeybinding(MODKEY,		XK_Down,	KF_WS_PREV_ALL,	NULL);
 	setkeybinding(MODKEY,		XK_a,		KF_WS_PRIOR,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_Right,	KF_SCREEN_NEXT,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_Left,	KF_SCREEN_PREV,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_1,		KF_MVWS_1,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_2,		KF_MVWS_2,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_3,		KF_MVWS_3,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_4,		KF_MVWS_4,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_5,		KF_MVWS_5,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_6,		KF_MVWS_6,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_7,		KF_MVWS_7,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_8,		KF_MVWS_8,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_9,		KF_MVWS_9,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_0,		KF_MVWS_10,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_F1,		KF_MVWS_11,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_F2,		KF_MVWS_12,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_F3,		KF_MVWS_13,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_F4,		KF_MVWS_14,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_F5,		KF_MVWS_15,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_F6,		KF_MVWS_16,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_F7,		KF_MVWS_17,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_F8,		KF_MVWS_18,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_F9,		KF_MVWS_19,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_F10,		KF_MVWS_20,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_F11,		KF_MVWS_21,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_F12,		KF_MVWS_22,	NULL);
-	setkeybinding(MODKEY,		XK_b,		KF_BAR_TOGGLE,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_b,		KF_BAR_TOGGLE_WS,NULL);
-	setkeybinding(MODKEY,		XK_Tab,		KF_FOCUS_NEXT,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_Tab,		KF_FOCUS_PREV,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_x,		KF_WIND_KILL,	NULL);
-	setkeybinding(MODKEY,		XK_x,		KF_WIND_DEL,	NULL);
-	setkeybinding(MODKEY,		XK_s,		KF_SPAWN_CUSTOM,"screenshot_all");
-	setkeybinding(MODKEY_SHIFT,	XK_s,		KF_SPAWN_CUSTOM,"screenshot_wind");
-	setkeybinding(MODKEY,		XK_t,		KF_FLOAT_TOGGLE,NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_v,		KF_VERSION,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_Delete,	KF_SPAWN_CUSTOM,"lock");
-	setkeybinding(MODKEY_SHIFT,	XK_i,		KF_SPAWN_CUSTOM,"initscr");
-	setkeybinding(MODKEY,		XK_w,		KF_ICONIFY,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_w,		KF_UNICONIFY,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_r,		KF_RAISE_TOGGLE,NULL);
-	setkeybinding(MODKEY,		XK_v,		KF_BUTTON2,	NULL);
-	setkeybinding(MODKEY,		XK_equal,	KF_WIDTH_GROW,	NULL);
-	setkeybinding(MODKEY,		XK_minus,	KF_WIDTH_SHRINK,NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_equal,	KF_HEIGHT_GROW,NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_minus,	KF_HEIGHT_SHRINK,NULL);
-	setkeybinding(MODKEY,		XK_bracketleft,	KF_MOVE_LEFT,NULL);
-	setkeybinding(MODKEY,		XK_bracketright,KF_MOVE_RIGHT,NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_bracketleft,	KF_MOVE_UP,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_bracketright,KF_MOVE_DOWN,NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_slash,	KF_NAME_WORKSPACE,NULL);
-	setkeybinding(MODKEY,		XK_slash,	KF_SEARCH_WORKSPACE,NULL);
-	setkeybinding(MODKEY,		XK_f,		KF_SEARCH_WIN,	NULL);
 #ifdef SWM_DEBUG
 	setkeybinding(MODKEY_SHIFT,	XK_d,		KF_DUMPWINS,	NULL);
 #endif
@@ -7940,7 +8090,7 @@ void
 enternotify(xcb_enter_notify_event_t *e)
 {
 	struct ws_win		*win;
-	struct swm_region	*old_r, *r;
+	struct swm_region	*r;
 
 	DNPRINTF(SWM_D_FOCUS, "enternotify: time: %u, win (x,y): 0x%x "
 	    "(%d,%d), mode: %s(%d), detail: %s(%d), root (x,y): 0x%x (%d,%d), "
@@ -7969,29 +8119,17 @@ enternotify(xcb_enter_notify_event_t *e)
 				return;
 			}
 
-			if (TAILQ_EMPTY(&r->ws->winlist)) {
-				old_r = root_to_region(e->root, SWM_CK_FOCUS);
-				if (old_r && old_r != r)
-					unfocus_win(old_r->ws->focus);
-
-				xcb_set_input_focus(conn,
-				    XCB_INPUT_FOCUS_PARENT, e->root, e->time);
-
-				/* Clear bar since empty. */
-				bar_draw();
-
-				focus_flush();
-			}
+			focus_region(r);
 		} else {
 			DNPRINTF(SWM_D_EVENT, "enternotify: window is NULL; "
 			    "ignoring\n");
+			return;
 		}
-		return;
+	} else {
+		focus_win(get_focus_magic(win));
 	}
 
-	focus_win(get_focus_magic(win));
-
-	xcb_flush(conn);
+	focus_flush();
 }
 
 #ifdef SWM_DEBUG
@@ -8082,6 +8220,35 @@ maprequest(xcb_map_request_event_t *e)
 out:
 	free(war);
 	DNPRINTF(SWM_D_EVENT, "maprequest: done.\n");
+}
+
+void
+motionnotify(xcb_motion_notify_event_t *e)
+{
+	struct swm_region	*r;
+	int			i, num_screens;
+
+	DNPRINTF(SWM_D_FOCUS, "motionnotify: time: %u, win (x,y): 0x%x "
+	    "(%d,%d), detail: %s(%d), root (x,y): 0x%x (%d,%d), "
+	    "child: 0x%x, same_screen_focus: %s, state: %d\n",
+	    e->time, e->event, e->event_x, e->event_y,
+	    get_notify_detail_label(e->detail), e->detail,
+	    e->root, e->root_x, e->root_y, e->child,
+	    YESNO(e->same_screen), e->state);
+
+	last_event_time = e->time;
+
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++)
+		if (screens[i].root == e->root)
+			break;
+
+	TAILQ_FOREACH(r, &screens[i].rl, entry)
+		if (X(r) <= e->root_x && e->root_x < MAX_X(r) &&
+		    Y(r) <= e->root_y && e->root_y < MAX_Y(r))
+			break;
+
+	focus_region(r);
 }
 
 #ifdef SWM_DEBUG
@@ -8393,6 +8560,7 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 	struct swm_region	*r, *n;
 	struct workspace	*ws = NULL;
 	int			i;
+	uint32_t		wa[1];
 
 	DNPRINTF(SWM_D_MISC, "new region: screen[%d]:%dx%d+%d+%d\n",
 	     s->idx, w, h, x, y);
@@ -8402,14 +8570,13 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 	while (n) {
 		r = n;
 		n = TAILQ_NEXT(r, entry);
-		if (X(r) < (x + w) &&
-		    (X(r) + WIDTH(r)) > x &&
-		    Y(r) < (y + h) &&
-		    (Y(r) + HEIGHT(r)) > y) {
+		if (X(r) < (x + w) && (X(r) + WIDTH(r)) > x &&
+		    Y(r) < (y + h) && (Y(r) + HEIGHT(r)) > y) {
 			if (r->ws->r != NULL)
 				r->ws->old_r = r->ws->r;
 			r->ws->r = NULL;
 			bar_cleanup(r);
+			xcb_destroy_window(conn, r->id);
 			TAILQ_REMOVE(&s->rl, r, entry);
 			TAILQ_INSERT_TAIL(&s->orl, r, entry);
 		}
@@ -8460,6 +8627,17 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 	ws->r = r;
 	outputs++;
 	TAILQ_INSERT_TAIL(&s->rl, r, entry);
+
+	/* Invisible region window to detect pointer events on empty regions. */
+	r->id = xcb_generate_id(conn);
+	wa[0] = XCB_EVENT_MASK_POINTER_MOTION |
+	    XCB_EVENT_MASK_POINTER_MOTION_HINT;
+
+	xcb_create_window(conn, XCB_COPY_FROM_PARENT, r->id, r->s->root,
+	    X(r), Y(r), WIDTH(r), HEIGHT(r), 0, XCB_WINDOW_CLASS_INPUT_ONLY,
+	    XCB_COPY_FROM_PARENT, XCB_CW_EVENT_MASK, wa);
+
+	xcb_map_window(conn, r->id);
 }
 
 void
@@ -8491,6 +8669,7 @@ scan_xrandr(int i)
 	while ((r = TAILQ_FIRST(&screens[i].rl)) != NULL) {
 		r->ws->old_r = r->ws->r = NULL;
 		bar_cleanup(r);
+		xcb_destroy_window(conn, r->id);
 		TAILQ_REMOVE(&screens[i].rl, r, entry);
 		TAILQ_INSERT_TAIL(&screens[i].orl, r, entry);
 	}
@@ -8572,11 +8751,14 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			bar_setup(r);
 	stack();
+	bar_draw();
+	focus_flush();
 }
 
 void
 grab_windows(void)
 {
+	struct swm_region	*r = NULL;
 	xcb_window_t		*wins = NULL, trans;
 	int			no;
 	int			i, j, num_screens;
@@ -8584,8 +8766,8 @@ grab_windows(void)
 
 	xcb_query_tree_cookie_t			qtc;
 	xcb_query_tree_reply_t			*qtr;
-	xcb_get_window_attributes_cookie_t	c;
-	xcb_get_window_attributes_reply_t	*r;
+	xcb_get_window_attributes_cookie_t	gac;
+	xcb_get_window_attributes_reply_t	*gar;
 	xcb_get_property_cookie_t		pc;
 
 	DNPRINTF(SWM_D_INIT, "grab_windows: begin\n");
@@ -8601,17 +8783,30 @@ grab_windows(void)
 		/* normal windows */
 		DNPRINTF(SWM_D_INIT, "grab_windows: grab top level windows.\n");
 		for (j = 0; j < no; j++) {
-			c = xcb_get_window_attributes(conn, wins[j]);
-			r = xcb_get_window_attributes_reply(conn, c, NULL);
-			if (!r) {
+			TAILQ_FOREACH(r, &screens[i].rl, entry) {
+				if (r->id == wins[j]) {
+					DNPRINTF(SWM_D_INIT, "grab_windows: "
+					    "skip %#x; region input window.\n",
+					    wins[j]);
+					break;
+				}
+			}
+
+			if (r)
+				continue;
+
+			gac = xcb_get_window_attributes(conn, wins[j]);
+			gar = xcb_get_window_attributes_reply(conn, gac, NULL);
+			if (!gar) {
 				DNPRINTF(SWM_D_INIT, "grab_windows: skip %#x; "
 				    "doesn't exist.\n", wins[j]);
 				continue;
 			}
-			if (r->override_redirect) {
+
+			if (gar->override_redirect) {
 				DNPRINTF(SWM_D_INIT, "grab_windows: skip %#x; "
 				    "override_redirect set.\n", wins[j]);
-				free(r);
+				free(gar);
 				continue;
 			}
 
@@ -8620,42 +8815,43 @@ grab_windows(void)
 			    &trans, NULL)) {
 				DNPRINTF(SWM_D_INIT, "grab_windows: skip %#x; "
 				    "is transient for %#x.\n", wins[j], trans);
-				free(r);
+				free(gar);
 				continue;
 			}
 
 			state = getstate(wins[j]);
 			manage = state != XCB_ICCCM_WM_STATE_WITHDRAWN;
-			mapped = r->map_state != XCB_MAP_STATE_UNMAPPED;
+			mapped = gar->map_state != XCB_MAP_STATE_UNMAPPED;
 			if (mapped || manage)
 				manage_window(wins[j], mapped);
-			free(r);
+			free(gar);
 		}
 		/* transient windows */
 		DNPRINTF(SWM_D_INIT, "grab_windows: grab transient windows.\n");
 		for (j = 0; j < no; j++) {
-			c = xcb_get_window_attributes(conn, wins[j]);
-			r = xcb_get_window_attributes_reply(conn, c, NULL);
-			if (!r) {
+			gac = xcb_get_window_attributes(conn, wins[j]);
+			gar = xcb_get_window_attributes_reply(conn, gac, NULL);
+			if (!gar) {
 				DNPRINTF(SWM_D_INIT, "grab_windows: skip %#x; "
 				    "doesn't exist.\n", wins[j]);
 				continue;
 			}
-			if (r->override_redirect) {
+
+			if (gar->override_redirect) {
 				DNPRINTF(SWM_D_INIT, "grab_windows: skip %#x; "
 				    "override_redirect set.\n", wins[j]);
-				free(r);
+				free(gar);
 				continue;
 			}
 
 			state = getstate(wins[j]);
 			manage = state != XCB_ICCCM_WM_STATE_WITHDRAWN;
-			mapped = r->map_state != XCB_MAP_STATE_UNMAPPED;
+			mapped = gar->map_state != XCB_MAP_STATE_UNMAPPED;
 			pc = xcb_icccm_get_wm_transient_for(conn, wins[j]);
 			if (xcb_icccm_get_wm_transient_for_reply(conn, pc,
 			    &trans, NULL) && manage)
 				manage_window(wins[j], mapped);
-			free(r);
+			free(gar);
 		}
 		free(qtr);
 	}
@@ -8700,6 +8896,8 @@ setup_screens(void)
 	for (i = 0; i < num_screens; i++) {
 		DNPRINTF(SWM_D_WS, "setup_screens: init screen: %d\n", i);
 		screens[i].idx = i;
+		screens[i].r_focus = NULL;
+
 		TAILQ_INIT(&screens[i].rl);
 		TAILQ_INIT(&screens[i].orl);
 		if ((screen = get_screen(i)) == NULL)
@@ -8895,7 +9093,7 @@ event_handle(xcb_generic_event_t *evt)
 	EVENT(XCB_MAP_NOTIFY, mapnotify);
 	EVENT(XCB_MAP_REQUEST, maprequest);
 	EVENT(XCB_MAPPING_NOTIFY, mappingnotify);
-	/*EVENT(XCB_MOTION_NOTIFY, );*/
+	EVENT(XCB_MOTION_NOTIFY, motionnotify);
 	/*EVENT(XCB_NO_EXPOSURE, );*/
 	EVENT(XCB_PROPERTY_NOTIFY, propertynotify);
 	/*EVENT(XCB_REPARENT_NOTIFY, );*/
@@ -8914,11 +9112,10 @@ event_handle(xcb_generic_event_t *evt)
 int
 main(int argc, char *argv[])
 {
-	struct swm_region	*r, *rr;
-	struct ws_win		*winfocus = NULL;
+	struct swm_region	*r;
 	char			conf[PATH_MAX], *cfile = NULL;
 	struct stat		sb;
-	int			xfd, i, num_screens;
+	int			xfd, i, num_screens, startup = 1;
 	struct sigaction	sact;
 	xcb_generic_event_t	*evt;
 	struct timeval          tv;
@@ -9044,14 +9241,12 @@ noconfig:
 	/* setup all bars */
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	for (i = 0; i < num_screens; i++)
-		TAILQ_FOREACH(r, &screens[i].rl, entry) {
-			if (winfocus == NULL)
-				winfocus = TAILQ_FIRST(&r->ws->winlist);
+		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			bar_setup(r);
-		}
 
 	grabkeys();
 	stack();
+	bar_draw();
 
 	xcb_ungrab_server(conn);
 	xcb_flush(conn);
@@ -9067,18 +9262,17 @@ noconfig:
 		}
 
 		/* If just (re)started, set default focus if needed. */
-		if (winfocus && focus_mode != SWM_FOCUS_FOLLOW) {
-			rr = winfocus->ws->r;
-			if (rr == NULL) {
-				/* not a visible window */
-				winfocus = NULL;
+		if (startup) {
+			startup = 0;
+
+			if (focus_mode != SWM_FOCUS_FOLLOW) {
+				r = TAILQ_FIRST(&screens[0].rl);
+				if (r) {
+					focus_region(r);
+					focus_flush();
+				}
 				continue;
 			}
-
-			focus_win(get_region_focus(rr));
-			focus_flush();
-			winfocus = NULL;
-			continue;
 		}
 
 		FD_ZERO(&rd);
