@@ -57,6 +57,8 @@ static Window		root = None;
 static int		xterm = 0;
 static Display		*display = NULL;
 
+void	set_property(Display *, Window, char *, char *);
+
 /* Find our root window */
 static              Window
 MyRoot(Display * dpy)

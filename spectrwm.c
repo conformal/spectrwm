@@ -871,7 +871,7 @@ char	*expand_tilde(const char *);
 void	 expose(xcb_expose_event_t *);
 void	 fake_keypress(struct ws_win *, xcb_keysym_t, uint16_t);
 struct pid_e	*find_pid(pid_t);
-struct ws_win	*find_unmanaged_window(xcb_window_t); 
+struct ws_win	*find_unmanaged_window(xcb_window_t);
 struct ws_win	*find_window(xcb_window_t);
 void	 floating_toggle(struct swm_region *, union arg *);
 int	 floating_toggle_win(struct ws_win *);
