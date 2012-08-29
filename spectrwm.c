@@ -2802,6 +2802,7 @@ get_pointer_win(xcb_window_t root)
 		} else {
 			DNPRINTF(SWM_D_EVENT, "get_pointer_win: none.\n");
 		}
+		free(r);
 	}
 
 	return win;
@@ -4488,24 +4489,28 @@ get_win_name(xcb_window_t win)
 	    XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX);
 	r = xcb_get_property_reply(conn, c, NULL);
 
-	if (!r || r->type == XCB_NONE) {
-		free(r);
-		/* Use WM_NAME instead; no UTF-8. */
-		c = xcb_get_property(conn, 0, win, XCB_ATOM_WM_NAME,
-		    XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX);
-		r = xcb_get_property_reply(conn, c, NULL);
-
-		if(!r || r->type == XCB_NONE) {
+	if (r) {
+		if (r->type == XCB_NONE) {
 			free(r);
-			return NULL;
+			/* Use WM_NAME instead; no UTF-8. */
+			c = xcb_get_property(conn, 0, win, XCB_ATOM_WM_NAME,
+		    		XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX);
+			r = xcb_get_property_reply(conn, c, NULL);
+
+			if (!r)
+				return (NULL);
+			if (r->type == XCB_NONE) {
+				free(r);
+				return (NULL);
+			}
 		}
+		if (r->length > 0)
+			name = strndup(xcb_get_property_value(r),
+		    		   xcb_get_property_value_length(r));
+
+		free(r);
 	}
 
-	if (r->length > 0)
-		name = strndup(xcb_get_property_value(r),
-		    xcb_get_property_value_length(r));
-
-	free(r);
 	return (name);
 }
 
