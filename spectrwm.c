@@ -6182,7 +6182,7 @@ grabkeys(void)
 {
 	struct key		*kp;
 	int			num_screens, k, j;
-	unsigned int		modifiers[3];
+	unsigned int		modifiers[4];
 	xcb_keycode_t		*code;
 
 	DNPRINTF(SWM_D_MISC, "grabkeys\n");
@@ -6190,7 +6190,8 @@ grabkeys(void)
 
 	modifiers[0] = 0;
 	modifiers[1] = numlockmask;
-	modifiers[2] = numlockmask | XCB_MOD_MASK_LOCK;
+	modifiers[2] = XCB_MOD_MASK_LOCK;
+	modifiers[3] = numlockmask | XCB_MOD_MASK_LOCK;
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	for (k = 0; k < num_screens; k++) {
@@ -6216,16 +6217,25 @@ grabkeys(void)
 void
 grabbuttons(struct ws_win *win)
 {
-	int		i;
+	unsigned int	modifiers[4];
+	int		i, j;
 
 	DNPRINTF(SWM_D_MOUSE, "grabbuttons: win 0x%x\n", win->id);
+	updatenumlockmask();
+
+	modifiers[0] = 0;
+	modifiers[1] = numlockmask;
+	modifiers[2] = XCB_MOD_MASK_LOCK;
+	modifiers[3] = numlockmask | XCB_MOD_MASK_LOCK;
 
 	for (i = 0; i < LENGTH(buttons); i++)
 		if (buttons[i].action == client_click)
-			xcb_grab_button(conn, 0, win->id, BUTTONMASK,
-			    XCB_GRAB_MODE_SYNC, XCB_GRAB_MODE_ASYNC,
-			    XCB_WINDOW_NONE, XCB_CURSOR_NONE,
-			    buttons[i].button, buttons[i].mask);
+			for (j = 0; j < LENGTH(modifiers); ++j)
+				xcb_grab_button(conn, 0, win->id, BUTTONMASK,
+				    XCB_GRAB_MODE_SYNC, XCB_GRAB_MODE_ASYNC,
+				    XCB_WINDOW_NONE, XCB_CURSOR_NONE,
+				    buttons[i].button, buttons[i].mask |
+				    modifiers[j]);
 }
 
 const char *quirkname[] = {
