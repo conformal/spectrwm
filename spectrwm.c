@@ -7662,9 +7662,10 @@ configurerequest(xcb_configure_request_event_t *e)
 			WIDTH(win) = win->g_float.w;
 			HEIGHT(win) = win->g_float.h;
 
-			stack_floater(win, win->ws->r);
-
-			focus_flush();
+			if (r) {
+				stack_floater(win, r);
+				focus_flush();
+			}
 		} else {
 			config_win(win, e);
 			xcb_flush(conn);
