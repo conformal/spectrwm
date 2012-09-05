@@ -3073,6 +3073,7 @@ unfocus_win(struct ws_win *win)
 		kill_refs(win->ws->focus);
 		win->ws->focus = NULL;
 	}
+
 	if (validate_win(win->ws->focus_prev)) {
 		kill_refs(win->ws->focus_prev);
 		win->ws->focus_prev = NULL;
@@ -7483,7 +7484,7 @@ buttonpress(xcb_button_press_event_t *e)
 	}
 
 	if (win == NULL)
-		return;
+		goto out;
 
 	last_event_time = e->time;
 
