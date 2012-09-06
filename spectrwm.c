@@ -2249,6 +2249,8 @@ bar_toggle(struct swm_region *r, union arg *args)
 		/* Only change if master switch is enabled. */
 		if (bar_enabled)
 			r->ws->bar_enabled = !r->ws->bar_enabled;
+		else
+			bar_enabled = r->ws->bar_enabled = 1;
 		break;
 	case SWM_ARG_ID_BAR_TOGGLE:
 		bar_enabled = !bar_enabled;
