@@ -106,7 +106,15 @@ Color of the status bar window in screen
 Update frequency, in seconds, of external script that populates the status
 bar.
 .It Ic bar_enabled
-Enable or disable status bar.
+Set default
+.Ar bar_toggle
+state; default is 1.
+.It Ic bar_enabled_ws Ns Bq Ar x
+Set default
+.Ar bar_toggle_ws
+state on workspace
+.Ar x ;
+default is 1.
 .It Ic bar_font
 Font used in the status bar. Either Xft or X Logical Font Description (XLFD)
 may be used to specify fonts. Fallback fonts may be specified by separating

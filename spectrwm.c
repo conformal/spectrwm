@@ -6435,6 +6435,7 @@ enum {
 	SWM_S_BAR_BORDER_WIDTH,
 	SWM_S_BAR_DELAY,
 	SWM_S_BAR_ENABLED,
+	SWM_S_BAR_ENABLED_WS,
 	SWM_S_BAR_FONT,
 	SWM_S_BAR_FORMAT,
 	SWM_S_BAR_JUSTIFY,
@@ -6466,8 +6467,9 @@ enum {
 int
 setconfvalue(char *selector, char *value, int flags)
 {
-	int	i;
-	char	*b;
+	struct workspace	*ws;
+	int			i, ws_id, num_screens;
+	char			*b;
 
 	/* suppress unused warning since var is needed */
 	(void)selector;
@@ -6491,6 +6493,18 @@ setconfvalue(char *selector, char *value, int flags)
 		break;
 	case SWM_S_BAR_ENABLED:
 		bar_enabled = atoi(value);
+		break;
+	case SWM_S_BAR_ENABLED_WS:
+		ws_id = atoi(selector) - 1;
+		if (ws_id < 0 || ws_id >= workspace_limit)
+			errx(1, "setconfvalue: bar_enabled_ws: invalid "
+			    "workspace %d.", ws_id + 1);
+
+		num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+		for (i = 0; i < num_screens; i++) {
+			ws = (struct workspace *)&screens[i].ws;
+			ws[ws_id].bar_enabled = atoi(value);
+		}
 		break;
 	case SWM_S_BAR_FONT:
 		b = bar_fonts;
@@ -6857,6 +6871,7 @@ struct config_option {
 };
 struct config_option configopt[] = {
 	{ "bar_enabled",		setconfvalue,	SWM_S_BAR_ENABLED },
+	{ "bar_enabled_ws",		setconfvalue,	SWM_S_BAR_ENABLED_WS },
 	{ "bar_at_bottom",		setconfvalue,	SWM_S_BAR_AT_BOTTOM },
 	{ "bar_border",			setconfcolor,	SWM_S_COLOR_BAR_BORDER },
 	{ "bar_border_width",		setconfvalue,	SWM_S_BAR_BORDER_WIDTH },
