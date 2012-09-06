@@ -494,6 +494,7 @@ struct workspace {
 	int			idx;		/* workspace index */
 	char			*name;		/* workspace name */
 	int			always_raise;	/* raise windows on focus */
+	int			bar_enabled;	/* bar visibility */
 	struct layout		*cur_layout;	/* current layout handlers */
 	struct ws_win		*focus;		/* may be NULL */
 	struct ws_win		*focus_prev;	/* may be NULL */
@@ -587,6 +588,8 @@ union arg {
 #define SWM_ARG_ID_MOVEDOWN	(101)
 #define SWM_ARG_ID_MOVELEFT	(102)
 #define SWM_ARG_ID_MOVERIGHT	(103)
+#define SWM_ARG_ID_BAR_TOGGLE	(110)
+#define SWM_ARG_ID_BAR_TOGGLE_WS	(111)
 	char			**argv;
 };
 
@@ -712,6 +715,7 @@ struct spawn_list		spawns = TAILQ_HEAD_INITIALIZER(spawns);
 /* user/key callable function IDs */
 enum keyfuncid {
 	KF_BAR_TOGGLE,
+	KF_BAR_TOGGLE_WS,
 	KF_BUTTON2,
 	KF_CYCLE_LAYOUT,
 	KF_FLIP_LAYOUT,
@@ -2175,6 +2179,14 @@ bar_fmt_print(void)
 		TAILQ_FOREACH(r, &screens[i].rl, entry) {
 			if (r->bar == NULL)
 				continue;
+
+			if (r->ws->bar_enabled)
+				xcb_map_window(conn, r->bar->id);
+			else {
+				xcb_unmap_window(conn, r->bar->id);
+				continue;
+			}
+
 			bar_fmt(fmtexp, fmtnew, r, sizeof fmtnew);
 			bar_replace(fmtnew, fmtrep, r, sizeof fmtrep);
 			if (bar_font_legacy)
@@ -2232,20 +2244,27 @@ bar_toggle(struct swm_region *r, union arg *args)
 
 	DNPRINTF(SWM_D_BAR, "bar_toggle\n");
 
-	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
-	if (bar_enabled) {
-		for (i = 0; i < num_screens; i++)
-			TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
-				if (tmpr->bar)
-					xcb_unmap_window(conn, tmpr->bar->id);
-	} else {
-		for (i = 0; i < num_screens; i++)
-			TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
-				if (tmpr->bar)
-					xcb_map_window(conn, tmpr->bar->id);
+	switch (args->id) {
+	case SWM_ARG_ID_BAR_TOGGLE_WS:
+		/* Only change if master switch is enabled. */
+		if (bar_enabled)
+			r->ws->bar_enabled = !r->ws->bar_enabled;
+		break;
+	case SWM_ARG_ID_BAR_TOGGLE:
+		bar_enabled = !bar_enabled;
+		break;
 	}
 
-	bar_enabled = !bar_enabled;
+	/* update bars as necessary */
+	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
+	for (i = 0; i < num_screens; i++)
+		TAILQ_FOREACH(tmpr, &screens[i].rl, entry)
+			if (tmpr->bar) {
+				if (bar_enabled && tmpr->ws->bar_enabled)
+					xcb_map_window(conn, tmpr->bar->id);
+				else
+					xcb_unmap_window(conn, tmpr->bar->id);
+			}
 
 	stack();
 
@@ -3781,7 +3800,7 @@ stack(void) {
 			g = r->g;
 			g.w -= 2 * border_width;
 			g.h -= 2 * border_width;
-			if (bar_enabled) {
+			if (bar_enabled && r->ws->bar_enabled) {
 				if (!bar_at_bottom)
 					g.y += bar_height;
 				g.h -= bar_height;
@@ -4074,7 +4093,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		else
 			win_g.y += last_h + 2 * border_width;
 
-		if (disable_border && !bar_enabled && winno == 1){
+		if (disable_border && !(bar_enabled && ws->bar_enabled) &&
+		    winno == 1){
 			bordered = 0;
 			win_g.w += 2 * border_width;
 			win_g.h += 2 * border_width;
@@ -4291,7 +4311,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		if (X(w) != gg.x || Y(w) != gg.y || WIDTH(w) != gg.w ||
 		    HEIGHT(w) != gg.h) {
 			w->g = gg;
-			if (bar_enabled){
+			if (bar_enabled && ws->bar_enabled){
 				w->bordered = 1;
 			} else {
 				w->bordered = 0;
@@ -5382,7 +5402,8 @@ struct keyfunc {
 	union arg		args;
 } keyfuncs[KF_INVALID + 1] = {
 	/* name			function	argument */
-	{ "bar_toggle",		bar_toggle,	{0} },
+	{ "bar_toggle",		bar_toggle,	{.id = SWM_ARG_ID_BAR_TOGGLE} },
+	{ "bar_toggle_ws",	bar_toggle,	{.id = SWM_ARG_ID_BAR_TOGGLE_WS} },
 	{ "button2",		pressbutton,	{2} },
 	{ "cycle_layout",	cycle_layout,	{0} },
 	{ "flip_layout",	stack_config,	{.id = SWM_ARG_ID_FLIPLAYOUT} },
@@ -6081,6 +6102,7 @@ setup_keys(void)
 	setkeybinding(MODKEY_SHIFT,	XK_F11,		KF_MVWS_21,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_F12,		KF_MVWS_22,	NULL);
 	setkeybinding(MODKEY,		XK_b,		KF_BAR_TOGGLE,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_b,		KF_BAR_TOGGLE_WS,NULL);
 	setkeybinding(MODKEY,		XK_Tab,		KF_FOCUS_NEXT,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_Tab,		KF_FOCUS_PREV,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_x,		KF_WIND_KILL,	NULL);
@@ -8605,6 +8627,7 @@ setup_screens(void)
 			ws = &screens[i].ws[j];
 			ws->idx = j;
 			ws->name = NULL;
+			ws->bar_enabled = 1;
 			ws->focus = NULL;
 			ws->focus_prev = NULL;
 			ws->focus_pending = NULL;
