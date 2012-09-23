@@ -279,7 +279,6 @@ volatile sig_atomic_t   restart_wm = 0;
 xcb_timestamp_t		last_event_time = 0;
 int			outputs = 0;
 int			other_wm;
-int			ss_enabled = 0;
 int			xrandr_support;
 int			xrandr_eventbase;
 unsigned int		numlockmask = 0;
@@ -6622,9 +6621,10 @@ setconfvalue(char *selector, char *value, int flags)
 		setconfspawn("spawn_term", value, 0);
 		break;
 	case SWM_S_SS_APP:
+		/* No longer needed; leave to not break old conf files. */
 		break;
 	case SWM_S_SS_ENABLED:
-		ss_enabled = atoi(value);
+		/* No longer needed; leave to not break old conf files. */
 		break;
 	case SWM_S_STACK_ENABLED:
 		stack_enabled = atoi(value);
