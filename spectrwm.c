@@ -351,8 +351,6 @@ int		 bar_pipe[2];
 char		 bar_ext[SWM_BAR_MAX];
 char		 bar_vertext[SWM_BAR_MAX];
 int		 bar_version = 0;
-sig_atomic_t	 bar_alarm = 0;
-int		 bar_delay = 30;
 int		 bar_enabled = 1;
 int		 bar_border_width = 1;
 int		 bar_at_bottom = 0;
@@ -834,7 +832,6 @@ void	 bar_replace_pad(char *, int *, size_t);
 char *	 bar_replace_seq(char *, char *, struct swm_region *, size_t *,
 	     size_t);
 void	 bar_setup(struct swm_region *);
-void	 bar_signal(int);
 void	 bar_title_name(char *, size_t, struct swm_region *);
 void	 bar_toggle(struct swm_region *, union arg *);
 void	 bar_update(void);
@@ -2203,10 +2200,8 @@ bar_update(void)
 	size_t			len;
 	char			*b;
 
-	if (!bar_enabled)
-		return;
-	if (bar_extra && bar_extra_running) {
-		/* ignore short reads; it'll correct itself */
+	if (bar_enabled && bar_extra && bar_extra_running) {
+		/* Ignore short reads; it'll correct itself. */
 		while ((b = fgetln(stdin, &len)) != NULL)
 			if (b && b[len - 1] == '\n') {
 				b[len - 1] = '\0';
@@ -2216,20 +2211,20 @@ bar_update(void)
 			warn("bar_update: bar_extra failed");
 			bar_extra_stop();
 		}
-	} else
-		strlcpy(bar_ext, "", sizeof bar_ext);
+	} else {
+		/*
+		 * Attempt to drain stdin, so it doesn't cause the main loop to
+		 * call us as fast as it can.
+		 */
+		fgetln(stdin, &len);
+
+		if (!bar_enabled)
+			return;
+
+		bar_ext[0] = '\0';
+	}
 
 	bar_fmt_print();
-	alarm(bar_delay);
-}
-
-void
-bar_signal(int sig)
-{
-	/* suppress unused warning since var is needed */
-	(void)sig;
-
-	bar_alarm = 1;
 }
 
 void
@@ -2291,10 +2286,15 @@ bar_refresh(void)
 			err(1, "pipe error");
 		socket_setnonblock(bar_pipe[0]);
 		socket_setnonblock(bar_pipe[1]); /* XXX hmmm, really? */
+
+		/* Set stdin to read from the pipe. */
 		if (dup2(bar_pipe[0], 0) == -1)
 			err(1, "dup2");
+
+		/* Set stdout to write to the pipe. */
 		if (dup2(bar_pipe[1], 1) == -1)
 			err(1, "dup2");
+
 		if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
 			err(1, "could not disable SIGPIPE");
 		switch (bar_pid = fork()) {
@@ -2322,7 +2322,9 @@ bar_refresh(void)
 			xcb_change_window_attributes(conn, r->bar->id,
 			    XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);
 		}
+
 	bar_update();
+	xcb_flush(conn);
 }
 
 int
@@ -2488,8 +2490,6 @@ bar_setup(struct swm_region *r)
 	    "%d x %d\n", WINID(r->bar), X(r->bar), Y(r->bar), WIDTH(r->bar),
 	    HEIGHT(r->bar));
 
-	if (signal(SIGALRM, bar_signal) == SIG_ERR)
-		err(1, "could not install bar_signal");
 	bar_refresh();
 }
 
@@ -6489,7 +6489,7 @@ setconfvalue(char *selector, char *value, int flags)
 			bar_border_width = 0;
 		break;
 	case SWM_S_BAR_DELAY:
-		bar_delay = atoi(value);
+		/* No longer needed; leave to not break old conf files. */
 		break;
 	case SWM_S_BAR_ENABLED:
 		bar_enabled = atoi(value);
@@ -8838,6 +8838,9 @@ main(int argc, char *argv[])
 	xcb_generic_event_t	*evt;
 	struct timeval          tv;
 	fd_set			rd;
+	int			rd_max;
+	int			do_bar_update = 0;
+	int			num_readable;
 
 	/* suppress unused warning since var is needed */
 	(void)argc;
@@ -8968,6 +8971,8 @@ noconfig:
 	xcb_ungrab_server(conn);
 	xcb_flush(conn);
 
+	rd_max = xfd > STDIN_FILENO ? xfd : STDIN_FILENO;
+
 	while (running) {
 		while ((evt = xcb_poll_for_event(conn))) {
 			if (!running)
@@ -8992,21 +8997,27 @@ noconfig:
 		}
 
 		FD_ZERO(&rd);
+		FD_SET(STDIN_FILENO, &rd);
 		FD_SET(xfd, &rd);
 		tv.tv_sec = 1;
 		tv.tv_usec = 0;
-		if (select(xfd + 1, &rd, NULL, NULL, &tv) == -1)
-			if (errno != EINTR) {
-				DNPRINTF(SWM_D_MISC, "select failed");
-			}
+		num_readable = select(rd_max + 1, &rd, NULL, NULL, &tv);
+		if (num_readable == -1 && errno != EINTR)
+			DNPRINTF(SWM_D_MISC, "select failed");
+		else if (num_readable > 0 && FD_ISSET(STDIN_FILENO, &rd))
+			do_bar_update = 1;
+
 		if (restart_wm)
 			restart(NULL, NULL);
+
 		if (search_resp)
 			search_do_resp();
+
 		if (!running)
 			goto done;
-		if (bar_alarm) {
-			bar_alarm = 0;
+
+		if (do_bar_update) {
+			do_bar_update = 0;
 			bar_update();
 		}
 	}
