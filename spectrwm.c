@@ -9019,6 +9019,7 @@ noconfig:
 		if (do_bar_update) {
 			do_bar_update = 0;
 			bar_update();
+			xcb_flush(conn);
 		}
 	}
 done:
