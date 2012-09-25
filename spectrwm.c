@@ -820,13 +820,14 @@ void	 adjust_font(struct ws_win *);
 void	 bar_class_name(char *, size_t, struct swm_region *);
 void	 bar_class_title_name(char *, size_t, struct swm_region *);
 void	 bar_cleanup(struct swm_region *);
+void	 bar_extra_setup(void);
 void	 bar_extra_stop(void);
+void	 bar_extra_update(void);
 void	 bar_fmt(const char *, char *, struct swm_region *, size_t);
 void	 bar_fmt_expand(char *, size_t);
-void	 bar_fmt_print(void);
+void	 bar_draw(void);
 void	 bar_print(struct swm_region *, const char *);
 void	 bar_print_legacy(struct swm_region *, const char *);
-void	 bar_refresh(void);
 void	 bar_replace(char *, char *, struct swm_region *, size_t);
 void	 bar_replace_pad(char *, int *, size_t);
 char *	 bar_replace_seq(char *, char *, struct swm_region *, size_t *,
@@ -834,7 +835,6 @@ char *	 bar_replace_seq(char *, char *, struct swm_region *, size_t *,
 void	 bar_setup(struct swm_region *);
 void	 bar_title_name(char *, size_t, struct swm_region *);
 void	 bar_toggle(struct swm_region *, union arg *);
-void	 bar_update(void);
 void	 bar_urgent(char *, size_t);
 void	 bar_window_float(char *, size_t, struct swm_region *);
 void	 bar_window_name(char *, size_t, struct swm_region *);
@@ -2160,8 +2160,9 @@ bar_fmt_expand(char *fmtexp, size_t sz)
 #endif
 }
 
+/* Redraws the bar; need to follow with xcb_flush() or focus_flush(). */
 void
-bar_fmt_print(void)
+bar_draw(void)
 {
 	char			fmtexp[SWM_BAR_MAX], fmtnew[SWM_BAR_MAX];
 	char			fmtrep[SWM_BAR_MAX];
@@ -2194,11 +2195,13 @@ bar_fmt_print(void)
 	}
 }
 
+/* Reads external script output; call when stdin is readable. */
 void
-bar_update(void)
+bar_extra_update(void)
 {
 	size_t		len;
 	char		b[SWM_BAR_MAX];
+	int		redraw = 0;
 
 	if (bar_enabled && bar_extra && bar_extra_running) {
 		while (fgets(b, sizeof(b), stdin) != NULL) {
@@ -2216,6 +2219,8 @@ bar_update(void)
 
 				/* Append new output to bar. */
 				strlcat(bar_ext, b, sizeof(bar_ext));
+
+				redraw = 1;
 			} else {
 				/* Buffer output. */
 				strlcat(bar_ext_buf, b, sizeof(bar_ext_buf));
@@ -2223,7 +2228,7 @@ bar_update(void)
 		}
 
 		if (errno != EAGAIN) {
-			warn("bar_update: bar_extra failed");
+			warn("bar_action failed");
 			bar_extra_stop();
 		}
 	} else {
@@ -2236,10 +2241,17 @@ bar_update(void)
 		if (!bar_enabled)
 			return;
 
-		bar_ext[0] = '\0';
+		/* Clear bar script output if bar script is not running. */
+		if (bar_ext[0] != '\0') {
+			bar_ext[0] = '\0';
+			redraw = 1;
+		}
 	}
 
-	bar_fmt_print();
+	if (redraw) {
+		bar_draw();
+		xcb_flush(conn);
+	}
 }
 
 void
@@ -2281,13 +2293,13 @@ bar_toggle(struct swm_region *r, union arg *args)
 	stack();
 
 	/* must be after stack */
-	bar_update();
+	bar_draw();
 
 	focus_flush();
 }
 
 void
-bar_refresh(void)
+bar_extra_setup(void)
 {
 	struct swm_region	*r;
 	uint32_t		wa[2];
@@ -2338,7 +2350,7 @@ bar_refresh(void)
 			    XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wa);
 		}
 
-	bar_update();
+	bar_draw();
 	xcb_flush(conn);
 }
 
@@ -2505,7 +2517,7 @@ bar_setup(struct swm_region *r)
 	    "%d x %d\n", WINID(r->bar), X(r->bar), Y(r->bar), WIDTH(r->bar),
 	    HEIGHT(r->bar));
 
-	bar_refresh();
+	bar_extra_setup();
 }
 
 void
@@ -2568,8 +2580,8 @@ version(struct swm_region *r, union arg *args)
 		    "Version: %s Build: %s", SPECTRWM_VERSION, buildstr);
 	else
 		strlcpy(bar_vertext, "", sizeof bar_vertext);
-	bar_update();
 
+	bar_draw();
 	xcb_flush(conn);
 }
 
@@ -3224,7 +3236,7 @@ focus_win(struct ws_win *win)
 	}
 
 out:
-	bar_update();
+	bar_draw();
 
 	DNPRINTF(SWM_D_FOCUS, "focus_win: done.\n");
 }
@@ -3346,7 +3358,7 @@ switchws(struct swm_region *r, union arg *args)
 
 	/* Clear bar if new ws is empty. */
 	if (new_ws->focus_pending == NULL)
-		bar_update();
+		bar_draw();
 
 	focus_flush();
 
@@ -3455,7 +3467,7 @@ cyclescr(struct swm_region *r, union arg *args)
 				rr->s[i].root, XCB_CURRENT_TIME);
 
 		/* Clear bar since empty. */
-		bar_update();
+		bar_draw();
 	}
 
 	focus_flush();
@@ -3768,7 +3780,7 @@ cycle_layout(struct swm_region *r, union arg *args)
 		ws->cur_layout = &layouts[0];
 
 	stack();
-	bar_update();
+	bar_draw();
 
 	focus_win(get_region_focus(r));
 
@@ -3788,7 +3800,7 @@ stack_config(struct swm_region *r, union arg *args)
 
 	if (args->id != SWM_ARG_ID_STACKINIT)
 		stack();
-	bar_update();
+	bar_draw();
 
 	focus_flush();
 }
@@ -7443,7 +7455,7 @@ expose(xcb_expose_event_t *e)
 	for (i = 0; i < num_screens; i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			if (e->window == WINID(r->bar))
-				bar_update();
+				bar_draw();
 
 	xcb_flush(conn);
 }
@@ -7528,7 +7540,7 @@ buttonpress(xcb_button_press_event_t *e)
 				    XCB_INPUT_FOCUS_PARENT, e->root, e->time);
 
 				/* Clear bar since empty. */
-				bar_update();
+				bar_draw();
 
 				handled = 1;
 				goto out;
@@ -7909,7 +7921,7 @@ enternotify(xcb_enter_notify_event_t *e)
 				    XCB_INPUT_FOCUS_PARENT, e->root, e->time);
 
 				/* Clear bar since empty. */
-				bar_update();
+				bar_draw();
 
 				focus_flush();
 			}
@@ -8107,7 +8119,7 @@ propertynotify(xcb_property_notify_event_t *e)
 		}
 	} else if (e->atom == XCB_ATOM_WM_CLASS ||
 	    e->atom == XCB_ATOM_WM_NAME) {
-		bar_update();
+		bar_draw();
 	}
 
 	xcb_flush(conn);
@@ -8855,7 +8867,7 @@ main(int argc, char *argv[])
 	struct timeval          tv;
 	fd_set			rd;
 	int			rd_max;
-	int			do_bar_update = 0;
+	int			stdin_ready = 0;
 	int			num_readable;
 
 	/* suppress unused warning since var is needed */
@@ -9018,10 +9030,11 @@ noconfig:
 		tv.tv_sec = 1;
 		tv.tv_usec = 0;
 		num_readable = select(rd_max + 1, &rd, NULL, NULL, &tv);
-		if (num_readable == -1 && errno != EINTR)
+		if (num_readable == -1 && errno != EINTR) {
 			DNPRINTF(SWM_D_MISC, "select failed");
-		else if (num_readable > 0 && FD_ISSET(STDIN_FILENO, &rd))
-			do_bar_update = 1;
+		} else if (num_readable > 0 && FD_ISSET(STDIN_FILENO, &rd)) {
+			stdin_ready = 1;
+		}
 
 		if (restart_wm)
 			restart(NULL, NULL);
@@ -9032,10 +9045,9 @@ noconfig:
 		if (!running)
 			goto done;
 
-		if (do_bar_update) {
-			do_bar_update = 0;
-			bar_update();
-			xcb_flush(conn);
+		if (stdin_ready) {
+			stdin_ready = 0;
+			bar_extra_update();
 		}
 	}
 done:
