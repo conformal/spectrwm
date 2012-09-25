@@ -348,6 +348,7 @@ double			dialog_ratio = 0.6;
 char		*bar_argv[] = { NULL, NULL };
 int		 bar_pipe[2];
 char		 bar_ext[SWM_BAR_MAX];
+char		 bar_ext_buf[SWM_BAR_MAX];
 char		 bar_vertext[SWM_BAR_MAX];
 int		 bar_version = 0;
 int		 bar_enabled = 1;
@@ -2196,17 +2197,32 @@ bar_fmt_print(void)
 void
 bar_update(void)
 {
-	size_t			len;
-	char			*b;
+	size_t		len;
+	char		b[SWM_BAR_MAX];
 
 	if (bar_enabled && bar_extra && bar_extra_running) {
-		/* Ignore short reads; it'll correct itself. */
-		while ((b = fgetln(stdin, &len)) != NULL)
-			if (b && b[len - 1] == '\n') {
-				b[len - 1] = '\0';
-				strlcpy(bar_ext, b, sizeof bar_ext);
+		while (fgets(b, sizeof(b), stdin) != NULL) {
+			len = strlen(b);
+			if (b[len - 1] == '\n') {
+				/* Remove newline. */
+				b[--len] = '\0';
+
+				/* "Clear" bar_ext. */
+				bar_ext[0] = '\0';
+
+				/* Flush buffered output. */
+				strlcpy(bar_ext, bar_ext_buf, sizeof(bar_ext));
+				bar_ext_buf[0] = '\0';
+
+				/* Append new output to bar. */
+				strlcat(bar_ext, b, sizeof(bar_ext));
+			} else {
+				/* Buffer output. */
+				strlcat(bar_ext_buf, b, sizeof(bar_ext_buf));
 			}
-		if (b == NULL && errno != EAGAIN) {
+		}
+
+		if (errno != EAGAIN) {
 			warn("bar_update: bar_extra failed");
 			bar_extra_stop();
 		}
@@ -2215,7 +2231,7 @@ bar_update(void)
 		 * Attempt to drain stdin, so it doesn't cause the main loop to
 		 * call us as fast as it can.
 		 */
-		fgetln(stdin, &len);
+		fgets(b, sizeof(b), stdin);
 
 		if (!bar_enabled)
 			return;
