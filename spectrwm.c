@@ -2236,7 +2236,7 @@ bar_extra_update(void)
 		 * Attempt to drain stdin, so it doesn't cause the main loop to
 		 * call us as fast as it can.
 		 */
-		fgets(b, sizeof(b), stdin);
+		while (fgets(b, sizeof(b), stdin) != NULL);
 
 		if (!bar_enabled)
 			return;
@@ -4352,8 +4352,8 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		}
 
 		/* Unmap unwanted windows if not multi-screen. */
-		if (!(num_screens > 1 || outputs > 1) && (w != win ||
-		    w != parent || w->transient != win->id))
+		if (num_screens <= 1 && outputs <= 1 && w != win &&
+		    w != parent && w->transient != win->id)
 			unmap_window(w);
 	}
 
