@@ -3151,6 +3151,9 @@ focus_win(struct ws_win *win)
 	if (win->ws == NULL)
 		goto out;
 
+	if (!win->mapped)
+		goto out;
+
 	ws = win->ws;
 
 	if (validate_ws(ws))
@@ -6898,51 +6901,51 @@ struct config_option {
 	int			funcflags;
 };
 struct config_option configopt[] = {
-	{ "bar_enabled",		setconfvalue,	SWM_S_BAR_ENABLED },
-	{ "bar_enabled_ws",		setconfvalue,	SWM_S_BAR_ENABLED_WS },
+	{ "autorun",			setautorun,	0 },
+	{ "bar_action",			setconfvalue,	SWM_S_BAR_ACTION },
 	{ "bar_at_bottom",		setconfvalue,	SWM_S_BAR_AT_BOTTOM },
 	{ "bar_border",			setconfcolor,	SWM_S_COLOR_BAR_BORDER },
 	{ "bar_border_width",		setconfvalue,	SWM_S_BAR_BORDER_WIDTH },
 	{ "bar_color",			setconfcolor,	SWM_S_COLOR_BAR },
-	{ "bar_font_color",		setconfcolor,	SWM_S_COLOR_BAR_FONT },
-	{ "bar_font",			setconfvalue,	SWM_S_BAR_FONT },
-	{ "bar_action",			setconfvalue,	SWM_S_BAR_ACTION },
 	{ "bar_delay",			setconfvalue,	SWM_S_BAR_DELAY },
-	{ "bar_justify",		setconfvalue,	SWM_S_BAR_JUSTIFY },
+	{ "bar_enabled",		setconfvalue,	SWM_S_BAR_ENABLED },
+	{ "bar_enabled_ws",		setconfvalue,	SWM_S_BAR_ENABLED_WS },
+	{ "bar_font",			setconfvalue,	SWM_S_BAR_FONT },
+	{ "bar_font_color",		setconfcolor,	SWM_S_COLOR_BAR_FONT },
 	{ "bar_format",			setconfvalue,	SWM_S_BAR_FORMAT },
-	{ "keyboard_mapping",		setkeymapping,	0 },
+	{ "bar_justify",		setconfvalue,	SWM_S_BAR_JUSTIFY },
 	{ "bind",			setconfbinding,	0 },
-	{ "stack_enabled",		setconfvalue,	SWM_S_STACK_ENABLED },
+	{ "border_width",		setconfvalue,	SWM_S_BORDER_WIDTH },
 	{ "clock_enabled",		setconfvalue,	SWM_S_CLOCK_ENABLED },
 	{ "clock_format",		setconfvalue,	SWM_S_CLOCK_FORMAT },
 	{ "color_focus",		setconfcolor,	SWM_S_COLOR_FOCUS },
 	{ "color_unfocus",		setconfcolor,	SWM_S_COLOR_UNFOCUS },
 	{ "cycle_empty",		setconfvalue,	SWM_S_CYCLE_EMPTY },
 	{ "cycle_visible",		setconfvalue,	SWM_S_CYCLE_VISIBLE },
-	{ "workspace_limit",		setconfvalue,	SWM_S_WORKSPACE_LIMIT },
 	{ "dialog_ratio",		setconfvalue,	SWM_S_DIALOG_RATIO },
-	{ "verbose_layout",		setconfvalue,	SWM_S_VERBOSE_LAYOUT },
+	{ "disable_border",		setconfvalue,	SWM_S_DISABLE_BORDER },
+	{ "focus_close",		setconfvalue,	SWM_S_FOCUS_CLOSE },
+	{ "focus_close_wrap",		setconfvalue,	SWM_S_FOCUS_CLOSE_WRAP },
+	{ "focus_default",		setconfvalue,	SWM_S_FOCUS_DEFAULT },
+	{ "focus_mode",			setconfvalue,	SWM_S_FOCUS_MODE },
+	{ "keyboard_mapping",		setkeymapping,	0 },
+	{ "layout",			setlayout,	0 },
 	{ "modkey",			setconfmodkey,	0 },
 	{ "program",			setconfspawn,	0 },
 	{ "quirk",			setconfquirk,	0 },
 	{ "region",			setconfregion,	0 },
-	{ "spawn_term",			setconfvalue,	SWM_S_SPAWN_TERM },
-	{ "screenshot_enabled",		setconfvalue,	SWM_S_SS_ENABLED },
 	{ "screenshot_app",		setconfvalue,	SWM_S_SS_APP },
-	{ "window_name_enabled",	setconfvalue,	SWM_S_WINDOW_NAME_ENABLED },
-	{ "urgent_enabled",		setconfvalue,	SWM_S_URGENT_ENABLED },
+	{ "screenshot_enabled",		setconfvalue,	SWM_S_SS_ENABLED },
+	{ "spawn_position",		setconfvalue,	SWM_S_SPAWN_ORDER },
+	{ "spawn_term",			setconfvalue,	SWM_S_SPAWN_TERM },
+	{ "stack_enabled",		setconfvalue,	SWM_S_STACK_ENABLED },
 	{ "term_width",			setconfvalue,	SWM_S_TERM_WIDTH },
 	{ "title_class_enabled",	setconfvalue,	SWM_S_TITLE_CLASS_ENABLED },
 	{ "title_name_enabled",		setconfvalue,	SWM_S_TITLE_NAME_ENABLED },
-	{ "focus_mode",			setconfvalue,	SWM_S_FOCUS_MODE },
-	{ "focus_close",		setconfvalue,	SWM_S_FOCUS_CLOSE },
-	{ "focus_close_wrap",		setconfvalue,	SWM_S_FOCUS_CLOSE_WRAP },
-	{ "focus_default",		setconfvalue,	SWM_S_FOCUS_DEFAULT },
-	{ "spawn_position",		setconfvalue,	SWM_S_SPAWN_ORDER },
-	{ "disable_border",		setconfvalue,	SWM_S_DISABLE_BORDER },
-	{ "border_width",		setconfvalue,	SWM_S_BORDER_WIDTH },
-	{ "autorun",			setautorun,	0 },
-	{ "layout",			setlayout,	0 },
+	{ "urgent_enabled",		setconfvalue,	SWM_S_URGENT_ENABLED },
+	{ "verbose_layout",		setconfvalue,	SWM_S_VERBOSE_LAYOUT },
+	{ "window_name_enabled",	setconfvalue,	SWM_S_WINDOW_NAME_ENABLED },
+	{ "workspace_limit",		setconfvalue,	SWM_S_WORKSPACE_LIMIT },
 };
 
 int
