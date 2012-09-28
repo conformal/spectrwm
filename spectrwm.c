@@ -3622,37 +3622,70 @@ get_focus_prev(struct ws_win *win)
 	if (winfocus == NULL || winfocus == win) {
 		switch (focus_close) {
 		case SWM_STACK_BOTTOM:
-			winfocus = TAILQ_FIRST(wl);
+			TAILQ_FOREACH(winfocus, wl, entry)
+				if (!winfocus->iconic && winfocus != cur_focus)
+					break;
 			break;
 		case SWM_STACK_TOP:
-			winfocus = TAILQ_LAST(wl, ws_win_list);
+			TAILQ_FOREACH_REVERSE(winfocus, wl, ws_win_list, entry)
+				if (!winfocus->iconic && winfocus != cur_focus)
+					break;
 			break;
 		case SWM_STACK_ABOVE:
-			if ((winfocus = TAILQ_NEXT(cur_focus, entry)) == NULL) {
-				if (focus_close_wrap)
-					winfocus = TAILQ_FIRST(wl);
-				else
-					winfocus = TAILQ_PREV(cur_focus,
-					    ws_win_list, entry);
+			winfocus = TAILQ_NEXT(cur_focus, entry);
+			while (winfocus && winfocus->iconic)
+				winfocus = TAILQ_NEXT(winfocus, entry);
+
+			if (winfocus == NULL) {
+				if (focus_close_wrap) {
+					TAILQ_FOREACH(winfocus, wl, entry)
+						if (!winfocus->iconic &&
+						    winfocus != cur_focus)
+							break;
+				} else {
+					TAILQ_FOREACH_REVERSE(winfocus, wl,
+					    ws_win_list, entry)
+						if (!winfocus->iconic &&
+						    winfocus != cur_focus)
+							break;
+				}
 			}
 			break;
 		case SWM_STACK_BELOW:
-			if ((winfocus = TAILQ_PREV(cur_focus, ws_win_list,
-			    entry)) == NULL) {
-				if (focus_close_wrap)
-					winfocus = TAILQ_LAST(wl, ws_win_list);
-				else
-					winfocus = TAILQ_NEXT(cur_focus, entry);
+			winfocus = TAILQ_PREV(cur_focus, ws_win_list, entry);
+			while (winfocus && winfocus->iconic)
+				winfocus = TAILQ_PREV(winfocus, ws_win_list,
+				    entry);
+
+			if (winfocus == NULL) {
+				if (focus_close_wrap) {
+					TAILQ_FOREACH_REVERSE(winfocus, wl,
+					    ws_win_list, entry)
+						if (!winfocus->iconic &&
+						    winfocus != cur_focus)
+							break;
+				} else {
+					TAILQ_FOREACH(winfocus, wl, entry)
+						if (!winfocus->iconic &&
+						    winfocus != cur_focus)
+							break;
+				}
 			}
 			break;
 		}
 	}
 done:
-	if (winfocus == NULL) {
-		if (focus_default == SWM_STACK_TOP)
-			winfocus = TAILQ_LAST(wl, ws_win_list);
-		else
-			winfocus = TAILQ_FIRST(wl);
+	if (winfocus == NULL ||
+	    (winfocus && (winfocus->iconic || winfocus == cur_focus))) {
+		if (focus_default == SWM_STACK_TOP) {
+			TAILQ_FOREACH_REVERSE(winfocus, wl, ws_win_list, entry)
+				if (!winfocus->iconic && winfocus != cur_focus)
+					break;
+		} else {
+			TAILQ_FOREACH(winfocus, wl, entry)
+				if (!winfocus->iconic && winfocus != cur_focus)
+					break;
+		}
 	}
 
 	kill_refs(win);
