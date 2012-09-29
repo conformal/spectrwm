@@ -6295,7 +6295,7 @@ grabkeys(void)
 					    screens[k].root,
 					    kp->mod | modifiers[j],
 					    *code, XCB_GRAB_MODE_SYNC,
-					    XCB_GRAB_MODE_ASYNC);
+					    XCB_GRAB_MODE_SYNC);
 				free(code);
 			}
 		}
@@ -7522,10 +7522,14 @@ keypress(xcb_key_press_event_t *e)
 
 	keysym = xcb_key_press_lookup_keysym(syms, e, 0);
 
-	DNPRINTF(SWM_D_EVENT, "keypress: %u %u\n", e->detail, keysym);
+	DNPRINTF(SWM_D_EVENT, "keypress: keysym: %u, win (x,y): 0x%x (%d,%d), "
+	    "detail: %u, time: %u, root (x,y): 0x%x (%d,%d), child: 0x%x, "
+	    "state: %u, same_screen: %s\n", keysym, e->event, e->event_x,
+	    e->event_y, e->detail, e->time, e->root, e->root_x, e->root_y,
+	    e->child, e->state, YESNO(e->same_screen));
 
 	if ((kp = key_lookup(CLEANMASK(e->state), keysym)) == NULL)
-		return;
+		goto out;
 
 	last_event_time = e->time;
 
@@ -7535,6 +7539,13 @@ keypress(xcb_key_press_event_t *e)
 	else if (keyfuncs[kp->funcid].func)
 		keyfuncs[kp->funcid].func(root_to_region(e->root, SWM_CK_ALL),
 		    &(keyfuncs[kp->funcid].args));
+
+out:
+	/* Unfreeze grab events. */
+	xcb_allow_events(conn, XCB_ALLOW_ASYNC_KEYBOARD, e->time);
+	xcb_flush(conn);
+
+	DNPRINTF(SWM_D_EVENT, "keypress: done.\n");
 }
 
 void
