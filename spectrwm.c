@@ -2178,7 +2178,7 @@ bar_draw(void)
 			if (r->bar == NULL)
 				continue;
 
-			if (r->ws->bar_enabled)
+			if (bar_enabled && r->ws->bar_enabled)
 				xcb_map_window(conn, r->bar->id);
 			else {
 				xcb_unmap_window(conn, r->bar->id);
