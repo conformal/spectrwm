@@ -8182,7 +8182,7 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 
 	/* If we aren't managing the window, then ignore. */
 	win = find_window(e->window);
-	if (win == NULL)
+	if (win == NULL || win->id != e->window)
 		return;
 
 	ws = win->ws;
