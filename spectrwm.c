@@ -917,6 +917,7 @@ struct key	*key_lookup(unsigned int, KeySym);
 void	 key_remove(struct key *);
 void	 key_replace(struct key *, unsigned int, KeySym, enum keyfuncid,
 	     const char *);
+void	 kill_bar_extra_atexit(void);
 void	 kill_refs(struct ws_win *);
 #ifdef SWM_DEBUG
 void	 leavenotify(xcb_leave_notify_event_t *);
@@ -2337,6 +2338,8 @@ bar_extra_setup(void)
 			close(bar_pipe[1]);
 			break;
 		}
+
+		atexit(kill_bar_extra_atexit);
 	}
 
 	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
@@ -2352,6 +2355,13 @@ bar_extra_setup(void)
 
 	bar_draw();
 	xcb_flush(conn);
+}
+
+void
+kill_bar_extra_atexit(void)
+{
+	if (bar_pid)
+		kill(bar_pid, SIGTERM);
 }
 
 int
