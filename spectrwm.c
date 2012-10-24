@@ -520,6 +520,7 @@ struct workspace {
 enum {
 	SWM_S_COLOR_BAR,
 	SWM_S_COLOR_BAR_BORDER,
+	SWM_S_COLOR_BAR_BORDER_UNFOCUS,
 	SWM_S_COLOR_BAR_FONT,
 	SWM_S_COLOR_FOCUS,
 	SWM_S_COLOR_UNFOCUS,
@@ -2502,7 +2503,7 @@ bar_setup(struct swm_region *r)
 	/* Assume region is unfocused when we create the bar. */
 	r->bar->id = xcb_generate_id(conn);
 	wa[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
-	wa[1] = r->s->c[SWM_S_COLOR_UNFOCUS].pixel;
+	wa[1] = r->s->c[SWM_S_COLOR_BAR_BORDER_UNFOCUS].pixel;
 	wa[2] = XCB_EVENT_MASK_EXPOSURE;
 
 	xcb_create_window(conn, XCB_COPY_FROM_PARENT, r->bar->id, r->s->root,
@@ -3327,7 +3328,7 @@ set_region(struct swm_region *r)
 
 		xcb_change_window_attributes(conn, rf->bar->id,
 		    XCB_CW_BORDER_PIXEL,
-		    &r->s->c[SWM_S_COLOR_UNFOCUS].pixel);
+		    &r->s->c[SWM_S_COLOR_BAR_BORDER_UNFOCUS].pixel);
 	}
 
 	/* Set region bar border to focus_color. */
@@ -7086,6 +7087,7 @@ struct config_option configopt[] = {
 	{ "bar_action",			setconfvalue,	SWM_S_BAR_ACTION },
 	{ "bar_at_bottom",		setconfvalue,	SWM_S_BAR_AT_BOTTOM },
 	{ "bar_border",			setconfcolor,	SWM_S_COLOR_BAR_BORDER },
+	{ "bar_border_unfocus",		setconfcolor,	SWM_S_COLOR_BAR_BORDER_UNFOCUS },
 	{ "bar_border_width",		setconfvalue,	SWM_S_BAR_BORDER_WIDTH },
 	{ "bar_color",			setconfcolor,	SWM_S_COLOR_BAR },
 	{ "bar_delay",			setconfvalue,	SWM_S_BAR_DELAY },
@@ -8896,6 +8898,8 @@ setup_screens(void)
 		setscreencolor("red", i + 1, SWM_S_COLOR_FOCUS);
 		setscreencolor("rgb:88/88/88", i + 1, SWM_S_COLOR_UNFOCUS);
 		setscreencolor("rgb:00/80/80", i + 1, SWM_S_COLOR_BAR_BORDER);
+		setscreencolor("rgb:00/40/40", i + 1,
+		    SWM_S_COLOR_BAR_BORDER_UNFOCUS);
 		setscreencolor("black", i + 1, SWM_S_COLOR_BAR);
 		setscreencolor("rgb:a0/a0/a0", i + 1, SWM_S_COLOR_BAR_FONT);
 
