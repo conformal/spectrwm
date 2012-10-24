@@ -355,8 +355,7 @@ int		 bar_version = 0;
 int		 bar_enabled = 1;
 int		 bar_border_width = 1;
 int		 bar_at_bottom = 0;
-int		 bar_extra = 1;
-int		 bar_extra_running = 0;
+int		 bar_extra = 0;
 int		 bar_verbose = 1;
 int		 bar_height = 0;
 int		 bar_justify = SWM_BAR_JUSTIFY_LEFT;
@@ -845,7 +844,7 @@ void	 bar_class_title_name(char *, size_t, struct swm_region *);
 void	 bar_cleanup(struct swm_region *);
 void	 bar_extra_setup(void);
 void	 bar_extra_stop(void);
-void	 bar_extra_update(void);
+int	 bar_extra_update(void);
 void	 bar_fmt(const char *, char *, struct swm_region *, size_t);
 void	 bar_fmt_expand(char *, size_t);
 void	 bar_draw(void);
@@ -2224,16 +2223,22 @@ bar_draw(void)
 	}
 }
 
-/* Reads external script output; call when stdin is readable. */
-void
+/*
+ * Reads external script output; call when stdin is readable.
+ * Returns 1 if bar_ext was updated; otherwise 0.
+ */
+int
 bar_extra_update(void)
 {
 	size_t		len;
 	char		b[SWM_BAR_MAX];
-	int		redraw = 0;
+	int		changed = 0;
 
-	if (bar_enabled && bar_extra && bar_extra_running) {
-		while (fgets(b, sizeof(b), stdin) != NULL) {
+	if (!bar_extra)
+		return changed;
+
+	while (fgets(b, sizeof(b), stdin) != NULL) {
+		if (bar_enabled) {
 			len = strlen(b);
 			if (b[len - 1] == '\n') {
 				/* Remove newline. */
@@ -2249,38 +2254,21 @@ bar_extra_update(void)
 				/* Append new output to bar. */
 				strlcat(bar_ext, b, sizeof(bar_ext));
 
-				redraw = 1;
+				changed = 1;
 			} else {
 				/* Buffer output. */
 				strlcat(bar_ext_buf, b, sizeof(bar_ext_buf));
 			}
 		}
-
-		if (errno != EAGAIN) {
-			warn("bar_action failed");
-			bar_extra_stop();
-		}
-	} else {
-		/*
-		 * Attempt to drain stdin, so it doesn't cause the main loop to
-		 * call us as fast as it can.
-		 */
-		while (fgets(b, sizeof(b), stdin) != NULL);
-
-		if (!bar_enabled)
-			return;
-
-		/* Clear bar script output if bar script is not running. */
-		if (bar_ext[0] != '\0') {
-			bar_ext[0] = '\0';
-			redraw = 1;
-		}
 	}
 
-	if (redraw) {
-		bar_draw();
-		xcb_flush(conn);
+	if (errno != EAGAIN) {
+		warn("bar_action failed");
+		bar_extra_stop();
+		changed = 1;
 	}
+
+	return changed;
 }
 
 void
@@ -2331,20 +2319,20 @@ void
 bar_extra_setup(void)
 {
 	/* do this here because the conf file is in memory */
-	if (bar_extra && !bar_extra_running && bar_argv[0]) {
+	if (!bar_extra && bar_argv[0]) {
 		/* launch external status app */
-		bar_extra_running = 1;
+		bar_extra = 1;
 		if (pipe(bar_pipe) == -1)
 			err(1, "pipe error");
 		socket_setnonblock(bar_pipe[0]);
 		socket_setnonblock(bar_pipe[1]); /* XXX hmmm, really? */
 
 		/* Set stdin to read from the pipe. */
-		if (dup2(bar_pipe[0], 0) == -1)
+		if (dup2(bar_pipe[0], STDIN_FILENO) == -1)
 			err(1, "dup2");
 
 		/* Set stdout to write to the pipe. */
-		if (dup2(bar_pipe[1], 1) == -1)
+		if (dup2(bar_pipe[1], STDOUT_FILENO) == -1)
 			err(1, "dup2");
 
 		if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
@@ -5877,9 +5865,9 @@ spawn_select(struct swm_region *r, union arg *args, const char *spawn_name,
 		err(1, "cannot fork");
 		break;
 	case 0: /* child */
-		if (dup2(select_list_pipe[0], 0) == -1)
+		if (dup2(select_list_pipe[0], STDIN_FILENO) == -1)
 			err(1, "dup2");
-		if (dup2(select_resp_pipe[1], 1) == -1)
+		if (dup2(select_resp_pipe[1], STDOUT_FILENO) == -1)
 			err(1, "dup2");
 		close(select_list_pipe[1]);
 		close(select_resp_pipe[0]);
@@ -9015,7 +9003,6 @@ shutdown_cleanup(void)
 		err(1, "can't disable alarm");
 
 	bar_extra_stop();
-	bar_extra = 1;
 	unmap_all();
 
 	cursors_cleanup();
@@ -9276,7 +9263,10 @@ noconfig:
 		}
 
 		FD_ZERO(&rd);
-		FD_SET(STDIN_FILENO, &rd);
+
+		if (bar_extra)
+			FD_SET(STDIN_FILENO, &rd);
+
 		FD_SET(xfd, &rd);
 		tv.tv_sec = 1;
 		tv.tv_usec = 0;
@@ -9298,7 +9288,10 @@ noconfig:
 
 		if (stdin_ready) {
 			stdin_ready = 0;
-			bar_extra_update();
+			if (bar_extra_update()) {
+				bar_draw();
+				xcb_flush(conn);
+			}
 		}
 	}
 done:
