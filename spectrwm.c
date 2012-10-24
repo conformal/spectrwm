@@ -374,6 +374,8 @@ int		 focus_default = SWM_STACK_TOP;
 int		 spawn_position = SWM_STACK_TOP;
 int		 disable_border = 0;
 int		 border_width = 1;
+int		 region_padding = 0;
+int		 tile_gap = 0;
 int		 verbose_layout = 0;
 time_t		 time_started;
 pid_t		 bar_pid;
@@ -3946,10 +3948,12 @@ stack(void) {
 			DNPRINTF(SWM_D_STACK, "stack: workspace: %d "
 			    "(screen: %d, region: %d)\n", r->ws->idx, i, j++);
 
-			/* start with screen geometry, adjust for bar */
+			/* Adjust stack area for region bar and padding. */
 			g = r->g;
-			g.w -= 2 * border_width;
-			g.h -= 2 * border_width;
+			g.x += region_padding;
+			g.y += region_padding;
+			g.w -= 2 * border_width + 2 * region_padding;
+			g.h -= 2 * border_width + 2 * region_padding;
 			if (bar_enabled && r->ws->bar_enabled) {
 				if (!bar_at_bottom)
 					g.y += bar_height;
@@ -4185,9 +4189,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 	/*  stack all the tiled windows */
 	i = j = 0, s = stacks;
 	TAILQ_FOREACH(win, &ws->winlist, entry) {
-		if (win->transient || win->floating)
-			continue;
-		if (win->iconic)
+		if (win->transient || win->floating || win->iconic)
 			continue;
 
 		if (win->ewmh_flags & EWMH_F_FULLSCREEN) {
@@ -4205,16 +4207,20 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			if (flip)
 				win_g.x = r_g.x;
 			else
-				win_g.x += win_g.w + 2 * border_width;
+				win_g.x += win_g.w + 2 * border_width +
+				    tile_gap;
 			win_g.w = (r_g.w - msize -
-			    (stacks * 2 * border_width)) / stacks;
+			    (stacks * (2 * border_width + tile_gap))) / stacks;
 			if (s == 1)
 				win_g.w += (r_g.w - msize -
-				    (stacks * 2 * border_width)) % stacks;
+				    (stacks * (2 * border_width + tile_gap))) %
+				    stacks;
 			s--;
 			j = 0;
 		}
-		win_g.h = hrh - 2 * border_width;
+
+		win_g.h = hrh - 2 * border_width - tile_gap;
+
 		if (rot) {
 			h_inc = win->sh.width_inc;
 			h_base = win->sh.base_width;
@@ -4222,6 +4228,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			h_inc =	win->sh.height_inc;
 			h_base = win->sh.base_height;
 		}
+
 		if (j == colno - 1) {
 			win_g.h = hrh + extra;
 		} else if (h_inc > 1 && h_inc < h_slice) {
@@ -4241,7 +4248,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		if (j == 0)
 			win_g.y = r_g.y;
 		else
-			win_g.y += last_h + 2 * border_width;
+			win_g.y += last_h + 2 * border_width + tile_gap;
 
 		if (disable_border && !(bar_enabled && ws->bar_enabled) &&
 		    winno == 1){
@@ -4251,6 +4258,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 		} else {
 			bordered = 1;
 		}
+
 		if (rot) {
 			if (X(win) != win_g.y || Y(win) != win_g.x ||
 			    WIDTH(win) != win_g.h || HEIGHT(win) != win_g.w) {
@@ -6662,12 +6670,14 @@ enum {
 	SWM_S_FOCUS_CLOSE_WRAP,
 	SWM_S_FOCUS_DEFAULT,
 	SWM_S_FOCUS_MODE,
+	SWM_S_REGION_PADDING,
 	SWM_S_SPAWN_ORDER,
 	SWM_S_SPAWN_TERM,
 	SWM_S_SS_APP,
 	SWM_S_SS_ENABLED,
 	SWM_S_STACK_ENABLED,
 	SWM_S_TERM_WIDTH,
+	SWM_S_TILE_GAP,
 	SWM_S_TITLE_CLASS_ENABLED,
 	SWM_S_TITLE_NAME_ENABLED,
 	SWM_S_URGENT_ENABLED,
@@ -6817,6 +6827,11 @@ setconfvalue(char *selector, char *value, int flags)
 		else
 			errx(1, "focus_mode");
 		break;
+	case SWM_S_REGION_PADDING:
+		region_padding = atoi(value);
+		if (region_padding < 0)
+			region_padding = 0;
+		break;
 	case SWM_S_SPAWN_ORDER:
 		if (!strcmp(value, "first"))
 			spawn_position = SWM_STACK_BOTTOM;
@@ -6846,6 +6861,11 @@ setconfvalue(char *selector, char *value, int flags)
 		term_width = atoi(value);
 		if (term_width < 0)
 			term_width = 0;
+		break;
+	case SWM_S_TILE_GAP:
+		tile_gap = atoi(value);
+		if (tile_gap < 0)
+			tile_gap = 0;
 		break;
 	case SWM_S_TITLE_CLASS_ENABLED:
 		title_class_enabled = atoi(value);
@@ -7117,12 +7137,14 @@ struct config_option configopt[] = {
 	{ "program",			setconfspawn,	0 },
 	{ "quirk",			setconfquirk,	0 },
 	{ "region",			setconfregion,	0 },
+	{ "region_padding",		setconfvalue,	SWM_S_REGION_PADDING },
 	{ "screenshot_app",		setconfvalue,	SWM_S_SS_APP },
 	{ "screenshot_enabled",		setconfvalue,	SWM_S_SS_ENABLED },
 	{ "spawn_position",		setconfvalue,	SWM_S_SPAWN_ORDER },
 	{ "spawn_term",			setconfvalue,	SWM_S_SPAWN_TERM },
 	{ "stack_enabled",		setconfvalue,	SWM_S_STACK_ENABLED },
 	{ "term_width",			setconfvalue,	SWM_S_TERM_WIDTH },
+	{ "tile_gap",			setconfvalue,	SWM_S_TILE_GAP },
 	{ "title_class_enabled",	setconfvalue,	SWM_S_TITLE_CLASS_ENABLED },
 	{ "title_name_enabled",		setconfvalue,	SWM_S_TITLE_NAME_ENABLED },
 	{ "urgent_enabled",		setconfvalue,	SWM_S_URGENT_ENABLED },

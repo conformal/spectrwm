@@ -321,6 +321,9 @@ e.g.\& screen[1]:800x1200+0+0.
 To make a region span multiple monitors, create a region big enough to cover
 them all, e.g. screen[1]:2048x768+0+0 makes the region span two monitors with
 1024x768 resolution sitting one next to the other.
+.It Ic region_padding
+Pixel width of empty space within region borders.
+Disable by setting to 0.
 .It Ic spawn_position
 Position in stack to place newly spawned windows.
 Possible values are
@@ -354,6 +357,9 @@ Users may need to set program[term] (see the
 section) to use an alternate copy of the
 .Xr xterm 1
 binary without the setgid bit set.
+.It Ic tile_gap
+Pixel width of empty space between tiled windows.
+Disable by setting to 0.
 .It Ic title_class_enabled
 Enable or disable displaying the window class in the status bar.
 Enable by setting to 1.
