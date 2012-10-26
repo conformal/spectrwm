@@ -924,6 +924,7 @@ char	*get_notify_mode_label(uint8_t);
 #endif
 struct ws_win	*get_pointer_win(xcb_window_t);
 struct ws_win	*get_region_focus(struct swm_region *);
+int	 get_region_index(struct swm_region *);
 xcb_screen_t	*get_screen(int);
 #ifdef SWM_DEBUG
 char	*get_stack_mode_name(uint8_t);
@@ -1174,6 +1175,27 @@ get_screen(int screen)
 			return (iter.data);
 
 	return (NULL);
+}
+
+int
+get_region_index(struct swm_region *r)
+{
+	struct swm_region	*rr;
+	int			 ridx = 0;
+
+	if (r == NULL)
+		return -1;
+
+	TAILQ_FOREACH(rr, &r->s->rl, entry) {
+		if (rr == r)
+			break;
+		++ridx;
+	}
+
+	if (rr == NULL)
+		return -1;
+
+	return ridx;
 }
 
 void
@@ -5813,6 +5835,13 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
 			    strdup(r->s->c[SWM_S_COLOR_UNFOCUS].name))
 			    == NULL)
 				err(1, "spawn_custom color unfocus");
+		} else if (!strcasecmp(ap, "$region_index")) {
+			if (asprintf(&real_args[i], "%d",
+			    get_region_index(r) + 1) < 1)
+				err(1, "spawn_custom region index");
+		} else if (!strcasecmp(ap, "$workspace_index")) {
+			if (asprintf(&real_args[i], "%d", r->ws->idx + 1) < 1)
+				err(1, "spawn_custom workspace index");
 		} else {
 			/* no match --> copy as is */
 			if ((real_args[i] = strdup(ap)) == NULL)

@@ -427,14 +427,8 @@ is the desired program, and
 .Aq arg
 is zero or more arguments to the program.
 .Pp
-The following variables represent settable values in
-.Nm
-(see the
-.Sx CONFIGURATION FILES
-section above),
-and may be used in the
-.Aq arg
-fields and will be substituted for values at the time the program is spawned:
+The following argument variables will be substituted for values at the time the program
+is spawned:
 .Pp
 .Bl -tag -width "$bar_font_color" -offset indent -compact
 .It Cm $bar_border
@@ -443,6 +437,8 @@ fields and will be substituted for values at the time the program is spawned:
 .It Cm $bar_font_color
 .It Cm $color_focus
 .It Cm $color_unfocus
+.It Cm $region_index
+.It Cm $workspace_index
 .El
 .Pp
 Example:
