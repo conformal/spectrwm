@@ -3339,11 +3339,6 @@ set_region(struct swm_region *r)
 	if (r == NULL)
 		return;
 
-	/* Skip if only one region on this screen. */
-	rf = TAILQ_FIRST(&r->s->rl);
-	if (TAILQ_NEXT(rf, entry) == NULL)
-		goto out;
-
 	rf = r->s->r_focus;
 	/* Unfocus old region bar. */
 	if (rf) {
@@ -3359,7 +3354,6 @@ set_region(struct swm_region *r)
 	xcb_change_window_attributes(conn, r->bar->id,
 	    XCB_CW_BORDER_PIXEL, &r->s->c[SWM_S_COLOR_BAR_BORDER].pixel);
 
-out:
 	r->s->r_focus = r;
 }
 
