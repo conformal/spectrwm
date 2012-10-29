@@ -6018,7 +6018,9 @@ setspawn(const char *name, const char *args)
 int
 setconfspawn(char *selector, char *value, int flags)
 {
-	char *args;
+	char		*args;
+	char		which[PATH_MAX];
+	size_t		i;
 
 	/* suppress unused warning since var is needed */
 	(void)flags;
@@ -6026,6 +6028,17 @@ setconfspawn(char *selector, char *value, int flags)
 	args = expand_tilde(value);
 
 	DNPRINTF(SWM_D_SPAWN, "setconfspawn: [%s] [%s]\n", selector, args);
+
+	/* verify we have the goods */
+	snprintf(which, sizeof which, "which %s", value);
+	for (i = strlen("which "); i < strlen(which); i++)
+		if (which[i] == ' ') {
+			which[i] = '\0';
+			break;
+		}
+	if (system(which) != 0)
+		add_startup_exception("could not find %s",
+		    &which[strlen("which ")]);
 
 	setspawn(selector, args);
 	free(args);
@@ -6049,7 +6062,7 @@ setup_spawn(void)
 					" -nf $bar_font_color"
 					" -sb $bar_border"
 					" -sf $bar_color",	0);
-	setconfspawn("search",		"dmenu"
+	setconfspawn("search",		"damenu"
 					" -i"
 					" -fn $bar_font"
 					" -nb $bar_color"
@@ -6063,10 +6076,6 @@ setup_spawn(void)
 					" -nf $bar_font_color"
 					" -sb $bar_border"
 					" -sf $bar_color",	0);
-
-	/* only test dmenu for now, really should expand this */
-	if (system("dmenu -v") != 0)
-		add_startup_exception("you must install dmenu");
 }
 
 /* key bindings */
