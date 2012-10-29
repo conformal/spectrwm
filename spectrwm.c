@@ -6052,7 +6052,6 @@ setup_spawn(void)
 {
 	setconfspawn("term",		"xterm",		0);
 	setconfspawn("spawn_term",	"xterm",		0);
-	setconfspawn("lock",		"xlock",		0);
 	setconfspawn("menu",		"dmenu_run"
 					" -fn $bar_font"
 					" -nb $bar_color"
@@ -6075,6 +6074,7 @@ setup_spawn(void)
 					" -sf $bar_color",	0);
 
 	/* these are not verified for existence */
+	setconfspawn("lock",		"xlock",		1);
 	setconfspawn("screenshot_all",  "screenshot.sh full",   1);
 	setconfspawn("screenshot_wind", "screenshot.sh window", 1);
 	setconfspawn("initscr",         "initscreen.sh",        1);
