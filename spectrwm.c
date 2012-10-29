@@ -4495,14 +4495,9 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 
 			update_window(w);
 		}
-
-		/* Unmap unwanted windows if not multi-screen. */
-		if (num_screens <= 1 && outputs <= 1 && w != win &&
-		    w != parent && w->transient != win->id)
-			unmap_window(w);
 	}
 
-	/* If a parent exists, map it first. */
+	/* If a parent exists, map/raise it first. */
 	if (parent) {
 		map_window(parent);
 
@@ -4515,10 +4510,10 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 			}
 	}
 
-	/* Map focused window. */
+	/* Map/raise focused window. */
 	map_window(win);
 
-	/* Finally, map children of focus window. */
+	/* Finally, map/raise children of focus window. */
 	TAILQ_FOREACH(w, &ws->winlist, entry)
 		if (w->transient == win->id && !w->iconic) {
 			stack_floater(w, ws->r);
