@@ -387,7 +387,7 @@ char		*bar_fonts;
 XftColor	 bar_font_color;
 struct passwd	*pwd;
 char		*startup_exception;
-unsigned int	nr_exceptions = 0;
+unsigned int	 nr_exceptions = 0;
 
 /* layout manager data */
 struct swm_geometry {
@@ -1055,8 +1055,8 @@ pid_t	 window_get_pid(xcb_window_t);
 void	 wkill(struct swm_region *, union arg *);
 void	 workaround(void);
 void	 xft_init(struct swm_region *);
-void	_add_startup_exception(const char *, va_list);
-void	add_startup_exception(const char *, ...);
+void	 _add_startup_exception(const char *, va_list);
+void	 add_startup_exception(const char *, ...);
 
 RB_PROTOTYPE(key_tree, key, entry, key_cmp);
 RB_GENERATE(key_tree, key, entry, key_cmp);
@@ -4723,7 +4723,7 @@ get_win_name(xcb_window_t win)
 			free(r);
 			/* Use WM_NAME instead; no UTF-8. */
 			c = xcb_get_property(conn, 0, win, XCB_ATOM_WM_NAME,
-				XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX);
+			    XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX);
 			r = xcb_get_property_reply(conn, c, NULL);
 
 			if (!r)
@@ -4735,7 +4735,7 @@ get_win_name(xcb_window_t win)
 		}
 		if (r->length > 0)
 			name = strndup(xcb_get_property_value(r),
-				   xcb_get_property_value_length(r));
+			    xcb_get_property_value_length(r));
 
 		free(r);
 	}
@@ -6022,9 +6022,6 @@ setconfspawn(char *selector, char *value, int flags)
 	char		which[PATH_MAX];
 	size_t		i;
 
-	/* suppress unused warning since var is needed */
-	(void)flags;
-
 	args = expand_tilde(value);
 
 	DNPRINTF(SWM_D_SPAWN, "setconfspawn: [%s] [%s]\n", selector, args);
@@ -6078,7 +6075,6 @@ setup_spawn(void)
 	setconfspawn("screenshot_all",  "screenshot.sh full",   1);
 	setconfspawn("screenshot_wind", "screenshot.sh window", 1);
 	setconfspawn("initscr",         "initscreen.sh",        1);
-
 }
 
 /* key bindings */
@@ -8852,12 +8848,10 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			bar_setup(r);
 
-		if (screens[0].r_focus == NULL) {
-			/* Focus on first region. */
-			r = TAILQ_FIRST(&screens[0].rl);
-			if (r)
-				focus_region(r);
-		}
+		/* Focus on first region. */
+		r = TAILQ_FIRST(&screens[0].rl);
+		if (r)
+			focus_region(r);
 	}
 
 	stack();
