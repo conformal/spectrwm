@@ -6052,17 +6052,14 @@ setup_spawn(void)
 {
 	setconfspawn("term",		"xterm",		0);
 	setconfspawn("spawn_term",	"xterm",		0);
-	setconfspawn("screenshot_all",	"screenshot.sh full",	0);
-	setconfspawn("screenshot_wind",	"screenshot.sh window",	0);
 	setconfspawn("lock",		"xlock",		0);
-	setconfspawn("initscr",		"initscreen.sh",	0);
 	setconfspawn("menu",		"dmenu_run"
 					" -fn $bar_font"
 					" -nb $bar_color"
 					" -nf $bar_font_color"
 					" -sb $bar_border"
 					" -sf $bar_color",	0);
-	setconfspawn("search",		"damenu"
+	setconfspawn("search",		"dmenu"
 					" -i"
 					" -fn $bar_font"
 					" -nb $bar_color"
@@ -7316,6 +7313,12 @@ conf_load(const char *filename, int keymapping)
 		cp += strspn(cp, "= \t\n"); /* eat trailing */
 		/* get RHS value */
 		optval = strdup(cp);
+		if (strlen(optval) == 0) {
+			add_startup_exception("%s: line %zd: must supply value "
+			    "to %s", filename, lineno,
+			    configopt[optidx].optname);
+			goto invalid;
+		}
 		/* call function to deal with it all */
 		if (configopt[optidx].func(optsub, optval,
 		    configopt[optidx].funcflags) != 0) {
