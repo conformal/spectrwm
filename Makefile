@@ -35,10 +35,6 @@ CC=clang
 CXX=clang++
 CPP=clang -E
 CFLAGS+=--analyze
-.elif ${.TARGETS:M*clang*}
-CC=clang
-CXX=clang++
-CPP=clang -E
 .endif
 
 analyze: all
