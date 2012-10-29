@@ -6036,7 +6036,7 @@ setconfspawn(char *selector, char *value, int flags)
 			which[i] = '\0';
 			break;
 		}
-	if (system(which) != 0)
+	if (flags == 0 && system(which) != 0)
 		add_startup_exception("could not find %s",
 		    &which[strlen("which ")]);
 
@@ -6073,6 +6073,12 @@ setup_spawn(void)
 					" -nf $bar_font_color"
 					" -sb $bar_border"
 					" -sf $bar_color",	0);
+
+	/* these are not verified for existence */
+	setconfspawn("screenshot_all",  "screenshot.sh full",   1);
+	setconfspawn("screenshot_wind", "screenshot.sh window", 1);
+	setconfspawn("initscr",         "initscreen.sh",        1);
+
 }
 
 /* key bindings */
