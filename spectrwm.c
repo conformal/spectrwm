@@ -386,6 +386,8 @@ int		 bar_font_legacy = 1;
 char		*bar_fonts;
 XftColor	 bar_font_color;
 struct passwd	*pwd;
+char		*startup_exception;
+unsigned int	nr_exceptions = 0;
 
 /* layout manager data */
 struct swm_geometry {
@@ -1053,6 +1055,8 @@ pid_t	 window_get_pid(xcb_window_t);
 void	 wkill(struct swm_region *, union arg *);
 void	 workaround(void);
 void	 xft_init(struct swm_region *);
+void	_add_startup_exception(const char *, va_list);
+void	add_startup_exception(const char *, ...);
 
 RB_PROTOTYPE(key_tree, key, entry, key_cmp);
 RB_GENERATE(key_tree, key, entry, key_cmp);
@@ -2238,8 +2242,15 @@ bar_draw(void)
 				continue;
 			}
 
-			bar_fmt(fmtexp, fmtnew, r, sizeof fmtnew);
-			bar_replace(fmtnew, fmtrep, r, sizeof fmtrep);
+			if (startup_exception)
+				snprintf(fmtrep, sizeof fmtrep, "total "
+				    "exceptions: %d, first exception: %s",
+				    nr_exceptions,
+				    startup_exception);
+			else {
+				bar_fmt(fmtexp, fmtnew, r, sizeof fmtnew);
+				bar_replace(fmtnew, fmtrep, r, sizeof fmtrep);
+			}
 			if (bar_font_legacy)
 				bar_print_legacy(r, fmtrep);
 			else
@@ -4712,7 +4723,7 @@ get_win_name(xcb_window_t win)
 			free(r);
 			/* Use WM_NAME instead; no UTF-8. */
 			c = xcb_get_property(conn, 0, win, XCB_ATOM_WM_NAME,
-		    		XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX);
+				XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX);
 			r = xcb_get_property_reply(conn, c, NULL);
 
 			if (!r)
@@ -4724,7 +4735,7 @@ get_win_name(xcb_window_t win)
 		}
 		if (r->length > 0)
 			name = strndup(xcb_get_property_value(r),
-		    		   xcb_get_property_value_length(r));
+				   xcb_get_property_value_length(r));
 
 		free(r);
 	}
@@ -6052,6 +6063,10 @@ setup_spawn(void)
 					" -nf $bar_font_color"
 					" -sb $bar_border"
 					" -sf $bar_color",	0);
+
+	/* only test dmenu for now, really should expand this */
+	if (system("dmenu -v") != 0)
+		add_startup_exception("you must install dmenu");
 }
 
 /* key bindings */
@@ -7173,11 +7188,36 @@ struct config_option configopt[] = {
 	{ "workspace_limit",		setconfvalue,	SWM_S_WORKSPACE_LIMIT },
 };
 
+void
+_add_startup_exception(const char *fmt, va_list ap)
+{
+	if (vasprintf(&startup_exception, fmt, ap) == -1)
+		warn("%s: asprintf", __func__);
+}
+
+void
+add_startup_exception(const char *fmt, ...)
+{
+	va_list ap;
+
+	nr_exceptions++;
+
+	if (startup_exception)
+		return;
+
+	/* force bar to be enabled due to exception */
+	bar_enabled = 1;
+
+	va_start(ap, fmt);
+	_add_startup_exception(fmt, ap);
+	va_end(ap);
+}
+
 int
 conf_load(const char *filename, int keymapping)
 {
 	FILE			*config;
-	char			*line, *cp, *optsub, *optval;
+	char			*line = NULL, *cp, *optsub, *optval;
 	size_t			linelen, lineno = 0;
 	int			wordlen, i, optidx;
 	struct config_option	*opt = NULL;
@@ -7194,6 +7234,9 @@ conf_load(const char *filename, int keymapping)
 	}
 
 	while (!feof(config)) {
+		if (line)
+			free(line);
+
 		if ((line = fparseln(config, &linelen, &lineno, NULL, 0))
 		    == NULL) {
 			if (ferror(config))
@@ -7205,15 +7248,14 @@ conf_load(const char *filename, int keymapping)
 		cp += strspn(cp, " \t\n"); /* eat whitespace */
 		if (cp[0] == '\0') {
 			/* empty line */
-			free(line);
 			continue;
 		}
 		/* get config option */
 		wordlen = strcspn(cp, "=[ \t\n");
 		if (wordlen == 0) {
-			warnx("%s: line %zd: no option found",
+			add_startup_exception("%s: line %zd: no option found",
 			    filename, lineno);
-			goto out;
+			continue;
 		}
 		optidx = -1;
 		for (i = 0; i < LENGTH(configopt); i++) {
@@ -7225,17 +7267,20 @@ conf_load(const char *filename, int keymapping)
 			}
 		}
 		if (optidx == -1) {
-			warnx("%s: line %zd: unknown option %.*s",
-			    filename, lineno, wordlen, cp);
-			goto out;
+			add_startup_exception("%s: line %zd: unknown option "
+			    "%.*s", filename, lineno, wordlen, cp);
+			continue;
 		}
 		if (keymapping && opt && strcmp(opt->optname, "bind")) {
-			warnx("%s: line %zd: invalid option %.*s",
-			    filename, lineno, wordlen, cp);
-			goto out;
+			add_startup_exception("%s: line %zd: invalid option "
+			    "%.*s", filename, lineno, wordlen, cp);
+			continue;
 		}
 		cp += wordlen;
 		cp += strspn(cp, " \t\n"); /* eat whitespace */
+
+		/* from here on out we call goto invalid to continue */
+
 		/* get [selector] if any */
 		optsub = NULL;
 		if (*cp == '[') {
@@ -7243,17 +7288,17 @@ conf_load(const char *filename, int keymapping)
 			wordlen = strcspn(cp, "]");
 			if (*cp != ']') {
 				if (wordlen == 0) {
-					warnx("%s: line %zd: syntax error",
-					    filename, lineno);
-					goto out;
+					add_startup_exception("%s: line %zd: "
+					    "syntax error", filename, lineno);
+					goto invalid;
 				}
 
 				if (asprintf(&optsub, "%.*s", wordlen, cp) ==
 				    -1) {
-					warnx("%s: line %zd: unable to allocate"
-					    "memory for selector", filename,
-					    lineno);
-					goto out;
+					add_startup_exception("%s: line %zd: "
+					    "unable to allocatememory for "
+					    "selector", filename, lineno);
+					goto invalid;
 				}
 			}
 			cp += wordlen;
@@ -7264,25 +7309,28 @@ conf_load(const char *filename, int keymapping)
 		optval = strdup(cp);
 		/* call function to deal with it all */
 		if (configopt[optidx].func(optsub, optval,
-		    configopt[optidx].funcflags) != 0)
-			errx(1, "%s: line %zd: invalid data for %s",
-			    filename, lineno, configopt[optidx].optname);
-		free(optval);
-		free(optsub);
-		free(line);
+		    configopt[optidx].funcflags) != 0) {
+			add_startup_exception("%s: line %zd: invalid data for "
+			    "%s", filename, lineno, configopt[optidx].optname);
+			goto invalid;
+		}
+invalid:
+		if (optval) {
+			free(optval);
+			optval = NULL;
+		}
+		if (optsub) {
+			free(optsub);
+			optsub = NULL;
+		}
 	}
 
+	if (line)
+		free(line);
 	fclose(config);
 	DNPRINTF(SWM_D_CONF, "conf_load: end\n");
 
 	return (0);
-
-out:
-	free(line);
-	fclose(config);
-	DNPRINTF(SWM_D_CONF, "conf_load: end with error.\n");
-
-	return (1);
 }
 
 void
