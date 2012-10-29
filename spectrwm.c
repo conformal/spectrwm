@@ -8704,6 +8704,9 @@ scan_xrandr(int i)
 		xcb_destroy_window(conn, r->id);
 		TAILQ_REMOVE(&screens[i].rl, r, entry);
 		TAILQ_INSERT_TAIL(&screens[i].orl, r, entry);
+
+		if (r->s->r_focus == r)
+			r->s->r_focus = NULL;
 	}
 	outputs = 0;
 
@@ -8779,9 +8782,18 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 	print_win_geom(e->root);
 #endif
 	/* add bars to all regions */
-	for (i = 0; i < num_screens; i++)
+	for (i = 0; i < num_screens; i++) {
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			bar_setup(r);
+
+		if (screens[0].r_focus == NULL) {
+			/* Focus on first region. */
+			r = TAILQ_FIRST(&screens[0].rl);
+			if (r)
+				focus_region(r);
+		}
+	}
+
 	stack();
 	bar_draw();
 	focus_flush();
