@@ -4471,7 +4471,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		if (w->transient || w->iconic)
 			continue;
 
-		if (!win->mapped && w != win)
+		if (!w->mapped && w != win)
 			map_window(w);
 
 		if (w->floating && !w->floatmaxed) {
