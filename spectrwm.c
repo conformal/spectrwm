@@ -4442,7 +4442,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 {
 	struct swm_geometry	gg = *g;
 	struct ws_win		*w, *win = NULL, *parent = NULL;
-	int			winno, num_screens;
+	int			winno;
 
 	DNPRINTF(SWM_D_STACK, "max_stack: workspace: %d\n", ws->idx);
 
@@ -4467,10 +4467,12 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 	DNPRINTF(SWM_D_STACK, "max_stack: win: 0x%x\n", win->id);
 
 	/* maximize all top level windows */
-	num_screens = xcb_setup_roots_length(xcb_get_setup(conn));
 	TAILQ_FOREACH(w, &ws->winlist, entry) {
 		if (w->transient || w->iconic)
 			continue;
+
+		if (!win->mapped && w != win)
+			map_window(w);
 
 		if (w->floating && !w->floatmaxed) {
 			/*
