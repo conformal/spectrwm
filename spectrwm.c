@@ -8849,7 +8849,7 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 			bar_setup(r);
 
 		/* Focus on first region. */
-		r = TAILQ_FIRST(&screens[0].rl);
+		r = TAILQ_FIRST(&screens[i].rl);
 		if (r)
 			focus_region(r);
 	}
