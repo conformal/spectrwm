@@ -8742,6 +8742,7 @@ scan_xrandr(int i)
 	int						ncrtc = 0;
 #endif /* SWM_XRR_HAS_CRTC */
 	struct swm_region				*r;
+	struct ws_win					*win;
 	int						num_screens;
 	xcb_randr_get_screen_resources_current_cookie_t	src;
 	xcb_randr_get_screen_resources_current_reply_t	*srr;
@@ -8766,9 +8767,6 @@ scan_xrandr(int i)
 		xcb_destroy_window(conn, r->id);
 		TAILQ_REMOVE(&screens[i].rl, r, entry);
 		TAILQ_INSERT_TAIL(&screens[i].orl, r, entry);
-
-		if (r->s->r_focus == r)
-			r->s->r_focus = NULL;
 	}
 	outputs = 0;
 
@@ -8818,6 +8816,16 @@ scan_xrandr(int i)
 		    screen->height_in_pixels);
 
 out:
+	/* Cleanup unused previously visible workspaces. */
+	TAILQ_FOREACH(r, &screens[i].orl, entry) {
+		TAILQ_FOREACH(win, &r->ws->winlist, entry)
+			unmap_window(win);
+
+		/* The screen shouldn't focus on an unused region. */
+		if (screens[i].r_focus == r)
+			screens[i].r_focus = NULL;
+	}
+
 	DNPRINTF(SWM_D_MISC, "scan_xrandr: done.\n");
 }
 
@@ -8847,14 +8855,19 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 	for (i = 0; i < num_screens; i++) {
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			bar_setup(r);
-
-		/* Focus on first region. */
-		r = TAILQ_FIRST(&screens[i].rl);
-		if (r)
-			focus_region(r);
 	}
 
 	stack();
+
+	/* Make sure a region has focus on each screen. */
+	for (i = 0; i < num_screens; i++) {
+		if (screens[i].r_focus == NULL) {
+			r = TAILQ_FIRST(&screens[i].rl);
+			if (r != NULL)
+				focus_region(r);
+		}
+	}
+
 	bar_draw();
 	focus_flush();
 }
