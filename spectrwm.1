@@ -82,6 +82,9 @@ Colors need to be specified per the
 .Xr XQueryColor 3
 specification.
 .Pp
+Comments begin with a #.  When a literal '#' is desired in an option, then it
+must be escaped with a backslash. i.e. \e#
+.Pp
 The file supports the following keywords:
 .Bl -tag -width 2m
 .It Ic autorun
@@ -426,6 +429,9 @@ is any identifier that does not conflict with a built-in action or keyword,
 is the desired program, and
 .Aq arg
 is zero or more arguments to the program.
+.Pp
+Remember that when using # in your program call, it must be escaped with a
+backslash. i.e. \e#
 .Pp
 The following argument variables will be substituted for values at the time the program
 is spawned:

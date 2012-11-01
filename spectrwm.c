@@ -7246,8 +7246,8 @@ conf_load(const char *filename, int keymapping)
 		if (line)
 			free(line);
 
-		if ((line = fparseln(config, &linelen, &lineno, NULL, 0))
-		    == NULL) {
+		if ((line = fparseln(config, &linelen, &lineno, NULL,
+		    FPARSELN_UNESCCOMM | FPARSELN_UNESCCONT)) == NULL) {
 			if (ferror(config))
 				err(1, "%s", filename);
 			else
