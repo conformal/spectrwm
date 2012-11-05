@@ -707,12 +707,15 @@ struct cursors {
 	{"top_right_corner", XC_top_right_corner, XCB_CURSOR_NONE},
 };
 
+#define	SWM_SPAWN_OPTIONAL		0x1
+
 /* spawn */
 struct spawn_prog {
 	TAILQ_ENTRY(spawn_prog)	entry;
 	char			*name;
 	int			argc;
 	char			**argv;
+	int			flags;
 };
 TAILQ_HEAD(spawn_list, spawn_prog);
 struct spawn_list		spawns = TAILQ_HEAD_INITIALIZER(spawns);
@@ -857,8 +860,7 @@ void	 bar_print(struct swm_region *, const char *);
 void	 bar_print_legacy(struct swm_region *, const char *);
 void	 bar_replace(char *, char *, struct swm_region *, size_t);
 void	 bar_replace_pad(char *, int *, size_t);
-char *	 bar_replace_seq(char *, char *, struct swm_region *, size_t *,
-	     size_t);
+char	*bar_replace_seq(char *, char *, struct swm_region *, size_t *, size_t);
 void	 bar_setup(struct swm_region *);
 void	 bar_title_name(char *, size_t, struct swm_region *);
 void	 bar_toggle(struct swm_region *, union arg *);
@@ -1009,7 +1011,7 @@ int	 setkeymapping(char *, char *, int);
 int	 setlayout(char *, char *, int);
 void	 setquirk(const char *, const char *, unsigned long);
 void	 setscreencolor(char *, int, int);
-void	 setspawn(const char *, const char *);
+void	 setspawn(const char *, const char *, int);
 void	 setup_ewmh(void);
 void	 setup_globals(void);
 void	 setup_keys(void);
@@ -1026,15 +1028,15 @@ void	 sort_windows(struct ws_win_list *);
 void	 spawn(int, union arg *, int);
 void	 spawn_custom(struct swm_region *, union arg *, const char *);
 int	 spawn_expand(struct swm_region *, union arg *, const char *, char ***);
-void	 spawn_insert(const char *, const char *);
+void	 spawn_insert(const char *, const char *, int);
 void	 spawn_remove(struct spawn_prog *);
-void	 spawn_replace(struct spawn_prog *, const char *, const char *);
+void	 spawn_replace(struct spawn_prog *, const char *, const char *, int);
 void	 spawn_select(struct swm_region *, union arg *, const char *, int *);
 void	 stack_config(struct swm_region *, union arg *);
 void	 stack_floater(struct ws_win *, struct swm_region *);
 void	 stack_master(struct workspace *, struct swm_geometry *, int, int);
 void	 store_float_geom(struct ws_win *, struct swm_region *);
-char *	 strdupsafe(const char *);
+char	*strdupsafe(const char *);
 void	 swapwin(struct swm_region *, union arg *);
 void	 switchws(struct swm_region *, union arg *);
 void	 teardown_ewmh(void);
@@ -1047,6 +1049,7 @@ void	 unmap_window(struct ws_win *);
 void	 updatenumlockmask(void);
 void	 update_modkey(unsigned int);
 void	 update_window(struct ws_win *);
+void	 validate_spawns(void);
 int	 validate_win(struct ws_win *);
 int	 validate_ws(struct workspace *);
 /*void	 visibilitynotify(xcb_visibility_notify_event_t *);*/
@@ -5926,7 +5929,7 @@ spawn_select(struct swm_region *r, union arg *args, const char *spawn_name,
 }
 
 void
-spawn_insert(const char *name, const char *args)
+spawn_insert(const char *name, const char *args, int flags)
 {
 	char			*arg, *cp, *ptr;
 	struct spawn_prog	*sp;
@@ -5955,6 +5958,8 @@ spawn_insert(const char *name, const char *args)
 	}
 	free(cp);
 
+	sp->flags = flags;
+
 	TAILQ_INSERT_TAIL(&spawns, sp, entry);
 	DNPRINTF(SWM_D_SPAWN, "spawn_insert: leave\n");
 }
@@ -5977,18 +5982,7 @@ spawn_remove(struct spawn_prog *sp)
 }
 
 void
-spawn_replace(struct spawn_prog *sp, const char *name, const char *args)
-{
-	DNPRINTF(SWM_D_SPAWN, "spawn_replace: %s [%s]\n", sp->name, name);
-
-	spawn_remove(sp);
-	spawn_insert(name, args);
-
-	DNPRINTF(SWM_D_SPAWN, "spawn_replace: leave\n");
-}
-
-void
-setspawn(const char *name, const char *args)
+setspawn(const char *name, const char *args, int flags)
 {
 	struct spawn_prog	*sp;
 
@@ -5997,22 +5991,18 @@ setspawn(const char *name, const char *args)
 	if (name == NULL)
 		return;
 
-	TAILQ_FOREACH(sp, &spawns, entry) {
+	/* Remove any old spawn under the same name. */
+	TAILQ_FOREACH(sp, &spawns, entry)
 		if (!strcmp(sp->name, name)) {
-			if (*args == '\0')
-				spawn_remove(sp);
-			else
-				spawn_replace(sp, name, args);
-			DNPRINTF(SWM_D_SPAWN, "setspawn: leave\n");
-			return;
+			spawn_remove(sp);
+			break;
 		}
-	}
-	if (*args == '\0') {
-		warnx("error: setspawn: cannot find program: %s", name);
-		return;
-	}
 
-	spawn_insert(name, args);
+	if (*args != '\0')
+		spawn_insert(name, args, flags);
+	else
+		warnx("error: setspawn: cannot find program: %s", name);
+
 	DNPRINTF(SWM_D_SPAWN, "setspawn: leave\n");
 }
 
@@ -6020,25 +6010,12 @@ int
 setconfspawn(char *selector, char *value, int flags)
 {
 	char		*args;
-	char		which[PATH_MAX];
-	size_t		i;
 
 	args = expand_tilde(value);
 
 	DNPRINTF(SWM_D_SPAWN, "setconfspawn: [%s] [%s]\n", selector, args);
 
-	/* verify we have the goods */
-	snprintf(which, sizeof which, "which %s", value);
-	for (i = strlen("which "); i < strlen(which); i++)
-		if (which[i] == ' ') {
-			which[i] = '\0';
-			break;
-		}
-	if (flags == 0 && system(which) != 0)
-		add_startup_exception("could not find %s",
-		    &which[strlen("which ")]);
-
-	setspawn(selector, args);
+	setspawn(selector, args, flags);
 	free(args);
 
 	DNPRINTF(SWM_D_SPAWN, "setconfspawn: done.\n");
@@ -6046,16 +6023,57 @@ setconfspawn(char *selector, char *value, int flags)
 }
 
 void
+validate_spawns(void)
+{
+	struct spawn_prog	*sp;
+	char			which[PATH_MAX];
+	size_t			i;
+
+	struct key		*kp;
+
+	RB_FOREACH(kp, key_tree, &keys) {
+		if (kp->funcid != KF_SPAWN_CUSTOM)
+			continue;
+
+		/* find program */
+		TAILQ_FOREACH(sp, &spawns, entry) {
+			if (!strcasecmp(kp->spawn_name, sp->name))
+				break;
+		}
+
+		if (sp == NULL || sp->flags & SWM_SPAWN_OPTIONAL)
+			continue;
+
+		/* verify we have the goods */
+		snprintf(which, sizeof which, "which %s", sp->argv[0]);
+		DNPRINTF(SWM_D_CONF, "validate_spawns: which %s\n",
+		    sp->argv[0]);
+		for (i = strlen("which "); i < strlen(which); i++)
+			if (which[i] == ' ') {
+				which[i] = '\0';
+				break;
+			}
+		if (system(which) != 0)
+			add_startup_exception("could not find %s",
+			    &which[strlen("which ")]);
+	}
+}
+
+void
 setup_spawn(void)
 {
+	setconfspawn("lock",		"xlock",		0);
+
 	setconfspawn("term",		"xterm",		0);
 	setconfspawn("spawn_term",	"xterm",		0);
+
 	setconfspawn("menu",		"dmenu_run"
 					" -fn $bar_font"
 					" -nb $bar_color"
 					" -nf $bar_font_color"
 					" -sb $bar_border"
 					" -sf $bar_color",	0);
+
 	setconfspawn("search",		"dmenu"
 					" -i"
 					" -fn $bar_font"
@@ -6063,6 +6081,7 @@ setup_spawn(void)
 					" -nf $bar_font_color"
 					" -sb $bar_border"
 					" -sf $bar_color",	0);
+
 	setconfspawn("name_workspace",	"dmenu"
 					" -p Workspace"
 					" -fn $bar_font"
@@ -6071,11 +6090,10 @@ setup_spawn(void)
 					" -sb $bar_border"
 					" -sf $bar_color",	0);
 
-	/* these are not verified for existence */
-	setconfspawn("lock",		"xlock",		1);
-	setconfspawn("screenshot_all",  "screenshot.sh full",   1);
-	setconfspawn("screenshot_wind", "screenshot.sh window", 1);
-	setconfspawn("initscr",         "initscreen.sh",        1);
+	 /* These are not verified for existence, even with a binding set. */
+	setconfspawn("screenshot_all",	"screenshot.sh full",	SWM_SPAWN_OPTIONAL);
+	setconfspawn("screenshot_wind",	"screenshot.sh window",	SWM_SPAWN_OPTIONAL);
+	setconfspawn("initscr",		"initscreen.sh",	SWM_SPAWN_OPTIONAL);
 }
 
 /* key bindings */
@@ -6266,6 +6284,8 @@ setconfbinding(char *selector, char *value, int flags)
 			if (parsekeys(value, mod_key, &mod, &ks) == 0) {
 				setkeybinding(mod, ks, KF_SPAWN_CUSTOM,
 				    sp->name);
+				/* Custom binding; validate spawn. */
+				sp->flags ^= SWM_SPAWN_OPTIONAL;
 				return (0);
 			} else
 				return (1);
@@ -9347,6 +9367,8 @@ noconfig:
 	/* load conf (if any) */
 	if (cfile)
 		conf_load(cfile, SWM_CONF_DEFAULT);
+
+	validate_spawns();
 
 	setup_ewmh();
 	/* set some values to work around bad programs */
