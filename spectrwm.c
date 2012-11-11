@@ -7226,7 +7226,7 @@ int
 conf_load(const char *filename, int keymapping)
 {
 	FILE			*config;
-	char			*line = NULL, *cp, *optsub, *optval;
+	char			*line = NULL, *cp, *optsub, *optval = NULL;
 	size_t			linelen, lineno = 0;
 	int			wordlen, i, optidx;
 	struct config_option	*opt = NULL;
