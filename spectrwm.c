@@ -8209,7 +8209,7 @@ enternotify(xcb_enter_notify_event_t *e)
 			/* If no windows on pointer region, then focus root. */
 			r = root_to_region(e->root, SWM_CK_POINTER);
 			if (r == NULL) {
-				DNPRINTF(SWM_D_EVENT, "enterntoify: "
+				DNPRINTF(SWM_D_EVENT, "enternotify: "
 				    "NULL region; ignoring.\n");
 				return;
 			}
@@ -8224,7 +8224,7 @@ enternotify(xcb_enter_notify_event_t *e)
 		focus_win(get_focus_magic(win));
 	}
 
-	focus_flush();
+	xcb_flush(conn);
 }
 
 #ifdef SWM_DEBUG
