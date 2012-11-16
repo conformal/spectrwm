@@ -5325,6 +5325,12 @@ resize(struct ws_win *win, union arg *args)
 
 	focus_flush();
 
+	/* It's possible for win to have been freed during focus_flush(). */
+	if (validate_win(win)) {
+		DNPRINTF(SWM_D_EVENT, "move: invalid win.\n");
+		goto out;
+	}
+
 	switch (args->id) {
 	case SWM_ARG_ID_WIDTHSHRINK:
 		WIDTH(win) -= SWM_RESIZE_STEPS;
@@ -5381,7 +5387,7 @@ resize(struct ws_win *win, union arg *args)
 
 	xcb_flush(conn);
 	resizing = 1;
-	while ((evt = xcb_wait_for_event(conn)) && resizing) {
+	while (resizing && (evt = xcb_wait_for_event(conn))) {
 		switch (XCB_EVENT_RESPONSE_TYPE(evt)) {
 		case XCB_BUTTON_RELEASE:
 			DNPRINTF(SWM_D_EVENT, "resize: BUTTON_RELEASE\n");
@@ -5444,6 +5450,12 @@ resize(struct ws_win *win, union arg *args)
 			break;
 		default:
 			event_handle(evt);
+
+			/* It's possible for win to have been freed above. */
+			if (validate_win(win)) {
+				DNPRINTF(SWM_D_EVENT, "move: invalid win.\n");
+				goto out;
+			}
 			break;
 		}
 		free(evt);
@@ -5453,7 +5465,7 @@ resize(struct ws_win *win, union arg *args)
 		xcb_flush(conn);
 	}
 	store_float_geom(win,r);
-
+out:
 	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
 	free(xpr);
 	DNPRINTF(SWM_D_EVENT, "resize: done.\n");
@@ -5512,6 +5524,12 @@ move(struct ws_win *win, union arg *args)
 
 	focus_flush();
 
+	/* It's possible for win to have been freed during focus_flush(). */
+	if (validate_win(win)) {
+		DNPRINTF(SWM_D_EVENT, "move: invalid win.\n");
+		goto out;
+	}
+
 	move_stp = 0;
 	switch (args->id) {
 	case SWM_ARG_ID_MOVELEFT:
@@ -5554,7 +5572,7 @@ move(struct ws_win *win, union arg *args)
 
 	xcb_flush(conn);
 	moving = 1;
-	while ((evt = xcb_wait_for_event(conn)) && moving) {
+	while (moving && (evt = xcb_wait_for_event(conn))) {
 		switch (XCB_EVENT_RESPONSE_TYPE(evt)) {
 		case XCB_BUTTON_RELEASE:
 			DNPRINTF(SWM_D_EVENT, "move: BUTTON_RELEASE\n");
@@ -5576,6 +5594,12 @@ move(struct ws_win *win, union arg *args)
 			break;
 		default:
 			event_handle(evt);
+
+			/* It's possible for win to have been freed above. */
+			if (validate_win(win)) {
+				DNPRINTF(SWM_D_EVENT, "move: invalid win.\n");
+				goto out;
+			}
 			break;
 		}
 		free(evt);
@@ -5585,6 +5609,7 @@ move(struct ws_win *win, union arg *args)
 		xcb_flush(conn);
 	}
 	store_float_geom(win, r);
+out:
 	free(qpr);
 	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
 	DNPRINTF(SWM_D_EVENT, "move: done.\n");
