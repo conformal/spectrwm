@@ -9467,11 +9467,11 @@ noconfig:
 
 		if (stdin_ready) {
 			stdin_ready = 0;
-			if (bar_extra_update()) {
-				bar_draw();
-				xcb_flush(conn);
-			}
+			bar_extra_update();
 		}
+
+		bar_draw();
+		xcb_flush(conn);
 	}
 done:
 	shutdown_cleanup();
