@@ -610,6 +610,8 @@ struct quirk {
 #define SWM_Q_XTERM_FONTADJ	(1<<3)	/* adjust xterm fonts when resizing */
 #define SWM_Q_FULLSCREEN	(1<<4)	/* remove border */
 #define SWM_Q_FOCUSPREV		(1<<5)	/* focus on caller */
+#define SWM_Q_NOFOCUSONMAP	(1<<6)	/* Don't focus on window when mapped. */
+#define SWM_Q_FOCUSONMAP_SINGLE	(1<<7)	/* Only focus if single win of type. */
 };
 TAILQ_HEAD(quirk_list, quirk);
 struct quirk_list		quirks = TAILQ_HEAD_INITIALIZER(quirks);
@@ -6579,6 +6581,8 @@ const char *quirkname[] = {
 	"XTERM_FONTADJ",
 	"FULLSCREEN",
 	"FOCUSPREV",
+	"NOFOCUSONMAP",
+	"FOCUSONMAP_SINGLE",
 };
 
 /* SWM_Q_WS: retain '|' for back compat for now (2009-08-11) */
@@ -8325,7 +8329,7 @@ mappingnotify(xcb_mapping_notify_event_t *e)
 void
 maprequest(xcb_map_request_event_t *e)
 {
-	struct ws_win		*win;
+	struct ws_win		*win, *w = NULL;
 	xcb_get_window_attributes_reply_t *war;
 
 	DNPRINTF(SWM_D_EVENT, "maprequest: win 0x%x\n",
@@ -8349,8 +8353,25 @@ maprequest(xcb_map_request_event_t *e)
 	    (war->map_state == XCB_MAP_STATE_VIEWABLE));
 
 	/* The new window should get focus; prepare. */
-	if (focus_mode != SWM_FOCUS_FOLLOW)
-		win->ws->focus_pending = get_focus_magic(win);
+	if (focus_mode != SWM_FOCUS_FOLLOW &&
+	    !(win->quirks & SWM_Q_NOFOCUSONMAP)) {
+		if (win->quirks & SWM_Q_FOCUSONMAP_SINGLE) {
+			/* See if other wins of same type are already mapped. */
+			TAILQ_FOREACH(w, &win->ws->winlist, entry) {
+				if (w == win || !w->mapped)
+					continue;
+
+				if (!strcmp(w->ch.class_name,
+				    win->ch.class_name) &&
+				    !strcmp(w->ch.instance_name,
+				    win->ch.instance_name))
+					break;
+			}
+		}
+
+		if (w == NULL)
+			win->ws->focus_pending = get_focus_magic(win);
+	}
 
 	/* All windows need to be mapped if they are in the current workspace.*/
 	if (win->ws->r)

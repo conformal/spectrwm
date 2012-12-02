@@ -880,6 +880,17 @@ Remove border to allow window to use full region size.
 .It FOCUSPREV
 On exit force focus on previously focused application not previous
 application in the stack.
+.It NOFOCUSONMAP
+Don't change focus to the window when it first appears on the screen.
+Has no effect when
+.Ic focus_mode
+is set to follow.
+.It FOCUSONMAP_SINGLE
+When the window first appears on the screen, change focus to the window
+if there are no other windows on the workspace with the same class/name.
+Has no effect when
+.Ic focus_mode
+is set to follow.
 .El
 .Pp
 Custom quirks in the configuration file are specified as follows:
