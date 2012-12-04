@@ -6292,8 +6292,8 @@ setconfbinding(char *selector, char *value, int flags)
 	for (kfid = 0; kfid < KF_INVALID; (kfid)++) {
 		if (strncasecmp(selector, keyfuncs[kfid].name,
 		    SWM_FUNCNAME_LEN) == 0) {
-			DNPRINTF(SWM_D_KEY, "setconfbinding: %s: match\n",
-			    selector);
+			DNPRINTF(SWM_D_KEY, "setconfbinding: %s: match "
+			    "keyfunc\n", selector);
 			if (parsekeys(value, mod_key, &mod, &ks) == 0) {
 				setkeybinding(mod, ks, kfid, NULL);
 				return (0);
@@ -6304,13 +6304,11 @@ setconfbinding(char *selector, char *value, int flags)
 	/* search by custom spawn name */
 	TAILQ_FOREACH(sp, &spawns, entry) {
 		if (strcasecmp(selector, sp->name) == 0) {
-			DNPRINTF(SWM_D_KEY, "setconfbinding: %s: match\n",
-			    selector);
+			DNPRINTF(SWM_D_KEY, "setconfbinding: %s: match "
+			    "spawn\n", selector);
 			if (parsekeys(value, mod_key, &mod, &ks) == 0) {
 				setkeybinding(mod, ks, KF_SPAWN_CUSTOM,
 				    sp->name);
-				/* Custom binding; validate spawn. */
-				sp->flags ^= SWM_SPAWN_OPTIONAL;
 				return (0);
 			} else
 				return (1);
@@ -6459,24 +6457,25 @@ clear_keys(void)
 int
 setkeymapping(char *selector, char *value, int flags)
 {
-	char			keymapping_file[PATH_MAX];
+	char			*keymapping_file;
 
 	/* suppress unused warnings since vars are needed */
 	(void)selector;
 	(void)flags;
 
 	DNPRINTF(SWM_D_KEY, "setkeymapping: enter\n");
-	if (value[0] == '~')
-		snprintf(keymapping_file, sizeof keymapping_file, "%s/%s",
-		    pwd->pw_dir, &value[1]);
-	else
-		strlcpy(keymapping_file, value, sizeof keymapping_file);
+
+	keymapping_file = expand_tilde(value);
+
 	clear_keys();
 	/* load new key bindings; if it fails, revert to default bindings */
 	if (conf_load(keymapping_file, SWM_CONF_KEYMAPPING)) {
 		clear_keys();
 		setup_keys();
 	}
+
+	free(keymapping_file);
+
 	DNPRINTF(SWM_D_KEY, "setkeymapping: leave\n");
 	return (0);
 }
@@ -7282,6 +7281,9 @@ conf_load(const char *filename, int keymapping)
 		warnx("conf_load: no filename");
 		return (1);
 	}
+
+	DNPRINTF(SWM_D_CONF, "conf_load: open %s\n", filename);
+
 	if ((config = fopen(filename, "r")) == NULL) {
 		warn("conf_load: fopen: %s", filename);
 		return (1);

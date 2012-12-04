@@ -401,29 +401,11 @@ See the
 .Sx BINDINGS
 section below.
 .Pp
-The default programs are described below:
-.Pp
-.Bl -tag -width "screenshot_wind" -offset indent -compact
-.It Cm term
-xterm
-.It Cm screenshot_all
-screenshot.sh full
-.It Cm screenshot_wind
-screenshot.sh window
-.It Cm lock
-xlock
-.It Cm initscr
-initscreen.sh
-.It Cm menu
-dmenu_run \-fn $bar_font \-nb $bar_color \-nf $bar_font_color \-sb
-$bar_border \-sf $bar_color
-.El
-.Pp
 Custom programs in the configuration file are specified as follows:
 .Pp
-.Dl program[<name>] = <progpath> [<arg> [... <arg>]]
+.Dl program[<action>] = <progpath> [<arg> [... <arg>]]
 .Pp
-.Aq name
+.Aq action
 is any identifier that does not conflict with a built-in action or keyword,
 .Aq progpath
 is the desired program, and
@@ -450,13 +432,47 @@ is spawned:
 Example:
 .Bd -literal -offset indent
 program[ff] = /usr/local/bin/firefox http://spectrwm.org/
-bind[ff] = Mod+Shift+b # Now Mod+Shift+B launches firefox
+bind[ff] = Mod+Shift+b # Now M-S-b launches firefox
 .Ed
 .Pp
-To undo the previous:
+To cancel the previous, unbind it:
 .Bd -literal -offset indent
 bind[] = Mod+Shift+b
-program[ff] =
+.Ed
+.Pp
+Default programs:
+.Bl -tag -width "screenshot_wind" -offset indent -compact
+.It Cm lock
+xlock
+.It Cm menu
+dmenu_run \-fn $bar_font \-nb $bar_color \-nf $bar_font_color \-sb
+$bar_border \-sf $bar_color
+.It Cm term
+xterm
+.It Cm initscr
+initscreen.sh        # optional
+.It Cm screenshot_all
+screenshot.sh full   # optional
+.It Cm screenshot_wind
+screenshot.sh window # optional
+.El
+.Pp
+Note that optional default programs will not be validated unless overridden.
+If a default program fails validation, you can resolve the exception
+by installing the program, modifying the program call or disabling the program
+by freeing the respective key binding.
+.Pp
+For example, to override
+.Ic lock :
+.Bd -literal -offset indent
+program[lock] = xscreensaver-command --lock
+.Ed
+.Pp
+To unbind
+.Ic lock
+and prevent it from being validated:
+.Bd -literal -offset indent
+bind[] = MOD+Shift+Delete
 .Ed
 .Sh BINDINGS
 .Nm
@@ -752,12 +768,13 @@ Custom bindings in the configuration file are specified as follows:
 .Dl bind[<action>] = <keys>
 .Pp
 .Aq action
-is one of the actions listed above (or empty) and
+is one of the actions listed above (or empty to unbind) and
 .Aq keys
 is in the form of zero or more modifier keys
 (MOD, Mod1, Shift, etc.) and one or more normal keys
 (b, space, etc.), separated by "+".
-For example:
+.Pp
+Example:
 .Bd -literal -offset indent
 bind[reset] = Mod4+q # bind Windows-key + q to reset
 bind[] = Mod1+q # unbind Alt + q
