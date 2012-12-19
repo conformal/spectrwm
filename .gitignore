@@ -8,3 +8,9 @@ lib/libswmhack_pic.a
 lib/swm_hack.so
 spectrwm
 tags
+*~
+osx/spectrwm.c
+osx/tree.h
+osx/swm_hack.c
+osx/swm_hack.so
+osx/libswmhack.so.0.0

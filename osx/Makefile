@@ -1,6 +1,8 @@
-CFLAGS+= -O2 -Wall -g -D_GNU_SOURCE -D__OSX__ -I. -I..
+INCFLAGS+= -I/opt/local/include/freetype2 -I/opt/local/include
+CFLAGS+= -O2 -Wall -g -D_GNU_SOURCE -D__OSX__ -I. -I.. ${INCFLAGS}
 CFLAGS+= -DSWM_LIB=\"$(LIBDIR)/libswmhack.so.$(LVERS)\"
-LDADD+=  -L/usr/X11/lib/ -lX11 -lXrandr -lXtst -lXcursor
+LDADD+=  -L/opt/local/lib -lX11 -lXcursor -lXft
+LDADD+=  -lxcb-keysyms -lxcb-util -lxcb-randr -lX11-xcb -lxcb-xtest -lxcb -lxcb-icccm
 
 PREFIX?= /usr/local
 BINDIR?= $(PREFIX)/bin
@@ -14,6 +16,7 @@ LVERS= $(shell . ../lib/shlib_version; echo $$major.$$minor)
 all: spectrwm libswmhack.so.$(LVERS)
 
 spectrwm.c:
+	ln -sf ../linux/tree.h
 	ln -sf ../spectrwm.c
 
 swm_hack.c:
@@ -44,6 +47,6 @@ install: all
 	ln -sf $(DESTDIR)$(BINDIR)/spectrwm $(DESTDIR)$(BINDIR)/scrotwm
 
 clean:
-	rm -f spectrwm *.o *.so libswmhack.so.* spectrwm.c swm_hack.c
+	rm -f spectrwm *.o *.so libswmhack.so.* spectrwm.c swm_hack.c tree.h
 
 .PHONY: all install clean
