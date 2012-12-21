@@ -13,4 +13,10 @@ osx/spectrwm.c
 osx/tree.h
 osx/swm_hack.c
 osx/swm_hack.so
-osx/libswmhack.so.0.0
+osx/libswmhack.so.*
+osx/version.h
+linux/spectrwm.c
+linux/swm_hack.c
+linux/swm_hack.so
+linux/libswmhack.so.*
+linux/version.h
