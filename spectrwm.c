@@ -5311,7 +5311,7 @@ resize(struct ws_win *win, union arg *args)
 	int			top = 0, left = 0, resizing;
 	int			dx, dy;
 	xcb_cursor_t			cursor;
-	xcb_query_pointer_reply_t	*xpr;
+	xcb_query_pointer_reply_t	*xpr = NULL;
 	xcb_generic_event_t		*evt;
 	xcb_motion_notify_event_t	*mne;
 
@@ -5509,7 +5509,7 @@ move(struct ws_win *win, union arg *args)
 	xcb_timestamp_t		timestamp = 0;
 	int			move_stp = 0, moving;
 	struct swm_region	*r = NULL;
-	xcb_query_pointer_reply_t	*qpr;
+	xcb_query_pointer_reply_t	*qpr = NULL;
 	xcb_generic_event_t		*evt;
 	xcb_motion_notify_event_t	*mne;
 
