@@ -2,5 +2,5 @@
 Name=spectrwm
 Comment=The spectrwm window manager
 Type=Application
-Exec=/usr/bin/spectrwm
-TryExec=/usr/bin/spectrwm
+Exec=spectrwm
+TryExec=spectrwm
