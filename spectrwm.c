@@ -577,6 +577,8 @@ union arg {
 #define SWM_ARG_ID_CYCLERG_DOWN	(43)
 #define SWM_ARG_ID_CYCLEWS_UP_ALL	(44)
 #define SWM_ARG_ID_CYCLEWS_DOWN_ALL	(45)
+#define SWM_ARG_ID_CYCLEWS_MOVE_UP	(46)
+#define SWM_ARG_ID_CYCLEWS_MOVE_DOWN	(47)
 #define SWM_ARG_ID_STACKINC	(50)
 #define SWM_ARG_ID_STACKDEC	(51)
 #define SWM_ARG_ID_SS_ALL	(60)
@@ -831,8 +833,10 @@ enum keyfuncid {
 	KF_WS_22,
 	KF_WS_NEXT,
 	KF_WS_NEXT_ALL,
+	KF_WS_NEXT_MOVE,
 	KF_WS_PREV,
 	KF_WS_PREV_ALL,
+	KF_WS_PREV_MOVE,
 	KF_WS_PRIOR,
 	KF_DUMPWINS, /* MUST BE LAST */
 	KF_INVALID
@@ -3497,30 +3501,32 @@ cyclews(struct swm_region *r, union arg *args)
 	union			arg a;
 	struct swm_screen	*s = r->s;
 	int			cycle_all = 0;
+	int			move = 0;
 
 	DNPRINTF(SWM_D_WS, "cyclews: id: %d, screen[%d]:%dx%d+%d+%d, ws: %d\n",
 	    args->id, r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
 
 	a.id = r->ws->idx;
+
 	do {
 		switch (args->id) {
+		case SWM_ARG_ID_CYCLEWS_MOVE_UP:
+			move = 1;
+			/* FALLTHROUGH */
 		case SWM_ARG_ID_CYCLEWS_UP_ALL:
 			cycle_all = 1;
 			/* FALLTHROUGH */
 		case SWM_ARG_ID_CYCLEWS_UP:
-			if (a.id < workspace_limit - 1)
-				a.id++;
-			else
-				a.id = 0;
+			a.id = (a.id < workspace_limit - 1) ? a.id + 1 : 0;
 			break;
+		case SWM_ARG_ID_CYCLEWS_MOVE_DOWN:
+			move = 1;
+			/* FALLTHROUGH */
 		case SWM_ARG_ID_CYCLEWS_DOWN_ALL:
 			cycle_all = 1;
 			/* FALLTHROUGH */
 		case SWM_ARG_ID_CYCLEWS_DOWN:
-			if (a.id > 0)
-				a.id--;
-			else
-				a.id = workspace_limit - 1;
+			a.id = (a.id > 0) ? a.id - 1 : workspace_limit - 1;
 			break;
 		default:
 			return;
@@ -3531,6 +3537,9 @@ cyclews(struct swm_region *r, union arg *args)
 			continue;
 		if (!cycle_visible && s->ws[a.id].r != NULL)
 			continue;
+
+		if (move)
+			send_to_ws(r, &a);
 
 		switchws(r, &a);
 	} while (a.id != r->ws->idx);
@@ -5762,8 +5771,10 @@ struct keyfunc {
 	{ "ws_22",		switchws,	{.id = 21} },
 	{ "ws_next",		cyclews,	{.id = SWM_ARG_ID_CYCLEWS_UP} },
 	{ "ws_next_all",	cyclews,	{.id = SWM_ARG_ID_CYCLEWS_UP_ALL} },
+	{ "ws_next_move",	cyclews,	{.id = SWM_ARG_ID_CYCLEWS_MOVE_UP} },
 	{ "ws_prev",		cyclews,	{.id = SWM_ARG_ID_CYCLEWS_DOWN} },
 	{ "ws_prev_all",	cyclews,	{.id = SWM_ARG_ID_CYCLEWS_DOWN_ALL} },
+	{ "ws_prev_move",	cyclews,	{.id = SWM_ARG_ID_CYCLEWS_MOVE_DOWN} },
 	{ "ws_prior",		priorws,	{0} },
 	{ "dumpwins",		dumpwins,	{0} }, /* MUST BE LAST */
 	{ "invalid key func",	NULL,		{0} },
@@ -6452,6 +6463,8 @@ setup_keys(void)
 	setkeybinding(MODKEY,		XK_Left,	KF_WS_PREV,	NULL);
 	setkeybinding(MODKEY,		XK_Up,		KF_WS_NEXT_ALL,	NULL);
 	setkeybinding(MODKEY,		XK_Down,	KF_WS_PREV_ALL,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_Up,		KF_WS_NEXT_MOVE,NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_Down,	KF_WS_PREV_MOVE,NULL);
 	setkeybinding(MODKEY,		XK_a,		KF_WS_PRIOR,	NULL);
 #ifdef SWM_DEBUG
 	setkeybinding(MODKEY_SHIFT,	XK_d,		KF_DUMPWINS,	NULL);
@@ -6549,6 +6562,16 @@ grabkeys(void)
 		xcb_ungrab_key(conn, XCB_GRAB_ANY, screens[k].root,
 			XCB_MOD_MASK_ANY);
 		RB_FOREACH(kp, key_tree, &keys) {
+			/* Skip unused ws binds. */
+			if ((int)kp->funcid > KF_WS_1 + workspace_limit - 1 &&
+			    kp->funcid <= KF_WS_22)
+				continue;
+
+			/* Skip unused mvws binds. */
+			if ((int)kp->funcid > KF_MVWS_1 + workspace_limit - 1 &&
+			    kp->funcid <= KF_MVWS_22)
+				continue;
+
 			if ((code = xcb_key_symbols_get_keycode(syms,
 					kp->keysym))) {
 				for (j = 0; j < LENGTH(modifiers); j++)

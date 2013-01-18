@@ -563,6 +563,10 @@ ws_next_all
 .It Cm M- Ns Aq Cm Down
 ws_prev_all
 .It Cm M-a
+ws_next_move
+.It Cm M-S- Ns Aq Cm Left
+ws_prev_move
+.It Cm M-S- Ns Aq Cm Up
 ws_prior
 .It Cm M-S- Ns Aq Cm Right
 rg_next
@@ -701,6 +705,10 @@ Switch to previous workspace with a window in it.
 Switch to next workspace.
 .It Cm ws_prev_all
 Switch to previous workspace.
+.It Cm ws_next_move
+Switch to next workspace with the current window.
+.It Cm ws_prev_move
+Switch to previous workspace with the current window.
 .It Cm ws_prior
 Switch to last visited workspace.
 .It Cm rg_next
