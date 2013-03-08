@@ -4498,6 +4498,8 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		win = ws->focus_pending;
 	else if (ws->focus)
 		win = ws->focus;
+	else if (ws->focus_prev)
+		win = ws->focus_prev;
 	else
 		win = TAILQ_FIRST(&ws->winlist);
 
