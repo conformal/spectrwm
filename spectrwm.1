@@ -378,8 +378,16 @@ In xterm, for example, one needs to add the following line
 to
 .Pa .Xdefaults .
 .It Ic verbose_layout
-Enable or disable displaying the current master and stack values in the
-status bar. Enable by setting to 1.
+Enable or disable displaying the current master window count and stack column/row
+count in the status bar.
+Enable by setting to 1.
+See
+.Pa master_add ,
+.Pa master_del ,
+.Pa stack_inc
+and
+.Pa stack_dec
+for more information.
 .It Ic window_name_enabled
 Enable or disable displaying the window name in the status bar.
 Enable by setting to 1.
