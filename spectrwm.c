@@ -995,10 +995,10 @@ struct swm_region	*root_to_region(xcb_window_t, int);
 void	 screenchange(xcb_randr_screen_change_notify_event_t *);
 void	 scan_xrandr(int);
 void	 search_do_resp(void);
-void	 search_resp_name_workspace(const char *, unsigned long);
+void	 search_resp_name_workspace(const char *, size_t);
 void	 search_resp_search_window(const char *);
 void	 search_resp_search_workspace(const char *);
-void	 search_resp_uniconify(const char *, unsigned long);
+void	 search_resp_uniconify(const char *, size_t);
 void	 search_win(struct swm_region *, union arg *);
 void	 search_win_cleanup(void);
 void	 search_workspace(struct swm_region *, union arg *);
@@ -4996,7 +4996,7 @@ search_win(struct swm_region *r, union arg *args)
 }
 
 void
-search_resp_uniconify(const char *resp, unsigned long len)
+search_resp_uniconify(const char *resp, size_t len)
 {
 	char			*name;
 	struct ws_win		*win;
@@ -5026,7 +5026,7 @@ search_resp_uniconify(const char *resp, unsigned long len)
 }
 
 void
-search_resp_name_workspace(const char *resp, unsigned long len)
+search_resp_name_workspace(const char *resp, size_t len)
 {
 	struct workspace	*ws;
 
@@ -5122,7 +5122,7 @@ search_do_resp(void)
 {
 	ssize_t			rbytes;
 	char			*resp;
-	unsigned long		len;
+	size_t			len;
 
 	DNPRINTF(SWM_D_MISC, "search_do_resp:\n");
 
