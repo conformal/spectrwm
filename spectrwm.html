@@ -447,9 +447,11 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
   <dt id="focus_close"><a class="permalink" href="#focus_close"><code class="Ic">focus_close</code></a></dt>
   <dd>Window to put focus when the focused window is closed. Possible values are
       <var class="Ar">first</var>, <var class="Ar">next</var>,
-      <var class="Ar">previous</var> (default) and <var class="Ar">last</var>.
-      <var class="Ar">next</var> and <var class="Ar">previous</var> are relative
-      to the window that is closed.</dd>
+      <var class="Ar">previous</var> (default), <var class="Ar">last</var> and
+      <var class="Ar">prior</var>. <var class="Ar">next</var> and
+      <var class="Ar">previous</var> are relative to the window that is closed.
+      <var class="Ar">prior</var> is the last focused window in the
+    workspace.</dd>
   <dt id="focus_close_wrap"><a class="permalink" href="#focus_close_wrap"><code class="Ic">focus_close_wrap</code></a></dt>
   <dd>Whether to allow the focus to jump to the last window when the first
       window is closed or vice versa. Disable by setting to 0.</dd>
