@@ -413,6 +413,7 @@ enum {
 #define SWM_STACK_BOTTOM	(1)
 #define SWM_STACK_ABOVE		(2)
 #define SWM_STACK_BELOW		(3)
+#define SWM_STACK_PRIOR		(4)
 
 /* dialog windows */
 double			dialog_ratio = 0.6;
@@ -6020,6 +6021,9 @@ get_focus_other(struct ws_win *win)
 			}
 		}
 		break;
+	case SWM_STACK_PRIOR:
+		winfocus = get_focus_prev(ws);
+		break;
 	case SWM_STACK_BELOW:
 		winfocus = TAILQ_PREV(win, ws_win_list, entry);
 		while (winfocus && HIDDEN(winfocus))
@@ -10940,6 +10944,8 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 			focus_close = SWM_STACK_ABOVE;
 		else if (strcmp(value, "previous") == 0)
 			focus_close = SWM_STACK_BELOW;
+		else if (!strcmp(value, "prior"))
+			focus_close = SWM_STACK_PRIOR;
 		else {
 			ALLOCSTR(emsg, "invalid value: %s", value);
 			return (1);
