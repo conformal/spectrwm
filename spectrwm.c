@@ -2979,6 +2979,8 @@ root_to_region(xcb_window_t root, int check)
 	if (r == NULL && check & SWM_CK_FALLBACK)
 		r = TAILQ_FIRST(&screens[i].rl);
 
+	DNPRINTF(SWM_D_MISC, "root_to_region: idx: %d\n", get_region_index(r));
+
 	return (r);
 }
 
@@ -3412,7 +3414,7 @@ focus_region(struct swm_region *r)
 		if (old_r)
 			unfocus_win(old_r->ws->focus);
 
-		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT, r->s->root,
+		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT, r->id,
 		    XCB_CURRENT_TIME);
 
 		/* Clear bar since empty. */
@@ -3478,17 +3480,16 @@ switchws(struct swm_region *r, union arg *args)
 	if (old_ws->r && focus_mode != SWM_FOCUS_FOLLOW) {
 		if (new_ws->focus_pending) {
 			focus_win(new_ws->focus_pending);
-		} else {
-			/* Empty region, focus on root. */
-			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
-			    new_ws->r->s[new_ws->r->s->idx].root,
-			    XCB_CURRENT_TIME);
+			new_ws->focus_pending = NULL;
 		}
 	}
 
-	/* Clear bar if new ws is empty. */
-	if (new_ws->focus_pending == NULL)
+	/* Clear bar and set focus on region input win if new ws is empty. */
+	if (new_ws->focus_pending == NULL && new_ws->focus == NULL) {
+		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT, r->id,
+		    XCB_CURRENT_TIME);
 		bar_draw();
+	}
 
 	focus_flush();
 
@@ -4634,11 +4635,10 @@ send_to_ws(struct swm_region *r, union arg *args)
 
 					unfocus_win(parent);
 
-					if (focus_mode != SWM_FOCUS_FOLLOW)
+					if (focus_mode != SWM_FOCUS_FOLLOW) {
 						pws->focus = pws->focus_pending;
-
-					if (focus_mode != SWM_FOCUS_FOLLOW)
 						pws->focus_pending = NULL;
+					}
 				}
 
 				/* Don't unmap parent if new ws is visible */
@@ -4683,8 +4683,14 @@ send_to_ws(struct swm_region *r, union arg *args)
 		stack();
 
 		if (focus_mode != SWM_FOCUS_FOLLOW) {
-			focus_win(ws->focus_pending);
-			ws->focus_pending = NULL;
+			if (ws->focus_pending) {
+				focus_win(ws->focus_pending);
+				ws->focus_pending = NULL;
+			} else {
+				xcb_set_input_focus(conn,
+				    XCB_INPUT_FOCUS_PARENT, r->id,
+				    XCB_CURRENT_TIME);
+			}
 		}
 
 		focus_flush();
@@ -8199,6 +8205,9 @@ destroynotify(xcb_destroy_notify_event_t *e)
 		if (win->ws->focus_pending) {
 			focus_win(win->ws->focus_pending);
 			win->ws->focus_pending = NULL;
+		} else if (win == win->ws->focus && win->ws->r) {
+			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
+			    win->ws->r->id, XCB_CURRENT_TIME);
 		}
 	}
 
@@ -8491,6 +8500,7 @@ void
 propertynotify(xcb_property_notify_event_t *e)
 {
 	struct ws_win		*win;
+	struct workspace	*ws;
 #ifdef SWM_DEBUG
 	char			*name;
 
@@ -8504,28 +8514,39 @@ propertynotify(xcb_property_notify_event_t *e)
 	if (win == NULL)
 		return;
 
+	ws = win->ws;
+
 	last_event_time = e->time;
 
 	if (e->atom == a_swm_iconic) {
 		if (e->state == XCB_PROPERTY_NEW_VALUE) {
 			if (focus_mode != SWM_FOCUS_FOLLOW)
-				win->ws->focus_pending = get_focus_prev(win);
+				ws->focus_pending = get_focus_prev(win);
 
 			unfocus_win(win);
 			unmap_window(win);
 
-			if (win->ws->r) {
+			if (ws->r) {
 				stack();
+
 				if (focus_mode != SWM_FOCUS_FOLLOW) {
-					focus_win(win->ws->focus_pending);
-					win->ws->focus_pending = NULL;
+					if (ws->focus_pending) {
+						focus_win(ws->focus_pending);
+						ws->focus_pending = NULL;
+					} else {
+						xcb_set_input_focus(conn,
+						    XCB_INPUT_FOCUS_PARENT,
+						    ws->r->id,
+						    XCB_CURRENT_TIME);
+					}
 				}
+
 				focus_flush();
 			}
 		} else if (e->state == XCB_PROPERTY_DELETE) {
 			/* The window is no longer iconic, restack ws. */
 			if (focus_mode != SWM_FOCUS_FOLLOW)
-				win->ws->focus_pending = get_focus_magic(win);
+				ws->focus_pending = get_focus_magic(win);
 
 			stack();
 
@@ -8537,9 +8558,9 @@ propertynotify(xcb_property_notify_event_t *e)
 		if (e->state == XCB_PROPERTY_NEW_VALUE) {
 			if (focus_mode != SWM_FOCUS_FOLLOW) {
 				if (win->mapped &&
-				    win->ws->focus_pending == win) {
-					focus_win(win->ws->focus_pending);
-					win->ws->focus_pending = NULL;
+				    ws->focus_pending == win) {
+					focus_win(ws->focus_pending);
+					ws->focus_pending = NULL;
 				}
 			}
 		}
@@ -8594,11 +8615,12 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 		if (focus_mode == SWM_FOCUS_FOLLOW) {
 			if (ws->r)
 				focus_win(get_pointer_win(ws->r->s->root));
-		} else {
-			if (ws->focus_pending) {
-				focus_win(ws->focus_pending);
-				ws->focus_pending = NULL;
-			}
+		} else if (ws->focus_pending) {
+			focus_win(ws->focus_pending);
+			ws->focus_pending = NULL;
+		} else if (ws->focus == NULL && ws->r) {
+			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
+			    ws->r->id, XCB_CURRENT_TIME);
 		}
 	}
 
