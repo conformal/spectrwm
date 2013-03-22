@@ -8449,6 +8449,9 @@ motionnotify(xcb_motion_notify_event_t *e)
 
 	last_event_time = e->time;
 
+	if (focus_mode == SWM_FOCUS_MANUAL)
+		return;
+
 	num_screens = get_screen_count();
 	for (i = 0; i < num_screens; i++)
 		if (screens[i].root == e->root)
