@@ -3465,8 +3465,9 @@ switchws(struct swm_region *r, union arg *args)
 	this_r->ws = new_ws;
 	new_ws->r = this_r;
 
-	/* Set focus_pending before stacking. */
-	if (focus_mode != SWM_FOCUS_FOLLOW)
+	/* Set focus_pending before stacking, if needed. */
+	if (focus_mode != SWM_FOCUS_FOLLOW && (!new_ws->focus_pending ||
+	    validate_win(new_ws->focus_pending)))
 		new_ws->focus_pending = get_region_focus(new_ws->r);
 
 	stack();
