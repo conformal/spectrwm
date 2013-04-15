@@ -350,6 +350,7 @@ See
 .Ic master_del ,
 .Ic stack_inc ,
 .Ic stack_dec ,
+.Ic stack_balance ,
 and
 .Ic always_raise
 for more information.
@@ -616,6 +617,8 @@ cycle_layout
 flip_layout
 .It Cm M-S- Ns Aq Cm Space
 stack_reset
+.It Cm M-S-h
+stack_balance
 .It Cm M-h
 master_shrink
 .It Cm M-l
@@ -753,6 +756,8 @@ Cycle layout.
 Swap the master and stacking areas.
 .It Cm stack_reset
 Reset layout.
+.It Cm stack_balance
+Balance master/stacking area.
 .It Cm master_shrink
 Shrink master area.
 .It Cm master_grow
