@@ -624,6 +624,7 @@ union arg {
 #define SWM_ARG_ID_FLIPLAYOUT	(24)
 #define SWM_ARG_ID_STACKRESET	(30)
 #define SWM_ARG_ID_STACKINIT	(31)
+#define SWM_ARG_ID_STACKBALANCE	(32)
 #define SWM_ARG_ID_CYCLEWS_UP	(40)
 #define SWM_ARG_ID_CYCLEWS_DOWN	(41)
 #define SWM_ARG_ID_CYCLERG_UP	(42)
@@ -890,6 +891,7 @@ enum keyfuncid {
 	KF_STACK_INC,
 	KF_STACK_DEC,
 	KF_STACK_RESET,
+	KF_STACK_BALANCE,
 	KF_SWAP_MAIN,
 	KF_SWAP_NEXT,
 	KF_SWAP_PREV,
@@ -4853,6 +4855,9 @@ vertical_config(struct workspace *ws, int id)
 		ws->l_state.vertical_mwin = 1;
 		ws->l_state.vertical_stacks = 1;
 		break;
+	case SWM_ARG_ID_STACKBALANCE:
+		ws->l_state.vertical_msize = SWM_V_SLICE / (ws->l_state.vertical_stacks + 1);
+		break;
 	case SWM_ARG_ID_MASTERSHRINK:
 		if (ws->l_state.vertical_msize > 1)
 			ws->l_state.vertical_msize--;
@@ -4902,6 +4907,9 @@ horizontal_config(struct workspace *ws, int id)
 		ws->l_state.horizontal_mwin = 1;
 		ws->l_state.horizontal_msize = SWM_H_SLICE / 2;
 		ws->l_state.horizontal_stacks = 1;
+		break;
+	case SWM_ARG_ID_STACKBALANCE:
+		ws->l_state.horizontal_msize = SWM_H_SLICE / (ws->l_state.horizontal_stacks + 1);
 		break;
 	case SWM_ARG_ID_MASTERSHRINK:
 		if (ws->l_state.horizontal_msize > 1)
@@ -6613,6 +6621,7 @@ struct keyfunc {
 	{ "stack_inc",		stack_config,	{.id = SWM_ARG_ID_STACKINC} },
 	{ "stack_dec",		stack_config,	{.id = SWM_ARG_ID_STACKDEC} },
 	{ "stack_reset",	stack_config,	{.id = SWM_ARG_ID_STACKRESET} },
+	{ "stack_balance",	stack_config,	{.id = SWM_ARG_ID_STACKBALANCE} },
 	{ "swap_main",		swapwin,	{.id = SWM_ARG_ID_SWAPMAIN} },
 	{ "swap_next",		swapwin,	{.id = SWM_ARG_ID_SWAPNEXT} },
 	{ "swap_prev",		swapwin,	{.id = SWM_ARG_ID_SWAPPREV} },
@@ -7388,6 +7397,7 @@ setup_keys(void)
 	setkeybinding(MODKEY_SHIFT,	XK_comma,	KF_STACK_INC,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_period,	KF_STACK_DEC,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_space,	KF_STACK_RESET,	NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_h,		KF_STACK_BALANCE, NULL);
 	setkeybinding(MODKEY,		XK_Return,	KF_SWAP_MAIN,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_j,		KF_SWAP_NEXT,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_k,		KF_SWAP_PREV,	NULL);
