@@ -210,6 +210,11 @@ section below.
 .It Ic border_width
 Set window border thickness in pixels.
 Disable all borders by setting to 0.
+.It Ic boundary_width
+Set region containment boundary width in pixels.  This is how far a window
+must be dragged/resized beyond the region edge before it is allowed outside
+the region.  This has no effect when manipulating the window with key
+bindings.  Disable the window containment effect by setting to 0.
 .It Ic clock_enabled
 Enable or disable displaying the clock in the status bar.
 Disable by setting to 0
