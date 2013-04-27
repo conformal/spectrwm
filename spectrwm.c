@@ -4259,20 +4259,24 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			colno = (winno - mwin) / stacks;
 			if (s <= (winno - mwin) % stacks)
 				colno++;
-			split = split + colno;
-			hrh = (r_g.h / colno);
+			split += colno;
+			hrh = r_g.h / colno;
 			extra = r_g.h - (colno * hrh);
-			if (flip)
-				win_g.x = r_g.x;
-			else
+
+			if (!flip)
 				win_g.x += win_g.w + 2 * border_width +
 				    tile_gap;
+
 			win_g.w = (r_g.w - msize -
 			    (stacks * (2 * border_width + tile_gap))) / stacks;
 			if (s == 1)
 				win_g.w += (r_g.w - msize -
 				    (stacks * (2 * border_width + tile_gap))) %
 				    stacks;
+
+			if (flip)
+				win_g.x -= win_g.w + 2 * border_width +
+				    tile_gap;
 			s--;
 			j = 0;
 		}
