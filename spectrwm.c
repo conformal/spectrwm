@@ -8568,8 +8568,12 @@ maprequest(xcb_map_request_event_t *e)
 				if (w == win || !w->mapped)
 					continue;
 
-				if (!strcmp(w->ch.class_name,
+				if (w->ch.class_name &&
+				    win->ch.class_name &&
+				    !strcmp(w->ch.class_name,
 				    win->ch.class_name) &&
+				    w->ch.instance_name &&
+				    win->ch.instance_name &&
 				    !strcmp(w->ch.instance_name,
 				    win->ch.instance_name))
 					break;
