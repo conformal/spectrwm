@@ -572,6 +572,7 @@ struct workspace {
 	struct ws_win		*focus;		/* may be NULL */
 	struct ws_win		*focus_prev;	/* may be NULL */
 	struct ws_win		*focus_pending;	/* may be NULL */
+	struct ws_win		*raised;	/* may be NULL */
 	struct swm_region	*r;		/* may be NULL */
 	struct swm_region	*old_r;		/* may be NULL */
 	struct ws_win_list	winlist;	/* list of windows in ws */
@@ -911,6 +912,7 @@ enum actionid {
 	FN_MVWS_22,
 	FN_NAME_WORKSPACE,
 	FN_QUIT,
+	FN_RAISE_FOCUSED,
 	FN_RAISE_TOGGLE,
 	FN_RESIZE,
 	FN_RESIZE_CENTERED,
@@ -1174,6 +1176,7 @@ void	 quirk_remove(struct quirk *);
 void	 quirk_replace(struct quirk *, const char *, const char *, const char *,
 	     uint32_t, int);
 void	 quit(struct binding *, struct swm_region *, union arg *);
+void	 raise_focused(struct binding *, struct swm_region *, union arg *);
 void	 raise_toggle(struct binding *, struct swm_region *, union arg *);
 void	 raise_window(struct ws_win *);
 void	 region_containment(struct ws_win *, struct swm_region *, int);
@@ -3812,6 +3815,8 @@ kill_refs(struct ws_win *win)
 				ws->focus_prev = NULL;
 			if (win == ws->focus_pending)
 				ws->focus_pending = NULL;
+			if (win == ws->raised)
+				ws->raised = NULL;
 
 			if (TRANS(win))
 				TAILQ_FOREACH(w, &ws->winlist, entry)
@@ -3897,6 +3902,9 @@ unfocus_win(struct ws_win *win)
 	if (win->ws->focus == win) {
 		win->ws->focus = NULL;
 		win->ws->focus_prev = win;
+		if(win->ws->raised == win && !FLOATING(win)) {
+			update_win_stacking(win);
+		}
 	}
 
 	if (validate_win(win->ws->focus)) {
@@ -5776,6 +5784,31 @@ pressbutton(struct binding *bp, struct swm_region *r, union arg *args)
 }
 
 void
+raise_focused(struct binding *bp, struct swm_region *r, union arg *args)
+{
+	struct ws_win	*win;
+	uint32_t	val;
+
+	/* Suppress warning. */
+	(void)bp;
+	(void)args;
+
+	if (r == NULL || r->ws == NULL || r->ws->focus == NULL)
+		return;
+
+	win = r->ws->focus;
+	r->ws->raised = win;
+	raise_window(win);
+
+	/* Temporarily override stacking order also in the stack */
+	if (!FLOATING(win)) {
+		val = XCB_STACK_MODE_ABOVE;
+		xcb_configure_window(conn, win->frame,
+		    XCB_CONFIG_WINDOW_STACK_MODE, &val);
+	}
+}
+
+void
 raise_toggle(struct binding *bp, struct swm_region *r, union arg *args)
 {
 	/* Suppress warning. */
@@ -7367,6 +7400,7 @@ struct action {
 	{ "mvws_22",		send_to_ws,	0, {.id = 21} },
 	{ "name_workspace",	name_workspace,	0, {0} },
 	{ "quit",		quit,		0, {0} },
+	{ "raise_focused",	raise_focused,	0, {0} },
 	{ "raise_toggle",	raise_toggle,	0, {0} },
 	{ "resize",		resize, FN_F_NOREPLAY, {.id = SWM_ARG_ID_DONTCENTER} },
 	{ "resize_centered",	resize, FN_F_NOREPLAY, {.id = SWM_ARG_ID_CENTER} },
@@ -11757,6 +11791,7 @@ setup_screens(void)
 			ws->focus = NULL;
 			ws->focus_prev = NULL;
 			ws->focus_pending = NULL;
+			ws->raised = NULL;
 			ws->r = NULL;
 			ws->old_r = NULL;
 			ws->state = SWM_WS_STATE_HIDDEN;
