@@ -243,7 +243,7 @@ u_int32_t		swm_debug = 0
 #define SH_INC_W(w)		(w)->sh.width_inc
 #define SH_INC_H(w)		(w)->sh.height_inc
 #define SWM_MAX_FONT_STEPS	(3)
-#define WINID(w)		((w) ? (w)->id : 0)
+#define WINID(w)		((w) ? (w)->id : XCB_WINDOW_NONE)
 #define YESNO(x)		((x) ? "yes" : "no")
 
 /* Constrain Window flags */
@@ -947,6 +947,7 @@ struct ws_win	*get_pointer_win(xcb_window_t);
 struct ws_win	*get_region_focus(struct swm_region *);
 int	 get_region_index(struct swm_region *);
 xcb_screen_t	*get_screen(int);
+xcb_window_t	 get_sibling(struct ws_win *, int);
 int	 get_screen_count(void);
 #ifdef SWM_DEBUG
 char	*get_stack_mode_name(uint8_t);
@@ -2829,8 +2830,8 @@ map_window(struct ws_win *win, xcb_window_t sibling)
 	if (win == NULL)
 		return;
 
-	DNPRINTF(SWM_D_EVENT, "map_window: win 0x%x, mapped: %s, sibling: %x\n",
-	    win->id, YESNO(win->mapped), sibling);
+	DNPRINTF(SWM_D_EVENT, "map_window: win 0x%x, mapped: %s, "
+	    "sibling: 0x%x\n", win->id, YESNO(win->mapped), sibling);
 
 	xcb_configure_window(conn, win->id, mode, val);
 
@@ -3180,6 +3181,42 @@ validate_ws(struct workspace *testws)
 	return (1);
 }
 
+xcb_window_t
+get_sibling(struct ws_win *win, int mode)
+{
+	struct ws_win		*w = win;
+
+	switch (mode) {
+	case SWM_STACK_TOP:
+		TAILQ_FOREACH_REVERSE(w, &w->ws->winlist, ws_win_list, entry)
+			if (w != win && !w->floating && !w->iconic)
+				break;
+		break;
+	case SWM_STACK_ABOVE:
+		do {
+			w = TAILQ_NEXT(w, entry);
+		} while (w != NULL && (w == win || w->floating || w->iconic));
+		break;
+	case SWM_STACK_BELOW:
+		do {
+			w = TAILQ_PREV(w, ws_win_list, entry);
+		} while (w != NULL && (w == win || w->floating || w->iconic));
+		break;
+	case SWM_STACK_BOTTOM:
+		TAILQ_FOREACH(w, &w->ws->winlist, entry)
+			if (w != win && !w->floating && !w->iconic)
+				break;
+		break;
+	default:
+		w = NULL;
+	}
+
+	if (w == NULL)
+		return (win->ws->r->id);
+	else
+		return (w->id);
+}
+
 void
 unfocus_win(struct ws_win *win)
 {
@@ -3211,6 +3248,8 @@ unfocus_win(struct ws_win *win)
 	}
 
 	if (win->ws->focus == win) {
+		if (tile_gap < 0 && !win->floating)
+			map_window(win, get_sibling(win, SWM_STACK_BELOW));
 		win->ws->focus = NULL;
 		win->ws->focus_prev = win;
 	}
@@ -3328,6 +3367,14 @@ focus_win(struct ws_win *win)
 			TAILQ_FOREACH(w, &ws->winlist, entry)
 				if (w->transient == win->id && !w->iconic)
 					map_window(w, XCB_WINDOW_NONE);
+		} else if (tile_gap < 0 && !win->floating) {
+			/*
+			 * Windows overlap in the layout.
+			 * Raise focused win above all tiled wins.
+			 */
+			if (tile_gap < 0 && !win->floating)
+				map_window(win,
+				    get_sibling(win, SWM_STACK_TOP));
 		}
 
 		set_region(ws->r);
@@ -4198,8 +4245,7 @@ void
 stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 {
 	struct swm_geometry	win_g, r_g = *g;
-	struct ws_win		*win, *fs_win = NULL, *wtmp;
-	xcb_window_t		sibling;
+	struct ws_win		*win, *fs_win = NULL;
 	int			i, j, s, stacks;
 	int			w_inc = 1, h_inc, w_base = 1, h_base;
 	int			hrh, extra = 0, h_slice, last_h = 0;
@@ -4376,18 +4422,16 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, int flip)
 			update_window(win);
 		}
 
-		wtmp = TAILQ_PREV(win, ws_win_list, entry);
-		if (wtmp)
-			sibling = wtmp->id;
-		else
-			sibling = ws->r->bar->id;
-
-		map_window(win, sibling);
+		map_window(win, get_sibling(win, SWM_STACK_BELOW));
 
 		last_h = win_g.h;
 		i++;
 		j++;
 	}
+
+	/* Map/raise focused tiled window to top if windows could overlap. */
+	if (tile_gap < 0 && ws->focus != NULL && !ws->focus->floating)
+		map_window(ws->focus, get_sibling(ws->focus, SWM_STACK_TOP));
 
 notiles:
 	/* now, stack all the floaters and transients */
@@ -7157,8 +7201,6 @@ setconfvalue(char *selector, char *value, int flags)
 		break;
 	case SWM_S_TILE_GAP:
 		tile_gap = atoi(value);
-		if (tile_gap < 0)
-			tile_gap = 0;
 		break;
 	case SWM_S_TITLE_CLASS_ENABLED:
 		title_class_enabled = atoi(value);

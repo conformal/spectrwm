@@ -366,7 +366,8 @@ section) to use an alternate copy of the
 .Xr xterm 1
 binary without the setgid bit set.
 .It Ic tile_gap
-Pixel width of empty space between tiled windows.
+Pixel width of empty space between tiled windows.  Negative values cause overlap.
+Set this to the opposite of border_width to collapse the border between tiles.
 Disable by setting to 0.
 .It Ic title_class_enabled
 Enable or disable displaying the window class in the status bar.
