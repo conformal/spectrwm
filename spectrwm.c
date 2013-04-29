@@ -1989,12 +1989,12 @@ bar_window_name(char *s, size_t sz, struct swm_region *r)
 	free(title);
 }
 
-int		urgent[SWM_WS_MAX];
 void
 bar_urgent(char *s, size_t sz)
 {
 	struct ws_win		*win;
 	int			i, j, num_screens;
+	int			urgent[SWM_WS_MAX];
 	char			b[8];
 	xcb_get_property_cookie_t	c;
 	xcb_icccm_wm_hints_t	hints;
