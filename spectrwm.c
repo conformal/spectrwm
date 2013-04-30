@@ -1051,6 +1051,7 @@ void	 spawn(int, union arg *, int);
 void	 spawn_custom(struct swm_region *, union arg *, const char *);
 int	 spawn_expand(struct swm_region *, union arg *, const char *, char ***);
 void	 spawn_insert(const char *, const char *, int);
+struct spawn_prog	*spawn_find(const char *);
 void	 spawn_remove(struct spawn_prog *);
 void	 spawn_replace(struct spawn_prog *, const char *, const char *, int);
 void	 spawn_select(struct swm_region *, union arg *, const char *, int *);
@@ -6040,7 +6041,7 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
     char ***ret_args)
 {
 	struct spawn_prog	*prog = NULL;
-	int			i;
+	int			i, c;
 	char			*ap, **real_args;
 
 	/* suppress unused warning since var is needed */
@@ -6063,62 +6064,68 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
 		err(1, "spawn_custom: calloc real_args");
 
 	/* expand spawn_args into real_args */
-	for (i = 0; i < prog->argc; i++) {
+	for (i = c = 0; i < prog->argc; i++) {
 		ap = prog->argv[i];
 		DNPRINTF(SWM_D_SPAWN, "spawn_custom: raw arg: %s\n", ap);
 		if (!strcasecmp(ap, "$bar_border")) {
-			if ((real_args[i] =
+			if ((real_args[c] =
 			    strdup(r->s->c[SWM_S_COLOR_BAR_BORDER].name))
 			    == NULL)
 				err(1,  "spawn_custom border color");
 		} else if (!strcasecmp(ap, "$bar_color")) {
-			if ((real_args[i] =
+			if ((real_args[c] =
 			    strdup(r->s->c[SWM_S_COLOR_BAR].name))
 			    == NULL)
 				err(1, "spawn_custom bar color");
 		} else if (!strcasecmp(ap, "$bar_font")) {
-			if ((real_args[i] = strdup(bar_fonts))
+			if ((real_args[c] = strdup(bar_fonts))
 			    == NULL)
 				err(1, "spawn_custom bar fonts");
 		} else if (!strcasecmp(ap, "$bar_font_color")) {
-			if ((real_args[i] =
+			if ((real_args[c] =
 			    strdup(r->s->c[SWM_S_COLOR_BAR_FONT].name))
 			    == NULL)
 				err(1, "spawn_custom color font");
 		} else if (!strcasecmp(ap, "$color_focus")) {
-			if ((real_args[i] =
+			if ((real_args[c] =
 			    strdup(r->s->c[SWM_S_COLOR_FOCUS].name))
 			    == NULL)
 				err(1, "spawn_custom color focus");
 		} else if (!strcasecmp(ap, "$color_unfocus")) {
-			if ((real_args[i] =
+			if ((real_args[c] =
 			    strdup(r->s->c[SWM_S_COLOR_UNFOCUS].name))
 			    == NULL)
 				err(1, "spawn_custom color unfocus");
 		} else if (!strcasecmp(ap, "$region_index")) {
-			if (asprintf(&real_args[i], "%d",
+			if (asprintf(&real_args[c], "%d",
 			    get_region_index(r) + 1) < 1)
 				err(1, "spawn_custom region index");
 		} else if (!strcasecmp(ap, "$workspace_index")) {
-			if (asprintf(&real_args[i], "%d", r->ws->idx + 1) < 1)
+			if (asprintf(&real_args[c], "%d", r->ws->idx + 1) < 1)
+				err(1, "spawn_custom workspace index");
+		} else if (!strcasecmp(ap, "$dmenu_bottom")) {
+			if (!bar_at_bottom)
+				continue;
+			if ((real_args[c] = strdup("-b")) == NULL)
 				err(1, "spawn_custom workspace index");
 		} else {
 			/* no match --> copy as is */
-			if ((real_args[i] = strdup(ap)) == NULL)
+			if ((real_args[c] = strdup(ap)) == NULL)
 				err(1, "spawn_custom strdup(ap)");
 		}
 		DNPRINTF(SWM_D_SPAWN, "spawn_custom: cooked arg: %s\n",
-		    real_args[i]);
+		    real_args[c]);
+		++c;
 	}
 
 #ifdef SWM_DEBUG
 	DNPRINTF(SWM_D_SPAWN, "spawn_custom: result: ");
-	for (i = 0; i < prog->argc; i++)
-		DNPRINTF(SWM_D_SPAWN, "\"%s\" ", real_args[i]);
-	DNPRINTF(SWM_D_SPAWN, "\n");
+	for (i = 0; i < c; ++i)
+		DPRINTF("\"%s\" ", real_args[i]);
+	DPRINTF("\n");
 #endif
 	*ret_args = real_args;
-	return (prog->argc);
+	return (c);
 }
 
 void
@@ -6235,6 +6242,18 @@ spawn_remove(struct spawn_prog *sp)
 	DNPRINTF(SWM_D_SPAWN, "spawn_remove: leave\n");
 }
 
+struct spawn_prog*
+spawn_find(const char *name)
+{
+	struct spawn_prog	*sp;
+
+	TAILQ_FOREACH(sp, &spawns, entry)
+		if (!strcasecmp(sp->name, name))
+			return sp;
+
+	return NULL;
+}
+
 void
 setspawn(const char *name, const char *args, int flags)
 {
@@ -6246,11 +6265,8 @@ setspawn(const char *name, const char *args, int flags)
 		return;
 
 	/* Remove any old spawn under the same name. */
-	TAILQ_FOREACH(sp, &spawns, entry)
-		if (!strcmp(sp->name, name)) {
-			spawn_remove(sp);
-			break;
-		}
+	if ((sp = spawn_find(name)) != NULL)
+		spawn_remove(sp);
 
 	if (*args != '\0')
 		spawn_insert(name, args, flags);
@@ -6290,11 +6306,7 @@ validate_spawns(void)
 			continue;
 
 		/* find program */
-		TAILQ_FOREACH(sp, &spawns, entry) {
-			if (!strcasecmp(kp->spawn_name, sp->name))
-				break;
-		}
-
+		sp = spawn_find(kp->spawn_name);
 		if (sp == NULL || sp->flags & SWM_SPAWN_OPTIONAL)
 			continue;
 
@@ -6322,6 +6334,7 @@ setup_spawn(void)
 	setconfspawn("spawn_term",	"xterm",		0);
 
 	setconfspawn("menu",		"dmenu_run"
+					" $dmenu_bottom"
 					" -fn $bar_font"
 					" -nb $bar_color"
 					" -nf $bar_font_color"
@@ -6329,6 +6342,7 @@ setup_spawn(void)
 					" -sf $bar_color",	0);
 
 	setconfspawn("search",		"dmenu"
+					" $dmenu_bottom"
 					" -i"
 					" -fn $bar_font"
 					" -nb $bar_color"
@@ -6337,6 +6351,7 @@ setup_spawn(void)
 					" -sf $bar_color",	0);
 
 	setconfspawn("name_workspace",	"dmenu"
+					" $dmenu_bottom"
 					" -p Workspace"
 					" -fn $bar_font"
 					" -nb $bar_color"
@@ -6531,17 +6546,15 @@ setconfbinding(char *selector, char *value, int flags)
 		}
 	}
 	/* search by custom spawn name */
-	TAILQ_FOREACH(sp, &spawns, entry) {
-		if (strcasecmp(selector, sp->name) == 0) {
-			DNPRINTF(SWM_D_KEY, "setconfbinding: %s: match "
-			    "spawn\n", selector);
-			if (parsekeys(value, mod_key, &mod, &ks) == 0) {
-				setkeybinding(mod, ks, KF_SPAWN_CUSTOM,
-				    sp->name);
-				return (0);
-			} else
-				return (1);
-		}
+	if ((sp = spawn_find(selector)) != NULL) {
+		DNPRINTF(SWM_D_KEY, "setconfbinding: %s: match "
+		    "spawn\n", selector);
+		if (parsekeys(value, mod_key, &mod, &ks) == 0) {
+			setkeybinding(mod, ks, KF_SPAWN_CUSTOM,
+			    sp->name);
+			return (0);
+		} else
+			return (1);
 	}
 	DNPRINTF(SWM_D_KEY, "setconfbinding: no match\n");
 	return (1);

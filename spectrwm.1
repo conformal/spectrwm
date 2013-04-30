@@ -439,6 +439,8 @@ is spawned:
 .It Cm $bar_font_color
 .It Cm $color_focus
 .It Cm $color_unfocus
+.It Cm $dmenu_bottom
+-b if bar_at_bottom is enabled.
 .It Cm $region_index
 .It Cm $workspace_index
 .El
@@ -459,7 +461,7 @@ Default programs:
 .It Cm lock
 xlock
 .It Cm menu
-dmenu_run \-fn $bar_font \-nb $bar_color \-nf $bar_font_color \-sb
+dmenu_run $dmenu_bottom \-fn $bar_font \-nb $bar_color \-nf $bar_font_color \-sb
 $bar_border \-sf $bar_color
 .It Cm term
 xterm
