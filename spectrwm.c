@@ -244,6 +244,7 @@ u_int32_t		swm_debug = 0
 #define SH_INC_H(w)		(w)->sh.height_inc
 #define SWM_MAX_FONT_STEPS	(3)
 #define WINID(w)		((w) ? (w)->id : XCB_WINDOW_NONE)
+#define WS_FOCUSED(ws)		((ws)->r && (ws)->r->s->r_focus == (ws)->r)
 #define YESNO(x)		((x) ? "yes" : "no")
 
 /* Constrain Window flags */
@@ -8406,11 +8407,11 @@ destroynotify(xcb_destroy_notify_event_t *e)
 	unmanage_window(win);
 	stack();
 
-	if (focus_mode != SWM_FOCUS_FOLLOW) {
+	if (focus_mode != SWM_FOCUS_FOLLOW && WS_FOCUSED(win->ws)) {
 		if (win->ws->focus_pending) {
 			focus_win(win->ws->focus_pending);
 			win->ws->focus_pending = NULL;
-		} else if (win == win->ws->focus && win->ws->r) {
+		} else if (win == win->ws->focus) {
 			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
 			    win->ws->r->id, XCB_CURRENT_TIME);
 		}
@@ -8559,7 +8560,7 @@ mapnotify(xcb_map_notify_event_t *e)
 	win->mapped = 1;
 	set_win_state(win, XCB_ICCCM_WM_STATE_NORMAL);
 
-	if (focus_mode != SWM_FOCUS_FOLLOW) {
+	if (focus_mode != SWM_FOCUS_FOLLOW && WS_FOCUSED(win->ws)) {
 		if (win->ws->focus_pending == win) {
 			focus_win(win);
 			win->ws->focus_pending = NULL;
@@ -8741,7 +8742,8 @@ propertynotify(xcb_property_notify_event_t *e)
 			if (ws->r) {
 				stack();
 
-				if (focus_mode != SWM_FOCUS_FOLLOW) {
+				if (focus_mode != SWM_FOCUS_FOLLOW &&
+				    WS_FOCUSED(ws)) {
 					if (ws->focus_pending) {
 						focus_win(ws->focus_pending);
 						ws->focus_pending = NULL;
@@ -8768,7 +8770,7 @@ propertynotify(xcb_property_notify_event_t *e)
 	} else if (e->atom == a_state) {
 		/* State just changed, make sure it gets focused if mapped. */
 		if (e->state == XCB_PROPERTY_NEW_VALUE) {
-			if (focus_mode != SWM_FOCUS_FOLLOW) {
+			if (focus_mode != SWM_FOCUS_FOLLOW && WS_FOCUSED(ws)) {
 				if (win->mapped &&
 				    ws->focus_pending == win) {
 					focus_win(ws->focus_pending);
@@ -8824,15 +8826,16 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 		if (ws->r)
 			stack();
 
-		if (focus_mode == SWM_FOCUS_FOLLOW) {
-			if (ws->r)
+		if (WS_FOCUSED(ws)) {
+			if (focus_mode == SWM_FOCUS_FOLLOW) {
 				focus_win(get_pointer_win(ws->r->s->root));
-		} else if (ws->focus_pending) {
-			focus_win(ws->focus_pending);
-			ws->focus_pending = NULL;
-		} else if (ws->focus == NULL && ws->r) {
-			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
-			    ws->r->id, XCB_CURRENT_TIME);
+			} else if (ws->focus_pending) {
+				focus_win(ws->focus_pending);
+				ws->focus_pending = NULL;
+			} else if (ws->focus == NULL) {
+				xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
+				    ws->r->id, XCB_CURRENT_TIME);
+			}
 		}
 	}
 
@@ -8879,7 +8882,10 @@ clientmessage(xcb_client_message_event_t *e)
 
 	if (e->type == ewmh[_NET_ACTIVE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_ACTIVE_WINDOW\n");
-		focus_win(win);
+		if (WS_FOCUSED(win->ws))
+			focus_win(win);
+		else
+			win->ws->focus_pending = win;
 	}
 	if (e->type == ewmh[_NET_CLOSE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_CLOSE_WINDOW\n");
