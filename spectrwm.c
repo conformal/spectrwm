@@ -279,10 +279,7 @@ xcb_atom_t		a_state;
 xcb_atom_t		a_prot;
 xcb_atom_t		a_delete;
 xcb_atom_t		a_takefocus;
-xcb_atom_t		a_wmname;
-xcb_atom_t		a_netwmname;
 xcb_atom_t		a_utf8_string;
-xcb_atom_t		a_string;
 xcb_atom_t		a_swm_iconic;
 xcb_atom_t		a_swm_ws;
 volatile sig_atomic_t   running = 1;
@@ -4860,7 +4857,7 @@ get_win_name(xcb_window_t win)
 	xcb_get_property_reply_t	*r;
 
 	/* First try _NET_WM_NAME for UTF-8. */
-	c = xcb_get_property(conn, 0, win, a_netwmname,
+	c = xcb_get_property(conn, 0, win, ewmh[_NET_WM_NAME].atom,
 	    XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX);
 	r = xcb_get_property_reply(conn, c, NULL);
 
@@ -9438,10 +9435,7 @@ setup_globals(void)
 	a_prot = get_atom_from_string("WM_PROTOCOLS");
 	a_delete = get_atom_from_string("WM_DELETE_WINDOW");
 	a_takefocus = get_atom_from_string("WM_TAKE_FOCUS");
-	a_wmname = get_atom_from_string("WM_NAME");
-	a_netwmname = get_atom_from_string("_NET_WM_NAME");
 	a_utf8_string = get_atom_from_string("UTF8_STRING");
-	a_string = get_atom_from_string("STRING");
 	a_swm_iconic = get_atom_from_string("_SWM_ICONIC");
 	a_swm_ws = get_atom_from_string("_SWM_WS");
 }
@@ -9470,7 +9464,8 @@ workaround(void)
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win,
 		    netwmcheck, XCB_ATOM_WINDOW, 32, 1, &win);
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win,
-		    a_netwmname, a_utf8_string, 8, strlen("LG3D"), "LG3D");
+		    ewmh[_NET_WM_NAME].atom, a_utf8_string, 8, strlen("LG3D"),
+		    "LG3D");
 	}
 }
 
