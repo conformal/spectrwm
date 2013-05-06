@@ -1072,6 +1072,12 @@ or un-floated):
 $ wmctrl \-i \-r 0x4a0000b \-b toggle,_NET_WM_STATE_ABOVE
 .Ed
 .Pp
+Windows can also be iconified and un-iconified by substituting
+_NET_WM_STATE_HIDDEN for _NET_WM_STATE_ABOVE in the previous example:
+.Bd -literal -offset indent
+$ wmctrl \-i \-r 0x4a0000b \-b toggle,_NET_WM_STATE_HIDDEN
+.Ed
+.Pp
 Floating windows can also be resized and moved by sending a
 _NET_MOVERESIZE_WINDOW client message to the root window.
 For example,
