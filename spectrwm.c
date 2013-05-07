@@ -5306,15 +5306,11 @@ wkill(struct swm_region *r, union arg *args)
 int
 floating_toggle_win(struct ws_win *win)
 {
-	struct swm_region	*r;
-
 	if (win == NULL)
 		return (0);
 
 	if (!win->ws->r)
 		return (0);
-
-	r = win->ws->r;
 
 	/* reject floating toggles in max stack mode */
 	if (win->ws->cur_layout == &layouts[SWM_MAX_STACK])
@@ -5705,14 +5701,12 @@ move(struct ws_win *win, union arg *args)
 {
 	xcb_timestamp_t		timestamp = 0;
 	int			move_stp = 0, moving;
-	struct swm_region	*r = NULL;
 	xcb_query_pointer_reply_t	*qpr = NULL;
 	xcb_generic_event_t		*evt;
 	xcb_motion_notify_event_t	*mne;
 
 	if (win == NULL)
 		return;
-	r = win->ws->r;
 
 	if (win->ewmh_flags & EWMH_F_FULLSCREEN)
 		return;
