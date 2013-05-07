@@ -27,7 +27,7 @@ MANDIR= ${PREFIX}/man/man
 obj: _xenocara_obj
 
 beforeinstall:
-	ln -sf ${BINDIR}/${PROG} ${BINDIR}/scrotwm
+	ln -sf ${PROG} ${BINDIR}/scrotwm
 
 # clang targets
 .if ${.TARGETS:M*analyze*}

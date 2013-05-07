@@ -1,5 +1,5 @@
-CFLAGS+= -std=c99 -Wall -Wextra -Wmissing-prototypes -Wshadow -g -D_GNU_SOURCE -I. -I/usr/include/freetype2
-CFLAGS+= -DSWM_LIB=\"libswmhack.so.$(LVERS)\"
+CFLAGS+= -std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Wno-uninitialized -g
+CFLAGS+= -D_GNU_SOURCE -I. -I/usr/include/freetype2 -DSWM_LIB=\"libswmhack.so.$(LVERS)\"
 LDADD+= -lX11 -lX11-xcb -lxcb -lxcb-icccm -lxcb-randr -lxcb-keysyms -lxcb-util -lxcb-xtest -lXft -lXcursor
 
 PREFIX?= /usr/local
@@ -7,7 +7,7 @@ BINDIR?= $(PREFIX)/bin
 LIBDIR?= $(PREFIX)/lib
 MANDIR?= $(PREFIX)/share/man
 
-CC?= gcc
+CC?= cc
 
 LVERS= $(shell . ../lib/shlib_version; echo $$major.$$minor)
 
@@ -29,7 +29,7 @@ spectrwm: spectrwm.o linux.o
 	$(CC) $(LDFLAGS) -o $@ $+ $(LDADD)
 
 %.so: %.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -c -fpic -DPIC $+ -o $@
+	$(CC) $(CFLAGS) -c -fpic -DPIC $+ -o $@
 
 libswmhack.so.$(LVERS): swm_hack.so
 	$(CC) $(LDFLAGS) -Wl,-soname,$@ -shared -fpic -o libswmhack.so.$(LVERS) swm_hack.so $(LDADD)

@@ -7,14 +7,16 @@ SWM_BINDIR?= $(PREFIX)/bin
 SWM_LIBDIR?= $(PREFIX)/lib
 SWM_MANDIR?= $(PREFIX)/man
 
+CC?= cc
+
 LVERS!=	awk -F = '/major/ { printf( "%s.", $$2 ) } /minor/ { printf( "%s", $$2 ) }' ${.CURDIR}/../lib/shlib_version
 BUILDVERSION!= sh "${.CURDIR}/../buildver.sh"
 .if !${BUILDVERSION} == ""
 CFLAGS+= -DSPECTRWM_BUILDSTR=\"$(BUILDVERSION)\"
 .endif
 
-CFLAGS+= -Wall -Wextra -I. -I${LOCALBASE}/include \
-	 -I${LOCALBASE}/include/freetype2
+CFLAGS+= -std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Wno-uninitialized -g
+CFLAGS+= -I. -I${LOCALBASE}/include -I${LOCALBASE}/include/freetype2
 CFLAGS+= -DSWM_LIB=\"$(SWM_LIBDIR)/libswmhack.so.$(LVERS)\"
 LDADD+= -lutil -L${LOCALBASE}/lib -lX11 -lX11-xcb -lxcb \
 	-lxcb-icccm -lxcb-keysyms -lxcb-randr -lxcb-util -lxcb-xtest -lXft -lXcursor
@@ -49,7 +51,7 @@ install: all
 	install -m 644 ../spectrwm_it.1 $(SWM_MANDIR)/man1/spectrwm_it.1
 	install -m 644 ../spectrwm_pt.1 $(SWM_MANDIR)/man1/spectrwm_pt.1
 	install -m 644 ../spectrwm_ru.1 $(SWM_MANDIR)/man1/spectrwm_ru.1
-	ln -sf $(SWM_BINDIR)/spectrwm $(SWM_BINDIR)/scrotwm
+	ln -sf spectrwm $(SWM_BINDIR)/scrotwm
 
 clean:
 	rm -f spectrwm *.o *.so libswmhack.so.* spectrwm.c swm_hack.c version.h
