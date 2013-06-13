@@ -9,4 +9,4 @@ for hackers and it strives to be small, compact and fast.
 
 ## License
 
-spectrwm is licensed under the liberal ISC License.
+spectrwm is ISC licensed unless otherwise specified in individual files.
