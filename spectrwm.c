@@ -3495,10 +3495,11 @@ focus_region(struct swm_region *r)
 void
 switchws(struct swm_region *r, union arg *args)
 {
-	int			wsid = args->id, unmap_old = 0;
 	struct swm_region	*this_r, *other_r;
 	struct ws_win		*win;
 	struct workspace	*new_ws, *old_ws;
+	xcb_window_t		none = XCB_WINDOW_NONE;
+	int			wsid = args->id, unmap_old = 0;
 
 	if (!(r && r->s))
 		return;
@@ -3518,7 +3519,14 @@ switchws(struct swm_region *r, union arg *args)
 	if (new_ws == old_ws)
 		return;
 
-	unfocus_win(old_ws->focus);
+	if ((win = old_ws->focus) != NULL) {
+		xcb_change_window_attributes(conn, win->id, XCB_CW_BORDER_PIXEL,
+		    &win->ws->r->s->c[SWM_S_COLOR_UNFOCUS].pixel);
+
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
+		    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
+		    &none);
+	}
 
 	other_r = new_ws->r;
 	if (other_r == NULL) {
@@ -3537,8 +3545,11 @@ switchws(struct swm_region *r, union arg *args)
 
 	/* Set focus_pending before stacking, if needed. */
 	if (focus_mode != SWM_FOCUS_FOLLOW && (!new_ws->focus_pending ||
-	    validate_win(new_ws->focus_pending)))
+	    validate_win(new_ws->focus_pending))) {
 		new_ws->focus_pending = get_region_focus(new_ws->r);
+		new_ws->focus = new_ws->focus_prev;
+		new_ws->focus_prev = NULL;
+	}
 
 	stack();
 
