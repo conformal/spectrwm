@@ -415,6 +415,7 @@ int		 disable_border = 0;
 int		 border_width = 1;
 int		 region_padding = 0;
 int		 tile_gap = 0;
+int		 java_workaround = 1;
 int		 verbose_layout = 0;
 time_t		 time_started;
 pid_t		 bar_pid;
@@ -678,6 +679,8 @@ enum {
 	_NET_CURRENT_DESKTOP,
 	_NET_DESKTOP_NAMES,
 	_NET_MOVERESIZE_WINDOW,
+	_NET_NUMBER_OF_DESKTOPS,
+	_NET_RESTACK_WINDOW,
 	_NET_WM_ACTION_ABOVE,
 	_NET_WM_ACTION_CLOSE,
 	_NET_WM_ACTION_FULLSCREEN,
@@ -687,7 +690,6 @@ enum {
 	_NET_WM_DESKTOP,
 	_NET_WM_FULL_PLACEMENT,
 	_NET_WM_NAME,
-	_NET_NUMBER_OF_DESKTOPS,
 	_NET_WM_STATE,
 	_NET_WM_STATE_ABOVE,
 	_NET_WM_STATE_FULLSCREEN,
@@ -718,6 +720,8 @@ struct ewmh_hint {
     {"_NET_CURRENT_DESKTOP", XCB_ATOM_NONE},
     {"_NET_DESKTOP_NAMES", XCB_ATOM_NONE},
     {"_NET_MOVERESIZE_WINDOW", XCB_ATOM_NONE},
+    {"_NET_NUMBER_OF_DESKTOPS", XCB_ATOM_NONE},
+    {"_NET_RESTACK_WINDOW", XCB_ATOM_NONE},
     {"_NET_WM_ACTION_ABOVE", XCB_ATOM_NONE},
     {"_NET_WM_ACTION_CLOSE", XCB_ATOM_NONE},
     {"_NET_WM_ACTION_FULLSCREEN", XCB_ATOM_NONE},
@@ -727,7 +731,6 @@ struct ewmh_hint {
     {"_NET_WM_DESKTOP", XCB_ATOM_NONE},
     {"_NET_WM_FULL_PLACEMENT", XCB_ATOM_NONE},
     {"_NET_WM_NAME", XCB_ATOM_NONE},
-    {"_NET_NUMBER_OF_DESKTOPS", XCB_ATOM_NONE},
     {"_NET_WM_STATE", XCB_ATOM_NONE},
     {"_NET_WM_STATE_ABOVE", XCB_ATOM_NONE},
     {"_NET_WM_STATE_FULLSCREEN", XCB_ATOM_NONE},
@@ -1150,7 +1153,6 @@ void	 version(struct swm_region *, union arg *);
 void	 win_to_ws(struct ws_win *, int, int);
 pid_t	 window_get_pid(xcb_window_t);
 void	 wkill(struct swm_region *, union arg *);
-void	 workaround(void);
 void	 update_ws_stack(struct workspace *);
 void	 xft_init(struct swm_region *);
 void	 _add_startup_exception(const char *, va_list);
@@ -1362,26 +1364,50 @@ get_wm_protocols(struct ws_win *win) {
 void
 setup_ewmh(void)
 {
+	xcb_window_t			root, win;
 	int				i, j, num_screens;
-
 
 	for (i = 0; i < LENGTH(ewmh); i++)
 		ewmh[i].atom = get_atom_from_string(ewmh[i].name);
 
 	num_screens = get_screen_count();
 	for (i = 0; i < num_screens; i++) {
-		/* Support check window will be created by workaround(). */
+		root = screens[i].root;
+
+		/* Set up _NET_SUPPORTING_WM_CHECK. */
+		win = xcb_generate_id(conn);
+		xcb_create_window(conn, XCB_COPY_FROM_PARENT, win, root,
+		    0, 0, 1, 1, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+		    XCB_COPY_FROM_PARENT, 0, NULL);
+
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, root,
+		    a_net_wm_check, XCB_ATOM_WINDOW, 32, 1, &win);
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win,
+		    a_net_wm_check, XCB_ATOM_WINDOW, 32, 1, &win);
+
+		/*
+		 * Impersonate LG3D non-reparenting WM, written by Sun, to
+		 * workaround a Java GUI rendering issue.
+		 */
+		if (java_workaround)
+			xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win,
+			    ewmh[_NET_WM_NAME].atom, a_utf8_string,
+			    8, strlen("LG3D"), "LG3D");
+		else
+			xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win,
+			    ewmh[_NET_WM_NAME].atom, a_utf8_string,
+			    8, strlen("spectrwm"), "spectrwm");
 
 		/* Report supported atoms */
-		xcb_delete_property(conn, screens[i].root, a_net_supported);
+		xcb_delete_property(conn, root, a_net_supported);
 		for (j = 0; j < LENGTH(ewmh); j++)
-			xcb_change_property(conn, XCB_PROP_MODE_APPEND,
-			    screens[i].root, a_net_supported, XCB_ATOM_ATOM,
-			    32, 1, &ewmh[j].atom);
+			xcb_change_property(conn, XCB_PROP_MODE_APPEND, root,
+			    a_net_supported, XCB_ATOM_ATOM, 32, 1,
+			    &ewmh[j].atom);
 
-		xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
-		    screens[i].root, ewmh[_NET_NUMBER_OF_DESKTOPS].atom,
-		    XCB_ATOM_CARDINAL, 32, 1, &workspace_limit);
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, root,
+		    ewmh[_NET_NUMBER_OF_DESKTOPS].atom, XCB_ATOM_CARDINAL, 32,
+		    1, &workspace_limit);
 	}
 }
 
@@ -9475,6 +9501,7 @@ clientmessage(xcb_client_message_event_t *e)
 	struct ws_win		*win;
 	struct swm_region	*r = NULL;
 	union arg		a;
+	uint32_t		val[2];
 	int			num_screens, i;
 	xcb_map_request_event_t	mre;
 #ifdef SWM_DEBUG
@@ -9542,12 +9569,18 @@ clientmessage(xcb_client_message_event_t *e)
 				HEIGHT(win) = e->data.data32[4];
 
 			update_window(win);
-		}
-		else {
+		} else {
 			/* TODO: Change stack sizes */
 			/* notify no change was made. */
 			config_win(win, NULL);
 		}
+	} else if (e->type == ewmh[_NET_RESTACK_WINDOW].atom) {
+		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_RESTACK_WINDOW\n");
+		val[0] = e->data.data32[1]; /* Sibling window. */
+		val[1] = e->data.data32[2]; /* Stack mode detail. */
+
+		xcb_configure_window(conn, win->id, XCB_CONFIG_WINDOW_SIBLING |
+		    XCB_CONFIG_WINDOW_STACK_MODE, val);
 	} else 	if (e->type == ewmh[_NET_WM_STATE].atom) {
 		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_WM_STATE\n");
 		ewmh_change_wm_state(win, e->data.data32[1], e->data.data32[0]);
@@ -10114,33 +10147,6 @@ setup_globals(void)
 }
 
 void
-workaround(void)
-{
-	int			i, num_screens;
-	xcb_window_t		root, win;
-
-	/* work around sun jdk bugs, code from wmname */
-
-	num_screens = get_screen_count();
-	for (i = 0; i < num_screens; i++) {
-		root = screens[i].root;
-
-		win = xcb_generate_id(conn);
-		xcb_create_window(conn, XCB_COPY_FROM_PARENT, win, root,
-		    0, 0, 1, 1, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
-		    XCB_COPY_FROM_PARENT, 0, NULL);
-
-		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, root,
-		    a_net_wm_check, XCB_ATOM_WINDOW, 32, 1, &win);
-		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win,
-		    a_net_wm_check, XCB_ATOM_WINDOW, 32, 1, &win);
-		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win,
-		    ewmh[_NET_WM_NAME].atom, a_utf8_string, 8, strlen("LG3D"),
-		    "LG3D");
-	}
-}
-
-void
 shutdown_cleanup(void)
 {
 	int i, num_screens;
@@ -10370,8 +10376,6 @@ noconfig:
 
 	validate_spawns();
 
-	/* set some values to work around bad programs */
-	workaround();
 	/* grab existing windows (before we build the bars) */
 	grab_windows();
 
