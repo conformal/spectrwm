@@ -3659,7 +3659,7 @@ focusrg(struct swm_region *r, union arg *args)
 	DNPRINTF(SWM_D_FOCUS, "focusrg: id: %d\n", ridx);
 
 	rr = TAILQ_FIRST(&r->s->rl);
-	for (i = 0; i < ridx; ++i)
+	for (i = 0; i < ridx && rr != NULL; ++i)
 		rr = TAILQ_NEXT(rr, entry);
 
 	if (rr == NULL)
@@ -4671,7 +4671,7 @@ send_to_rg(struct swm_region *r, union arg *args)
 	DNPRINTF(SWM_D_FOCUS, "send_to_rg: id: %d\n", ridx);
 
 	rr = TAILQ_FIRST(&r->s->rl);
-	for (i = 0; i < ridx; ++i)
+	for (i = 0; i < ridx && rr != NULL; ++i)
 		rr = TAILQ_NEXT(rr, entry);
 
 	if (rr == NULL)
