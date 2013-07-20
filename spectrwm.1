@@ -376,13 +376,14 @@ Enable by setting to 1.
 Enable or disable displaying the window title in the status bar.
 Enable by setting to 1.
 .It Ic urgent_enabled
-Enable or disable the urgency hint.
-Note that many terminal emulators require this to be enabled for it to
-propagate.
-In xterm, for example, one needs to add the following line
-.Pa xterm.bellIsUrgent: true
-to
-.Pa .Xdefaults .
+Enable or disable the urgency hint indicator in the status bar.
+Note that many terminal emulators require an explicit setting for the bell
+character to trigger urgency on the window.  In xterm, for example, one needs to
+add the following line to
+.Pa .Xdefaults :
+.Bd -literal -offset indent
+xterm.bellIsUrgent: true
+.Ed
 .It Ic verbose_layout
 Enable or disable displaying the current master window count and stack column/row
 count in the status bar.
@@ -551,6 +552,8 @@ focus_prev
 .It Cm M-m
 focus_main
 .It Cm M-S-j
+focus_urgent
+.It Cm M-u
 swap_next
 .It Cm M-S-k
 swap_prev
@@ -677,6 +680,8 @@ Focus next window in workspace.
 Focus previous window in workspace.
 .It Cm focus_main
 Focus on main window in workspace.
+.It Cm focus_urgent
+Focus on next window with the urgency hint flag set.  The workspace is switched if needed.
 .It Cm swap_next
 Swap with next window in workspace.
 .It Cm swap_prev

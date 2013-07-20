@@ -569,6 +569,7 @@ union arg {
 #define SWM_ARG_ID_FOCUSNEXT	(0)
 #define SWM_ARG_ID_FOCUSPREV	(1)
 #define SWM_ARG_ID_FOCUSMAIN	(2)
+#define SWM_ARG_ID_FOCUSURGENT	(3)
 #define SWM_ARG_ID_SWAPNEXT	(10)
 #define SWM_ARG_ID_SWAPPREV	(11)
 #define SWM_ARG_ID_SWAPMAIN	(12)
@@ -744,6 +745,7 @@ enum keyfuncid {
 	KF_FOCUS_MAIN,
 	KF_FOCUS_NEXT,
 	KF_FOCUS_PREV,
+	KF_FOCUS_URGENT,
 	KF_HEIGHT_GROW,
 	KF_HEIGHT_SHRINK,
 	KF_ICONIFY,
@@ -3945,86 +3947,107 @@ focus(struct swm_region *r, union arg *args)
 	struct ws_win		*head, *cur_focus = NULL, *winfocus = NULL;
 	struct ws_win_list	*wl = NULL;
 	struct workspace	*ws = NULL;
-	int			all_iconics;
+	union arg		a;
+	int			i;
+	xcb_icccm_wm_hints_t	hints;
 
 	if (!(r && r->ws))
-		return;
+		goto out;
 
 	DNPRINTF(SWM_D_FOCUS, "focus: id: %d\n", args->id);
 
-	if ((cur_focus = r->ws->focus) == NULL)
-		return;
+	cur_focus = r->ws->focus;
 	ws = r->ws;
 	wl = &ws->winlist;
-	if (TAILQ_EMPTY(wl))
-		return;
-	/* make sure there is at least one uniconified window */
-	all_iconics = 1;
-	TAILQ_FOREACH(winfocus, wl, entry)
-		if (!winfocus->iconic) {
-			all_iconics = 0;
-			break;
-		}
-	if (all_iconics)
-		return;
+
+	/* Make sure an uniconified window has focus, if one exists. */
+	if (cur_focus == NULL) {
+		cur_focus = TAILQ_FIRST(wl);
+		while (cur_focus != NULL && cur_focus->iconic)
+			cur_focus = TAILQ_NEXT(cur_focus, entry);
+	}
 
 	switch (args->id) {
 	case SWM_ARG_ID_FOCUSPREV:
-		head = TAILQ_PREV(cur_focus, ws_win_list, entry);
-		if (head == NULL)
-			head = TAILQ_LAST(wl, ws_win_list);
-		winfocus = head;
-		if (WINID(winfocus) == cur_focus->transient) {
-			head = TAILQ_PREV(winfocus, ws_win_list, entry);
-			if (head == NULL)
-				head = TAILQ_LAST(wl, ws_win_list);
-			winfocus = head;
-		}
+		if (cur_focus == NULL)
+			goto out;
 
-		/* skip iconics */
-		if (winfocus && winfocus->iconic) {
-			while (winfocus != cur_focus) {
-				if (winfocus == NULL)
-					winfocus = TAILQ_LAST(wl, ws_win_list);
-				if (!winfocus->iconic)
-					break;
-				winfocus = TAILQ_PREV(winfocus, ws_win_list,
-				    entry);
-			}
-		}
+		winfocus = cur_focus;
+		do {
+			winfocus = TAILQ_PREV(winfocus, ws_win_list, entry);
+			if (winfocus == NULL)
+				winfocus = TAILQ_LAST(wl, ws_win_list);
+			if (winfocus == cur_focus)
+				break;
+		} while (winfocus != NULL &&
+		    (winfocus->iconic || winfocus->id == cur_focus->transient));
 		break;
-
 	case SWM_ARG_ID_FOCUSNEXT:
-		head = TAILQ_NEXT(cur_focus, entry);
-		if (head == NULL)
-			head = TAILQ_FIRST(wl);
-		winfocus = head;
+		if (cur_focus == NULL)
+			goto out;
 
-		/* skip iconics */
-		if (winfocus && winfocus->iconic) {
-			while (winfocus != cur_focus) {
-				if (winfocus == NULL)
-					winfocus = TAILQ_FIRST(wl);
-				if (!winfocus->iconic)
-					break;
-				winfocus = TAILQ_NEXT(winfocus, entry);
-			}
-		}
+		winfocus = cur_focus;
+		do {
+			winfocus = TAILQ_NEXT(winfocus, entry);
+			if (winfocus == NULL)
+				winfocus = TAILQ_FIRST(wl);
+			if (winfocus == cur_focus)
+				break;
+		} while (winfocus != NULL &&
+		    (winfocus->iconic || winfocus->id == cur_focus->transient));
 		break;
-
 	case SWM_ARG_ID_FOCUSMAIN:
+		if (cur_focus == NULL)
+			goto out;
+
 		winfocus = TAILQ_FIRST(wl);
 		if (winfocus == cur_focus)
 			winfocus = cur_focus->ws->focus_prev;
 		break;
+	case SWM_ARG_ID_FOCUSURGENT:
+		/* Search forward for the next urgent window. */
+		winfocus = NULL;
+		head = cur_focus;
 
+		for (i = 0; i <= workspace_limit; ++i) {
+			if (head == NULL)
+				head = TAILQ_FIRST(&r->s->ws[(ws->idx + i) %
+				    workspace_limit].winlist);
+
+			while (head != NULL &&
+			    (head = TAILQ_NEXT(head, entry)) != NULL) {
+				if (head == cur_focus) {
+					winfocus = cur_focus;
+					break;
+				}
+				if (xcb_icccm_get_wm_hints_reply(conn,
+				    xcb_icccm_get_wm_hints(conn, head->id),
+				    &hints, NULL) != 0 &&
+				    xcb_icccm_wm_hints_get_urgency(&hints)) {
+					winfocus = head;
+					break;
+				}
+			}
+
+			if (winfocus != NULL)
+				break;
+		}
+
+		/* Switch ws if new focus is on a different ws. */
+		if (winfocus != NULL && winfocus->ws != ws) {
+			a.id = winfocus->ws->idx;
+			switchws(r, &a);
+		}
+		break;
 	default:
-		return;
+		goto out;
 	}
 
 	focus_win(get_focus_magic(winfocus));
-
 	focus_flush();
+
+out:
+	DNPRINTF(SWM_D_FOCUS, "focus: done\n");
 }
 
 void
@@ -5879,6 +5902,7 @@ struct keyfunc {
 	{ "focus_main",		focus,		{.id = SWM_ARG_ID_FOCUSMAIN} },
 	{ "focus_next",		focus,		{.id = SWM_ARG_ID_FOCUSNEXT} },
 	{ "focus_prev",		focus,		{.id = SWM_ARG_ID_FOCUSPREV} },
+	{ "focus_urgent",	focus,		{.id = SWM_ARG_ID_FOCUSURGENT} },
 	{ "height_grow",	resize_step,	{.id = SWM_ARG_ID_HEIGHTGROW} },
 	{ "height_shrink",	resize_step,	{.id = SWM_ARG_ID_HEIGHTSHRINK} },
 	{ "iconify",		iconify,	{0} },
@@ -6578,6 +6602,7 @@ setup_keys(void)
 	setkeybinding(MODKEY,		XK_Tab,		KF_FOCUS_NEXT,	NULL);
 	setkeybinding(MODKEY,		XK_k,		KF_FOCUS_PREV,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_Tab,		KF_FOCUS_PREV,	NULL);
+	setkeybinding(MODKEY,		XK_u,		KF_FOCUS_URGENT,NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_equal,	KF_HEIGHT_GROW,NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_minus,	KF_HEIGHT_SHRINK,NULL);
 	setkeybinding(MODKEY,		XK_w,		KF_ICONIFY,	NULL);
