@@ -7686,7 +7686,8 @@ enum {
 	SWM_S_WINDOW_CLASS_ENABLED,
 	SWM_S_WINDOW_INSTANCE_ENABLED,
 	SWM_S_WINDOW_NAME_ENABLED,
-	SWM_S_WORKSPACE_LIMIT
+	SWM_S_WORKSPACE_LIMIT,
+	SWM_S_WORKSPACE_NAME,
 };
 
 int
@@ -7694,7 +7695,7 @@ setconfvalue(const char *selector, const char *value, int flags)
 {
 	struct workspace	*ws;
 	int			i, ws_id, num_screens;
-	char			*b, *str;
+	char			*b, *str, s[1024];
 
 	switch (flags) {
 	case SWM_S_BAR_ACTION:
@@ -7907,6 +7908,32 @@ setconfvalue(const char *selector, const char *value, int flags)
 			workspace_limit = 1;
 
 		ewmh_update_desktops();
+		break;
+	case SWM_S_WORKSPACE_NAME:
+		if (getenv("SWM_STARTED") != NULL)
+			return (0);
+
+		bzero(s, sizeof s);
+		if (sscanf(value, "ws[%d]:%1023c", &ws_id, s) != 2)
+			errx(1, "invalid entry, should be 'ws[<idx>]:name'");
+		ws_id--;
+		if (ws_id < 0 || ws_id >= workspace_limit)
+			errx(1, "setconfvalue: workspace_name: invalid "
+			    "workspace %d.", ws_id + 1);
+
+		num_screens = get_screen_count();
+		for (i = 0; i < num_screens; ++i) {
+			ws = (struct workspace *)&screens[i].ws;
+
+			if (strlen(s) > 0) {
+				free(ws[ws_id].name);
+				if ((ws[ws_id].name = strdup(s)) == NULL)
+					err(1, "setconfvalue: workspace_name.");
+
+				ewmh_update_desktop_names();
+				ewmh_get_desktop_names();
+			}
+		}
 		break;
 	default:
 		return (1);
@@ -8170,6 +8197,7 @@ struct config_option configopt[] = {
 	{ "window_instance_enabled",	setconfvalue,	SWM_S_WINDOW_INSTANCE_ENABLED },
 	{ "window_name_enabled",	setconfvalue,	SWM_S_WINDOW_NAME_ENABLED },
 	{ "workspace_limit",		setconfvalue,	SWM_S_WORKSPACE_LIMIT },
+	{ "name",			setconfvalue,	SWM_S_WORKSPACE_NAME },
 };
 
 void
