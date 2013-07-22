@@ -677,7 +677,9 @@ enum {
 	_NET_CLIENT_LIST,
 	_NET_CLOSE_WINDOW,
 	_NET_CURRENT_DESKTOP,
+	_NET_DESKTOP_GEOMETRY,
 	_NET_DESKTOP_NAMES,
+	_NET_DESKTOP_VIEWPORT,
 	_NET_MOVERESIZE_WINDOW,
 	_NET_NUMBER_OF_DESKTOPS,
 	_NET_RESTACK_WINDOW,
@@ -718,7 +720,9 @@ struct ewmh_hint {
     {"_NET_CLIENT_LIST", XCB_ATOM_NONE},
     {"_NET_CLOSE_WINDOW", XCB_ATOM_NONE},
     {"_NET_CURRENT_DESKTOP", XCB_ATOM_NONE},
+    {"_NET_DESKTOP_GEOMETRY", XCB_ATOM_NONE},
     {"_NET_DESKTOP_NAMES", XCB_ATOM_NONE},
+    {"_NET_DESKTOP_VIEWPORT", XCB_ATOM_NONE},
     {"_NET_MOVERESIZE_WINDOW", XCB_ATOM_NONE},
     {"_NET_NUMBER_OF_DESKTOPS", XCB_ATOM_NONE},
     {"_NET_RESTACK_WINDOW", XCB_ATOM_NONE},
@@ -982,6 +986,7 @@ void	 ewmh_update_actions(struct ws_win *);
 void	 ewmh_update_client_list(void);
 void	 ewmh_update_current_desktop(void);
 void	 ewmh_update_desktop_names(void);
+void	 ewmh_update_desktops(void);
 void	 ewmh_change_wm_state(struct ws_win *, xcb_atom_t, long);
 void	 ewmh_update_wm_state(struct ws_win *);
 char	*expand_tilde(const char *);
@@ -1405,10 +1410,10 @@ setup_ewmh(void)
 			    a_net_supported, XCB_ATOM_ATOM, 32, 1,
 			    &ewmh[j].atom);
 
-		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, root,
-		    ewmh[_NET_NUMBER_OF_DESKTOPS].atom, XCB_ATOM_CARDINAL, 32,
-		    1, &workspace_limit);
 	}
+
+	ewmh_update_desktops();
+	ewmh_get_desktop_names();
 }
 
 void
@@ -3631,19 +3636,30 @@ void
 set_region(struct swm_region *r)
 {
 	struct swm_region	*rf;
+	int			vals[2];
 
 	if (r == NULL)
 		return;
 
 	rf = r->s->r_focus;
 	/* Unfocus old region bar. */
-	if (rf) {
+	if (rf != NULL) {
 		if (rf == r)
 			return;
 
 		xcb_change_window_attributes(conn, rf->bar->id,
 		    XCB_CW_BORDER_PIXEL,
 		    &r->s->c[SWM_S_COLOR_BAR_BORDER_UNFOCUS].pixel);
+	}
+
+	if (rf != NULL && rf != r && (X(rf) != X(r) || Y(rf) != Y(r) ||
+	    WIDTH(rf) != WIDTH(r) || HEIGHT(rf) != HEIGHT(r))) {
+		/* Set _NET_DESKTOP_GEOMETRY. */
+		vals[0] = WIDTH(r);
+		vals[1] = HEIGHT(r);
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, r->s->root,
+		    ewmh[_NET_DESKTOP_GEOMETRY].atom, XCB_ATOM_CARDINAL, 32, 2,
+		    &vals);
 	}
 
 	/* Set region bar border to focus_color. */
@@ -5572,6 +5588,43 @@ ewmh_update_current_desktop(void)
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
 		    screens[i].root, ewmh[_NET_CURRENT_DESKTOP].atom,
 		    XCB_ATOM_CARDINAL, 32, 1, &screens[i].r_focus->ws->idx);
+}
+
+void
+ewmh_update_desktops(void)
+{
+	int			num_screens, i, j;
+	uint32_t		*vals;
+
+	vals = calloc(sizeof(uint32_t), workspace_limit * 2);
+	if (vals == NULL)
+		err(1, "ewmh_update_desktops: calloc: failed to allocate "
+		    "memory.");
+
+	num_screens = get_screen_count();
+	for (i = 0; i < num_screens; i++) {
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
+		    screens[i].root, ewmh[_NET_NUMBER_OF_DESKTOPS].atom,
+		    XCB_ATOM_CARDINAL, 32, 1, &workspace_limit);
+
+		for (j = 0; j < workspace_limit; ++j) {
+			if (screens[i].ws[j].r != NULL) {
+				vals[j * 2] = X(screens[i].ws[j].r);
+				vals[j * 2 + 1] = Y(screens[i].ws[j].r);
+			} else if (screens[i].ws[j].old_r != NULL) {
+				vals[j * 2] = X(screens[i].ws[j].old_r);
+				vals[j * 2 + 1] = Y(screens[i].ws[j].old_r);
+			} else {
+				vals[j * 2] = vals[j * 2 + 1] = 0;
+			}
+		}
+
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
+		    screens[i].root, ewmh[_NET_DESKTOP_VIEWPORT].atom,
+		    XCB_ATOM_CARDINAL, 32, workspace_limit * 2, vals);
+	}
+
+	free(vals);
 }
 
 void
@@ -7853,12 +7906,7 @@ setconfvalue(const char *selector, const char *value, int flags)
 		else if (workspace_limit < 1)
 			workspace_limit = 1;
 
-		num_screens = get_screen_count();
-		for (i = 0; i < num_screens; i++) {
-			xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
-			    screens[i].root, ewmh[_NET_NUMBER_OF_DESKTOPS].atom,
-			    XCB_ATOM_CARDINAL, 32, 1, &workspace_limit);
-		}
+		ewmh_update_desktops();
 		break;
 	default:
 		return (1);
