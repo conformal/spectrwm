@@ -141,6 +141,7 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #define xcb_icccm_get_wm_class_reply_t		xcb_get_wm_class_reply_t
 #define xcb_icccm_get_wm_class_reply_wipe	xcb_get_wm_class_reply_wipe
 #define xcb_icccm_get_wm_hints			xcb_get_wm_hints
+#define xcb_icccm_wm_hints_get_urgency		xcb_wm_hints_get_urgency
 #define xcb_icccm_get_wm_hints_reply		xcb_get_wm_hints_reply
 #define	xcb_icccm_get_wm_name			xcb_get_wm_name
 #define xcb_icccm_get_wm_name_reply		xcb_get_wm_name_reply
