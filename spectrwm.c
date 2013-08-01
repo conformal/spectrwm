@@ -641,6 +641,8 @@ union arg {
 #define SWM_ARG_ID_MOVEDOWN	(101)
 #define SWM_ARG_ID_MOVELEFT	(102)
 #define SWM_ARG_ID_MOVERIGHT	(103)
+#define SWM_ARG_ID_RAISE	(105)
+#define SWM_ARG_ID_LOWER	(106)
 #define SWM_ARG_ID_BAR_TOGGLE	(110)
 #define SWM_ARG_ID_BAR_TOGGLE_WS	(111)
 	char			**argv;
@@ -3003,6 +3005,9 @@ raise_window(struct ws_win *win)
 			continue;
 		if (ws->cur_layout == &layouts[SWM_MAX_STACK])
 			break;
+		if (TRANS(win) && (win->transient == target->transient ||
+		    win->transient == target->id))
+			break;
 		if (FULLSCREEN(win))
 			break;
 		if (FULLSCREEN(target))
@@ -3024,6 +3029,17 @@ raise_window(struct ws_win *win)
 		update_win_stacking(win);
 	}
 
+#ifdef SWM_DEBUG
+	if (swm_debug & SWM_D_STACK) {
+		DPRINTF("=== stacking order (top down) === \n");
+		TAILQ_FOREACH(target, &r->ws->stack, stack_entry) {
+			DPRINTF("win %#x, fs: %s, maximized: %s, above: %s, "
+			    "iconic: %s\n", target->id, YESNO(FULLSCREEN(target)),
+			    YESNO(MAXIMIZED(target)), YESNO(ABOVE(target)),
+			    YESNO(ICONIC(target)));
+		}
+	}
+#endif
 	DNPRINTF(SWM_D_EVENT, "raise_window: done\n");
 }
 
@@ -3963,8 +3979,38 @@ swapwin(struct swm_region *r, union arg *args)
 	    args->id, r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
 
 	cur_focus = r->ws->focus;
-	if (cur_focus == NULL || ABOVE(cur_focus) || FULLSCREEN(cur_focus))
+	if (cur_focus == NULL || FULLSCREEN(cur_focus))
 		return;
+
+	/* Adjust stacking in floating layer. */
+	if (ABOVE(cur_focus)) {
+		switch (args->id) {
+		case SWM_ARG_ID_SWAPPREV:
+			target = TAILQ_PREV(cur_focus, ws_win_stack,
+			    stack_entry);
+			if (target != NULL && FLOATING(target)) {
+				TAILQ_REMOVE(&cur_focus->ws->stack, cur_focus,
+				    stack_entry);
+				TAILQ_INSERT_BEFORE(target, cur_focus,
+				    stack_entry);
+				update_win_stacking(cur_focus);
+				focus_flush();
+			}
+			break;
+		case SWM_ARG_ID_SWAPNEXT:
+			target = TAILQ_NEXT(cur_focus, stack_entry);
+			if (target != NULL && FLOATING(target)) {
+				TAILQ_REMOVE(&cur_focus->ws->stack, cur_focus,
+				    stack_entry);
+				TAILQ_INSERT_AFTER(&cur_focus->ws->stack,
+				    target, cur_focus, stack_entry);
+				update_win_stacking(cur_focus);
+				focus_flush();
+			}
+			break;
+		}
+		goto out;
+	}
 
 	if (r->ws->cur_layout == &layouts[SWM_MAX_STACK])
 		return;
@@ -4025,12 +4071,12 @@ swapwin(struct swm_region *r, union arg *args)
 	}
 
 	sort_windows(wl);
-
 	ewmh_update_client_list();
 
 	stack();
-
 	focus_flush();
+out:
+	DNPRINTF(SWM_D_MOVE, "swapwin: done\n");
 }
 
 struct ws_win *
@@ -6161,6 +6207,12 @@ resize(struct ws_win *win, union arg *args)
 				xcb_flush(conn);
 			}
 			break;
+		case XCB_KEY_PRESS:
+			/* Ignore. */
+			xcb_allow_events(conn, XCB_ALLOW_ASYNC_KEYBOARD,
+			    ((xcb_key_press_event_t *)evt)->time);
+			xcb_flush(conn);
+			break;
 		default:
 			event_handle(evt);
 
@@ -6342,6 +6394,12 @@ move(struct ws_win *win, union arg *args)
 				update_window(win);
 				xcb_flush(conn);
 			}
+			break;
+		case XCB_KEY_PRESS:
+			/* Ignore. */
+			xcb_allow_events(conn, XCB_ALLOW_ASYNC_KEYBOARD,
+			    ((xcb_key_press_event_t *)evt)->time);
+			xcb_flush(conn);
 			break;
 		default:
 			event_handle(evt);
@@ -9121,14 +9179,18 @@ configurerequest(xcb_configure_request_event_t *e)
 
 		win->g_floatvalid = 1;
 
-		if (ABOVE(win) && r && !MAXIMIZED(win) && (TRANS(win) ||
-		    win->ws->cur_layout != &layouts[SWM_MAX_STACK])) {
+		if (!MAXIMIZED(win) && !FULLSCREEN(win) &&
+		    (TRANS(win) || (ABOVE(win) &&
+		    win->ws->cur_layout != &layouts[SWM_MAX_STACK]))) {
 			WIDTH(win) = win->g_float.w;
 			HEIGHT(win) = win->g_float.h;
 
-			if (r) {
+			if (r != NULL) {
 				update_floater(win);
 				focus_flush();
+			} else {
+				config_win(win, e);
+				xcb_flush(conn);
 			}
 		} else {
 			config_win(win, e);
