@@ -452,7 +452,6 @@ struct ws_win {
 	unsigned long		quirks;
 	struct workspace	*ws;	/* always valid */
 	struct swm_screen	*s;	/* always valid, never changes */
-	xcb_get_geometry_reply_t	*wa;
 	xcb_size_hints_t	sh;
 	xcb_icccm_get_wm_class_reply_t	ch;
 	xcb_icccm_wm_hints_t	hints;
@@ -7698,7 +7697,7 @@ set_child_transient(struct ws_win *win, xcb_window_t *trans)
 		DNPRINTF(SWM_D_MISC, "set_child_transient: parent doesn't exist"
 		    " for 0x%x trans 0x%x\n", win->id, win->transient);
 
-		r = root_to_region(win->wa->root, SWM_CK_ALL);
+		r = root_to_region(win->s->root, SWM_CK_ALL);
 		ws = r->ws;
 		/* parent doen't exist in our window list */
 		TAILQ_FOREACH(w, &ws->winlist, entry) {
@@ -7821,6 +7820,7 @@ manage_window(xcb_window_t id, uint16_t mapped)
 	struct pid_e		*p;
 	struct quirk		*qp;
 	uint32_t		i, wa[2];
+	xcb_get_geometry_reply_t	*gr;
 	xcb_icccm_get_wm_protocols_reply_t	wpr;
 
 	if ((win = find_window(id)) != NULL) {
@@ -7843,6 +7843,13 @@ manage_window(xcb_window_t id, uint16_t mapped)
 		DNPRINTF(SWM_D_MISC, "manage_window: win 0x%x is new.\n", id);
 	}
 
+	/* Try to get initial window geometry. */
+	gr = xcb_get_geometry_reply(conn, xcb_get_geometry(conn, id), NULL);
+	if (gr == NULL) {
+		DNPRINTF(SWM_D_MISC, "manage_window: get geometry failed.\n");
+		return (NULL);
+	}
+
 	/* Create and initialize ws_win object. */
 	if ((win = calloc(1, sizeof(struct ws_win))) == NULL)
 		err(1, "manage_window: calloc: failed to allocate memory for "
@@ -7850,24 +7857,21 @@ manage_window(xcb_window_t id, uint16_t mapped)
 
 	win->id = id;
 
-	/* Get window geometry. */
-	win->wa = xcb_get_geometry_reply(conn,
-	    xcb_get_geometry(conn, win->id),
-	    NULL);
-
-	/* Figure out which region the window belongs to. */
-	r = root_to_region(win->wa->root, SWM_CK_ALL);
+	/* Figureout which region the window belongs to. */
+	r = root_to_region(gr->root, SWM_CK_ALL);
 
 	/* Ignore window border if there is one. */
-	WIDTH(win) = win->wa->width;
-	HEIGHT(win) = win->wa->height;
-	X(win) = win->wa->x + win->wa->border_width - border_width;
-	Y(win) = win->wa->y + win->wa->border_width - border_width;
+	WIDTH(win) = gr->width;
+	HEIGHT(win) = gr->height;
+	X(win) = gr->x + gr->border_width - border_width;
+	Y(win) = gr->y + gr->border_width - border_width;
 	win->bordered = 1;
 	win->mapped = mapped;
 	win->floatmaxed = 0;
 	win->ewmh_flags = 0;
 	win->s = r->s;	/* this never changes */
+
+	free(gr);
 
 	/* Get WM_SIZE_HINTS. */
 	xcb_icccm_get_wm_normal_hints_reply(conn,
@@ -8036,9 +8040,6 @@ free_window(struct ws_win *win)
 		return;
 
 	TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
-
-	if (win->wa)
-		free(win->wa);
 
 	xcb_icccm_get_wm_class_reply_wipe(&win->ch);
 
@@ -8588,8 +8589,8 @@ mapnotify(xcb_map_notify_event_t *e)
 
 	DNPRINTF(SWM_D_EVENT, "mapnotify: window: 0x%x\n", e->window);
 
-	if ((win = find_window(e->window)) == NULL)
-		win = manage_window(e->window, 1);
+	if ((win = manage_window(e->window, 1)) == NULL)
+		return;
 
 	win->mapped = 1;
 	set_win_state(win, XCB_ICCCM_WM_STATE_NORMAL);
@@ -8639,6 +8640,8 @@ maprequest(xcb_map_request_event_t *e)
 
 	win = manage_window(e->window,
 	    (war->map_state == XCB_MAP_STATE_VIEWABLE));
+	if (win == NULL)
+		goto out;
 
 	/* The new window should get focus; prepare. */
 	if (focus_mode != SWM_FOCUS_FOLLOW &&
