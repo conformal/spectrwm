@@ -1294,7 +1294,7 @@ get_swm_iconic(struct ws_win *win)
 	pr = xcb_get_property_reply(conn,
 	    xcb_get_property(conn, 0, win->id, a_swm_iconic,
 	    XCB_ATOM_INTEGER, 0, 1), NULL);
-	if (!pr)
+	if (pr == NULL)
 		goto out;
 	if (pr->type != XCB_ATOM_INTEGER || pr->format != 32)
 		goto out;
@@ -1347,7 +1347,7 @@ teardown_ewmh(void)
 		pc = xcb_get_property(conn, 0, screens[i].root, sup_check,
 		    XCB_ATOM_WINDOW, 0, 1);
 		pr = xcb_get_property_reply(conn, pc, NULL);
-		if (!pr)
+		if (pr == NULL)
 			continue;
 		if (pr->format == sup_check) {
 			id = *((xcb_window_t *)xcb_get_property_value(pr));
@@ -1371,7 +1371,7 @@ ewmh_autoquirk(struct ws_win *win)
 	c = xcb_get_property(conn, 0, win->id,
 	    ewmh[_NET_WM_WINDOW_TYPE].atom, XCB_ATOM_ATOM, 0, UINT32_MAX);
 	r = xcb_get_property_reply(conn, c, NULL);
-	if (!r)
+	if (r == NULL)
 		return;
 
 	n = xcb_get_property_value_length(r);
@@ -1408,7 +1408,7 @@ ewmh_autoquirk(struct ws_win *win)
 int
 ewmh_set_win_fullscreen(struct ws_win *win, int fs)
 {
-	if (!win->ws->r)
+	if (win->ws->r == NULL)
 		return (0);
 
 	if (!win->floating)
@@ -1551,7 +1551,7 @@ ewmh_get_win_state(struct ws_win *win)
 	c = xcb_get_property(conn, 0, win->id, ewmh[_NET_WM_STATE].atom,
 	    XCB_ATOM_ATOM, 0, UINT32_MAX);
 	r = xcb_get_property_reply(conn, c, NULL);
-	if (!r)
+	if (r == NULL)
 		return;
 
 	states = xcb_get_property_value(r);
@@ -1720,7 +1720,7 @@ name_to_pixel(int sidx, const char *colorname)
 		nr = xcb_alloc_named_color_reply(conn,
 			xcb_alloc_named_color(conn, cmap, strlen(colorname),
 			    colorname), NULL);
-		if (!nr) {
+		if (nr == NULL) {
 			strlcat(cname, colorname + 2, sizeof cname - 1);
 			nr = xcb_alloc_named_color_reply(conn,
 			    xcb_alloc_named_color(conn, cmap, strlen(cname),
@@ -2521,7 +2521,7 @@ xft_init(struct swm_region *r)
 						font);
 			}
 
-			if (!bar_font) {
+			if (bar_font == NULL) {
 				warnx("unable to load font %s", font);
 				continue;
 			} else {
@@ -2642,7 +2642,6 @@ getstate(xcb_window_t w)
 
 	c = xcb_get_property(conn, 0, w, a_state, a_state, 0L, 2L);
 	r = xcb_get_property_reply(conn, c, NULL);
-
 	if (r) {
 		if (r->type == a_state && r->format == 32 && r->length == 2)
 			result = *((uint32_t *)xcb_get_property_value(r));
@@ -2988,7 +2987,6 @@ root_to_region(xcb_window_t root, int check)
 		/* No region with an active focus; try to use pointer. */
 		qpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn,
 		    screens[i].root), NULL);
-
 		if (qpr) {
 			DNPRINTF(SWM_D_MISC, "root_to_region: pointer: "
 			    "(%d,%d)\n", qpr->root_x, qpr->root_y);
@@ -3042,7 +3040,7 @@ find_window(xcb_window_t id)
 					return (win);
 
 	r = xcb_query_tree_reply(conn, xcb_query_tree(conn, id), NULL);
-	if (!r)
+	if (r == NULL)
 		return (NULL);
 
 	/* if we were looking for the parent return that window instead */
@@ -4896,7 +4894,6 @@ get_win_name(xcb_window_t win)
 	c = xcb_get_property(conn, 0, win, ewmh[_NET_WM_NAME].atom,
 	    XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX);
 	r = xcb_get_property_reply(conn, c, NULL);
-
 	if (r) {
 		if (r->type == XCB_NONE) {
 			free(r);
@@ -4904,8 +4901,7 @@ get_win_name(xcb_window_t win)
 			c = xcb_get_property(conn, 0, win, XCB_ATOM_WM_NAME,
 			    XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX);
 			r = xcb_get_property_reply(conn, c, NULL);
-
-			if (!r)
+			if (r == NULL)
 				return (NULL);
 			if (r->type == XCB_NONE) {
 				free(r);
@@ -5210,7 +5206,7 @@ search_resp_search_workspace(const char *resp)
 	DNPRINTF(SWM_D_MISC, "search_resp_search_workspace: resp: %s\n", resp);
 
 	q = strdup(resp);
-	if (!q) {
+	if (q == NULL) {
 		DNPRINTF(SWM_D_MISC, "search_resp_search_workspace: strdup: %s",
 		    strerror(errno));
 		return;
@@ -5241,7 +5237,7 @@ search_resp_search_window(const char *resp)
 	DNPRINTF(SWM_D_MISC, "search_resp_search_window: resp: %s\n", resp);
 
 	s = strdup(resp);
-	if (!s) {
+	if (s == NULL) {
 		DNPRINTF(SWM_D_MISC, "search_resp_search_window: strdup: %s",
 		    strerror(errno));
 		return;
@@ -5345,7 +5341,7 @@ floating_toggle_win(struct ws_win *win)
 	if (win == NULL)
 		return (0);
 
-	if (!win->ws->r)
+	if (win->ws->r == NULL)
 		return (0);
 
 	/* reject floating toggles in max stack mode */
@@ -5585,7 +5581,7 @@ resize(struct ws_win *win, union arg *args)
 	/* get cursor offset from window root */
 	xpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn, win->id),
 	    NULL);
-	if (!xpr)
+	if (xpr == NULL)
 		return;
 
 	g = win->g;
@@ -5812,7 +5808,7 @@ move(struct ws_win *win, union arg *args)
 	/* get cursor offset from window root */
 	qpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn, win->id),
 		NULL);
-	if (!qpr) {
+	if (qpr == NULL) {
 		xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
 		return;
 	}
@@ -6079,7 +6075,7 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
 
 	/* find program */
 	TAILQ_FOREACH(prog, &spawns, entry) {
-		if (!strcasecmp(spawn_name, prog->name))
+		if (strcasecmp(spawn_name, prog->name) == 0)
 			break;
 	}
 	if (prog == NULL) {
@@ -6095,43 +6091,43 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
 	for (i = c = 0; i < prog->argc; i++) {
 		ap = prog->argv[i];
 		DNPRINTF(SWM_D_SPAWN, "spawn_custom: raw arg: %s\n", ap);
-		if (!strcasecmp(ap, "$bar_border")) {
+		if (strcasecmp(ap, "$bar_border") == 0) {
 			if ((real_args[c] =
 			    strdup(r->s->c[SWM_S_COLOR_BAR_BORDER].name))
 			    == NULL)
 				err(1,  "spawn_custom border color");
-		} else if (!strcasecmp(ap, "$bar_color")) {
+		} else if (strcasecmp(ap, "$bar_color") == 0) {
 			if ((real_args[c] =
 			    strdup(r->s->c[SWM_S_COLOR_BAR].name))
 			    == NULL)
 				err(1, "spawn_custom bar color");
-		} else if (!strcasecmp(ap, "$bar_font")) {
+		} else if (strcasecmp(ap, "$bar_font") == 0) {
 			if ((real_args[c] = strdup(bar_fonts))
 			    == NULL)
 				err(1, "spawn_custom bar fonts");
-		} else if (!strcasecmp(ap, "$bar_font_color")) {
+		} else if (strcasecmp(ap, "$bar_font_color") == 0) {
 			if ((real_args[c] =
 			    strdup(r->s->c[SWM_S_COLOR_BAR_FONT].name))
 			    == NULL)
 				err(1, "spawn_custom color font");
-		} else if (!strcasecmp(ap, "$color_focus")) {
+		} else if (strcasecmp(ap, "$color_focus") == 0) {
 			if ((real_args[c] =
 			    strdup(r->s->c[SWM_S_COLOR_FOCUS].name))
 			    == NULL)
 				err(1, "spawn_custom color focus");
-		} else if (!strcasecmp(ap, "$color_unfocus")) {
+		} else if (strcasecmp(ap, "$color_unfocus") == 0) {
 			if ((real_args[c] =
 			    strdup(r->s->c[SWM_S_COLOR_UNFOCUS].name))
 			    == NULL)
 				err(1, "spawn_custom color unfocus");
-		} else if (!strcasecmp(ap, "$region_index")) {
+		} else if (strcasecmp(ap, "$region_index") == 0) {
 			if (asprintf(&real_args[c], "%d",
 			    get_region_index(r) + 1) < 1)
 				err(1, "spawn_custom region index");
-		} else if (!strcasecmp(ap, "$workspace_index")) {
+		} else if (strcasecmp(ap, "$workspace_index") == 0) {
 			if (asprintf(&real_args[c], "%d", r->ws->idx + 1) < 1)
 				err(1, "spawn_custom workspace index");
-		} else if (!strcasecmp(ap, "$dmenu_bottom")) {
+		} else if (strcasecmp(ap, "$dmenu_bottom") == 0) {
 			if (!bar_at_bottom)
 				continue;
 			if ((real_args[c] = strdup("-b")) == NULL)
@@ -6276,7 +6272,7 @@ spawn_find(const char *name)
 	struct spawn_prog	*sp;
 
 	TAILQ_FOREACH(sp, &spawns, entry)
-		if (!strcasecmp(sp->name, name))
+		if (strcasecmp(sp->name, name) == 0)
 			return sp;
 
 	return NULL;
@@ -6419,13 +6415,13 @@ parsekeys(char *keystr, unsigned int currmod, unsigned int *mod, KeySym *ks)
 			cp += (long)strspn(cp, SWM_KEY_WS);
 		if (strncasecmp(name, "MOD", SWM_MODNAME_SIZE) == 0)
 			*mod |= currmod;
-		else if (!strncasecmp(name, "Mod1", SWM_MODNAME_SIZE))
+		else if (strncasecmp(name, "Mod1", SWM_MODNAME_SIZE) == 0)
 			*mod |= XCB_MOD_MASK_1;
-		else if (!strncasecmp(name, "Mod2", SWM_MODNAME_SIZE))
+		else if (strncasecmp(name, "Mod2", SWM_MODNAME_SIZE) == 0)
 			*mod += XCB_MOD_MASK_2;
-		else if (!strncmp(name, "Mod3", SWM_MODNAME_SIZE))
+		else if (strncmp(name, "Mod3", SWM_MODNAME_SIZE) == 0)
 			*mod |= XCB_MOD_MASK_3;
-		else if (!strncmp(name, "Mod4", SWM_MODNAME_SIZE))
+		else if (strncmp(name, "Mod4", SWM_MODNAME_SIZE) == 0)
 			*mod |= XCB_MOD_MASK_4;
 		else if (strncasecmp(name, "SHIFT", SWM_MODNAME_SIZE) == 0)
 			*mod |= XCB_MOD_MASK_SHIFT;
@@ -6883,7 +6879,8 @@ parsequirks(char *qstr, unsigned long *quirk)
 		if (cp)
 			cp += (long)strspn(cp, SWM_Q_WS);
 		for (i = 0; i < LENGTH(quirkname); i++) {
-			if (!strncasecmp(name, quirkname[i], SWM_QUIRK_LEN)) {
+			if (strncasecmp(name, quirkname[i],
+			    SWM_QUIRK_LEN) == 0) {
 				DNPRINTF(SWM_D_QUIRK,
 				    "parsequirks: %s\n", name);
 				if (i == 0) {
@@ -6961,8 +6958,9 @@ setquirk(const char *class, const char *name, unsigned long quirk)
 
 	/* Remove/replace existing quirk. */
 	TAILQ_FOREACH(qp, &quirks, entry) {
-		if (!strcmp(qp->class, class) && !strcmp(qp->name, name)) {
-			if (!quirk)
+		if (strcmp(qp->class, class) == 0 &&
+		    strcmp(qp->name, name) == 0) {
+			if (quirk == 0)
 				quirk_remove(qp);
 			else
 				quirk_replace(qp, class, name, quirk);
@@ -7129,11 +7127,11 @@ setconfvalue(char *selector, char *value, int flags)
 			err(1, "setconfvalue: bar_format");
 		break;
 	case SWM_S_BAR_JUSTIFY:
-		if (!strcmp(value, "left"))
+		if (strcmp(value, "left") == 0)
 			bar_justify = SWM_BAR_JUSTIFY_LEFT;
-		else if (!strcmp(value, "center"))
+		else if (strcmp(value, "center") == 0)
 			bar_justify = SWM_BAR_JUSTIFY_CENTER;
-		else if (!strcmp(value, "right"))
+		else if (strcmp(value, "right") == 0)
 			bar_justify = SWM_BAR_JUSTIFY_RIGHT;
 		else
 			errx(1, "invalid bar_justify");
@@ -7173,13 +7171,13 @@ setconfvalue(char *selector, char *value, int flags)
 		disable_border = atoi(value);
 		break;
 	case SWM_S_FOCUS_CLOSE:
-		if (!strcmp(value, "first"))
+		if (strcmp(value, "first") == 0)
 			focus_close = SWM_STACK_BOTTOM;
-		else if (!strcmp(value, "last"))
+		else if (strcmp(value, "last") == 0)
 			focus_close = SWM_STACK_TOP;
-		else if (!strcmp(value, "next"))
+		else if (strcmp(value, "next") == 0)
 			focus_close = SWM_STACK_ABOVE;
-		else if (!strcmp(value, "previous"))
+		else if (strcmp(value, "previous") == 0)
 			focus_close = SWM_STACK_BELOW;
 		else
 			errx(1, "focus_close");
@@ -7188,20 +7186,20 @@ setconfvalue(char *selector, char *value, int flags)
 		focus_close_wrap = atoi(value);
 		break;
 	case SWM_S_FOCUS_DEFAULT:
-		if (!strcmp(value, "last"))
+		if (strcmp(value, "last") == 0)
 			focus_default = SWM_STACK_TOP;
-		else if (!strcmp(value, "first"))
+		else if (strcmp(value, "first") == 0)
 			focus_default = SWM_STACK_BOTTOM;
 		else
 			errx(1, "focus_default");
 		break;
 	case SWM_S_FOCUS_MODE:
-		if (!strcmp(value, "default"))
+		if (strcmp(value, "default") == 0)
 			focus_mode = SWM_FOCUS_DEFAULT;
-		else if (!strcmp(value, "follow") ||
-		    !strcmp(value, "follow_cursor"))
+		else if (strcmp(value, "follow") == 0 ||
+		    strcmp(value, "follow_cursor") == 0)
 			focus_mode = SWM_FOCUS_FOLLOW;
-		else if (!strcmp(value, "manual"))
+		else if (strcmp(value, "manual") == 0)
 			focus_mode = SWM_FOCUS_MANUAL;
 		else
 			errx(1, "focus_mode");
@@ -7212,13 +7210,13 @@ setconfvalue(char *selector, char *value, int flags)
 			region_padding = 0;
 		break;
 	case SWM_S_SPAWN_ORDER:
-		if (!strcmp(value, "first"))
+		if (strcmp(value, "first") == 0)
 			spawn_position = SWM_STACK_BOTTOM;
-		else if (!strcmp(value, "last"))
+		else if (strcmp(value, "last") == 0)
 			spawn_position = SWM_STACK_TOP;
-		else if (!strcmp(value, "next"))
+		else if (strcmp(value, "next") == 0)
 			spawn_position = SWM_STACK_ABOVE;
-		else if (!strcmp(value, "previous"))
+		else if (strcmp(value, "previous") == 0)
 			spawn_position = SWM_STACK_BELOW;
 		else
 			errx(1, "spawn_position");
@@ -7285,13 +7283,13 @@ setconfmodkey(char *selector, char *value, int flags)
 	(void)selector;
 	(void)flags;
 
-	if (!strncasecmp(value, "Mod1", strlen("Mod1")))
+	if (strncasecmp(value, "Mod1", strlen("Mod1")) == 0)
 		update_modkey(XCB_MOD_MASK_1);
-	else if (!strncasecmp(value, "Mod2", strlen("Mod2")))
+	else if (strncasecmp(value, "Mod2", strlen("Mod2")) == 0)
 		update_modkey(XCB_MOD_MASK_2);
-	else if (!strncasecmp(value, "Mod3", strlen("Mod3")))
+	else if (strncasecmp(value, "Mod3", strlen("Mod3")) == 0)
 		update_modkey(XCB_MOD_MASK_3);
-	else if (!strncasecmp(value, "Mod4", strlen("Mod4")))
+	else if (strncasecmp(value, "Mod4", strlen("Mod4")) == 0)
 		update_modkey(XCB_MOD_MASK_4);
 	else
 		return (1);
@@ -7413,17 +7411,17 @@ setlayout(char *selector, char *value, int flags)
 	if (ws_id < 0 || ws_id >= workspace_limit)
 		errx(1, "layout: invalid workspace %d", ws_id + 1);
 
-	if (!strcasecmp(s, "vertical"))
+	if (strcasecmp(s, "vertical") == 0)
 		st = SWM_V_STACK;
-	else if (!strcasecmp(s, "vertical_flip")) {
+	else if (strcasecmp(s, "vertical_flip") == 0) {
 		st = SWM_V_STACK;
 		f = 1;
-	} else if (!strcasecmp(s, "horizontal"))
+	} else if (strcasecmp(s, "horizontal") == 0)
 		st = SWM_H_STACK;
-	else if (!strcasecmp(s, "horizontal_flip")) {
+	else if (strcasecmp(s, "horizontal_flip") == 0) {
 		st = SWM_H_STACK;
 		f = 1;
-	} else if (!strcasecmp(s, "fullscreen"))
+	} else if (strcasecmp(s, "fullscreen") == 0)
 		st = SWM_MAX_STACK;
 	else
 		errx(1, "invalid layout entry, should be 'ws[<idx>]:"
@@ -7606,7 +7604,7 @@ conf_load(const char *filename, int keymapping)
 		optidx = -1;
 		for (i = 0; i < LENGTH(configopt); i++) {
 			opt = &configopt[i];
-			if (!strncasecmp(cp, opt->optname, wordlen) &&
+			if (strncasecmp(cp, opt->optname, wordlen) == 0 &&
 			    (int)strlen(opt->optname) == wordlen) {
 				optidx = i;
 				break;
@@ -7739,7 +7737,7 @@ window_get_pid(xcb_window_t win)
 
 	pc = xcb_get_property(conn, 0, win, apid, XCB_ATOM_CARDINAL, 0, 1);
 	pr = xcb_get_property_reply(conn, pc, NULL);
-	if (!pr)
+	if (pr == NULL)
 		goto tryharder;
 	if (pr->type != XCB_ATOM_CARDINAL) {
 		free(pr);
@@ -7757,7 +7755,7 @@ tryharder:
 	pc = xcb_get_property(conn, 0, win, apid, XCB_ATOM_STRING,
 	    0, SWM_PROPLEN);
 	pr = xcb_get_property_reply(conn, pc, NULL);
-	if (!pr)
+	if (pr == NULL)
 		return (0);
 	if (pr->type != apid) {
 		free(pr);
@@ -7783,7 +7781,7 @@ get_ws_idx(xcb_window_t id)
 		xcb_get_property(conn, 0, id, a_swm_ws,
 		    XCB_ATOM_STRING, 0, SWM_PROPLEN),
 		NULL);
-	if (!gpr)
+	if (gpr == NULL)
 		return (-1);
 	if (gpr->type) {
 		proplen = xcb_get_property_value_length(gpr);
@@ -7953,8 +7951,8 @@ manage_window(xcb_window_t id, uint16_t mapped)
 		}
 
 		TAILQ_FOREACH(qp, &quirks, entry) {
-			if (!strcmp(win->ch.class_name, qp->class) &&
-			    !strcmp(win->ch.instance_name, qp->name)) {
+			if (strcmp(win->ch.class_name, qp->class) == 0 &&
+			    strcmp(win->ch.instance_name, qp->name) == 0) {
 				DNPRINTF(SWM_D_CLASS, "manage_window: on quirks"
 				    "list; mask: 0x%lx\n", qp->quirk);
 				if (qp->quirk & SWM_Q_FLOAT)
@@ -8227,8 +8225,7 @@ print_win_geom(xcb_window_t w)
 	xcb_get_geometry_reply_t	*wa;
 
 	wa = xcb_get_geometry_reply(conn, xcb_get_geometry(conn, w), NULL);
-
-	if (!wa) {
+	if (wa == NULL) {
 		DNPRINTF(SWM_D_MISC, "print_win_geom: window not found: 0x%x\n",
 		    w);
 		return;
@@ -8654,12 +8651,12 @@ maprequest(xcb_map_request_event_t *e)
 
 				if (w->ch.class_name &&
 				    win->ch.class_name &&
-				    !strcmp(w->ch.class_name,
-				    win->ch.class_name) &&
+				    strcmp(w->ch.class_name,
+				    win->ch.class_name) == 0 &&
 				    w->ch.instance_name &&
 				    win->ch.instance_name &&
-				    !strcmp(w->ch.instance_name,
-				    win->ch.instance_name))
+				    strcmp(w->ch.instance_name,
+				    win->ch.instance_name) == 0)
 					break;
 			}
 		}
@@ -9277,7 +9274,7 @@ grab_windows(void)
 	for (i = 0; i < num_screens; i++) {
 		qtc = xcb_query_tree(conn, screens[i].root);
 		qtr = xcb_query_tree_reply(conn, qtc, NULL);
-		if (!qtr)
+		if (qtr == NULL)
 			continue;
 		wins = xcb_query_tree_children(qtr);
 		no = xcb_query_tree_children_length(qtr);
@@ -9299,7 +9296,7 @@ grab_windows(void)
 
 			gac = xcb_get_window_attributes(conn, wins[j]);
 			gar = xcb_get_window_attributes_reply(conn, gac, NULL);
-			if (!gar) {
+			if (gar == NULL) {
 				DNPRINTF(SWM_D_INIT, "grab_windows: skip %#x; "
 				    "doesn't exist.\n", wins[j]);
 				continue;
@@ -9333,7 +9330,7 @@ grab_windows(void)
 		for (j = 0; j < no; j++) {
 			gac = xcb_get_window_attributes(conn, wins[j]);
 			gar = xcb_get_window_attributes_reply(conn, gac, NULL);
-			if (!gar) {
+			if (gar == NULL) {
 				DNPRINTF(SWM_D_INIT, "grab_windows: skip %#x; "
 				    "doesn't exist.\n", wins[j]);
 				continue;
@@ -9525,7 +9522,7 @@ shutdown_cleanup(void)
 
 	num_screens = get_screen_count();
 	for (i = 0; i < num_screens; ++i) {
-		if (screens[i].bar_gc != 0)
+		if (screens[i].bar_gc != XCB_NONE)
 			xcb_free_gc(conn, screens[i].bar_gc);
 		if (!bar_font_legacy)
 			XftColorFree(display, DefaultVisual(display, i),
@@ -9632,7 +9629,7 @@ main(int argc, char *argv[])
 
 	start_argv = argv;
 	warnx("Welcome to spectrwm V%s Build: %s", SPECTRWM_VERSION, buildstr);
-	if (!setlocale(LC_CTYPE, "") || !setlocale(LC_TIME, ""))
+	if (setlocale(LC_CTYPE, "") == NULL || setlocale(LC_TIME, "") == NULL)
 		warnx("no locale support");
 
 	/* handle some signals */
@@ -9649,7 +9646,7 @@ main(int argc, char *argv[])
 	sact.sa_flags = SA_NOCLDSTOP;
 	sigaction(SIGCHLD, &sact, NULL);
 
-	if (!(display = XOpenDisplay(0)))
+	if ((display = XOpenDisplay(0)) == NULL)
 		errx(1, "can not open display");
 
 	conn = XGetXCBConnection(display);
@@ -9676,7 +9673,7 @@ main(int argc, char *argv[])
 		free(evt);
 	}
 
-	if (enable_wm() != 0)
+	if (enable_wm())
 		errx(1, "another window manager is currently running");
 
 	/* Load Xcursors and/or cursorfont glyph cursors. */
