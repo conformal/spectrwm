@@ -954,6 +954,7 @@ char	*get_stack_mode_name(uint8_t);
 #endif
 int32_t	 get_swm_iconic(struct ws_win *);
 char	*get_win_name(xcb_window_t);
+void	 get_wm_protocols(struct ws_win *);
 int	 get_ws_idx(xcb_window_t);
 uint32_t getstate(xcb_window_t);
 void	 grabbuttons(struct ws_win *);
@@ -1075,7 +1076,6 @@ void	 update_window(struct ws_win *);
 void	 validate_spawns(void);
 int	 validate_win(struct ws_win *);
 int	 validate_ws(struct workspace *);
-/*void	 visibilitynotify(xcb_visibility_notify_event_t *);*/
 void	 version(struct swm_region *, union arg *);
 void	 win_to_ws(struct ws_win *, int, int);
 pid_t	 window_get_pid(xcb_window_t);
@@ -1268,6 +1268,24 @@ get_atom_from_string(const char *str)
 	}
 
 	return (XCB_ATOM_NONE);
+}
+
+void
+get_wm_protocols(struct ws_win *win) {
+	int				i;
+	xcb_icccm_get_wm_protocols_reply_t	wpr;
+
+	if (xcb_icccm_get_wm_protocols_reply(conn,
+	    xcb_icccm_get_wm_protocols(conn, win->id, a_prot),
+	    &wpr, NULL)) {
+		for (i = 0; i < (int)wpr.atoms_len; i++) {
+			if (wpr.atoms[i] == a_takefocus)
+				win->take_focus = 1;
+			if (wpr.atoms[i] == a_delete)
+				win->can_delete = 1;
+		}
+		xcb_icccm_get_wm_protocols_reply_wipe(&wpr);
+	}
 }
 
 void
@@ -3332,6 +3350,9 @@ focus_win(struct ws_win *win)
 		     win->hints.input))
 			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
 					win->id, last_event_time);
+		else
+			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
+			    ws->r->id, XCB_CURRENT_TIME);
 
 		/* Tell app it can adjust focus to a specific window. */
 		if (win->take_focus) {
@@ -5320,7 +5341,8 @@ done:
 void
 wkill(struct swm_region *r, union arg *args)
 {
-	DNPRINTF(SWM_D_MISC, "wkill: id: %d\n", args->id);
+	DNPRINTF(SWM_D_MISC, "wkill: win %#x, id: %d\n", WINID(r->ws->focus),
+	    args->id);
 
 	if (r->ws->focus == NULL)
 		return;
@@ -7821,7 +7843,6 @@ manage_window(xcb_window_t id, uint16_t mapped)
 	struct quirk		*qp;
 	uint32_t		i, wa[2];
 	xcb_get_geometry_reply_t	*gr;
-	xcb_icccm_get_wm_protocols_reply_t	wpr;
 
 	if ((win = find_window(id)) != NULL) {
 		DNPRINTF(SWM_D_MISC, "manage_window: win 0x%x already "
@@ -7873,6 +7894,17 @@ manage_window(xcb_window_t id, uint16_t mapped)
 
 	free(gr);
 
+	/* Select which X events to monitor and set border pixel color. */
+	wa[0] = win->s->c[SWM_S_COLOR_UNFOCUS].pixel;
+	wa[1] = XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_PROPERTY_CHANGE |
+	    XCB_EVENT_MASK_STRUCTURE_NOTIFY;
+#ifdef SWM_DEBUG
+	wa[1] |= XCB_EVENT_MASK_LEAVE_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE;
+#endif
+
+	xcb_change_window_attributes(conn, win->id, XCB_CW_BORDER_PIXEL |
+	    XCB_CW_EVENT_MASK, wa);
+
 	/* Get WM_SIZE_HINTS. */
 	xcb_icccm_get_wm_normal_hints_reply(conn,
 	    xcb_icccm_get_wm_normal_hints(conn, win->id),
@@ -7892,18 +7924,8 @@ manage_window(xcb_window_t id, uint16_t mapped)
 		set_child_transient(win, &win->transient);
 	}
 
-	/* Get supported protocols. */
-	if (xcb_icccm_get_wm_protocols_reply(conn,
-	    xcb_icccm_get_wm_protocols(conn, win->id, a_prot),
-	    &wpr, NULL)) {
-		for (i = 0; i < wpr.atoms_len; i++) {
-			if (wpr.atoms[i] == a_takefocus)
-				win->take_focus = 1;
-			if (wpr.atoms[i] == a_delete)
-				win->can_delete = 1;
-		}
-		xcb_icccm_get_wm_protocols_reply_wipe(&wpr);
-	}
+	/* Get WM_PROTOCOLS. */
+	get_wm_protocols(win);
 
 	win->iconic = get_swm_iconic(win);
 
@@ -7984,17 +8006,6 @@ manage_window(xcb_window_t id, uint16_t mapped)
 		    SWM_CW_HARDBOUNDARY);
 		update_window(win);
 	}
-
-	/* Select which X events to monitor and set border pixel color. */
-	wa[0] = win->s->c[SWM_S_COLOR_UNFOCUS].pixel;
-	wa[1] = XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_PROPERTY_CHANGE |
-	    XCB_EVENT_MASK_STRUCTURE_NOTIFY;
-#ifdef SWM_DEBUG
-	wa[1] |= XCB_EVENT_MASK_LEAVE_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE;
-#endif
-
-	xcb_change_window_attributes(conn, win->id, XCB_CW_BORDER_PIXEL |
-	    XCB_CW_EVENT_MASK, wa);
 
 out:
 	/* Figure out where to stack the window in the workspace. */
@@ -8645,7 +8656,10 @@ maprequest(xcb_map_request_event_t *e)
 
 	/* The new window should get focus; prepare. */
 	if (focus_mode != SWM_FOCUS_FOLLOW &&
-	    !(win->quirks & SWM_Q_NOFOCUSONMAP)) {
+	    !(win->quirks & SWM_Q_NOFOCUSONMAP) &&
+	    (!(win->hints.flags & XCB_ICCCM_WM_HINT_INPUT) ||
+	     (win->hints.flags & XCB_ICCCM_WM_HINT_INPUT &&
+	      win->hints.input))) {
 		if (win->quirks & SWM_Q_FOCUSONMAP_SINGLE) {
 			/* See if other wins of same type are already mapped. */
 			TAILQ_FOREACH(w, &win->ws->winlist, entry) {
@@ -8717,7 +8731,7 @@ char *
 get_atom_name(xcb_atom_t atom)
 {
 	char				*name = NULL;
-#if 0
+#ifdef SWM_DEBUG_ATOM_NAMES
 	/*
 	 * This should be disabled during most debugging since
 	 * xcb_get_* causes an xcb_flush.
@@ -8818,6 +8832,8 @@ propertynotify(xcb_property_notify_event_t *e)
 	} else if (e->atom == XCB_ATOM_WM_CLASS ||
 	    e->atom == XCB_ATOM_WM_NAME) {
 		bar_draw();
+	} else if (e->atom == a_prot) {
+		get_wm_protocols(win);
 	}
 
 	xcb_flush(conn);
@@ -8881,15 +8897,6 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 
 	focus_flush();
 }
-
-#if 0
-void
-visibilitynotify(xcb_visibility_notify_event_t *e)
-{
-	DNPRINTF(SWM_D_EVENT, "visibilitynotify: window: 0x%x\n",
-	    e->window);
-}
-#endif
 
 void
 clientmessage(xcb_client_message_event_t *e)
@@ -9603,7 +9610,7 @@ event_handle(xcb_generic_event_t *evt)
 	/*EVENT(XCB_SELECTION_NOTIFY, );*/
 	/*EVENT(XCB_SELECTION_REQUEST, );*/
 	EVENT(XCB_UNMAP_NOTIFY, unmapnotify);
-	/*EVENT(XCB_VISIBILITY_NOTIFY, visibilitynotify);*/
+	/*EVENT(XCB_VISIBILITY_NOTIFY, );*/
 #undef EVENT
 	}
 	if (type - xrandr_eventbase == XCB_RANDR_SCREEN_CHANGE_NOTIFY)
