@@ -170,17 +170,17 @@ It may contain the following character sequences:
 .It Sy "Character sequence" Ta Sy "Replaced with"
 .It Li "+<" Ta "Pad with a space"
 .It Li "+A" Ta "Output of the external script"
-.It Li "+C" Ta "Window class"
+.It Li "+C" Ta "Window class (from WM_CLASS)"
 .It Li "+D" Ta "Workspace name"
 .It Li "+F" Ta "Floating indicator"
 .It Li "+I" Ta "Workspace index"
 .It Li "+N" Ta "Screen number"
-.It Li "+P" Ta "Window class and title separated by a colon"
+.It Li "+P" Ta "Window class and instance separated by a colon"
 .It Li "+S" Ta "Stacking algorithm"
-.It Li "+T" Ta "Window title"
+.It Li "+T" Ta "Window instance (from WM_CLASS)"
 .It Li "+U" Ta "Urgency hint"
 .It Li "+V" Ta "Program version"
-.It Li "+W" Ta "Window name"
+.It Li "+W" Ta "Window name (from _NET_WM_NAME/WM_NAME)"
 .It Li "++" Ta "A literal" Ql +
 .El
 .Pp
@@ -312,9 +312,11 @@ Define new action to spawn a program
 See the
 .Sx PROGRAMS
 section below.
-.It Ic quirk Ns Bq Ar c:n
+.It Ic quirk Ns Bq Ar c:i:n
 Add "quirk" for windows with class
-.Ar c
+.Ar c ,
+instance
+.Ar i
 and name
 .Ar n .
 See the
@@ -369,12 +371,6 @@ binary without the setgid bit set.
 Pixel width of empty space between tiled windows.  Negative values cause overlap.
 Set this to the opposite of border_width to collapse the border between tiles.
 Disable by setting to 0.
-.It Ic title_class_enabled
-Enable or disable displaying the window class in the status bar.
-Enable by setting to 1.
-.It Ic title_name_enabled
-Enable or disable displaying the window title in the status bar.
-Enable by setting to 1.
 .It Ic urgent_enabled
 Enable or disable the urgency hint indicator in the status bar.
 Note that many terminal emulators require an explicit setting for the bell
@@ -395,9 +391,15 @@ See
 and
 .Pa stack_dec
 for more information.
+.It Ic window_class_enabled
+Enable or disable displaying the window class name (from WM_CLASS) in the
+status bar.  Enable by setting to 1.
+.It Ic window_instance_enabled
+Enable or disable displaying the window instance name (from WM_CLASS) in the
+status bar.  Enable by setting to 1.
 .It Ic window_name_enabled
-Enable or disable displaying the window name in the status bar.
-Enable by setting to 1.
+Enable or disable displaying the window display name (from _NET_WM_NAME/WM_NAME)
+in the status bar.  Enable by setting to 1.
 .Pp
 To prevent excessively large window names from pushing the remaining text off
 the bar, it's limited to 64 characters, by default.
@@ -916,30 +918,49 @@ Has no effect when
 is set to follow.
 .It FOCUSONMAP_SINGLE
 When the window first appears on the screen, change focus to the window
-if there are no other windows on the workspace with the same class/name.
-Has no effect when
+if there are no other windows on the workspace with the same WM_CLASS
+class/instance value.  Has no effect when
 .Ic focus_mode
 is set to follow.
 .El
 .Pp
 Custom quirks in the configuration file are specified as follows:
 .Pp
-.Dl quirk[<class>:<name>] = <quirk> [ + <quirk> ... ]
+.Dl quirk[<class>[:<instance>[:<name>]]] = <quirk> [ + <quirk> ... ]
 .Pp
-.Aq class
-and
+.Aq class ,
+.Aq instance
+(optional) and
 .Aq name
-specify the window to which the quirk(s) apply, and
+(optional) are patterns used to determine which window(s) the quirk(s) apply
+and
 .Aq quirk
 is one of the quirks from the list above.
+.Pp
+Note that patterns are interpreted as POSIX Extended Regular Expressions.
+Any ':', '[' or ']' must be escaped with '\\'.
+See
+.Xr regex 7
+for more information on POSIX Extended Regular Expressions.
+.Pp
 For example:
 .Bd -literal -offset indent
-quirk[MPlayer:xv] = FLOAT + FULLSCREEN + FOCUSPREV
-quirk[pcb:pcb] = NONE  # remove existing quirk
+quirk[MPlayer] = FLOAT + FULLSCREEN + FOCUSPREV # Float all windows having a \
+class of 'MPlayer'
+quirk[.*] = FLOAT # Float all windows by default.
+quirk[.*:.*:.*] = FLOAT # Same as above.
+quirk[Firefox:Navigator] = FLOAT # Float all Firefox browser windows.
+quirk[::Console] = FLOAT # Float windows with WM_CLASS not set and a \
+window name of 'Console'.
+quirk[\\[0-9\\].*:.*:\\[\\[\\:alnum\\:\\]\\]*] = FLOAT # Float windows with WM_CLASS \
+class beginning with a number, any WM_CLASS instance and a \
+_NET_WM_NAME/WM_NAME either blank or containing alphanumeric characters without spaces.
+quirk[pcb:pcb] = NONE # remove existing quirk
 .Ed
 .Pp
 You can obtain
-.Aq class
+.Aq class ,
+.Aq instance
 and
 .Aq name
 by running
@@ -947,11 +968,18 @@ by running
 and then clicking on the desired window.
 In the following example the main window of Firefox was clicked:
 .Bd -literal -offset indent
-$ xprop | grep WM_CLASS
+$ xprop | grep -E "^(WM_CLASS|_NET_WM_NAME|WM_NAME)"
 WM_CLASS(STRING) = "Navigator", "Firefox"
+WM_NAME(STRING) = "spectrwm - ConformalOpenSource"
+_NET_WM_NAME(UTF8_STRING) = "spectrwm - ConformalOpenSource"
 .Ed
 .Pp
-Note that grepping for WM_CLASS flips class and name.
+Note that
+.Xr xprop 1
+displays WM_CLASS as:
+.Bd -literal -offset indent
+WM_CLASS(STRING) = "<instance>", "<class>"
+.Ed
 In the example above the quirk entry would be:
 .Bd -literal -offset indent
 quirk[Firefox:Navigator] = FLOAT
@@ -1002,7 +1030,7 @@ and
 .Xr grep 1 :
 .Bd -literal -offset indent
 $ WINDOWID=`xprop \-root _NET_ACTIVE_WINDOW | grep \-o "0x.*"`
-$ xprop \-id $WINDOWID WM_NAME | grep \-o "\\".*\\""
+$ xprop \-id $WINDOWID _NET_WM_NAME | grep \-o "\\".*\\""
 .Ed
 .Pp
 A window can be focused by sending a _NET_ACTIVE_WINDOW client message

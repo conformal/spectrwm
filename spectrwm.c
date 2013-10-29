@@ -81,6 +81,7 @@
 #include <locale.h>
 #include <paths.h>
 #include <pwd.h>
+#include <regex.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -374,8 +375,8 @@ int		 stack_enabled = 1;
 int		 clock_enabled = 1;
 int		 urgent_enabled = 0;
 char		*clock_format = NULL;
-int		 title_name_enabled = 0;
-int		 title_class_enabled = 0;
+int		 window_class_enabled = 0;
+int		 window_instance_enabled = 0;
 int		 window_name_enabled = 0;
 int		 focus_mode = SWM_FOCUS_DEFAULT;
 int		 focus_close = SWM_STACK_BELOW;
@@ -613,8 +614,12 @@ union arg {
 /* quirks */
 struct quirk {
 	TAILQ_ENTRY(quirk)	entry;
-	char			*class;
-	char			*name;
+	char			*class;		/* WM_CLASS:class */
+	char			*instance;	/* WM_CLASS:instance */
+	char			*name;		/* WM_NAME */
+	regex_t			regex_class;
+	regex_t			regex_instance;
+	regex_t			regex_name;
 	unsigned long		quirk;
 #define SWM_Q_FLOAT		(1<<0)	/* float this window */
 #define SWM_Q_TRANSSZ		(1<<1)	/* transiend window size too small */
@@ -864,8 +869,6 @@ RB_HEAD(key_tree, key);
 
 /* function prototypes */
 void	 adjust_font(struct ws_win *);
-void	 bar_class_name(char *, size_t, struct swm_region *);
-void	 bar_class_title_name(char *, size_t, struct swm_region *);
 void	 bar_cleanup(struct swm_region *);
 void	 bar_extra_setup(void);
 void	 bar_extra_stop(void);
@@ -879,10 +882,12 @@ void	 bar_replace(char *, char *, struct swm_region *, size_t);
 void	 bar_replace_pad(char *, int *, size_t);
 char	*bar_replace_seq(char *, char *, struct swm_region *, size_t *, size_t);
 void	 bar_setup(struct swm_region *);
-void	 bar_title_name(char *, size_t, struct swm_region *);
 void	 bar_toggle(struct swm_region *, union arg *);
 void	 bar_urgent(char *, size_t);
+void	 bar_window_class(char *, size_t, struct swm_region *);
+void	 bar_window_class_instance(char *, size_t, struct swm_region *);
 void	 bar_window_float(char *, size_t, struct swm_region *);
+void	 bar_window_instance(char *, size_t, struct swm_region *);
 void	 bar_window_name(char *, size_t, struct swm_region *);
 void	 bar_workspace_name(char *, size_t, struct swm_region *);
 void	 buttonpress(xcb_button_press_event_t *);
@@ -898,7 +903,7 @@ void	 constrain_window(struct ws_win *, struct swm_geometry *, int *);
 int	 count_win(struct workspace *, int);
 void	 cursors_cleanup(void);
 void	 cursors_load(void);
-void	 custom_region(char *);
+void	 custom_region(const char *);
 void	 cyclerg(struct swm_region *, union arg *);
 void	 cyclews(struct swm_region *, union arg *);
 void	 cycle_layout(struct swm_region *, union arg *);
@@ -986,8 +991,8 @@ void	 move_step(struct swm_region *, union arg *);
 uint32_t name_to_pixel(int, const char *);
 void	 name_workspace(struct swm_region *, union arg *);
 void	 new_region(struct swm_screen *, int, int, int, int);
-int	 parsekeys(char *, unsigned int, unsigned int *, KeySym *);
-int	 parsequirks(char *, unsigned long *);
+int	 parsekeys(const char *, unsigned int, unsigned int *, KeySym *);
+int	 parsequirks(const char *, unsigned long *);
 int	 parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
 void	 pressbutton(struct swm_region *, union arg *);
 void	 priorws(struct swm_region *, union arg *);
@@ -995,9 +1000,10 @@ void	 priorws(struct swm_region *, union arg *);
 void	 print_win_geom(xcb_window_t);
 #endif
 void	 propertynotify(xcb_property_notify_event_t *);
-void	 quirk_insert(const char *, const char *, unsigned long);
+void	 quirk_free(struct quirk *);
+void	 quirk_insert(const char *, const char *, const char *,unsigned long);
 void	 quirk_remove(struct quirk *);
-void	 quirk_replace(struct quirk *, const char *, const char *,
+void	 quirk_replace(struct quirk *, const char *, const char *, const char *,
 	     unsigned long);
 void	 quit(struct swm_region *, union arg *);
 void	 raise_toggle(struct swm_region *, union arg *);
@@ -1021,19 +1027,19 @@ void	 search_workspace(struct swm_region *, union arg *);
 void	 send_to_rg(struct swm_region *, union arg *);
 void	 send_to_ws(struct swm_region *, union arg *);
 void	 set_region(struct swm_region *);
-int	 setautorun(char *, char *, int);
-int	 setconfbinding(char *, char *, int);
-int	 setconfcolor(char *, char *, int);
-int	 setconfmodkey(char *, char *, int);
-int	 setconfquirk(char *, char *, int);
-int	 setconfregion(char *, char *, int);
-int	 setconfspawn(char *, char *, int);
-int	 setconfvalue(char *, char *, int);
+int	 setautorun(const char *, const char *, int);
+int	 setconfbinding(const char *, const char *, int);
+int	 setconfcolor(const char *, const char *, int);
+int	 setconfmodkey(const char *, const char *, int);
+int	 setconfquirk(const char *, const char *, int);
+int	 setconfregion(const char *, const char *, int);
+int	 setconfspawn(const char *, const char *, int);
+int	 setconfvalue(const char *, const char *, int);
 void	 setkeybinding(unsigned int, KeySym, enum keyfuncid, const char *);
-int	 setkeymapping(char *, char *, int);
-int	 setlayout(char *, char *, int);
-void	 setquirk(const char *, const char *, unsigned long);
-void	 setscreencolor(char *, int, int);
+int	 setkeymapping(const char *, const char *, int);
+int	 setlayout(const char *, const char *, int);
+void	 setquirk(const char *, const char *, const char *,unsigned long);
+void	 setscreencolor(const char *, int, int);
 void	 setspawn(const char *, const char *, int);
 void	 setup_ewmh(void);
 void	 setup_globals(void);
@@ -1064,6 +1070,7 @@ char	*strdupsafe(const char *);
 void	 swapwin(struct swm_region *, union arg *);
 void	 switchws(struct swm_region *, union arg *);
 void	 teardown_ewmh(void);
+void	 unescape_selector(char *);
 void	 unfocus_win(struct ws_win *);
 void	 uniconify(struct swm_region *, union arg *);
 void	 unmanage_window(struct ws_win *);
@@ -1754,7 +1761,7 @@ name_to_pixel(int sidx, const char *colorname)
 }
 
 void
-setscreencolor(char *val, int i, int c)
+setscreencolor(const char *val, int i, int c)
 {
 	int	num_screens;
 
@@ -1803,7 +1810,7 @@ plain_stacker(struct workspace *ws)
 }
 
 void
-custom_region(char *val)
+custom_region(const char *val)
 {
 	unsigned int			x, y, w, h;
 	int				sidx, num_screens;
@@ -1973,7 +1980,7 @@ bar_extra_stop(void)
 }
 
 void
-bar_class_name(char *s, size_t sz, struct swm_region *r)
+bar_window_class(char *s, size_t sz, struct swm_region *r)
 {
 	if (r == NULL || r->ws == NULL || r->ws->focus == NULL)
 		return;
@@ -1982,7 +1989,7 @@ bar_class_name(char *s, size_t sz, struct swm_region *r)
 }
 
 void
-bar_title_name(char *s, size_t sz, struct swm_region *r)
+bar_window_instance(char *s, size_t sz, struct swm_region *r)
 {
 	if (r == NULL || r->ws == NULL || r->ws->focus == NULL)
 		return;
@@ -1991,14 +1998,14 @@ bar_title_name(char *s, size_t sz, struct swm_region *r)
 }
 
 void
-bar_class_title_name(char *s, size_t sz, struct swm_region *r)
+bar_window_class_instance(char *s, size_t sz, struct swm_region *r)
 {
 	if (r == NULL || r->ws == NULL || r->ws->focus == NULL)
 		return;
 
-	bar_class_name(s, sz, r);
+	bar_window_class(s, sz, r);
 	strlcat(s, ":", sz);
-	bar_title_name(s, sz, r);
+	bar_window_instance(s, sz, r);
 }
 
 void
@@ -2017,9 +2024,8 @@ bar_window_name(char *s, size_t sz, struct swm_region *r)
 
 	if (r == NULL || r->ws == NULL || r->ws->focus == NULL)
 		return;
-	if ((title = get_win_name(r->ws->focus->id)) == NULL)
-		return;
 
+	title = get_win_name(r->ws->focus->id);
 	strlcat(s, title, sz);
 	free(title);
 }
@@ -2099,16 +2105,16 @@ bar_fmt(const char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
 	if (urgent_enabled)
 		strlcat(fmtnew, "* +U*+4<", sz);
 
-	if (title_class_enabled) {
+	if (window_class_enabled) {
 		strlcat(fmtnew, "+C", sz);
-		if (!title_name_enabled)
+		if (!window_instance_enabled)
 			strlcat(fmtnew, "+4<", sz);
 	}
 
 	/* checks needed by the colon and floating strlcat(3) calls below */
 	if (r != NULL && r->ws != NULL && r->ws->focus != NULL) {
-		if (title_name_enabled) {
-			if (title_class_enabled)
+		if (window_instance_enabled) {
+			if (window_class_enabled)
 				strlcat(fmtnew, ":", sz);
 			strlcat(fmtnew, "+T+4<", sz);
 		}
@@ -2166,7 +2172,7 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		snprintf(tmp, sizeof tmp, "%s", bar_ext);
 		break;
 	case 'C':
-		bar_class_name(tmp, sizeof tmp, r);
+		bar_window_class(tmp, sizeof tmp, r);
 		break;
 	case 'D':
 		bar_workspace_name(tmp, sizeof tmp, r);
@@ -2181,13 +2187,13 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		snprintf(tmp, sizeof tmp, "%d", r->s->idx + 1);
 		break;
 	case 'P':
-		bar_class_title_name(tmp, sizeof tmp, r);
+		bar_window_class_instance(tmp, sizeof tmp, r);
 		break;
 	case 'S':
 		snprintf(tmp, sizeof tmp, "%s", r->ws->stacker);
 		break;
 	case 'T':
-		bar_title_name(tmp, sizeof tmp, r);
+		bar_window_instance(tmp, sizeof tmp, r);
 		break;
 	case 'U':
 		bar_urgent(tmp, sizeof tmp);
@@ -4914,26 +4920,24 @@ get_win_name(xcb_window_t win)
 	c = xcb_get_property(conn, 0, win, ewmh[_NET_WM_NAME].atom,
 	    XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX);
 	r = xcb_get_property_reply(conn, c, NULL);
-	if (r) {
-		if (r->type == XCB_NONE) {
-			free(r);
-			/* Use WM_NAME instead; no UTF-8. */
-			c = xcb_get_property(conn, 0, win, XCB_ATOM_WM_NAME,
-			    XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX);
-			r = xcb_get_property_reply(conn, c, NULL);
-			if (r == NULL)
-				return (NULL);
-			if (r->type == XCB_NONE) {
-				free(r);
-				return (NULL);
-			}
-		}
-		if (r->length > 0)
-			name = strndup(xcb_get_property_value(r),
-			    xcb_get_property_value_length(r));
-
+	if (r && r->type == XCB_NONE) {
 		free(r);
+		/* Use WM_NAME instead; no UTF-8. */
+		c = xcb_get_property(conn, 0, win, XCB_ATOM_WM_NAME,
+		    XCB_GET_PROPERTY_TYPE_ANY, 0, UINT_MAX);
+		r = xcb_get_property_reply(conn, c, NULL);
 	}
+
+	if (r && r->type != XCB_NONE && r->length > 0)
+		name = strndup(xcb_get_property_value(r),
+		    xcb_get_property_value_length(r));
+	else
+		name = strdup("");
+
+	if (name == NULL)
+		err(1, "get_win_name: failed to allocate memory.");
+
+	free(r);
 
 	return (name);
 }
@@ -4977,8 +4981,6 @@ uniconify(struct swm_region *r, union arg *args)
 			continue;
 
 		name = get_win_name(win->id);
-		if (name == NULL)
-			continue;
 		fprintf(lfile, "%s.%u\n", name, win->id);
 		free(name);
 	}
@@ -5172,8 +5174,6 @@ search_resp_uniconify(const char *resp, size_t len)
 		if (!win->iconic)
 			continue;
 		name = get_win_name(win->id);
-		if (name == NULL)
-			continue;
 		if (asprintf(&s, "%s.%u", name, win->id) == -1) {
 			free(name);
 			continue;
@@ -6322,7 +6322,7 @@ setspawn(const char *name, const char *args, int flags)
 }
 
 int
-setconfspawn(char *selector, char *value, int flags)
+setconfspawn(const char *selector, const char *value, int flags)
 {
 	char		*args;
 
@@ -6414,10 +6414,11 @@ setup_spawn(void)
 #define SWM_MODNAME_SIZE	32
 #define	SWM_KEY_WS		"\n+ \t"
 int
-parsekeys(char *keystr, unsigned int currmod, unsigned int *mod, KeySym *ks)
+parsekeys(const char *keystr, unsigned int currmod, unsigned int *mod, KeySym *ks)
 {
-	char			*cp, *name;
+	char			*str, *cp, *name;
 	KeySym			uks;
+
 	DNPRINTF(SWM_D_KEY, "parsekeys: enter [%s]\n", keystr);
 	if (mod == NULL || ks == NULL) {
 		DNPRINTF(SWM_D_KEY, "parsekeys: no mod or key vars\n");
@@ -6427,7 +6428,10 @@ parsekeys(char *keystr, unsigned int currmod, unsigned int *mod, KeySym *ks)
 		DNPRINTF(SWM_D_KEY, "parsekeys: no keystr\n");
 		return (1);
 	}
-	cp = keystr;
+
+	if ((cp = str = strdup(keystr)) == NULL)
+		err(1, "parsekeys: strdup");
+
 	*ks = XCB_NO_SYMBOL;
 	*mod = 0;
 	while ((name = strsep(&cp, SWM_KEY_WS)) != NULL) {
@@ -6455,10 +6459,13 @@ parsekeys(char *keystr, unsigned int currmod, unsigned int *mod, KeySym *ks)
 				DNPRINTF(SWM_D_KEY,
 				    "parsekeys: invalid key %s\n",
 				    name);
+				free(str);
 				return (1);
 			}
 		}
 	}
+
+	free(str);
 	DNPRINTF(SWM_D_KEY, "parsekeys: leave ok\n");
 	return (0);
 }
@@ -6557,7 +6564,7 @@ setkeybinding(unsigned int mod, KeySym ks, enum keyfuncid kfid,
 }
 
 int
-setconfbinding(char *selector, char *value, int flags)
+setconfbinding(const char *selector, const char *value, int flags)
 {
 	enum keyfuncid		kfid;
 	unsigned int		mod;
@@ -6745,7 +6752,7 @@ clear_keys(void)
 }
 
 int
-setkeymapping(char *selector, char *value, int flags)
+setkeymapping(const char *selector, const char *value, int flags)
 {
 	char			*keymapping_file;
 
@@ -6886,15 +6893,18 @@ const char *quirkname[] = {
 /* SWM_Q_WS: retain '|' for back compat for now (2009-08-11) */
 #define	SWM_Q_WS		"\n|+ \t"
 int
-parsequirks(char *qstr, unsigned long *quirk)
+parsequirks(const char *qstr, unsigned long *quirk)
 {
-	char			*cp, *name;
+	char			*str, *cp, *name;
 	int			i;
 
-	if (quirk == NULL)
+	if (quirk == NULL || qstr == NULL)
 		return (1);
 
-	cp = qstr;
+	if ((str = strdup(qstr)) == NULL)
+		err(1, "parsequirks: strdup");
+
+	cp = str;
 	*quirk = 0;
 	while ((name = strsep(&cp, SWM_Q_WS)) != NULL) {
 		if (cp)
@@ -6906,6 +6916,7 @@ parsequirks(char *qstr, unsigned long *quirk)
 				    "parsequirks: %s\n", name);
 				if (i == 0) {
 					*quirk = 0;
+					free(str);
 					return (0);
 				}
 				*quirk |= 1 << (i-1);
@@ -6915,30 +6926,73 @@ parsequirks(char *qstr, unsigned long *quirk)
 		if (i >= LENGTH(quirkname)) {
 			DNPRINTF(SWM_D_QUIRK,
 			    "parsequirks: invalid quirk [%s]\n", name);
+			free(str);
 			return (1);
 		}
 	}
+
+	free(str);
 	return (0);
 }
 
 void
-quirk_insert(const char *class, const char *name, unsigned long quirk)
+quirk_insert(const char *class, const char *instance, const char *name,
+    unsigned long quirk)
 {
 	struct quirk		*qp;
+	int			failed = 0;
+	char			*str;
 
-	DNPRINTF(SWM_D_QUIRK, "quirk_insert: %s:%s [%lu]\n", class, name,
-	    quirk);
+	DNPRINTF(SWM_D_QUIRK, "quirk_insert: class: %s, instance: %s, name: %s,"
+	    " value: %lu\n", class, instance, name, quirk);
 
 	if ((qp = malloc(sizeof *qp)) == NULL)
 		err(1, "quirk_insert: malloc");
+
 	if ((qp->class = strdup(class)) == NULL)
+		err(1, "quirk_insert: strdup");
+	if ((qp->instance = strdup(instance)) == NULL)
 		err(1, "quirk_insert: strdup");
 	if ((qp->name = strdup(name)) == NULL)
 		err(1, "quirk_insert: strdup");
 
-	qp->quirk = quirk;
-	TAILQ_INSERT_TAIL(&quirks, qp, entry);
+	if (asprintf(&str, "^%s$", class) == -1)
+		err(1, "quirk_insert: asprintf");
+	if (regcomp(&qp->regex_class, str, REG_EXTENDED | REG_NOSUB)) {
+		add_startup_exception("regex failed to compile quirk 'class' "
+		    "field: %s", class);
+		failed = 1;
+	}
+	DNPRINTF(SWM_D_QUIRK, "quirk_insert: compiled: %s\n", str);
+	free(str);
 
+	if (asprintf(&str, "^%s$", instance) == -1)
+		err(1, "quirk_insert: asprintf");
+	if (regcomp(&qp->regex_instance, str, REG_EXTENDED | REG_NOSUB)) {
+		add_startup_exception("regex failed to compile quirk 'instance'"
+		    " field: %s", instance);
+		failed = 1;
+	}
+	DNPRINTF(SWM_D_QUIRK, "quirk_insert: compiled: %s\n", str);
+	free(str);
+
+	if (asprintf(&str, "^%s$", name) == -1)
+		err(1, "quirk_insert: asprintf");
+	if (regcomp(&qp->regex_name, str, REG_EXTENDED | REG_NOSUB)) {
+		add_startup_exception("regex failed to compile quirk 'name' "
+		    "field: %s", name);
+		failed = 1;
+	}
+	DNPRINTF(SWM_D_QUIRK, "quirk_insert: compiled: %s\n", str);
+	free(str);
+
+	if (failed) {
+		DNPRINTF(SWM_D_QUIRK, "quirk_insert: regex error; skipping.\n");
+		quirk_free(qp);
+	} else {
+		qp->quirk = quirk;
+		TAILQ_INSERT_TAIL(&quirks, qp, entry);
+	}
 	DNPRINTF(SWM_D_QUIRK, "quirk_insert: leave\n");
 }
 
@@ -6949,42 +7003,54 @@ quirk_remove(struct quirk *qp)
 	    qp->name, qp->quirk);
 
 	TAILQ_REMOVE(&quirks, qp, entry);
-	free(qp->class);
-	free(qp->name);
-	free(qp);
+	quirk_free(qp);
 
 	DNPRINTF(SWM_D_QUIRK, "quirk_remove: leave\n");
 }
 
 void
-quirk_replace(struct quirk *qp, const char *class, const char *name,
-    unsigned long quirk)
+quirk_free(struct quirk *qp)
 {
-	DNPRINTF(SWM_D_QUIRK, "quirk_replace: %s:%s [%lu]\n", qp->class,
-	    qp->name, qp->quirk);
+	regfree(&qp->regex_class);
+	regfree(&qp->regex_instance);
+	regfree(&qp->regex_name);
+	free(qp->class);
+	free(qp->instance);
+	free(qp->name);
+	free(qp);
+}
+
+void
+quirk_replace(struct quirk *qp, const char *class, const char *instance,
+    const char *name, unsigned long quirk)
+{
+	DNPRINTF(SWM_D_QUIRK, "quirk_replace: %s:%s:%s [%lu]\n", qp->class,
+	    qp->instance, qp->name, qp->quirk);
 
 	quirk_remove(qp);
-	quirk_insert(class, name, quirk);
+	quirk_insert(class, instance, name, quirk);
 
 	DNPRINTF(SWM_D_QUIRK, "quirk_replace: leave\n");
 }
 
 void
-setquirk(const char *class, const char *name, unsigned long quirk)
+setquirk(const char *class, const char *instance, const char *name,
+    unsigned long quirk)
 {
 	struct quirk		*qp;
 
-	DNPRINTF(SWM_D_QUIRK, "setquirk: enter %s:%s [%lu]\n", class, name,
-	   quirk);
+	DNPRINTF(SWM_D_QUIRK, "setquirk: enter %s:%s:%s [%lu]\n", class,
+	    instance, name, quirk);
 
 	/* Remove/replace existing quirk. */
 	TAILQ_FOREACH(qp, &quirks, entry) {
 		if (strcmp(qp->class, class) == 0 &&
+		    strcmp(qp->instance, instance) == 0 &&
 		    strcmp(qp->name, name) == 0) {
 			if (quirk == 0)
 				quirk_remove(qp);
 			else
-				quirk_replace(qp, class, name, quirk);
+				quirk_replace(qp, class, instance, name, quirk);
 			DNPRINTF(SWM_D_QUIRK, "setquirk: leave\n");
 			return;
 		}
@@ -6992,16 +7058,33 @@ setquirk(const char *class, const char *name, unsigned long quirk)
 
 	/* Only insert if quirk is not NONE. */
 	if (quirk)
-		quirk_insert(class, name, quirk);
+		quirk_insert(class, instance, name, quirk);
 
 	DNPRINTF(SWM_D_QUIRK, "setquirk: leave\n");
 }
 
-int
-setconfquirk(char *selector, char *value, int flags)
+/* Eat '\' in str used to escape square brackets and colon. */
+void
+unescape_selector(char *str)
 {
-	char			*cp, *class, *name;
-	int			retval;
+	char *cp;
+
+	for (cp = str; *str != '\0'; ++str, ++cp) {
+		if (*str == '\\' && (*(str + 1) == ':' || *(str + 1) == ']' ||
+		    *(str + 1) == '['))
+			++str;
+
+		*cp = *str;
+	}
+	*cp = '\0';
+}
+
+int
+setconfquirk(const char *selector, const char *value, int flags)
+{
+	char			*str, *cp, *class;
+	char			*instance = NULL, *name = NULL;
+	int			retval, count = 0;
 	unsigned long		qrks;
 
 	/* suppress unused warning since var is needed */
@@ -7009,32 +7092,65 @@ setconfquirk(char *selector, char *value, int flags)
 
 	if (selector == NULL)
 		return (0);
-	if ((cp = strchr(selector, ':')) == NULL)
-		return (0);
-	*cp = '\0';
-	class = selector;
-	name = cp + 1;
+
+	if ((str = strdup(selector)) == NULL)
+		err(1, "setconfquirk: strdup");
+
+	/* Find non-escaped colon. */
+	class = cp = str;
+	if (*cp == ':') {
+		*cp = '\0';
+		++count;
+	}
+
+	for (++cp; *cp != '\0'; ++cp) {
+		if (*cp == ':' && *(cp - 1) != '\\') {
+			*cp = '\0';
+			++count;
+		}
+	}
+
+	unescape_selector(class);
+	if (count) {
+		instance = class + strlen(class) + 1;
+		unescape_selector(instance);
+	} else {
+		instance = ".*";
+	}
+
+	if (count > 1) {
+		name = instance + strlen(instance) + 1;
+		unescape_selector(name);
+	} else {
+		name = ".*";
+	}
+
+	DNPRINTF(SWM_D_CONF, "setconfquirk: class: %s, instance: %s, "
+	    "name: %s\n", class, instance, name);
+
 	if ((retval = parsequirks(value, &qrks)) == 0)
-		setquirk(class, name, qrks);
+		setquirk(class, instance, name, qrks);
+
+	free(str);
 	return (retval);
 }
 
 void
 setup_quirks(void)
 {
-	setquirk("MPlayer",		"xv",		SWM_Q_FLOAT | SWM_Q_FULLSCREEN | SWM_Q_FOCUSPREV);
-	setquirk("OpenOffice.org 3.2",	"VCLSalFrame",	SWM_Q_FLOAT);
-	setquirk("Firefox-bin",		"firefox-bin",	SWM_Q_TRANSSZ);
-	setquirk("Firefox",		"Dialog",	SWM_Q_FLOAT);
-	setquirk("Gimp",		"gimp",		SWM_Q_FLOAT | SWM_Q_ANYWHERE);
-	setquirk("XTerm",		"xterm",	SWM_Q_XTERM_FONTADJ);
-	setquirk("xine",		"Xine Window",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
-	setquirk("Xitk",		"Xitk Combo",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
-	setquirk("xine",		"xine Panel",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
-	setquirk("Xitk",		"Xine Window",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
-	setquirk("xine",		"xine Video Fullscreen Window",	SWM_Q_FULLSCREEN | SWM_Q_FLOAT);
-	setquirk("pcb",			"pcb",		SWM_Q_FLOAT);
-	setquirk("SDL_App",		"SDL_App",	SWM_Q_FLOAT | SWM_Q_FULLSCREEN);
+	setquirk("MPlayer",		"xv",		"",	SWM_Q_FLOAT | SWM_Q_FULLSCREEN | SWM_Q_FOCUSPREV);
+	setquirk("OpenOffice.org 3.2",	"VCLSalFrame",	"",	SWM_Q_FLOAT);
+	setquirk("Firefox-bin",		"firefox-bin",	"",	SWM_Q_TRANSSZ);
+	setquirk("Firefox",		"Dialog",	"",	SWM_Q_FLOAT);
+	setquirk("Gimp",		"gimp",		"",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
+	setquirk("XTerm",		"xterm",	"",	SWM_Q_XTERM_FONTADJ);
+	setquirk("xine",		"Xine Window",	"",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
+	setquirk("Xitk",		"Xitk Combo",	"",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
+	setquirk("xine",		"xine Panel",	"",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
+	setquirk("Xitk",		"Xine Window",	"",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
+	setquirk("xine",		"xine Video Fullscreen Window",	"",	SWM_Q_FULLSCREEN | SWM_Q_FLOAT);
+	setquirk("pcb",			"pcb",		"",	SWM_Q_FLOAT);
+	setquirk("SDL_App",		"SDL_App",	"",	SWM_Q_FLOAT | SWM_Q_FULLSCREEN);
 }
 
 /* conf file stuff */
@@ -7071,20 +7187,20 @@ enum {
 	SWM_S_STACK_ENABLED,
 	SWM_S_TERM_WIDTH,
 	SWM_S_TILE_GAP,
-	SWM_S_TITLE_CLASS_ENABLED,
-	SWM_S_TITLE_NAME_ENABLED,
 	SWM_S_URGENT_ENABLED,
 	SWM_S_VERBOSE_LAYOUT,
+	SWM_S_WINDOW_CLASS_ENABLED,
+	SWM_S_WINDOW_INSTANCE_ENABLED,
 	SWM_S_WINDOW_NAME_ENABLED,
 	SWM_S_WORKSPACE_LIMIT
 };
 
 int
-setconfvalue(char *selector, char *value, int flags)
+setconfvalue(const char *selector, const char *value, int flags)
 {
 	struct workspace	*ws;
 	int			i, ws_id, num_screens;
-	char			*b;
+	char			*b, *str;
 
 	/* suppress unused warning since var is needed */
 	(void)selector;
@@ -7132,8 +7248,11 @@ setconfvalue(char *selector, char *value, int flags)
 		if (!bar_font_legacy)
 			break;
 
+		if ((str = strdup(value)) == NULL)
+			err(1, "setconfvalue: strdup");
+
 		/* If there are any non-XLFD entries, switch to Xft mode. */
-		while ((b = strsep(&value, ",")) != NULL) {
+		while ((b = strsep(&str, ",")) != NULL) {
 			if (*b == '\0')
 				continue;
 			if (!isxlfd(b)) {
@@ -7141,6 +7260,8 @@ setconfvalue(char *selector, char *value, int flags)
 				break;
 			}
 		}
+
+		free(str);
 		break;
 	case SWM_S_BAR_FORMAT:
 		free(bar_format);
@@ -7263,12 +7384,6 @@ setconfvalue(char *selector, char *value, int flags)
 	case SWM_S_TILE_GAP:
 		tile_gap = atoi(value);
 		break;
-	case SWM_S_TITLE_CLASS_ENABLED:
-		title_class_enabled = atoi(value);
-		break;
-	case SWM_S_TITLE_NAME_ENABLED:
-		title_name_enabled = atoi(value);
-		break;
 	case SWM_S_URGENT_ENABLED:
 		urgent_enabled = atoi(value);
 		break;
@@ -7280,6 +7395,12 @@ setconfvalue(char *selector, char *value, int flags)
 			else
 				layouts[i].l_string = plain_stacker;
 		}
+		break;
+	case SWM_S_WINDOW_CLASS_ENABLED:
+		window_class_enabled = atoi(value);
+		break;
+	case SWM_S_WINDOW_INSTANCE_ENABLED:
+		window_instance_enabled = atoi(value);
 		break;
 	case SWM_S_WINDOW_NAME_ENABLED:
 		window_name_enabled = atoi(value);
@@ -7298,7 +7419,7 @@ setconfvalue(char *selector, char *value, int flags)
 }
 
 int
-setconfmodkey(char *selector, char *value, int flags)
+setconfmodkey(const char *selector, const char *value, int flags)
 {
 	/* suppress unused warnings since vars are needed */
 	(void)selector;
@@ -7318,14 +7439,14 @@ setconfmodkey(char *selector, char *value, int flags)
 }
 
 int
-setconfcolor(char *selector, char *value, int flags)
+setconfcolor(const char *selector, const char *value, int flags)
 {
 	setscreencolor(value, ((selector == NULL)?-1:atoi(selector)), flags);
 	return (0);
 }
 
 int
-setconfregion(char *selector, char *value, int flags)
+setconfregion(const char *selector, const char *value, int flags)
 {
 	/* suppress unused warnings since vars are needed */
 	(void)selector;
@@ -7336,7 +7457,7 @@ setconfregion(char *selector, char *value, int flags)
 }
 
 int
-setautorun(char *selector, char *value, int flags)
+setautorun(const char *selector, const char *value, int flags)
 {
 	int			ws_id;
 	char			s[1024];
@@ -7408,7 +7529,7 @@ setautorun(char *selector, char *value, int flags)
 }
 
 int
-setlayout(char *selector, char *value, int flags)
+setlayout(const char *selector, const char *value, int flags)
 {
 	int			ws_id, i, x, mg, ma, si, ar, f = 0;
 	int			st = SWM_V_STACK, num_screens;
@@ -7495,7 +7616,7 @@ setlayout(char *selector, char *value, int flags)
 /* config options */
 struct config_option {
 	char			*optname;
-	int			(*func)(char*, char*, int);
+	int			(*func)(const char*, const char*, int);
 	int			funcflags;
 };
 struct config_option configopt[] = {
@@ -7542,10 +7663,12 @@ struct config_option configopt[] = {
 	{ "stack_enabled",		setconfvalue,	SWM_S_STACK_ENABLED },
 	{ "term_width",			setconfvalue,	SWM_S_TERM_WIDTH },
 	{ "tile_gap",			setconfvalue,	SWM_S_TILE_GAP },
-	{ "title_class_enabled",	setconfvalue,	SWM_S_TITLE_CLASS_ENABLED },
-	{ "title_name_enabled",		setconfvalue,	SWM_S_TITLE_NAME_ENABLED },
+	{ "title_class_enabled",	setconfvalue,	SWM_S_WINDOW_CLASS_ENABLED }, /* For backwards compat. */
+	{ "title_name_enabled",		setconfvalue,	SWM_S_WINDOW_INSTANCE_ENABLED }, /* For backwards compat. */
 	{ "urgent_enabled",		setconfvalue,	SWM_S_URGENT_ENABLED },
 	{ "verbose_layout",		setconfvalue,	SWM_S_VERBOSE_LAYOUT },
+	{ "window_class_enabled",	setconfvalue,	SWM_S_WINDOW_CLASS_ENABLED },
+	{ "window_instance_enabled",	setconfvalue,	SWM_S_WINDOW_INSTANCE_ENABLED },
 	{ "window_name_enabled",	setconfvalue,	SWM_S_WINDOW_NAME_ENABLED },
 	{ "workspace_limit",		setconfvalue,	SWM_S_WORKSPACE_LIMIT },
 };
@@ -7579,9 +7702,9 @@ int
 conf_load(const char *filename, int keymapping)
 {
 	FILE			*config;
-	char			*line = NULL, *cp, *optsub, *optval = NULL;
+	char			*line = NULL, *cp, *ce, *optsub, *optval = NULL;
 	size_t			linelen, lineno = 0;
-	int			wordlen, i, optidx;
+	int			wordlen, i, optidx, count;
 	struct config_option	*opt = NULL;
 
 	DNPRINTF(SWM_D_CONF, "conf_load: begin\n");
@@ -7644,55 +7767,47 @@ conf_load(const char *filename, int keymapping)
 		cp += wordlen;
 		cp += strspn(cp, " \t\n"); /* eat whitespace */
 
-		/* from here on out we call goto invalid to continue */
-
 		/* get [selector] if any */
 		optsub = NULL;
+		count = 0;
 		if (*cp == '[') {
-			cp++;
-			wordlen = strcspn(cp, "]");
-			if (*cp != ']') {
-				if (wordlen == 0) {
-					add_startup_exception("%s: line %zd: "
-					    "syntax error", filename, lineno);
-					goto invalid;
-				}
-
-				if (asprintf(&optsub, "%.*s", wordlen, cp) ==
-				    -1) {
-					add_startup_exception("%s: line %zd: "
-					    "unable to allocatememory for "
-					    "selector", filename, lineno);
-					goto invalid;
+			++count;
+			/* Get length of selector. */
+			for (ce = ++cp; *ce != '\0'; ++ce) {
+				/* Find matching (not escaped) bracket. */
+				if (*ce == ']' && *(ce - 1) != '\\') {
+					--count;
+					break;
 				}
 			}
-			cp += wordlen;
-			cp += strspn(cp, "] \t\n"); /* eat trailing */
+
+			if (count > 0) {
+				add_startup_exception("%s: line %zd: syntax "
+				    "error: unterminated selector", filename,
+				    lineno);
+				continue;
+			}
+
+			/* ce points at ']'; terminate optsub. */
+			*ce = '\0';
+			optsub = cp;
+			cp = ce + 1;
 		}
 		cp += strspn(cp, "= \t\n"); /* eat trailing */
 		/* get RHS value */
-		optval = strdup(cp);
+		optval = cp;
 		if (strlen(optval) == 0) {
 			add_startup_exception("%s: line %zd: must supply value "
 			    "to %s", filename, lineno,
 			    configopt[optidx].optname);
-			goto invalid;
+			continue;
 		}
 		/* call function to deal with it all */
 		if (configopt[optidx].func(optsub, optval,
 		    configopt[optidx].funcflags) != 0) {
 			add_startup_exception("%s: line %zd: invalid data for "
 			    "%s", filename, lineno, configopt[optidx].optname);
-			goto invalid;
-		}
-invalid:
-		if (optval) {
-			free(optval);
-			optval = NULL;
-		}
-		if (optsub) {
-			free(optsub);
-			optsub = NULL;
+			continue;
 		}
 	}
 
@@ -7838,6 +7953,7 @@ manage_window(xcb_window_t id, uint16_t mapped)
 	struct ws_win		*win, *ww;
 	int			ws_idx;
 	char			ws_idx_str[SWM_PROPLEN];
+	char			*name;
 	struct swm_region	*r;
 	struct pid_e		*p;
 	struct quirk		*qp;
@@ -7966,8 +8082,11 @@ manage_window(xcb_window_t id, uint16_t mapped)
 	if (xcb_icccm_get_wm_class_reply(conn,
 	    xcb_icccm_get_wm_class(conn, win->id),
 	    &win->ch, NULL)) {
-		DNPRINTF(SWM_D_CLASS, "manage_window: class: %s, name: %s\n",
-		    win->ch.class_name, win->ch.instance_name);
+		name = get_win_name(win->id);
+
+		DNPRINTF(SWM_D_CLASS, "manage_window: class: %s, instance: %s, "
+		    "name: %s\n",
+		    win->ch.class_name, win->ch.instance_name, name);
 
 		/* java is retarded so treat it special */
 		if (strstr(win->ch.instance_name, "sun-awt")) {
@@ -7977,15 +8096,21 @@ manage_window(xcb_window_t id, uint16_t mapped)
 		}
 
 		TAILQ_FOREACH(qp, &quirks, entry) {
-			if (strcmp(win->ch.class_name, qp->class) == 0 &&
-			    strcmp(win->ch.instance_name, qp->name) == 0) {
-				DNPRINTF(SWM_D_CLASS, "manage_window: on quirks"
-				    "list; mask: 0x%lx\n", qp->quirk);
+			if (regexec(&qp->regex_class, win->ch.class_name, 0,
+			    NULL, 0) == 0 && regexec(&qp->regex_instance,
+			    win->ch.instance_name, 0, NULL, 0) == 0 &&
+			    regexec(&qp->regex_name, name, 0, NULL, 0) == 0) {
+				DNPRINTF(SWM_D_CLASS, "manage_window: matched "
+				    "quirk: %s:%s:%s mask: %#lx\n", qp->class,
+				    qp->instance, qp->name, qp->quirk);
 				if (qp->quirk & SWM_Q_FLOAT)
 					win->floating = 1;
 				win->quirks = qp->quirk;
 			}
+
 		}
+
+		free(name);
 	}
 
 	/* Alter window position if quirky */
