@@ -373,6 +373,7 @@ int		 bar_justify = SWM_BAR_JUSTIFY_LEFT;
 char		 *bar_format = NULL;
 int		 stack_enabled = 1;
 int		 clock_enabled = 1;
+int		 iconic_enabled = 0;
 int		 urgent_enabled = 0;
 char		*clock_format = NULL;
 int		 window_class_enabled = 0;
@@ -2077,6 +2078,8 @@ bar_workspace_name(char *s, size_t sz, struct swm_region *r)
 void
 bar_fmt(const char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
 {
+	struct ws_win		*w;
+
 	/* if format provided, just copy the buffers */
 	if (bar_format != NULL) {
 		strlcpy(fmtnew, fmtexp, sz);
@@ -2094,6 +2097,15 @@ bar_fmt(const char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
 	/* only show the workspace name if there's actually one */
 	if (r != NULL && r->ws != NULL && r->ws->name != NULL)
 		strlcat(fmtnew, "<+D>", sz);
+
+	/* If enabled, only show the iconic count if there are iconic wins. */
+	if (iconic_enabled && r != NULL && r->ws != NULL)
+		TAILQ_FOREACH(w, &r->ws->winlist, entry)
+			if (w->iconic) {
+				strlcat(fmtnew, "{+M}", sz);
+				break;
+			}
+
 	strlcat(fmtnew, "+3<", sz);
 
 	if (clock_enabled) {
@@ -2143,9 +2155,10 @@ char *
 bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
     size_t sz)
 {
+	struct ws_win		*w;
 	char			*ptr;
 	char			tmp[SWM_BAR_MAX];
-	int			limit, size;
+	int			limit, size, count;
 	size_t			len;
 
 	/* reset strlcat(3) buffer */
@@ -2182,6 +2195,14 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		break;
 	case 'I':
 		snprintf(tmp, sizeof tmp, "%d", r->ws->idx + 1);
+		break;
+	case 'M':
+		count = 0;
+		TAILQ_FOREACH(w, &r->ws->winlist, entry)
+			if (w->iconic)
+				++count;
+
+		snprintf(tmp, sizeof tmp, "%d", count);
 		break;
 	case 'N':
 		snprintf(tmp, sizeof tmp, "%d", r->s->idx + 1);
@@ -7179,6 +7200,7 @@ enum {
 	SWM_S_FOCUS_CLOSE_WRAP,
 	SWM_S_FOCUS_DEFAULT,
 	SWM_S_FOCUS_MODE,
+	SWM_S_ICONIC_ENABLED,
 	SWM_S_REGION_PADDING,
 	SWM_S_SPAWN_ORDER,
 	SWM_S_SPAWN_TERM,
@@ -7345,6 +7367,9 @@ setconfvalue(const char *selector, const char *value, int flags)
 			focus_mode = SWM_FOCUS_MANUAL;
 		else
 			errx(1, "focus_mode");
+		break;
+	case SWM_S_ICONIC_ENABLED:
+		iconic_enabled = atoi(value);
 		break;
 	case SWM_S_REGION_PADDING:
 		region_padding = atoi(value);
@@ -7649,6 +7674,7 @@ struct config_option configopt[] = {
 	{ "focus_close_wrap",		setconfvalue,	SWM_S_FOCUS_CLOSE_WRAP },
 	{ "focus_default",		setconfvalue,	SWM_S_FOCUS_DEFAULT },
 	{ "focus_mode",			setconfvalue,	SWM_S_FOCUS_MODE },
+	{ "iconic_enabled",		setconfvalue,	SWM_S_ICONIC_ENABLED },
 	{ "keyboard_mapping",		setkeymapping,	0 },
 	{ "layout",			setlayout,	0 },
 	{ "modkey",			setconfmodkey,	0 },

@@ -174,6 +174,7 @@ It may contain the following character sequences:
 .It Li "+D" Ta "Workspace name"
 .It Li "+F" Ta "Floating indicator"
 .It Li "+I" Ta "Workspace index"
+.It Li "+M" Ta "Number of iconic (minimized) windows in workspace"
 .It Li "+N" Ta "Screen number"
 .It Li "+P" Ta "Window class and instance separated by a colon"
 .It Li "+S" Ta "Stacking algorithm"
@@ -221,6 +222,9 @@ Disable by setting to 0
 so a custom clock could be used in the
 .Pa bar_action
 script.
+.It Ic iconic_enabled
+Display the number of iconic (minimized) windows in the status bar.
+Enable by setting to 1.
 .It Ic color_focus
 Border color of the currently focussed window.
 .It Ic color_unfocus
