@@ -7159,19 +7159,19 @@ setconfquirk(const char *selector, const char *value, int flags)
 void
 setup_quirks(void)
 {
-	setquirk("MPlayer",		"xv",		"",	SWM_Q_FLOAT | SWM_Q_FULLSCREEN | SWM_Q_FOCUSPREV);
-	setquirk("OpenOffice.org 3.2",	"VCLSalFrame",	"",	SWM_Q_FLOAT);
-	setquirk("Firefox-bin",		"firefox-bin",	"",	SWM_Q_TRANSSZ);
-	setquirk("Firefox",		"Dialog",	"",	SWM_Q_FLOAT);
-	setquirk("Gimp",		"gimp",		"",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
-	setquirk("XTerm",		"xterm",	"",	SWM_Q_XTERM_FONTADJ);
-	setquirk("xine",		"Xine Window",	"",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
-	setquirk("Xitk",		"Xitk Combo",	"",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
-	setquirk("xine",		"xine Panel",	"",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
-	setquirk("Xitk",		"Xine Window",	"",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
-	setquirk("xine",		"xine Video Fullscreen Window",	"",	SWM_Q_FULLSCREEN | SWM_Q_FLOAT);
-	setquirk("pcb",			"pcb",		"",	SWM_Q_FLOAT);
-	setquirk("SDL_App",		"SDL_App",	"",	SWM_Q_FLOAT | SWM_Q_FULLSCREEN);
+	setquirk("MPlayer",		"xv",		".*",	SWM_Q_FLOAT | SWM_Q_FULLSCREEN | SWM_Q_FOCUSPREV);
+	setquirk("OpenOffice.org 3.2",	"VCLSalFrame",	".*",	SWM_Q_FLOAT);
+	setquirk("Firefox-bin",		"firefox-bin",	".*",	SWM_Q_TRANSSZ);
+	setquirk("Firefox",		"Dialog",	".*",	SWM_Q_FLOAT);
+	setquirk("Gimp",		"gimp",		".*",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
+	setquirk("XTerm",		"xterm",	".*",	SWM_Q_XTERM_FONTADJ);
+	setquirk("xine",		"Xine Window",	".*",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
+	setquirk("Xitk",		"Xitk Combo",	".*",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
+	setquirk("xine",		"xine Panel",	".*",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
+	setquirk("Xitk",		"Xine Window",	".*",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
+	setquirk("xine",		"xine Video Fullscreen Window",	".*",	SWM_Q_FULLSCREEN | SWM_Q_FLOAT);
+	setquirk("pcb",			"pcb",		".*",	SWM_Q_FLOAT);
+	setquirk("SDL_App",		"SDL_App",	".*",	SWM_Q_FLOAT | SWM_Q_FULLSCREEN);
 }
 
 /* conf file stuff */
