@@ -8960,6 +8960,10 @@ propertynotify(xcb_property_notify_event_t *e)
 				focus_flush();
 			}
 		} else if (e->state == XCB_PROPERTY_DELETE) {
+			/* Reload floating geometry in case region changed. */
+			if (win->floating)
+				load_float_geom(win);
+
 			/* The window is no longer iconic, restack ws. */
 			if (focus_mode != SWM_FOCUS_FOLLOW)
 				ws->focus_pending = get_focus_magic(win);
