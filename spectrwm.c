@@ -6818,9 +6818,11 @@ updatenumlockmask(void)
 				    + j];
 				keycode = xcb_key_symbols_get_keycode(syms,
 						XK_Num_Lock);
-				if (kc == *keycode)
-					numlockmask = (1 << i);
-				free(keycode);
+				if (keycode) {
+					if (kc == *keycode)
+						numlockmask = (1 << i);
+					free(keycode);
+				}
 			}
 		}
 		free(modmap_r);
@@ -8771,10 +8773,22 @@ mapnotify(xcb_map_notify_event_t *e)
 void
 mappingnotify(xcb_mapping_notify_event_t *e)
 {
+	struct ws_win	*w;
+	int	i, j, num_screens;
+
 	xcb_refresh_keyboard_mapping(syms, e);
 
-	if (e->request == XCB_MAPPING_KEYBOARD)
+	if (e->request == XCB_MAPPING_KEYBOARD) {
 		grabkeys();
+
+		/* Regrab buttons on all managed windows. */
+		num_screens = get_screen_count();
+		for (i = 0; i < num_screens; i++)
+			for (j = 0; j < workspace_limit; j++)
+				TAILQ_FOREACH(w, &screens[i].ws[j].winlist,
+				    entry)
+					grabbuttons(w);
+	}
 }
 
 void
