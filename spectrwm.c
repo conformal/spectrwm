@@ -870,6 +870,7 @@ RB_HEAD(key_tree, key);
 
 /* function prototypes */
 void	 adjust_font(struct ws_win *);
+char	*argsep(char **);
 void	 bar_cleanup(struct swm_region *);
 void	 bar_extra_setup(void);
 void	 bar_extra_stop(void);
@@ -6255,24 +6256,73 @@ spawn_select(struct swm_region *r, union arg *args, const char *spawn_name,
 	free(real_args);
 }
 
+/* Argument tokenizer. */
+char *
+argsep(char **sp) {
+	int			single_quoted = 0, double_quoted = 0;
+	char			*arg, *cp, *next;
+
+	if (*sp == NULL)
+		return NULL;
+
+	/* Eat and move characters until end of argument is found. */
+	for (arg = next = cp = *sp; *cp != '\0'; ++cp) {
+		if (!double_quoted && *cp == '\'') {
+			/* Eat single-quote. */
+			single_quoted = !single_quoted;
+		} else if (!single_quoted && *cp == '"') {
+			/* Eat double-quote. */
+			double_quoted = !double_quoted;
+		} else if (!single_quoted && *cp == '\\' && *(cp + 1) == '"') {
+			/* Eat backslash; copy escaped character to arg. */
+			*next++ = *(++cp);
+		} else if (!single_quoted && !double_quoted && *cp == '\\' &&
+		    (*(cp + 1) == '\'' || *(cp + 1) == ' ')) {
+			/* Eat backslash; move escaped character. */
+			*next++ = *(++cp);
+		} else if (!single_quoted && !double_quoted &&
+		    (*cp == ' ' || *cp == '\t')) {
+			/* Terminate argument. */
+			*next++ = '\0';
+			/* Point sp to beginning of next argument. */
+			*sp = ++cp;
+			break;
+		} else {
+			/* Move regular character. */
+			*next++ = *cp;
+		}
+	}
+
+	/* Terminate argument if end of string. */
+	if (*cp == '\0') {
+		*next = '\0';
+		*sp = NULL;
+	}
+
+	return arg;
+}
+
 void
 spawn_insert(const char *name, const char *args, int flags)
 {
-	char			*arg, *cp, *ptr;
 	struct spawn_prog	*sp;
+	char			*arg, *dup, *ptr;
 
-	DNPRINTF(SWM_D_SPAWN, "spawn_insert: %s\n", name);
+	DNPRINTF(SWM_D_SPAWN, "spawn_insert: %s[%s]\n", name, args);
+
+	if (args == NULL || *args == '\0')
+		return;
 
 	if ((sp = calloc(1, sizeof *sp)) == NULL)
 		err(1, "spawn_insert: calloc");
 	if ((sp->name = strdup(name)) == NULL)
 		err(1, "spawn_insert: strdup");
 
-	/* convert the arguments to an argument list */
-	if ((ptr = cp = strdup(args)) == NULL)
+	/* Convert the arguments to an argument list. */
+	if ((ptr = dup = strdup(args)) == NULL)
 		err(1, "spawn_insert: strdup");
-	while ((arg = strsep(&ptr, " \t")) != NULL) {
-		/* empty field; skip it */
+	while ((arg = argsep(&ptr)) != NULL) {
+		/* Null argument; skip it. */
 		if (*arg == '\0')
 			continue;
 
@@ -6283,10 +6333,11 @@ spawn_insert(const char *name, const char *args, int flags)
 		if ((sp->argv[sp->argc - 1] = strdup(arg)) == NULL)
 			err(1, "spawn_insert: strdup");
 	}
-	free(cp);
+	free(dup);
 
 	sp->flags = flags;
 
+	DNPRINTF(SWM_D_SPAWN, "arg %d: [%s]\n", sp->argc, sp->argv[sp->argc-1]);
 	TAILQ_INSERT_TAIL(&spawns, sp, entry);
 	DNPRINTF(SWM_D_SPAWN, "spawn_insert: leave\n");
 }
