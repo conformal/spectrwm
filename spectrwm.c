@@ -6398,6 +6398,9 @@ setconfspawn(const char *selector, const char *value, int flags)
 {
 	char		*args;
 
+	if (selector == NULL || strlen(selector) == 0)
+		return (1);
+
 	args = expand_tilde(value);
 
 	DNPRINTF(SWM_D_SPAWN, "setconfspawn: [%s] [%s]\n", selector, args);
@@ -6646,8 +6649,9 @@ setconfbinding(const char *selector, const char *value, int flags)
 	/* suppress unused warning since var is needed */
 	(void)flags;
 
-	DNPRINTF(SWM_D_KEY, "setconfbinding: enter\n");
-	if (selector == NULL) {
+	DNPRINTF(SWM_D_KEY, "setconfbinding: enter selector: [%s], "
+	    "value: [%s]\n", selector, value);
+	if (selector == NULL || strlen(selector) == 0) {
 		DNPRINTF(SWM_D_KEY, "setconfbinding: unbind %s\n", value);
 		if (parsekeys(value, mod_key, &mod, &ks) == 0) {
 			kfid = KF_INVALID;
@@ -7164,7 +7168,7 @@ setconfquirk(const char *selector, const char *value, int flags)
 	/* suppress unused warning since var is needed */
 	(void)flags;
 
-	if (selector == NULL)
+	if (selector == NULL || strlen(selector) == 0)
 		return (0);
 
 	if ((str = strdup(selector)) == NULL)
@@ -7276,9 +7280,6 @@ setconfvalue(const char *selector, const char *value, int flags)
 	struct workspace	*ws;
 	int			i, ws_id, num_screens;
 	char			*b, *str;
-
-	/* suppress unused warning since var is needed */
-	(void)selector;
 
 	switch (flags) {
 	case SWM_S_BAR_ACTION:
@@ -7519,7 +7520,9 @@ setconfmodkey(const char *selector, const char *value, int flags)
 int
 setconfcolor(const char *selector, const char *value, int flags)
 {
-	setscreencolor(value, ((selector == NULL)?-1:atoi(selector)), flags);
+	setscreencolor(value,
+	    (selector == NULL || strlen(selector) == 0) ? -1 : atoi(selector),
+	    flags);
 	return (0);
 }
 
