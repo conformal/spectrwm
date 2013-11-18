@@ -226,9 +226,15 @@ script.
 Display the number of iconic (minimized) windows in the status bar.
 Enable by setting to 1.
 .It Ic color_focus
-Border color of the currently focussed window.
+Border color of the currently focused window.  Default is red.
+.It Ic color_focus_maximized
+Border color of the currently focused, maximized window.  Defaults to the
+value of color_focus.
 .It Ic color_unfocus
-Border color of unfocussed windows.
+Border color of unfocused windows, default is rgb:88/88/88.
+.It Ic color_unfocus_maximized
+Border color of unfocused, maximized windows.  Defaults to the value of
+color_unfocus.
 .It Ic dialog_ratio
 Some applications have dialogue windows that are too small to be useful.
 This ratio is the screen size to what they will be resized.

@@ -572,7 +572,9 @@ enum {
 	SWM_S_COLOR_BAR_BORDER_UNFOCUS,
 	SWM_S_COLOR_BAR_FONT,
 	SWM_S_COLOR_FOCUS,
+	SWM_S_COLOR_FOCUS_MAXIMIZED,
 	SWM_S_COLOR_UNFOCUS,
+	SWM_S_COLOR_UNFOCUS_MAXIMIZED,
 	SWM_S_COLOR_MAX
 };
 
@@ -592,6 +594,7 @@ struct swm_screen {
 	struct {
 		uint32_t	pixel;
 		char		*name;
+		int		manual;
 	} c[SWM_S_COLOR_MAX];
 
 	xcb_gcontext_t		bar_gc;
@@ -1152,6 +1155,7 @@ void	 update_floater(struct ws_win *);
 void	 update_modkey(unsigned int);
 void	 update_win_stacking(struct ws_win *);
 void	 update_window(struct ws_win *);
+void	 update_window_color(struct ws_win *);
 void	 update_wm_state(struct  ws_win *win);
 void	 validate_spawns(void);
 int	 validate_win(struct ws_win *);
@@ -1632,6 +1636,8 @@ ewmh_apply_flags(struct ws_win *win, uint32_t pending)
 					ws->focus_pending = win;
 			}
 		}
+
+		update_window_color(win);
 		raise_window(win);
 	}
 
@@ -3468,8 +3474,7 @@ unfocus_win(struct ws_win *win)
 		win->ws->focus_prev = NULL;
 	}
 
-	xcb_change_window_attributes(conn, win->id, XCB_CW_BORDER_PIXEL,
-	    &win->s->c[SWM_S_COLOR_UNFOCUS].pixel);
+	update_window_color(win);
 
 	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
 	    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1, &none);
@@ -3486,13 +3491,7 @@ focus_win(struct ws_win *win)
 
 	DNPRINTF(SWM_D_FOCUS, "focus_win: win %#x\n", WINID(win));
 
-	if (win == NULL)
-		goto out;
-
-	if (win->ws == NULL)
-		goto out;
-
-	if (!win->mapped)
+	if (win == NULL || win->ws == NULL || !win->mapped)
 		goto out;
 
 	ws = win->ws;
@@ -3513,7 +3512,9 @@ focus_win(struct ws_win *win)
 				/* Change border to unfocused color. */
 				xcb_change_window_attributes(conn, cfw->id,
 				    XCB_CW_BORDER_PIXEL,
-				    &cfw->s->c[SWM_S_COLOR_UNFOCUS].pixel);
+				    &cfw->s->c[(MAXIMIZED(cfw) ?
+				    SWM_S_COLOR_UNFOCUS_MAXIMIZED :
+				    SWM_S_COLOR_UNFOCUS)].pixel);
 			} else {
 				unfocus_win(cfw);
 			}
@@ -3559,9 +3560,6 @@ focus_win(struct ws_win *win)
 				client_msg(win, a_takefocus, last_event_time);
 		}
 
-		xcb_change_window_attributes(conn, win->id, XCB_CW_BORDER_PIXEL,
-		    &win->s->c[SWM_S_COLOR_FOCUS].pixel);
-
 		if (ws->cur_layout->flags & SWM_L_MAPONFOCUS ||
 		    ws->always_raise) {
 			/* If a parent exists, map it first. */
@@ -3594,6 +3592,8 @@ focus_win(struct ws_win *win)
 		}
 
 		set_region(ws->r);
+
+		update_window_color(win);
 
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
 		    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
@@ -3750,8 +3750,7 @@ switchws(struct swm_region *r, union arg *args)
 		return;
 
 	if ((win = old_ws->focus) != NULL) {
-		xcb_change_window_attributes(conn, win->id, XCB_CW_BORDER_PIXEL,
-		    &win->s->c[SWM_S_COLOR_UNFOCUS].pixel);
+		update_window_color(win);
 
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
 		    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
@@ -6012,6 +6011,24 @@ constrain_window(struct ws_win *win, struct swm_geometry *b, int *opts)
 }
 
 void
+update_window_color(struct ws_win *win)
+{
+	uint32_t	*pixel;
+
+	if (WS_FOCUSED(win->ws) && win->ws->focus == win)
+		pixel = MAXIMIZED(win) ?
+		    &win->s->c[SWM_S_COLOR_FOCUS_MAXIMIZED].pixel :
+		    &win->s->c[SWM_S_COLOR_FOCUS].pixel;
+	else
+		pixel = MAXIMIZED(win) ?
+		    &win->s->c[SWM_S_COLOR_UNFOCUS_MAXIMIZED].pixel :
+		    &win->s->c[SWM_S_COLOR_UNFOCUS].pixel;
+
+	xcb_change_window_attributes(conn, win->id,
+	    XCB_CW_BORDER_PIXEL, pixel);
+}
+
+void
 update_window(struct ws_win *win)
 {
 	uint16_t	mask;
@@ -6683,11 +6700,21 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
 			    strdup(r->s->c[SWM_S_COLOR_FOCUS].name))
 			    == NULL)
 				err(1, "spawn_custom color focus");
+		} else if (strcasecmp(ap, "$color_focus_maximized") == 0) {
+			if ((real_args[c] =
+			    strdup(r->s->c[SWM_S_COLOR_FOCUS_MAXIMIZED].name))
+			    == NULL)
+				err(1, "spawn_custom color focus maximized");
 		} else if (strcasecmp(ap, "$color_unfocus") == 0) {
 			if ((real_args[c] =
 			    strdup(r->s->c[SWM_S_COLOR_UNFOCUS].name))
 			    == NULL)
 				err(1, "spawn_custom color unfocus");
+		} else if (strcasecmp(ap, "$color_unfocus_maximized") == 0) {
+			if ((real_args[c] =
+			    strdup(r->s->c[SWM_S_COLOR_UNFOCUS_MAXIMIZED].name))
+			    == NULL)
+				err(1, "spawn_custom color unfocus maximized");
 		} else if (strcasecmp(ap, "$region_index") == 0) {
 			if (asprintf(&real_args[c], "%d",
 			    get_region_index(r) + 1) < 1)
@@ -8075,9 +8102,36 @@ setconfmodkey(const char *selector, const char *value, int flags)
 int
 setconfcolor(const char *selector, const char *value, int flags)
 {
-	setscreencolor(value,
-	    (selector == NULL || strlen(selector) == 0) ? -1 : atoi(selector),
-	    flags);
+	int	sid, i, num_screens;
+
+	sid = (selector == NULL || strlen(selector) == 0) ? -1 : atoi(selector);
+
+	/*
+	 * When setting focus/unfocus colors, we need to also
+	 * set maximize colors to match if they haven't been customized.
+	 */
+	i = sid < 0 ? 0 : sid;
+	if (flags == SWM_S_COLOR_FOCUS &&
+	    !screens[i].c[SWM_S_COLOR_FOCUS_MAXIMIZED].manual)
+		setscreencolor(value, sid, SWM_S_COLOR_FOCUS_MAXIMIZED);
+	else if (flags == SWM_S_COLOR_UNFOCUS &&
+	    !screens[i].c[SWM_S_COLOR_UNFOCUS_MAXIMIZED].manual)
+		setscreencolor(value, sid, SWM_S_COLOR_UNFOCUS_MAXIMIZED);
+
+	setscreencolor(value, sid, flags);
+
+	/* Track override of color. */
+	num_screens = get_screen_count();
+	if (sid > 0 && sid <= num_screens) {
+		screens[i].c[flags].manual = 1;
+	} else if (sid == -1) {
+		for (i = 0; i < num_screens; ++i)
+			screens[i].c[flags].manual = 1;
+	} else {
+		errx(1, "invalid screen index: %d out of bounds (maximum %d)",
+		    sid, num_screens);
+	}
+
 	return (0);
 }
 
@@ -8276,7 +8330,9 @@ struct config_option configopt[] = {
 	{ "clock_enabled",		setconfvalue,	SWM_S_CLOCK_ENABLED },
 	{ "clock_format",		setconfvalue,	SWM_S_CLOCK_FORMAT },
 	{ "color_focus",		setconfcolor,	SWM_S_COLOR_FOCUS },
+	{ "color_focus_maximized",	setconfcolor,	SWM_S_COLOR_FOCUS_MAXIMIZED },
 	{ "color_unfocus",		setconfcolor,	SWM_S_COLOR_UNFOCUS },
+	{ "color_unfocus_maximized",	setconfcolor,	SWM_S_COLOR_UNFOCUS_MAXIMIZED },
 	{ "cycle_empty",		setconfvalue,	SWM_S_CYCLE_EMPTY },
 	{ "cycle_visible",		setconfvalue,	SWM_S_CYCLE_VISIBLE },
 	{ "dialog_ratio",		setconfvalue,	SWM_S_DIALOG_RATIO },
@@ -10289,6 +10345,8 @@ setup_screens(void)
 		    SWM_S_COLOR_BAR_BORDER_UNFOCUS);
 		setscreencolor("black", i + 1, SWM_S_COLOR_BAR);
 		setscreencolor("rgb:a0/a0/a0", i + 1, SWM_S_COLOR_BAR_FONT);
+		setscreencolor("red", i + 1, SWM_S_COLOR_FOCUS_MAXIMIZED);
+		setscreencolor("rgb:88/88/88", i + 1, SWM_S_COLOR_UNFOCUS_MAXIMIZED);
 
 		/* create graphics context on screen */
 		screens[i].bar_gc = xcb_generate_id(conn);
