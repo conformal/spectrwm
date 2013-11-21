@@ -1,7 +1,7 @@
 # To use homebrew instead of macports, uncomment the following three lines.
 #INCFLAGS+= -I/opt/X11/include
 #LDADD+=  -lX11 -lXcursor -lXft -L/opt/X11/lib
-#INCFLAGS+= -I/usr/local/Cellar/freetype/2.4.10/include/freetype2
+#INCFLAGS+= -I/usr/local/Cellar/freetype/2.5.0.1/include/freetype2
 
 # To use homebrew instead of macports, comment out the following two lines.
 INCFLAGS+= -I/opt/local/include/freetype2 -I/opt/local/include
