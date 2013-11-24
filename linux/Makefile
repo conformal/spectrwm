@@ -1,5 +1,5 @@
 CFLAGS+= -std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Wno-uninitialized -g
-CFLAGS+= -D_GNU_SOURCE -I. -I/usr/include/freetype2 -DSWM_LIB=\"libswmhack.so.$(LVERS)\"
+CFLAGS+= -D_GNU_SOURCE -I. -I/usr/include/freetype2 -DSWM_LIB=\"$(LIBDIR)/libswmhack.so.$(LVERS)\"
 LDADD+= -lX11 -lX11-xcb -lxcb -lxcb-icccm -lxcb-randr -lxcb-keysyms -lxcb-util -lxcb-xtest -lXft -lXcursor
 
 PREFIX?= /usr/local
