@@ -1,3 +1,8 @@
+PREFIX?= /usr/local
+BINDIR?= $(PREFIX)/bin
+LIBDIR?= $(PREFIX)/lib
+MANDIR?= $(PREFIX)/share/man
+
 # To use homebrew instead of macports, uncomment the following three lines.
 #INCFLAGS+= -I/opt/X11/include
 #LDADD+=  -lX11 -lXcursor -lXft -L/opt/X11/lib
@@ -9,18 +14,13 @@ LDADD+=  -L/opt/local/lib -lX11 -lXcursor -lXft
 
 LDADD+=  -lxcb-keysyms -lxcb-util -lxcb-randr -lX11-xcb -lxcb-xtest -lxcb -lxcb-icccm
 
+LVERS= $(shell . ../lib/shlib_version; echo $$major.$$minor)
+
 CFLAGS+= -std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Wno-uninitialized -g
 CFLAGS+= -O2 -D_GNU_SOURCE -D__OSX__ -I. -I.. ${INCFLAGS}
 CFLAGS+= -DSWM_LIB=\"$(LIBDIR)/libswmhack.so.$(LVERS)\"
 
-PREFIX?= /usr/local
-BINDIR?= $(PREFIX)/bin
-LIBDIR?= $(PREFIX)/lib
-MANDIR?= $(PREFIX)/share/man
-
 CC?= cc
-
-LVERS= $(shell . ../lib/shlib_version; echo $$major.$$minor)
 
 all: spectrwm libswmhack.so.$(LVERS)
 
