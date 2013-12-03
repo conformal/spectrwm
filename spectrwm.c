@@ -8035,7 +8035,7 @@ manage_window(xcb_window_t id, uint16_t mapped)
 	struct ws_win		*win, *ww;
 	int			ws_idx;
 	char			ws_idx_str[SWM_PROPLEN];
-	char			*name;
+	char			*class, *instance, *name;
 	struct swm_region	*r;
 	struct pid_e		*p;
 	struct quirk		*qp;
@@ -8161,39 +8161,37 @@ manage_window(xcb_window_t id, uint16_t mapped)
 	ewmh_autoquirk(win);
 
 	/* Determine initial quirks. */
-	if (xcb_icccm_get_wm_class_reply(conn,
+	xcb_icccm_get_wm_class_reply(conn,
 	    xcb_icccm_get_wm_class(conn, win->id),
-	    &win->ch, NULL)) {
-		name = get_win_name(win->id);
+	    &win->ch, NULL);
 
-		DNPRINTF(SWM_D_CLASS, "manage_window: class: %s, instance: %s, "
-		    "name: %s\n",
-		    win->ch.class_name, win->ch.instance_name, name);
+	class = win->ch.class_name ? win->ch.class_name : "";
+	instance = win->ch.instance_name ? win->ch.instance_name : "";
+	name = get_win_name(win->id);
 
-		/* java is retarded so treat it special */
-		if (strstr(win->ch.instance_name, "sun-awt")) {
-			DNPRINTF(SWM_D_CLASS, "manage_window: java window "
-			    "detected.\n");
-			win->java = 1;
-		}
+	DNPRINTF(SWM_D_CLASS, "manage_window: class: %s, instance: %s, "
+	    "name: %s\n", class, instance, name);
 
-		TAILQ_FOREACH(qp, &quirks, entry) {
-			if (regexec(&qp->regex_class, win->ch.class_name, 0,
-			    NULL, 0) == 0 && regexec(&qp->regex_instance,
-			    win->ch.instance_name, 0, NULL, 0) == 0 &&
-			    regexec(&qp->regex_name, name, 0, NULL, 0) == 0) {
-				DNPRINTF(SWM_D_CLASS, "manage_window: matched "
-				    "quirk: %s:%s:%s mask: %#lx\n", qp->class,
-				    qp->instance, qp->name, qp->quirk);
-				if (qp->quirk & SWM_Q_FLOAT)
-					win->floating = 1;
-				win->quirks = qp->quirk;
-			}
-
-		}
-
-		free(name);
+	/* java is retarded so treat it special */
+	if (win->ch.instance_name && strstr(win->ch.instance_name, "sun-awt")) {
+		DNPRINTF(SWM_D_CLASS, "manage_window: java window detected.\n");
+		win->java = 1;
 	}
+
+	TAILQ_FOREACH(qp, &quirks, entry) {
+		if (regexec(&qp->regex_class, class, 0, NULL, 0) == 0 &&
+		    regexec(&qp->regex_instance, instance, 0, NULL, 0) == 0 &&
+		    regexec(&qp->regex_name, name, 0, NULL, 0) == 0) {
+			DNPRINTF(SWM_D_CLASS, "manage_window: matched "
+			    "quirk: %s:%s:%s mask: %#lx\n", qp->class,
+			    qp->instance, qp->name, qp->quirk);
+			if (qp->quirk & SWM_Q_FLOAT)
+				win->floating = 1;
+			win->quirks = qp->quirk;
+		}
+	}
+
+	free(name);
 
 	/* Alter window position if quirky */
 	if (win->quirks & SWM_Q_ANYWHERE)
