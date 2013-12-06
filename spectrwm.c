@@ -641,7 +641,9 @@ struct quirk_list		quirks = TAILQ_HEAD_INITIALIZER(quirks);
 enum {
 	_NET_ACTIVE_WINDOW,
 	_NET_CLOSE_WINDOW,
+	_NET_CURRENT_DESKTOP,
 	_NET_MOVERESIZE_WINDOW,
+	_NET_NUMBER_OF_DESKTOPS,
 	_NET_WM_ACTION_ABOVE,
 	_NET_WM_ACTION_CLOSE,
 	_NET_WM_ACTION_FULLSCREEN,
@@ -675,7 +677,9 @@ struct ewmh_hint {
     /* must be in same order as in the enum */
     {"_NET_ACTIVE_WINDOW", XCB_ATOM_NONE},
     {"_NET_CLOSE_WINDOW", XCB_ATOM_NONE},
+    {"_NET_CURRENT_DESKTOP", XCB_ATOM_NONE},
     {"_NET_MOVERESIZE_WINDOW", XCB_ATOM_NONE},
+    {"_NET_NUMBER_OF_DESKTOPS", XCB_ATOM_NONE},
     {"_NET_WM_ACTION_ABOVE", XCB_ATOM_NONE},
     {"_NET_WM_ACTION_CLOSE", XCB_ATOM_NONE},
     {"_NET_WM_ACTION_FULLSCREEN", XCB_ATOM_NONE},
@@ -1352,6 +1356,13 @@ setup_ewmh(void)
 			xcb_change_property(conn, XCB_PROP_MODE_APPEND,
 			    screens[i].root, sup_list, XCB_ATOM_ATOM, 32, 1,
 			    &ewmh[j].atom);
+
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
+		    screens[i].root, ewmh[_NET_NUMBER_OF_DESKTOPS].atom,
+		    XCB_ATOM_INTEGER, 32, 1, &workspace_limit);
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
+		    screens[i].root, ewmh[_NET_CURRENT_DESKTOP].atom,
+		    XCB_ATOM_INTEGER, 32, 1, &screens[i].ws->idx);
 	}
 }
 
@@ -1383,6 +1394,11 @@ teardown_ewmh(void)
 			xcb_delete_property(conn, screens[i].root, sup_list);
 		}
 		free(pr);
+
+		xcb_delete_property(conn, screens[i].root,
+		    ewmh[_NET_NUMBER_OF_DESKTOPS].atom);
+		xcb_delete_property(conn, screens[i].root,
+		    ewmh[_NET_CURRENT_DESKTOP].atom);
 	}
 }
 
@@ -3623,6 +3639,9 @@ switchws(struct swm_region *r, union arg *args)
 	}
 
 	focus_flush();
+
+	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, r->s->root,
+	    ewmh[_NET_CURRENT_DESKTOP].atom, XCB_ATOM_INTEGER, 32, 1, &wsid);
 
 	DNPRINTF(SWM_D_WS, "switchws: done.\n");
 }
