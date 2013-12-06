@@ -509,6 +509,7 @@ struct workspace {
 	char			*name;		/* workspace name */
 	int			always_raise;	/* raise windows on focus */
 	int			bar_enabled;	/* bar visibility */
+	int			iconified;	/* iconified windows */
 	struct layout		*cur_layout;	/* current layout handlers */
 	struct ws_win		*focus;		/* may be NULL */
 	struct ws_win		*focus_prev;	/* may be NULL */
@@ -1304,11 +1305,14 @@ set_swm_iconic(struct ws_win *win, int newv)
 
 	win->iconic = newv;
 
-	if (newv)
+	if (newv) {
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id,
 		    a_swm_iconic, XCB_ATOM_INTEGER, 32, 1, &v);
-	else
+		win->ws->iconified++;
+	} else {
 		xcb_delete_property(conn, win->id, a_swm_iconic);
+		win->ws->iconified--;
+	}
 }
 
 int32_t
@@ -2193,6 +2197,9 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		break;
 	case 'F':
 		bar_window_float(tmp, sizeof tmp, r);
+		break;
+	case 'G':
+		snprintf(tmp, sizeof tmp, "%d", r->ws->iconified);
 		break;
 	case 'I':
 		snprintf(tmp, sizeof tmp, "%d", r->ws->idx + 1);
@@ -7249,6 +7256,7 @@ enum {
 	SWM_S_BOUNDARY_WIDTH,
 	SWM_S_CLOCK_ENABLED,
 	SWM_S_CLOCK_FORMAT,
+	SWM_S_ICONIFIED_ENABLED,
 	SWM_S_CYCLE_EMPTY,
 	SWM_S_CYCLE_VISIBLE,
 	SWM_S_DIALOG_RATIO,
@@ -7373,6 +7381,9 @@ setconfvalue(const char *selector, const char *value, int flags)
 		if ((clock_format = strdup(value)) == NULL)
 			err(1, "setconfvalue: clock_format");
 #endif
+		break;
+	case SWM_S_ICONIFIED_ENABLED:
+		iconified_enabled = atoi(value);
 		break;
 	case SWM_S_CYCLE_EMPTY:
 		cycle_empty = atoi(value);
