@@ -3819,7 +3819,7 @@ cyclews(struct swm_region *r, union arg *args)
 	union			arg a;
 	struct swm_screen	*s = r->s;
 	int			cycle_all = 0;
-	int			move = 0;
+	int			mv = 0;
 
 	DNPRINTF(SWM_D_WS, "cyclews: id: %d, screen[%d]:%dx%d+%d+%d, ws: %d\n",
 	    args->id, r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
@@ -3829,7 +3829,7 @@ cyclews(struct swm_region *r, union arg *args)
 	do {
 		switch (args->id) {
 		case SWM_ARG_ID_CYCLEWS_MOVE_UP:
-			move = 1;
+			mv = 1;
 			/* FALLTHROUGH */
 		case SWM_ARG_ID_CYCLEWS_UP_ALL:
 			cycle_all = 1;
@@ -3838,7 +3838,7 @@ cyclews(struct swm_region *r, union arg *args)
 			a.id = (a.id < workspace_limit - 1) ? a.id + 1 : 0;
 			break;
 		case SWM_ARG_ID_CYCLEWS_MOVE_DOWN:
-			move = 1;
+			mv = 1;
 			/* FALLTHROUGH */
 		case SWM_ARG_ID_CYCLEWS_DOWN_ALL:
 			cycle_all = 1;
@@ -3856,7 +3856,7 @@ cyclews(struct swm_region *r, union arg *args)
 		if (!cycle_visible && s->ws[a.id].r != NULL)
 			continue;
 
-		if (move)
+		if (mv)
 			send_to_ws(r, &a);
 
 		switchws(r, &a);
@@ -5554,7 +5554,7 @@ ewmh_update_desktop_names(void)
 			++len;
 		}
 
-		if((name_list = calloc(sizeof(char *), len)) == NULL)
+		if((name_list = calloc(len, sizeof(char))) == NULL)
 			err(1, "update_desktop_names: calloc: failed to "
 			    "allocate memory.");
 
@@ -5637,7 +5637,7 @@ ewmh_update_client_list(void)
 		if (count == 0)
 			continue;
 
-		wins = calloc(sizeof(xcb_window_t), count);
+		wins = calloc(count, sizeof(xcb_window_t));
 		if (wins == NULL)
 			err(1, "ewmh_update_client_list: calloc: failed to "
 			    "allocate memory.");
@@ -5672,7 +5672,7 @@ ewmh_update_desktops(void)
 	int			num_screens, i, j;
 	uint32_t		*vals;
 
-	vals = calloc(sizeof(uint32_t), workspace_limit * 2);
+	vals = calloc(workspace_limit * 2, sizeof(uint32_t));
 	if (vals == NULL)
 		err(1, "ewmh_update_desktops: calloc: failed to allocate "
 		    "memory.");
@@ -6858,7 +6858,7 @@ void
 spawn_insert(const char *name, const char *args, int flags)
 {
 	struct spawn_prog	*sp;
-	char			*arg, *dup, *ptr;
+	char			*arg, *cp, *ptr;
 
 	DNPRINTF(SWM_D_SPAWN, "spawn_insert: %s[%s]\n", name, args);
 
@@ -6871,7 +6871,7 @@ spawn_insert(const char *name, const char *args, int flags)
 		err(1, "spawn_insert: strdup");
 
 	/* Convert the arguments to an argument list. */
-	if ((ptr = dup = strdup(args)) == NULL)
+	if ((ptr = cp = strdup(args)) == NULL)
 		err(1, "spawn_insert: strdup");
 	while ((arg = argsep(&ptr)) != NULL) {
 		/* Null argument; skip it. */
@@ -6885,7 +6885,7 @@ spawn_insert(const char *name, const char *args, int flags)
 		if ((sp->argv[sp->argc - 1] = strdup(arg)) == NULL)
 			err(1, "spawn_insert: strdup");
 	}
-	free(dup);
+	free(cp);
 
 	sp->flags = flags;
 
