@@ -9742,6 +9742,30 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 	focus_flush();
 }
 
+#ifdef SWM_DEBUG
+char *
+get_source_type_label(uint32_t type)
+{
+	char *label;
+
+	switch (type) {
+	case EWMH_SOURCE_TYPE_NONE:
+		label = "None";
+		break;
+	case EWMH_SOURCE_TYPE_NORMAL:
+		label = "Normal";
+		break;
+	case EWMH_SOURCE_TYPE_OTHER:
+		label = "Other";
+		break;
+	default:
+		label = "Invalid";
+	}
+
+	return label;
+}
+#endif
+
 void
 clientmessage(xcb_client_message_event_t *e)
 {
@@ -9768,8 +9792,7 @@ clientmessage(xcb_client_message_event_t *e)
 				break;
 			}
 
-		if (r && e->data.data32[0] <
-		    (uint32_t)workspace_limit) {
+		if (r && e->data.data32[0] < (uint32_t)workspace_limit) {
 			a.id = e->data.data32[0];
 			switchws(r, &a);
 			focus_flush();
@@ -9791,11 +9814,21 @@ clientmessage(xcb_client_message_event_t *e)
 	}
 
 	if (e->type == ewmh[_NET_ACTIVE_WINDOW].atom) {
-		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_ACTIVE_WINDOW\n");
-		if (WS_FOCUSED(win->ws))
-			focus_win(win);
-		else
-			win->ws->focus_pending = win;
+		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_ACTIVE_WINDOW, "
+		    "source_type: %s(%d)\n",
+		    get_source_type_label(e->data.data32[0]),
+		    e->data.data32[0]);
+
+		/*
+		 * Allow focus changes that are a result of direct user
+		 * action and from applications that use the old EWMH spec.
+		 */
+		if (e->data.data32[0] != EWMH_SOURCE_TYPE_NORMAL) {
+			if (WS_FOCUSED(win->ws))
+				focus_win(win);
+			else
+				win->ws->focus_pending = win;
+		}
 	} else if (e->type == ewmh[_NET_CLOSE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "clientmessage: _NET_CLOSE_WINDOW\n");
 		if (win->can_delete)
