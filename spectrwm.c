@@ -1028,6 +1028,7 @@ int	 get_region_index(struct swm_region *);
 xcb_screen_t	*get_screen(int);
 int	 get_screen_count(void);
 #ifdef SWM_DEBUG
+char	*get_source_type_label(uint32_t);
 char	*get_stack_mode_name(uint8_t);
 #endif
 int32_t	 get_swm_ws(xcb_window_t);
@@ -1900,24 +1901,13 @@ name_to_pixel(int sidx, const char *colorname)
 void
 setscreencolor(const char *val, int i, int c)
 {
-	int	num_screens;
+	if (i < 0 || i >= get_screen_count())
+		return;
 
-	num_screens = get_screen_count();
-	if (i > 0 && i <= num_screens) {
-		screens[i - 1].c[c].pixel = name_to_pixel(i - 1, val);
-		free(screens[i - 1].c[c].name);
-		if ((screens[i - 1].c[c].name = strdup(val)) == NULL)
-			err(1, "strdup");
-	} else if (i == -1) {
-		for (i = 0; i < num_screens; i++) {
-			screens[i].c[c].pixel = name_to_pixel(0, val);
-			free(screens[i].c[c].name);
-			if ((screens[i].c[c].name = strdup(val)) == NULL)
-				err(1, "strdup");
-		}
-	} else
-		errx(1, "invalid screen index: %d out of bounds (maximum %d)",
-		    i, num_screens);
+	screens[i].c[c].pixel = name_to_pixel(i, val);
+	free(screens[i].c[c].name);
+	if ((screens[i].c[c].name = strdup(val)) == NULL)
+		err(1, "strdup");
 }
 
 void
@@ -8102,34 +8092,40 @@ setconfmodkey(const char *selector, const char *value, int flags)
 int
 setconfcolor(const char *selector, const char *value, int flags)
 {
-	int	sid, i, num_screens;
+	int	first, last, i = 0, num_screens;
 
-	sid = (selector == NULL || strlen(selector) == 0) ? -1 : atoi(selector);
-
-	/*
-	 * When setting focus/unfocus colors, we need to also
-	 * set maximize colors to match if they haven't been customized.
-	 */
-	i = sid < 0 ? 0 : sid;
-	if (flags == SWM_S_COLOR_FOCUS &&
-	    !screens[i].c[SWM_S_COLOR_FOCUS_MAXIMIZED].manual)
-		setscreencolor(value, sid, SWM_S_COLOR_FOCUS_MAXIMIZED);
-	else if (flags == SWM_S_COLOR_UNFOCUS &&
-	    !screens[i].c[SWM_S_COLOR_UNFOCUS_MAXIMIZED].manual)
-		setscreencolor(value, sid, SWM_S_COLOR_UNFOCUS_MAXIMIZED);
-
-	setscreencolor(value, sid, flags);
-
-	/* Track override of color. */
 	num_screens = get_screen_count();
-	if (sid > 0 && sid <= num_screens) {
-		screens[i].c[flags].manual = 1;
-	} else if (sid == -1) {
-		for (i = 0; i < num_screens; ++i)
-			screens[i].c[flags].manual = 1;
+
+	/* conf screen indices begin at 1; treat vals <= 0 as 'all screens.' */
+	if (selector == NULL || strlen(selector) == 0 ||
+	    (last = atoi(selector) - 1) < 0) {
+		first = 0;
+		last = num_screens - 1;
 	} else {
-		errx(1, "invalid screen index: %d out of bounds (maximum %d)",
-		    sid, num_screens);
+		first = last;
+	}
+
+	if (last >= num_screens) {
+		add_startup_exception("invalid screen index: %d out of bounds "
+		    "(maximum %d)", last + 1, num_screens);
+		return (1);
+	}
+
+	for (i = first; i <= last; ++i) {
+		setscreencolor(value, i, flags);
+
+		/*
+		 * When setting focus/unfocus colors, we need to also
+		 * set maximize colors to match if they haven't been customized.
+		 */
+		if (flags == SWM_S_COLOR_FOCUS &&
+		    !screens[i].c[SWM_S_COLOR_FOCUS_MAXIMIZED].manual)
+			setscreencolor(value, i, SWM_S_COLOR_FOCUS_MAXIMIZED);
+		else if (flags == SWM_S_COLOR_UNFOCUS &&
+		    !screens[i].c[SWM_S_COLOR_UNFOCUS_MAXIMIZED].manual)
+			setscreencolor(value, i, SWM_S_COLOR_UNFOCUS_MAXIMIZED);
+
+		screens[i].c[flags].manual = 1;
 	}
 
 	return (0);
@@ -10371,15 +10367,16 @@ setup_screens(void)
 		screens[i].root = screen->root;
 
 		/* set default colors */
-		setscreencolor("red", i + 1, SWM_S_COLOR_FOCUS);
-		setscreencolor("rgb:88/88/88", i + 1, SWM_S_COLOR_UNFOCUS);
-		setscreencolor("rgb:00/80/80", i + 1, SWM_S_COLOR_BAR_BORDER);
-		setscreencolor("rgb:00/40/40", i + 1,
+		setscreencolor("red", i, SWM_S_COLOR_FOCUS);
+		setscreencolor("rgb:88/88/88", i, SWM_S_COLOR_UNFOCUS);
+		setscreencolor("rgb:00/80/80", i, SWM_S_COLOR_BAR_BORDER);
+		setscreencolor("rgb:00/40/40", i,
 		    SWM_S_COLOR_BAR_BORDER_UNFOCUS);
-		setscreencolor("black", i + 1, SWM_S_COLOR_BAR);
-		setscreencolor("rgb:a0/a0/a0", i + 1, SWM_S_COLOR_BAR_FONT);
-		setscreencolor("red", i + 1, SWM_S_COLOR_FOCUS_MAXIMIZED);
-		setscreencolor("rgb:88/88/88", i + 1, SWM_S_COLOR_UNFOCUS_MAXIMIZED);
+		setscreencolor("black", i, SWM_S_COLOR_BAR);
+		setscreencolor("rgb:a0/a0/a0", i, SWM_S_COLOR_BAR_FONT);
+		setscreencolor("red", i, SWM_S_COLOR_FOCUS_MAXIMIZED);
+		setscreencolor("rgb:88/88/88", i,
+		    SWM_S_COLOR_UNFOCUS_MAXIMIZED);
 
 		/* create graphics context on screen */
 		screens[i].bar_gc = xcb_generate_id(conn);
