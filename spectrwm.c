@@ -669,6 +669,7 @@ struct quirk {
 #define SWM_Q_FOCUSPREV		(1<<5)	/* focus on caller */
 #define SWM_Q_NOFOCUSONMAP	(1<<6)	/* Don't focus on window when mapped. */
 #define SWM_Q_FOCUSONMAP_SINGLE	(1<<7)	/* Only focus if single win of type. */
+#define SWM_Q_OBEYAPPFOCUSREQ	(1<<8)	/* Focus when applications ask. */
 };
 TAILQ_HEAD(quirk_list, quirk);
 struct quirk_list		quirks = TAILQ_HEAD_INITIALIZER(quirks);
@@ -7509,6 +7510,7 @@ const char *quirkname[] = {
 	"FOCUSPREV",
 	"NOFOCUSONMAP",
 	"FOCUSONMAP_SINGLE",
+	"OBEYAPPFOCUSREQ",
 };
 
 /* SWM_Q_WS: retain '|' for back compat for now (2009-08-11) */
@@ -9819,7 +9821,8 @@ clientmessage(xcb_client_message_event_t *e)
 		 * Allow focus changes that are a result of direct user
 		 * action and from applications that use the old EWMH spec.
 		 */
-		if (e->data.data32[0] != EWMH_SOURCE_TYPE_NORMAL) {
+		if (e->data.data32[0] != EWMH_SOURCE_TYPE_NORMAL ||
+		    win->quirks & SWM_Q_OBEYAPPFOCUSREQ) {
 			if (WS_FOCUSED(win->ws))
 				focus_win(win);
 			else

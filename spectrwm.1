@@ -941,6 +941,11 @@ if there are no other windows on the workspace with the same WM_CLASS
 class/instance value.  Has no effect when
 .Ic focus_mode
 is set to follow.
+.It OBEYAPPFOCUSREQ
+When an application requests focus on the window via a _NET_ACTIVE_WINDOW
+client message (source indication of 1), comply with the request.
+Note that a source indication of 0 (unspecified) or 2 (pager) are always
+obeyed.
 .El
 .Pp
 Custom quirks in the configuration file are specified as follows:
