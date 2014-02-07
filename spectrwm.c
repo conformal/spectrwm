@@ -863,7 +863,7 @@ struct key {
 	RB_ENTRY(key)	entry;
 	unsigned int	mod;
 	KeySym		keysym;
-	enum keyfunci	funcid;
+	enum keyfuncid	funcid;
 	char		*spawn_name;
 };
 RB_HEAD(key_tree, key);
