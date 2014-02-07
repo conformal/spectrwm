@@ -285,8 +285,8 @@ xcb_atom_t		a_takefocus;
 xcb_atom_t		a_utf8_string;
 xcb_atom_t		a_swm_iconic;
 xcb_atom_t		a_swm_ws;
-volatile sig_atomic_t   running = 1;
-volatile sig_atomic_t   restart_wm = 0;
+volatile sig_atomic_t	running = 1;
+volatile sig_atomic_t	restart_wm = 0;
 xcb_timestamp_t		last_event_time = 0;
 int			outputs = 0;
 int			other_wm;
@@ -345,10 +345,10 @@ double			dialog_ratio = 0.6;
 #define SWM_BAR_JUSTIFY_CENTER	(1)
 #define SWM_BAR_JUSTIFY_RIGHT	(2)
 #define SWM_BAR_OFFSET		(4)
-#define SWM_BAR_FONTS		"-*-terminus-medium-*-*-*-12-*-*-*-*-*-*-*," \
-				"-*-profont-*-*-*-*-12-*-*-*-*-*-*-*,"	    \
-				"-*-times-medium-r-*-*-12-*-*-*-*-*-*-*,"    \
-				"-misc-fixed-medium-r-*-*-12-*-*-*-*-*-*-*,"  \
+#define SWM_BAR_FONTS		"-*-terminus-medium-*-*-*-12-*-*-*-*-*-*-*,"\
+				"-*-profont-*-*-*-*-12-*-*-*-*-*-*-*,"\
+				"-*-times-medium-r-*-*-12-*-*-*-*-*-*-*,"\
+				"-misc-fixed-medium-r-*-*-12-*-*-*-*-*-*-*,"\
 				"-*-*-*-r-*-*-*-*-*-*-*-*-*-*"
 
 #ifdef X_HAVE_UTF8_STRING
@@ -672,33 +672,33 @@ struct ewmh_hint {
 	char		*name;
 	xcb_atom_t	atom;
 } ewmh[SWM_EWMH_HINT_MAX] =	{
-    /* must be in same order as in the enum */
-    {"_NET_ACTIVE_WINDOW", XCB_ATOM_NONE},
-    {"_NET_CLOSE_WINDOW", XCB_ATOM_NONE},
-    {"_NET_MOVERESIZE_WINDOW", XCB_ATOM_NONE},
-    {"_NET_WM_ACTION_ABOVE", XCB_ATOM_NONE},
-    {"_NET_WM_ACTION_CLOSE", XCB_ATOM_NONE},
-    {"_NET_WM_ACTION_FULLSCREEN", XCB_ATOM_NONE},
-    {"_NET_WM_ACTION_MOVE", XCB_ATOM_NONE},
-    {"_NET_WM_ACTION_RESIZE", XCB_ATOM_NONE},
-    {"_NET_WM_ALLOWED_ACTIONS", XCB_ATOM_NONE},
-    {"_NET_WM_NAME", XCB_ATOM_NONE},
-    {"_NET_WM_STATE", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_ABOVE", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_FULLSCREEN", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_HIDDEN", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_MAXIMIZED_HORZ", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_MAXIMIZED_VERT", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_SKIP_PAGER", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_SKIP_TASKBAR", XCB_ATOM_NONE},
-    {"_NET_WM_WINDOW_TYPE", XCB_ATOM_NONE},
-    {"_NET_WM_WINDOW_TYPE_DIALOG", XCB_ATOM_NONE},
-    {"_NET_WM_WINDOW_TYPE_DOCK", XCB_ATOM_NONE},
-    {"_NET_WM_WINDOW_TYPE_NORMAL", XCB_ATOM_NONE},
-    {"_NET_WM_WINDOW_TYPE_SPLASH", XCB_ATOM_NONE},
-    {"_NET_WM_WINDOW_TYPE_TOOLBAR", XCB_ATOM_NONE},
-    {"_NET_WM_WINDOW_TYPE_UTILITY", XCB_ATOM_NONE},
-    {"_SWM_WM_STATE_MANUAL", XCB_ATOM_NONE},
+	/* must be in same order as in the enum */
+	{"_NET_ACTIVE_WINDOW", XCB_ATOM_NONE},
+	{"_NET_CLOSE_WINDOW", XCB_ATOM_NONE},
+	{"_NET_MOVERESIZE_WINDOW", XCB_ATOM_NONE},
+	{"_NET_WM_ACTION_ABOVE", XCB_ATOM_NONE},
+	{"_NET_WM_ACTION_CLOSE", XCB_ATOM_NONE},
+	{"_NET_WM_ACTION_FULLSCREEN", XCB_ATOM_NONE},
+	{"_NET_WM_ACTION_MOVE", XCB_ATOM_NONE},
+	{"_NET_WM_ACTION_RESIZE", XCB_ATOM_NONE},
+	{"_NET_WM_ALLOWED_ACTIONS", XCB_ATOM_NONE},
+	{"_NET_WM_NAME", XCB_ATOM_NONE},
+	{"_NET_WM_STATE", XCB_ATOM_NONE},
+	{"_NET_WM_STATE_ABOVE", XCB_ATOM_NONE},
+	{"_NET_WM_STATE_FULLSCREEN", XCB_ATOM_NONE},
+	{"_NET_WM_STATE_HIDDEN", XCB_ATOM_NONE},
+	{"_NET_WM_STATE_MAXIMIZED_HORZ", XCB_ATOM_NONE},
+	{"_NET_WM_STATE_MAXIMIZED_VERT", XCB_ATOM_NONE},
+	{"_NET_WM_STATE_SKIP_PAGER", XCB_ATOM_NONE},
+	{"_NET_WM_STATE_SKIP_TASKBAR", XCB_ATOM_NONE},
+	{"_NET_WM_WINDOW_TYPE", XCB_ATOM_NONE},
+	{"_NET_WM_WINDOW_TYPE_DIALOG", XCB_ATOM_NONE},
+	{"_NET_WM_WINDOW_TYPE_DOCK", XCB_ATOM_NONE},
+	{"_NET_WM_WINDOW_TYPE_NORMAL", XCB_ATOM_NONE},
+	{"_NET_WM_WINDOW_TYPE_SPLASH", XCB_ATOM_NONE},
+	{"_NET_WM_WINDOW_TYPE_TOOLBAR", XCB_ATOM_NONE},
+	{"_NET_WM_WINDOW_TYPE_UTILITY", XCB_ATOM_NONE},
+	{"_SWM_WM_STATE_MANUAL", XCB_ATOM_NONE},
 };
 
 /* Cursors */
@@ -860,243 +860,237 @@ enum keyfuncid {
 };
 
 struct key {
-        RB_ENTRY(key)           entry;
-        unsigned int            mod;
-        KeySym                  keysym;
-        enum keyfuncid          funcid;
-        char                    *spawn_name;
+	RB_ENTRY(key)	entry;
+	unsigned int	mod;
+	KeySym		keysym;
+	enum keyfunci	funcid;
+	char		*spawn_name;
 };
 RB_HEAD(key_tree, key);
 
 /* function prototypes */
-void	 adjust_font(struct ws_win *);
+void	adjust_font(struct ws_win *);
 char	*argsep(char **);
-void	 bar_cleanup(struct swm_region *);
-void	 bar_extra_setup(void);
-void	 bar_extra_stop(void);
-int	 bar_extra_update(void);
-void	 bar_fmt(const char *, char *, struct swm_region *, size_t);
-void	 bar_fmt_expand(char *, size_t);
-void	 bar_draw(void);
-void	 bar_print(struct swm_region *, const char *);
-void	 bar_print_legacy(struct swm_region *, const char *);
-void	 bar_replace(char *, char *, struct swm_region *, size_t);
-void	 bar_replace_pad(char *, int *, size_t);
+void	bar_cleanup(struct swm_region *);
+void	bar_extra_setup(void);
+void	bar_extra_stop(void);
+int	bar_extra_update(void);
+void	bar_fmt(const char *, char *, struct swm_region *, size_t);
+void	bar_fmt_expand(char *, size_t);
+void	bar_draw(void);
+void	bar_print(struct swm_region *, const char *);
+void	bar_print_legacy(struct swm_region *, const char *);
+void	bar_replace(char *, char *, struct swm_region *, size_t);
+void	bar_replace_pad(char *, int *, size_t);
 char	*bar_replace_seq(char *, char *, struct swm_region *, size_t *, size_t);
-void	 bar_setup(struct swm_region *);
-void	 bar_toggle(struct swm_region *, union arg *);
-void	 bar_urgent(char *, size_t);
-void	 bar_window_class(char *, size_t, struct swm_region *);
-void	 bar_window_class_instance(char *, size_t, struct swm_region *);
-void	 bar_window_float(char *, size_t, struct swm_region *);
-void	 bar_window_instance(char *, size_t, struct swm_region *);
-void	 bar_window_name(char *, size_t, struct swm_region *);
-void	 bar_workspace_name(char *, size_t, struct swm_region *);
-void	 buttonpress(xcb_button_press_event_t *);
-void	 check_conn(void);
-void	 clear_keys(void);
-void	 clientmessage(xcb_client_message_event_t *);
-void	 client_msg(struct ws_win *, xcb_atom_t, xcb_timestamp_t);
-int	 conf_load(const char *, int);
-void	 configurenotify(xcb_configure_notify_event_t *);
-void	 configurerequest(xcb_configure_request_event_t *);
-void	 config_win(struct ws_win *, xcb_configure_request_event_t *);
-void	 constrain_window(struct ws_win *, struct swm_geometry *, int *);
-int	 count_win(struct workspace *, int);
-void	 cursors_cleanup(void);
-void	 cursors_load(void);
-void	 custom_region(const char *);
-void	 cyclerg(struct swm_region *, union arg *);
-void	 cyclews(struct swm_region *, union arg *);
-void	 cycle_layout(struct swm_region *, union arg *);
-void	 destroynotify(xcb_destroy_notify_event_t *);
-void	 dumpwins(struct swm_region *, union arg *);
-int	 enable_wm(void);
-void	 enternotify(xcb_enter_notify_event_t *);
-void	 event_drain(uint8_t);
-void	 event_error(xcb_generic_error_t *);
-void	 event_handle(xcb_generic_event_t *);
-void	 ewmh_autoquirk(struct ws_win *);
-void	 ewmh_get_win_state(struct ws_win *);
-int	 ewmh_set_win_fullscreen(struct ws_win *, int);
-void	 ewmh_update_actions(struct ws_win *);
-void	 ewmh_update_win_state(struct ws_win *, xcb_atom_t, long);
+void	bar_setup(struct swm_region *);
+void	bar_toggle(struct swm_region *, union arg *);
+void	bar_urgent(char *, size_t);
+void	bar_window_class(char *, size_t, struct swm_region *);
+void	bar_window_class_instance(char *, size_t, struct swm_region *);
+void	bar_window_float(char *, size_t, struct swm_region *);
+void	bar_window_instance(char *, size_t, struct swm_region *);
+void	bar_window_name(char *, size_t, struct swm_region *);
+void	bar_workspace_name(char *, size_t, struct swm_region *);
+void	buttonpress(xcb_button_press_event_t *);
+void	check_conn(void);
+void	clear_keys(void);
+void	clientmessage(xcb_client_message_event_t *);
+void	client_msg(struct ws_win *, xcb_atom_t, xcb_timestamp_t);
+int	conf_load(const char *, int);
+void	configurenotify(xcb_configure_notify_event_t *);
+void	configurerequest(xcb_configure_request_event_t *);
+void	config_win(struct ws_win *, xcb_configure_request_event_t *);
+void	constrain_window(struct ws_win *, struct swm_geometry *, int *);
+int	count_win(struct workspace *, int);
+void	cursors_cleanup(void);
+void	cursors_load(void);
+void	custom_region(const char *);
+void	cyclerg(struct swm_region *, union arg *);
+void	cyclews(struct swm_region *, union arg *);
+void	cycle_layout(struct swm_region *, union arg *);
+void	destroynotify(xcb_destroy_notify_event_t *);
+void	dumpwins(struct swm_region *, union arg *);
+int	enable_wm(void);
+void	enternotify(xcb_enter_notify_event_t *);
+void	event_drain(uint8_t);
+void	event_error(xcb_generic_error_t *);
+void	event_handle(xcb_generic_event_t *);
+void	ewmh_autoquirk(struct ws_win *);
+void	ewmh_get_win_state(struct ws_win *);
+int	ewmh_set_win_fullscreen(struct ws_win *, int);
+void	ewmh_update_actions(struct ws_win *);
+void	ewmh_update_win_state(struct ws_win *, xcb_atom_t, long);
 char	*expand_tilde(const char *);
-void	 expose(xcb_expose_event_t *);
-void	 fake_keypress(struct ws_win *, xcb_keysym_t, uint16_t);
+void	expose(xcb_expose_event_t *);
+void	fake_keypress(struct ws_win *, xcb_keysym_t, uint16_t);
+void	floating_toggle(struct swm_region *, union arg *);
+int	floating_toggle_win(struct ws_win *);
+void	focus(struct swm_region *, union arg *);
+void	focus_flush(void);
+void	focus_region(struct swm_region *);
+void	focusrg(struct swm_region *, union arg *);
+void	focus_win(struct ws_win *);
+void	fontset_init(void);
+void	free_window(struct ws_win *);
+void	search_do_resp(void);
+void	search_resp_name_workspace(const char *, size_t);
+void	search_resp_search_window(const char *);
+void	search_resp_search_workspace(const char *);
+void	search_resp_uniconify(const char *, size_t);
+void	search_win(struct swm_region *, union arg *);
+void	search_win_cleanup(void);
+void	search_workspace(struct swm_region *, union arg *);
+void	send_to_rg(struct swm_region *, union arg *);
+void	send_to_ws(struct swm_region *, union arg *);
+void	set_region(struct swm_region *);
+int	setautorun(const char *, const char *, int);
+int	setconfbinding(const char *, const char *, int);
+int	setconfcolor(const char *, const char *, int);
+int	setconfmodkey(const char *, const char *, int);
+int	setconfquirk(const char *, const char *, int);
+int	setconfregion(const char *, const char *, int);
+int	setconfspawn(const char *, const char *, int);
+int	setconfvalue(const char *, const char *, int);
+void	setkeybinding(unsigned int, KeySym, enum keyfuncid, const char *);
+int	setkeymapping(const char *, const char *, int);
+int	setlayout(const char *, const char *, int);
+void	setquirk(const char *, const char *, const char *,unsigned long);
+void	setscreencolor(const char *, int, int);
+void	setspawn(const char *, const char *, int);
+void	setup_ewmh(void);
+void	setup_globals(void);
+void	setup_keys(void);
+void	setup_quirks(void);
+void	setup_screens(void);
+void	setup_spawn(void);
+void	set_child_transient(struct ws_win *, xcb_window_t *);
+void	set_swm_iconic(struct ws_win *, int);
+void	set_win_state(struct ws_win *, uint16_t);
+void	shutdown_cleanup(void);
+void	sighdlr(int);
+void	socket_setnonblock(int);
+void	sort_windows(struct ws_win_list *);
+void	spawn(int, union arg *, int);
+void	spawn_custom(struct swm_region *, union arg *, const char *);
+int	spawn_expand(struct swm_region *, union arg *, const char *, char ***);
+void	spawn_insert(const char *, const char *, int);
+int32_t	get_swm_iconic(struct ws_win *);
+char	*get_win_name(xcb_window_t);
+void	get_wm_protocols(struct ws_win *);
+int	get_ws_idx(xcb_window_t);
+void	grabbuttons(struct ws_win *);
+void	grabkeys(void);
+void	grab_windows(void);
+void	iconify(struct swm_region *, union arg *);
+int	isxlfd(char *);
+void	keypress(xcb_key_press_event_t *);
+int	key_cmp(struct key *, struct key *);
+void	key_insert(unsigned int, KeySym, enum keyfuncid, const char *);
+void	key_remove(struct key *);
+void	key_replace(struct key *, unsigned int, KeySym, enum keyfuncid,
+	    const char *);
+void	kill_bar_extra_atexit(void);
+void	kill_refs(struct ws_win *);
+void	load_float_geom(struct ws_win *);
+void	map_window(struct ws_win *, xcb_window_t);
+void	mapnotify(xcb_map_notify_event_t *);
+void	mappingnotify(xcb_mapping_notify_event_t *);
+void	maprequest(xcb_map_request_event_t *);
+void	motionnotify(xcb_motion_notify_event_t *);
+void	move(struct ws_win *, union arg *);
+void	move_step(struct swm_region *, union arg *);
+uint32_t name_to_pixel(int, const char *);
+void	name_workspace(struct swm_region *, union arg *);
+void	new_region(struct swm_screen *, int, int, int, int);
+int	parsekeys(const char *, unsigned int, unsigned int *, KeySym *);
+int	parsequirks(const char *, unsigned long *);
+int	parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
+void	pressbutton(struct swm_region *, union arg *);
+void	priorws(struct swm_region *, union arg *);
+void	propertynotify(xcb_property_notify_event_t *);
+void	quirk_free(struct quirk *);
+void	quirk_insert(const char *, const char *, const char *,unsigned long);
+void	quirk_remove(struct quirk *);
+void	quirk_replace(struct quirk *, const char *, const char *, const char *,
+	    unsigned long);
+void	quit(struct swm_region *, union arg *);
+void	raise_toggle(struct swm_region *, union arg *);
+void	region_containment(struct ws_win *, struct swm_region *, int);
+void	regionize(struct ws_win *, int, int);
+void	resize(struct ws_win *, union arg *);
+void	resize_step(struct swm_region *, union arg *);
+void	restart(struct swm_region *, union arg *);
+void	screenchange(xcb_randr_screen_change_notify_event_t *);
+void	scan_xrandr(int);
+void	spawn_remove(struct spawn_prog *);
+void	spawn_replace(struct spawn_prog *, const char *, const char *, int);
+void	spawn_select(struct swm_region *, union arg *, const char *, int *);
+void	stack_config(struct swm_region *, union arg *);
+void	stack_floater(struct ws_win *, struct swm_region *);
+void	stack_master(struct workspace *, struct swm_geometry *, int, int);
+void	store_float_geom(struct ws_win *);
+char	*strdupsafe(const char *);
+void	swapwin(struct swm_region *, union arg *);
+void	switchws(struct swm_region *, union arg *);
+void	teardown_ewmh(void);
+void	unescape_selector(char *);
+void	unfocus_win(struct ws_win *);
+void	uniconify(struct swm_region *, union arg *);
+void	unmanage_window(struct ws_win *);
+void	unmapnotify(xcb_unmap_notify_event_t *);
+void	unmap_all(void);
+void	unmap_window(struct ws_win *);
+void	updatenumlockmask(void);
+void	update_modkey(unsigned int);
+void	update_window(struct ws_win *);
+void	validate_spawns(void);
+int	validate_win(struct ws_win *);
+int	validate_ws(struct workspace *);
+void	version(struct swm_region *, union arg *);
+void	win_to_ws(struct ws_win *, int, int);
+pid_t	window_get_pid(xcb_window_t);
+void	wkill(struct swm_region *, union arg *);
+void	workaround(void);
+void	xft_init(struct swm_region *);
+void	_add_startup_exception(const char *, va_list);
+void	add_startup_exception(const char *, ...);
+#ifdef SWM_DEBUG
+void	focusin(xcb_focus_in_event_t *);
+void	focusout(xcb_focus_out_event_t *);
+void	leavenotify(xcb_leave_notify_event_t *);
+void	print_win_geom(xcb_window_t);
+#endif
+
 struct pid_e	*find_pid(pid_t);
 struct ws_win	*find_unmanaged_window(xcb_window_t);
 struct ws_win	*find_window(xcb_window_t);
-void	 floating_toggle(struct swm_region *, union arg *);
-int	 floating_toggle_win(struct ws_win *);
-void	 focus(struct swm_region *, union arg *);
-#ifdef SWM_DEBUG
-void	 focusin(xcb_focus_in_event_t *);
-void	 focusout(xcb_focus_out_event_t *);
-#endif
-void	 focus_flush(void);
-void	 focus_region(struct swm_region *);
-void	 focusrg(struct swm_region *, union arg *);
-void	 focus_win(struct ws_win *);
-void	 fontset_init(void);
-void	 free_window(struct ws_win *);
-xcb_atom_t get_atom_from_string(const char *);
-#ifdef SWM_DEBUG
-char	*get_atom_name(xcb_atom_t);
-#endif
-struct ws_win   *get_focus_magic(struct ws_win *);
-struct ws_win   *get_focus_prev(struct ws_win *);
-#ifdef SWM_DEBUG
-char	*get_notify_detail_label(uint8_t);
-char	*get_notify_mode_label(uint8_t);
-#endif
+struct ws_win	*get_focus_magic(struct ws_win *);
+struct ws_win	*get_focus_prev(struct ws_win *);
 struct ws_win	*get_pointer_win(xcb_window_t);
 struct ws_win	*get_region_focus(struct swm_region *);
-int	 get_region_index(struct swm_region *);
-xcb_screen_t	*get_screen(int);
-xcb_window_t	 get_sibling(struct ws_win *, int);
-int	 get_screen_count(void);
-#ifdef SWM_DEBUG
-char	*get_stack_mode_name(uint8_t);
-#endif
-int32_t	 get_swm_iconic(struct ws_win *);
-char	*get_win_name(xcb_window_t);
-void	 get_wm_protocols(struct ws_win *);
-int	 get_ws_idx(xcb_window_t);
-uint32_t getstate(xcb_window_t);
-void	 grabbuttons(struct ws_win *);
-void	 grabkeys(void);
-void	 grab_windows(void);
-void	 iconify(struct swm_region *, union arg *);
-int	 isxlfd(char *);
-void	 keypress(xcb_key_press_event_t *);
-int	 key_cmp(struct key *, struct key *);
-void	 key_insert(unsigned int, KeySym, enum keyfuncid, const char *);
-struct key	*key_lookup(unsigned int, KeySym);
-void	 key_remove(struct key *);
-void	 key_replace(struct key *, unsigned int, KeySym, enum keyfuncid,
-	     const char *);
-void	 kill_bar_extra_atexit(void);
-void	 kill_refs(struct ws_win *);
-#ifdef SWM_DEBUG
-void	 leavenotify(xcb_leave_notify_event_t *);
-#endif
-void	 load_float_geom(struct ws_win *);
 struct ws_win	*manage_window(xcb_window_t, uint16_t);
-void	 map_window(struct ws_win *, xcb_window_t);
-void	 mapnotify(xcb_map_notify_event_t *);
-void	 mappingnotify(xcb_mapping_notify_event_t *);
-void	 maprequest(xcb_map_request_event_t *);
-void	 motionnotify(xcb_motion_notify_event_t *);
-void	 move(struct ws_win *, union arg *);
-void	 move_step(struct swm_region *, union arg *);
-uint32_t name_to_pixel(int, const char *);
-void	 name_workspace(struct swm_region *, union arg *);
-void	 new_region(struct swm_screen *, int, int, int, int);
-int	 parsekeys(const char *, unsigned int, unsigned int *, KeySym *);
-int	 parsequirks(const char *, unsigned long *);
-int	 parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
-void	 pressbutton(struct swm_region *, union arg *);
-void	 priorws(struct swm_region *, union arg *);
+int		get_region_index(struct swm_region *);
+xcb_atom_t	get_atom_from_string(const char *);
+xcb_screen_t	*get_screen(int);
+xcb_window_t	get_sibling(struct ws_win *, int);
+int		get_screen_count(void);
+uint32_t	getstate(xcb_window_t);
+struct key	*key_lookup(unsigned int, KeySym);
 #ifdef SWM_DEBUG
-void	 print_win_geom(xcb_window_t);
+char		*get_atom_name(xcb_atom_t);
+char		*get_notify_detail_label(uint8_t);
+char		*get_notify_mode_label(uint8_t);
+char		*get_stack_mode_name(uint8_t);
 #endif
-void	 propertynotify(xcb_property_notify_event_t *);
-void	 quirk_free(struct quirk *);
-void	 quirk_insert(const char *, const char *, const char *,unsigned long);
-void	 quirk_remove(struct quirk *);
-void	 quirk_replace(struct quirk *, const char *, const char *, const char *,
-	     unsigned long);
-void	 quit(struct swm_region *, union arg *);
-void	 raise_toggle(struct swm_region *, union arg *);
-void	 region_containment(struct ws_win *, struct swm_region *, int);
+
 struct swm_region	*region_under(struct swm_screen *, int, int);
-void	 regionize(struct ws_win *, int, int);
-void	 resize(struct ws_win *, union arg *);
-void	 resize_step(struct swm_region *, union arg *);
-void	 restart(struct swm_region *, union arg *);
 struct swm_region	*root_to_region(xcb_window_t, int);
-void	 screenchange(xcb_randr_screen_change_notify_event_t *);
-void	 scan_xrandr(int);
-void	 search_do_resp(void);
-void	 search_resp_name_workspace(const char *, size_t);
-void	 search_resp_search_window(const char *);
-void	 search_resp_search_workspace(const char *);
-void	 search_resp_uniconify(const char *, size_t);
-void	 search_win(struct swm_region *, union arg *);
-void	 search_win_cleanup(void);
-void	 search_workspace(struct swm_region *, union arg *);
-void	 send_to_rg(struct swm_region *, union arg *);
-void	 send_to_ws(struct swm_region *, union arg *);
-void	 set_region(struct swm_region *);
-int	 setautorun(const char *, const char *, int);
-int	 setconfbinding(const char *, const char *, int);
-int	 setconfcolor(const char *, const char *, int);
-int	 setconfmodkey(const char *, const char *, int);
-int	 setconfquirk(const char *, const char *, int);
-int	 setconfregion(const char *, const char *, int);
-int	 setconfspawn(const char *, const char *, int);
-int	 setconfvalue(const char *, const char *, int);
-void	 setkeybinding(unsigned int, KeySym, enum keyfuncid, const char *);
-int	 setkeymapping(const char *, const char *, int);
-int	 setlayout(const char *, const char *, int);
-void	 setquirk(const char *, const char *, const char *,unsigned long);
-void	 setscreencolor(const char *, int, int);
-void	 setspawn(const char *, const char *, int);
-void	 setup_ewmh(void);
-void	 setup_globals(void);
-void	 setup_keys(void);
-void	 setup_quirks(void);
-void	 setup_screens(void);
-void	 setup_spawn(void);
-void	 set_child_transient(struct ws_win *, xcb_window_t *);
-void	 set_swm_iconic(struct ws_win *, int);
-void	 set_win_state(struct ws_win *, uint16_t);
-void	 shutdown_cleanup(void);
-void	 sighdlr(int);
-void	 socket_setnonblock(int);
-void	 sort_windows(struct ws_win_list *);
-void	 spawn(int, union arg *, int);
-void	 spawn_custom(struct swm_region *, union arg *, const char *);
-int	 spawn_expand(struct swm_region *, union arg *, const char *, char ***);
-void	 spawn_insert(const char *, const char *, int);
 struct spawn_prog	*spawn_find(const char *);
-void	 spawn_remove(struct spawn_prog *);
-void	 spawn_replace(struct spawn_prog *, const char *, const char *, int);
-void	 spawn_select(struct swm_region *, union arg *, const char *, int *);
-void	 stack_config(struct swm_region *, union arg *);
-void	 stack_floater(struct ws_win *, struct swm_region *);
-void	 stack_master(struct workspace *, struct swm_geometry *, int, int);
-void	 store_float_geom(struct ws_win *);
-char	*strdupsafe(const char *);
-void	 swapwin(struct swm_region *, union arg *);
-void	 switchws(struct swm_region *, union arg *);
-void	 teardown_ewmh(void);
-void	 unescape_selector(char *);
-void	 unfocus_win(struct ws_win *);
-void	 uniconify(struct swm_region *, union arg *);
-void	 unmanage_window(struct ws_win *);
-void	 unmapnotify(xcb_unmap_notify_event_t *);
-void	 unmap_all(void);
-void	 unmap_window(struct ws_win *);
-void	 updatenumlockmask(void);
-void	 update_modkey(unsigned int);
-void	 update_window(struct ws_win *);
-void	 validate_spawns(void);
-int	 validate_win(struct ws_win *);
-int	 validate_ws(struct workspace *);
-void	 version(struct swm_region *, union arg *);
-void	 win_to_ws(struct ws_win *, int, int);
-pid_t	 window_get_pid(xcb_window_t);
-void	 wkill(struct swm_region *, union arg *);
-void	 workaround(void);
-void	 xft_init(struct swm_region *);
-void	 _add_startup_exception(const char *, va_list);
-void	 add_startup_exception(const char *, ...);
 
 RB_PROTOTYPE(key_tree, key, entry, key_cmp);
 RB_GENERATE(key_tree, key, entry, key_cmp);
-struct key_tree                 keys;
+struct key_tree		keys;
 
 void
 cursors_load(void)
@@ -1140,11 +1134,11 @@ cursors_cleanup(void)
 char *
 expand_tilde(const char *s)
 {
-	struct passwd           *ppwd;
-	int                     i;
+	struct passwd		*ppwd;
+	int			i;
 	long			max;
-	char                    *user;
-	const char              *sc = s;
+	char			*user;
+	const char		*sc = s;
 	char			*result;
 
 	if (s == NULL)
@@ -1477,9 +1471,9 @@ ewmh_update_actions(struct ws_win *win)
 	    ewmh[_NET_WM_ALLOWED_ACTIONS].atom, XCB_ATOM_ATOM, 32, 1, actions);
 }
 
-#define _NET_WM_STATE_REMOVE	0    /* remove/unset property */
-#define _NET_WM_STATE_ADD	1    /* add/set property */
-#define _NET_WM_STATE_TOGGLE	2    /* toggle property */
+#define _NET_WM_STATE_REMOVE	0	/* remove/unset property */
+#define _NET_WM_STATE_ADD	1	/* add/set property */
+#define _NET_WM_STATE_TOGGLE	2	/* toggle property */
 
 void
 ewmh_update_win_state(struct ws_win *win, xcb_atom_t state, long action)
@@ -1914,12 +1908,12 @@ bar_print_legacy(struct swm_region *r, const char *s)
 void
 bar_print(struct swm_region *r, const char *s)
 {
-	size_t				len;
-	xcb_rectangle_t			rect;
-	uint32_t			gcv[1];
-	int32_t				x = 0;
-	XGlyphInfo			info;
-	XftDraw				*draw;
+	size_t		len;
+	xcb_rectangle_t	rect;
+	uint32_t	gcv[1];
+	int32_t		x = 0;
+	XGlyphInfo	info;
+	XftDraw		*draw;
 
 	len = strlen(s);
 
@@ -3680,7 +3674,7 @@ cyclews(struct swm_region *r, union arg *args)
 void
 priorws(struct swm_region *r, union arg *args)
 {
-	union arg		a;
+	union arg	a;
 
 	(void)args;
 
@@ -9122,7 +9116,7 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 void
 clientmessage(xcb_client_message_event_t *e)
 {
-	struct ws_win *win;
+	struct ws_win		*win;
 	xcb_map_request_event_t	mre;
 #ifdef SWM_DEBUG
 	char			*name;
@@ -9591,10 +9585,10 @@ grab_windows(void)
 void
 setup_screens(void)
 {
-	int			i, j, k, num_screens;
-	struct workspace	*ws;
-	uint32_t		gcv[1], wa[1];
-	const xcb_query_extension_reply_t *qep;
+	int					i, j, k, num_screens;
+	struct workspace			*ws;
+	uint32_t				gcv[1], wa[1];
+	const xcb_query_extension_reply_t	*qep;
 	xcb_screen_t				*screen;
 	xcb_randr_query_version_cookie_t	c;
 	xcb_randr_query_version_reply_t		*r;
@@ -9847,7 +9841,7 @@ main(int argc, char *argv[])
 	int			xfd, i, num_screens, startup = 1;
 	struct sigaction	sact;
 	xcb_generic_event_t	*evt;
-	struct timeval          tv;
+	struct timeval		tv;
 	fd_set			rd;
 	int			rd_max;
 	int			stdin_ready = 0;
