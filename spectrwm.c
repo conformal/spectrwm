@@ -5,7 +5,7 @@
  * Copyright (c) 2009 Pierre-Yves Ritschard <pyr@spootnik.org>
  * Copyright (c) 2010 Tuukka Kataja <stuge@xor.fi>
  * Copyright (c) 2011 Jason L. Wright <jason@thought.net>
- * Copyright (c) 2011-2013 Reginald Kennedy <rk@rejii.com>
+ * Copyright (c) 2011-2014 Reginald Kennedy <rk@rejii.com>
  * Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
  * Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
  * Copyright (c) 2012-2013 David Hill <dhill@mindcry.org>
@@ -3584,12 +3584,14 @@ focus_win(struct ws_win *win)
 
 		set_region(ws->r);
 
-		update_window_color(win);
-
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
 		    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
 		    &win->id);
 	}
+
+	if (cfw != win)
+		/* Update window border even if workspace is hidden. */
+		update_window_color(win);
 
 out:
 	bar_draw();
@@ -5038,10 +5040,14 @@ send_to_ws(struct swm_region *r, union arg *args)
 
 	win_to_ws(win, wsid, 1);
 
-	/* Set window to be focus on target ws. */
+	/* Set new focus on target ws. */
 	if (focus_mode != SWM_FOCUS_FOLLOW) {
+		win->ws->focus_prev = win->ws->focus;
 		win->ws->focus = win;
 		win->ws->focus_pending = NULL;
+
+		if (win->ws->focus_prev)
+			update_window_color(win->ws->focus_prev);
 	}
 
 	DNPRINTF(SWM_D_STACK, "send_to_ws: focus_pending: %#x, focus: %#x, "
@@ -5053,7 +5059,7 @@ send_to_ws(struct swm_region *r, union arg *args)
 	ewmh_apply_flags(win, win->ewmh_flags & ~EWMH_F_MAXIMIZED);
 	ewmh_update_wm_state(win);
 
-	/* Restack and set new focus. */
+	/* Restack and set new focus on current ws. */
 	if (FLOATING(win))
 		load_float_geom(win);
 
