@@ -4486,6 +4486,8 @@ update_floater(struct ws_win *win)
 
 	DNPRINTF(SWM_D_MISC, "update_floater: win %#x\n", win->id);
 
+	win->bordered = 1;
+
 	if (FULLSCREEN(win)) {
 		/* _NET_WM_FULLSCREEN: fullscreen without border. */
 		if (!win->g_floatvalid)
@@ -4501,14 +4503,11 @@ update_floater(struct ws_win *win)
 		win->g = r->g;
 
 		if (bar_enabled && ws->bar_enabled) {
-			win->bordered = 1;
 			if (!bar_at_bottom)
 				Y(win) += bar_height;
 			HEIGHT(win) -= bar_height;
 		} else if (disable_border) {
 			win->bordered = 0;
-		} else {
-			win->bordered = 1;
 		}
 
 		if (win->bordered) {
