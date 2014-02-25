@@ -9429,6 +9429,13 @@ enternotify(xcb_enter_notify_event_t *e)
 			return;
 		}
 	} else {
+		if (e->mode == XCB_NOTIFY_MODE_NORMAL &&
+		    e->detail == XCB_NOTIFY_DETAIL_INFERIOR) {
+			DNPRINTF(SWM_D_EVENT, "enternotify: entering from "
+			    "inferior; ignoring\n");
+			return;
+		}
+
 		focus_win(get_focus_magic(win));
 	}
 
