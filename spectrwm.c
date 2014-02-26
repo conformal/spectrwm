@@ -425,6 +425,7 @@ XftFont		*bar_font;
 int		 bar_font_legacy = 1;
 char		*bar_fonts;
 XftColor	 bar_font_color;
+XftColor	 search_font_color;
 struct passwd	*pwd;
 char		*startup_exception;
 unsigned int	 nr_exceptions = 0;
@@ -2713,6 +2714,12 @@ xft_init(struct swm_region *r)
 
 	if (!XftColorAllocValue(display, DefaultVisual(display, r->s->idx),
 	    DefaultColormap(display, r->s->idx), &color, &bar_font_color))
+		warn("Xft error: unable to allocate color.");
+
+	PIXEL_TO_XRENDERCOLOR(r->s->c[SWM_S_COLOR_BAR].pixel, color);
+
+	if (!XftColorAllocValue(display, DefaultVisual(display, r->s->idx),
+	    DefaultColormap(display, r->s->idx), &color, &search_font_color))
 		warn("Xft error: unable to allocate color.");
 
 	bar_height = bar_font->height + 2 * bar_border_width;
@@ -5375,7 +5382,8 @@ search_win(struct swm_region *r, union arg *args)
 	struct ws_win		*win = NULL;
 	struct search_window	*sw = NULL;
 	xcb_window_t		w;
-	uint32_t		wa[2];
+	uint32_t		wa[3];
+	xcb_screen_t		*screen;
 	int			i, width, height;
 	char			s[8];
 	FILE			*lfile;
@@ -5395,6 +5403,9 @@ search_win(struct swm_region *r, union arg *args)
 
 	if ((lfile = fdopen(select_list_pipe[1], "w")) == NULL)
 		return;
+
+	if ((screen = get_screen(r->s->idx)) == NULL)
+		errx(1, "ERROR: can't get screen %d.", r->s->idx);
 
 	TAILQ_INIT(&search_wl);
 
@@ -5419,6 +5430,7 @@ search_win(struct swm_region *r, union arg *args)
 		w = xcb_generate_id(conn);
 		wa[0] = r->s->c[SWM_S_COLOR_FOCUS].pixel;
 		wa[1] = r->s->c[SWM_S_COLOR_UNFOCUS].pixel;
+		wa[2] = screen->default_colormap;
 
 		if (bar_font_legacy) {
 			XmbTextExtents(bar_fs, s, len, &l_ibox, &l_lbox);
@@ -5431,10 +5443,10 @@ search_win(struct swm_region *r, union arg *args)
 			height = bar_font->height + 4;
 		}
 
-		xcb_create_window(conn, XCB_COPY_FROM_PARENT, w, win->id, 0, 0,
+		xcb_create_window(conn, screen->root_depth, w, win->id, 0, 0,
 		    width, height, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
-		    XCB_COPY_FROM_PARENT, XCB_CW_BACK_PIXEL |
-		    XCB_CW_BORDER_PIXEL, wa);
+		    screen->root_visual, XCB_CW_BACK_PIXEL |
+		    XCB_CW_BORDER_PIXEL | XCB_CW_COLORMAP, wa);
 
 		xcb_map_window(conn, w);
 
@@ -5459,7 +5471,7 @@ search_win(struct swm_region *r, union arg *args)
 			    DefaultVisual(display, r->s->idx),
 			    DefaultColormap(display, r->s->idx));
 
-			XftDrawStringUtf8(draw, &bar_font_color, bar_font, 2,
+			XftDrawStringUtf8(draw, &search_font_color, bar_font, 2,
 			    (HEIGHT(r->bar) + bar_font->height) / 2 -
 			    bar_font->descent, (FcChar8 *)s, len);
 
@@ -10482,9 +10494,12 @@ shutdown_cleanup(void)
 
 		if (screens[i].bar_gc != XCB_NONE)
 			xcb_free_gc(conn, screens[i].bar_gc);
-		if (!bar_font_legacy)
+		if (!bar_font_legacy) {
 			XftColorFree(display, DefaultVisual(display, i),
 			    DefaultColormap(display, i), &bar_font_color);
+			XftColorFree(display, DefaultVisual(display, i),
+			    DefaultColormap(display, i), &search_font_color);
+		}
 	}
 
 	if (bar_font_legacy)
