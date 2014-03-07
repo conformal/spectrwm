@@ -2769,6 +2769,13 @@ bar_setup(struct swm_region *r)
 	    XCB_COPY_FROM_PARENT, XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL
 	    | XCB_CW_EVENT_MASK, wa);
 
+	/* Stack bar window above region window to start. */
+	wa[0] = r->id;
+	wa[1] = XCB_STACK_MODE_ABOVE;
+
+	xcb_configure_window(conn, r->bar->id, XCB_CONFIG_WINDOW_SIBLING |
+	    XCB_CONFIG_WINDOW_STACK_MODE, wa);
+
 	r->bar->buffer = xcb_generate_id(conn);
 	xcb_create_pixmap(conn, screen->root_depth, r->bar->buffer, r->bar->id,
 	    WIDTH(r->bar), HEIGHT(r->bar));
