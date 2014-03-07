@@ -4960,8 +4960,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		}
 	}
 
-	if (TRANS(win)) {
-		parent = find_window(win->transient);
+	if (TRANS(win) && (parent = find_window(win->transient))) {
 		raise_window(parent);
 
 		TAILQ_FOREACH(w, &ws->stack, stack_entry)
