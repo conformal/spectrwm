@@ -3490,7 +3490,7 @@ unfocus_win(struct ws_win *win)
 void
 focus_win(struct ws_win *win)
 {
-	struct ws_win			*cfw = NULL, *parent = NULL, *w;
+	struct ws_win			*cfw = NULL, *parent = NULL, *w, *tmpw;
 	struct workspace		*ws;
 	xcb_get_input_focus_reply_t	*gifr;
 
@@ -3573,20 +3573,25 @@ focus_win(struct ws_win *win)
 				map_window(parent);
 
 				/* Map siblings next. */
-				TAILQ_FOREACH(w, &ws->winlist, entry)
+				TAILQ_FOREACH_SAFE(w, &ws->stack, stack_entry,
+				    tmpw)
 					if (w != win && !ICONIC(w) &&
-					    win->transient == parent->id)
+					    w->transient == parent->id) {
+						raise_window(w);
 						map_window(w);
+					}
 			}
 
 			/* Map focused window. */
 			raise_window(win);
 			map_window(win);
 
-			/* Finally, map children of focus window. */
-			TAILQ_FOREACH(w, &ws->winlist, entry)
-				if (w->transient == win->id && !ICONIC(w))
+			/* Stack any children of focus window. */
+			TAILQ_FOREACH_SAFE(w, &ws->stack, stack_entry, tmpw)
+				if (w->transient == win->id && !ICONIC(w)) {
+					raise_window(w);
 					map_window(w);
+				}
 		} else if (tile_gap < 0 && !ABOVE(win)) {
 			/*
 			 * Windows overlap in the layout.
@@ -4238,17 +4243,21 @@ focus(struct swm_region *r, union arg *args)
 	if (!(r && r->ws))
 		goto out;
 
-	DNPRINTF(SWM_D_FOCUS, "focus: id: %d\n", args->id);
-
 	cur_focus = r->ws->focus;
 	ws = r->ws;
 	wl = &ws->winlist;
+
+	DNPRINTF(SWM_D_FOCUS, "focus: id: %d, cur_focus: %#x\n", args->id,
+	    WINID(cur_focus));
 
 	/* Make sure an uniconified window has focus, if one exists. */
 	if (cur_focus == NULL) {
 		cur_focus = TAILQ_FIRST(wl);
 		while (cur_focus != NULL && ICONIC(cur_focus))
 			cur_focus = TAILQ_NEXT(cur_focus, entry);
+
+		DNPRINTF(SWM_D_FOCUS, "focus: new cur_focus: %#x\n",
+		    WINID(cur_focus));
 	}
 
 	switch (args->id) {
@@ -4263,8 +4272,10 @@ focus(struct swm_region *r, union arg *args)
 				winfocus = TAILQ_LAST(wl, ws_win_list);
 			if (winfocus == cur_focus)
 				break;
-		} while (winfocus != NULL &&
-		    (ICONIC(winfocus) || winfocus->id == cur_focus->transient));
+		} while (winfocus && (ICONIC(winfocus) ||
+		    winfocus->id == cur_focus->transient ||
+		    (cur_focus->transient != XCB_WINDOW_NONE &&
+		    winfocus->transient == cur_focus->transient)));
 		break;
 	case SWM_ARG_ID_FOCUSNEXT:
 		if (cur_focus == NULL)
@@ -4277,8 +4288,10 @@ focus(struct swm_region *r, union arg *args)
 				winfocus = TAILQ_FIRST(wl);
 			if (winfocus == cur_focus)
 				break;
-		} while (winfocus != NULL &&
-		    (ICONIC(winfocus) || winfocus->id == cur_focus->transient));
+		} while (winfocus && (ICONIC(winfocus) ||
+		    winfocus->id == cur_focus->transient ||
+		    (cur_focus->transient != XCB_WINDOW_NONE &&
+		    winfocus->transient == cur_focus->transient)));
 		break;
 	case SWM_ARG_ID_FOCUSMAIN:
 		if (cur_focus == NULL)
@@ -4904,7 +4917,7 @@ void
 max_stack(struct workspace *ws, struct swm_geometry *g)
 {
 	struct swm_geometry	gg = *g;
-	struct ws_win		*w, *win = NULL, *parent = NULL;
+	struct ws_win		*w, *win = NULL, *parent = NULL, *tmpw;
 	int			winno;
 
 	DNPRINTF(SWM_D_STACK, "max_stack: workspace: %d\n", ws->idx);
@@ -4967,17 +4980,20 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		}
 	}
 
+	/* If transient, stack parent and its children. */
 	if (TRANS(win) && (parent = find_window(win->transient))) {
 		raise_window(parent);
 
-		TAILQ_FOREACH(w, &ws->stack, stack_entry)
+		TAILQ_FOREACH_SAFE(w, &ws->stack, stack_entry, tmpw)
 			if (w->transient == parent->id)
 				raise_window(w);
 	}
 
+	/* Make sure focus window is on top. */
 	raise_window(win);
 
-	TAILQ_FOREACH(w, &ws->stack, stack_entry)
+	/* Stack any children of focus window. */
+	TAILQ_FOREACH_SAFE(w, &ws->stack, stack_entry, tmpw)
 		if (w->transient == win->id)
 			raise_window(w);
 
