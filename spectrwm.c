@@ -4784,7 +4784,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 			win_g.y += last_h + 2 * border_width + tile_gap;
 
 		if (disable_border && !(bar_enabled && ws->bar_enabled) &&
-		    winno == 1){
+		    winno == 1) {
 			bordered = false;
 			win_g.w += 2 * border_width;
 			win_g.h += 2 * border_width;
@@ -4997,12 +4997,13 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		if (X(w) != gg.x || Y(w) != gg.y || WIDTH(w) != gg.w ||
 		    HEIGHT(w) != gg.h) {
 			w->g = gg;
-			if (bar_enabled && ws->bar_enabled){
-				w->bordered = true;
-			} else {
+
+			if (disable_border && !(bar_enabled && ws->bar_enabled)) {
 				w->bordered = false;
 				WIDTH(w) += 2 * border_width;
 				HEIGHT(w) += 2 * border_width;
+			} else {
+				w->bordered = true;
 			}
 
 			update_window(w);
