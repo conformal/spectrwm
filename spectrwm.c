@@ -8311,31 +8311,25 @@ setlayout(const char *selector, const char *value, int flags)
 			ws[ws_id].cur_layout->l_config(&ws[ws_id],
 			    mg >= 0 ?  SWM_ARG_ID_MASTERGROW :
 			    SWM_ARG_ID_MASTERSHRINK);
-			stack();
 		}
 		/* master add */
 		for (x = 0; x < abs(ma); x++) {
 			ws[ws_id].cur_layout->l_config(&ws[ws_id],
 			    ma >= 0 ?  SWM_ARG_ID_MASTERADD :
 			    SWM_ARG_ID_MASTERDEL);
-			stack();
 		}
 		/* stack inc */
 		for (x = 0; x < abs(si); x++) {
 			ws[ws_id].cur_layout->l_config(&ws[ws_id],
 			    si >= 0 ?  SWM_ARG_ID_STACKINC :
 			    SWM_ARG_ID_STACKDEC);
-			stack();
 		}
 		/* Apply flip */
 		if (f) {
 			ws[ws_id].cur_layout->l_config(&ws[ws_id],
 			    SWM_ARG_ID_FLIPLAYOUT);
-			stack();
 		}
 	}
-
-	focus_flush();
 
 	return (0);
 }
