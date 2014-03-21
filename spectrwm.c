@@ -657,6 +657,8 @@ union arg {
 #define SWM_ARG_ID_LOWER	(106)
 #define SWM_ARG_ID_BAR_TOGGLE	(110)
 #define SWM_ARG_ID_BAR_TOGGLE_WS	(111)
+#define SWM_ARG_ID_CYCLERG_MOVE_UP	(112)
+#define SWM_ARG_ID_CYCLERG_MOVE_DOWN	(113)
 	char			**argv;
 };
 
@@ -888,6 +890,8 @@ enum keyfuncid {
 	KF_RG_9,
 	KF_RG_NEXT,
 	KF_RG_PREV,
+	KF_RG_MOVE_NEXT,
+	KF_RG_MOVE_PREV,
 	KF_SCREEN_NEXT,
 	KF_SCREEN_PREV,
 	KF_SEARCH_WIN,
@@ -4044,6 +4048,7 @@ focusrg(struct swm_region *r, union arg *args)
 void
 cyclerg(struct swm_region *r, union arg *args)
 {
+	union arg		a;
 	struct swm_region	*rr = NULL;
 	int			i, num_screens;
 
@@ -4057,11 +4062,13 @@ cyclerg(struct swm_region *r, union arg *args)
 
 	switch (args->id) {
 	case SWM_ARG_ID_CYCLERG_UP:
+	case SWM_ARG_ID_CYCLERG_MOVE_UP:
 		rr = TAILQ_NEXT(r, entry);
 		if (rr == NULL)
 			rr = TAILQ_FIRST(&screens[i].rl);
 		break;
 	case SWM_ARG_ID_CYCLERG_DOWN:
+	case SWM_ARG_ID_CYCLERG_MOVE_DOWN:
 		rr = TAILQ_PREV(r, swm_region_list, entry);
 		if (rr == NULL)
 			rr = TAILQ_LAST(&screens[i].rl, swm_region_list);
@@ -4072,9 +4079,22 @@ cyclerg(struct swm_region *r, union arg *args)
 	if (rr == NULL)
 		return;
 
-	focus_region(rr);
-	center_pointer(rr);
-	focus_flush();
+	switch (args->id) {
+	case SWM_ARG_ID_CYCLERG_UP:
+	case SWM_ARG_ID_CYCLERG_DOWN:
+		focus_region(rr);
+		center_pointer(rr);
+		focus_flush();
+		break;
+	case SWM_ARG_ID_CYCLERG_MOVE_UP:
+	case SWM_ARG_ID_CYCLERG_MOVE_DOWN:
+		a.id = rr->ws->idx;
+		switchws(r, &a);
+		break;
+	default:
+		return;
+	};
+
 	DNPRINTF(SWM_D_FOCUS, "cyclerg: done\n");
 }
 
@@ -6712,6 +6732,8 @@ struct keyfunc {
 	{ "rg_9",		focusrg,	{.id = 8} },
 	{ "rg_next",		cyclerg,	{.id = SWM_ARG_ID_CYCLERG_UP} },
 	{ "rg_prev",		cyclerg,	{.id = SWM_ARG_ID_CYCLERG_DOWN} },
+	{ "rg_move_next",	cyclerg,	{.id = SWM_ARG_ID_CYCLERG_MOVE_UP} },
+	{ "rg_move_prev",	cyclerg,	{.id = SWM_ARG_ID_CYCLERG_MOVE_DOWN} },
 	{ "screen_next",	cyclerg,	{.id = SWM_ARG_ID_CYCLERG_UP} },
 	{ "screen_prev",	cyclerg,	{.id = SWM_ARG_ID_CYCLERG_DOWN} },
 	{ "search_win",		search_win,	{0} },
@@ -7511,6 +7533,8 @@ setup_keys(void)
 	setkeybinding(MODKEY,		XK_KP_Up,	KF_RG_8,	NULL);
 	setkeybinding(MODKEY,		XK_KP_Prior,	KF_RG_9,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_Right,	KF_RG_NEXT,	NULL);
+	setkeybinding(MODKEY,		XK_c,		KF_RG_MOVE_NEXT,NULL);
+	setkeybinding(MODKEY_SHIFT,	XK_c,		KF_RG_MOVE_PREV,NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_Left,	KF_RG_PREV,	NULL);
 	setkeybinding(MODKEY,		XK_f,		KF_SEARCH_WIN,	NULL);
 	setkeybinding(MODKEY,		XK_slash,	KF_SEARCH_WORKSPACE,NULL);
