@@ -681,6 +681,7 @@ struct quirk {
 #define SWM_Q_OBEYAPPFOCUSREQ	(1<<8)	/* Focus when applications ask. */
 #define SWM_Q_IGNOREPID		(1<<9)	/* Ignore PID when determining ws. */
 #define SWM_Q_IGNORESPAWNWS	(1<<10)	/* Ignore _SWM_WS when managing win. */
+#define SWM_Q_NOFOCUSCYCLE	(1<<11)	/* Remove from normal focus cycle. */
 };
 TAILQ_HEAD(quirk_list, quirk);
 struct quirk_list		quirks = TAILQ_HEAD_INITIALIZER(quirks);
@@ -4395,7 +4396,8 @@ focus(struct swm_region *r, union arg *args)
 		} while (winfocus && (ICONIC(winfocus) ||
 		    winfocus->id == cur_focus->transient ||
 		    (cur_focus->transient != XCB_WINDOW_NONE &&
-		    winfocus->transient == cur_focus->transient)));
+		    winfocus->transient == cur_focus->transient) ||
+		    (winfocus->quirks & SWM_Q_NOFOCUSCYCLE)));
 		break;
 	case SWM_ARG_ID_FOCUSNEXT:
 		if (cur_focus == NULL)
@@ -4411,7 +4413,8 @@ focus(struct swm_region *r, union arg *args)
 		} while (winfocus && (ICONIC(winfocus) ||
 		    winfocus->id == cur_focus->transient ||
 		    (cur_focus->transient != XCB_WINDOW_NONE &&
-		    winfocus->transient == cur_focus->transient)));
+		    winfocus->transient == cur_focus->transient) ||
+		    (winfocus->quirks & SWM_Q_NOFOCUSCYCLE)));
 		break;
 	case SWM_ARG_ID_FOCUSMAIN:
 		if (cur_focus == NULL)
@@ -7717,6 +7720,7 @@ const char *quirkname[] = {
 	"OBEYAPPFOCUSREQ",
 	"IGNOREPID",
 	"IGNORESPAWNWS",
+	"NOFOCUSCYCLE",
 };
 
 /* SWM_Q_DELIM: retain '|' for back compat for now (2009-08-11) */
