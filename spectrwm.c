@@ -678,7 +678,7 @@ struct quirk {
 #define SWM_Q_TRANSSZ		(1<<1)	/* transiend window size too small */
 #define SWM_Q_ANYWHERE		(1<<2)	/* don't position this window */
 #define SWM_Q_XTERM_FONTADJ	(1<<3)	/* adjust xterm fonts when resizing */
-#define SWM_Q_FULLSCREEN	(1<<4)	/* remove border */
+#define SWM_Q_FULLSCREEN	(1<<4)	/* remove border when fullscreen */
 #define SWM_Q_FOCUSPREV		(1<<5)	/* focus on caller */
 #define SWM_Q_NOFOCUSONMAP	(1<<6)	/* Don't focus on window when mapped. */
 #define SWM_Q_FOCUSONMAP_SINGLE	(1<<7)	/* Only focus if single win of type. */
@@ -686,6 +686,7 @@ struct quirk {
 #define SWM_Q_IGNOREPID		(1<<9)	/* Ignore PID when determining ws. */
 #define SWM_Q_IGNORESPAWNWS	(1<<10)	/* Ignore _SWM_WS when managing win. */
 #define SWM_Q_NOFOCUSCYCLE	(1<<11)	/* Remove from normal focus cycle. */
+#define SWM_Q_MINIMALBORDER	(1<<12)	/* Remove border when floating/unfocused */
 };
 TAILQ_HEAD(quirk_list, quirk);
 struct quirk_list		quirks = TAILQ_HEAD_INITIALIZER(quirks);
@@ -3606,6 +3607,15 @@ unfocus_win(struct ws_win *win)
 	if (win->ws->always_raise)
 		raise_window(win);
 
+	/* Update border width */
+	if (win->bordered && (win->quirks & SWM_Q_MINIMALBORDER) &&
+	    FLOATING(win)) {
+		win->bordered = 0;
+		X(win) += border_width;
+		Y(win) += border_width;
+		update_window(win);
+	}
+
 	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
 	    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1, &none);
 
@@ -3733,9 +3743,19 @@ focus_win(struct ws_win *win)
 		    &win->id);
 	}
 
-	if (cfw != win)
+	if (cfw != win) {
 		/* Update window border even if workspace is hidden. */
 		update_window_color(win);
+
+		/* Update border width */
+		if (!win->bordered && WS_FOCUSED(win->ws) &&
+		    (win->quirks & SWM_Q_MINIMALBORDER) && FLOATING(win)) {
+			win->bordered = 1;
+			X(win) -= border_width;
+			Y(win) -= border_width;
+			update_window(win);
+		}
+	}
 
 out:
 	bar_draw();
@@ -4709,9 +4729,11 @@ update_floater(struct ws_win *win)
 		if (r != ws->old_r)
 			load_float_geom(win);
 
-		if ((win->quirks & SWM_Q_FULLSCREEN) &&
-		    WIDTH(win) >= WIDTH(r) && HEIGHT(win) >= HEIGHT(r)) {
-			/* Remove border for FULLSCREEN quirk. */
+		if (((win->quirks & SWM_Q_FULLSCREEN) &&
+		     WIDTH(win) >= WIDTH(r) && HEIGHT(win) >= HEIGHT(r)) ||
+		    ((!WS_FOCUSED(win->ws) || win->ws->focus != win) &&
+		     (win->quirks & SWM_Q_MINIMALBORDER))) {
+			/* Remove border */
 			win->bordered = false;
 		} else if (!MANUAL(win)) {
 			if (TRANS(win) && (win->quirks & SWM_Q_TRANSSZ)) {
@@ -7747,6 +7769,7 @@ const char *quirkname[] = {
 	"IGNOREPID",
 	"IGNORESPAWNWS",
 	"NOFOCUSCYCLE",
+	"MINIMALBORDER",
 };
 
 /* SWM_Q_DELIM: retain '|' for back compat for now (2009-08-11) */
