@@ -11,7 +11,7 @@ print_date() {
 }
 
 print_mem() {
-	MEM=`/usr/bin/top | grep Free: | cut -d " " -f6`
+	MEM=$($(which top) -bcn1 | grep Mem: | grep -v grep | cut -d " " -f11)
 	echo -n "Free mem: $MEM  "
 }
 
@@ -66,7 +66,7 @@ print_apm() {
 				BAT_STRING="(battery unknown)"
 				;;
 			esac;
-		
+
 			FULL="${AC_STRING}${BAT_STRING}"
 			if [ "$FULL" != "" ]; then
 				echo -n "$FULL"
@@ -76,26 +76,26 @@ print_apm() {
 }
 
 print_cpuspeed() {
-	CPU_SPEED=`/sbin/sysctl hw.cpuspeed | cut -d "=" -f2`
+	CPU_SPEED=$($(which sysctl) hw.cpuspeed | cut -d "=" -f2)
 	echo -n "CPU speed: $CPU_SPEED MHz  "
 }
 
 while :; do
 	# instead of sleeping, use iostat as the update timer.
 	# cache the output of apm(8), no need to call that every second.
-	/usr/sbin/iostat -C -c 3600 |&	# wish infinity was an option
+	$(which iostat) -C -c 3600 |&	# wish infinity was an option
 	PID="$!"
 	APM_DATA=""
 	I=0
 	trap "kill $PID; exit" TERM
 	while read -p; do
 		if [ $(( ${I} % 1 )) -eq 0 ]; then
-			APM_DATA=`/usr/sbin/apm -alb`
+			APM_DATA=$($(which apm) -alb)
 		fi
 		if [ $I -ge 2 ]; then
 			# print_date
-			print_mem $MEM
-			print_cpu $REPLY
+			print_mem
+			print_cpu
 			print_cpuspeed
 			print_apm $APM_DATA
 			echo ""
