@@ -672,6 +672,7 @@ struct quirk {
 #define SWM_Q_FOCUSONMAP_SINGLE	(1<<7)	/* Only focus if single win of type. */
 #define SWM_Q_OBEYAPPFOCUSREQ	(1<<8)	/* Focus when applications ask. */
 #define SWM_Q_IGNOREPID		(1<<9)	/* Ignore PID when determining ws. */
+#define SWM_Q_IGNORESPAWNWS	(1<<10)	/* Ignore _SWM_WS when managing win. */
 };
 TAILQ_HEAD(quirk_list, quirk);
 struct quirk_list		quirks = TAILQ_HEAD_INITIALIZER(quirks);
@@ -1038,7 +1039,7 @@ int32_t	 get_swm_ws(xcb_window_t);
 char	*get_win_name(xcb_window_t);
 uint8_t	 get_win_state(xcb_window_t);
 void	 get_wm_protocols(struct ws_win *);
-int	 get_ws_idx(xcb_window_t);
+int	 get_ws_idx(struct ws_win *);
 void	 grabbuttons(struct ws_win *);
 void	 grabkeys(void);
 void	 grab_windows(void);
@@ -7552,6 +7553,7 @@ const char *quirkname[] = {
 	"FOCUSONMAP_SINGLE",
 	"OBEYAPPFOCUSREQ",
 	"IGNOREPID",
+	"IGNORESPAWNWS",
 };
 
 /* SWM_Q_WS: retain '|' for back compat for now (2009-08-11) */
@@ -8674,13 +8676,16 @@ get_swm_ws(xcb_window_t id)
 }
 
 int
-get_ws_idx(xcb_window_t id)
+get_ws_idx(struct ws_win *win)
 {
 	xcb_get_property_reply_t	*gpr;
 	int			ws_idx = -1;
 
+	if (win == NULL)
+		return -1;
+
 	gpr = xcb_get_property_reply(conn,
-		xcb_get_property(conn, 0, id, ewmh[_NET_WM_DESKTOP].atom,
+		xcb_get_property(conn, 0, win->id, ewmh[_NET_WM_DESKTOP].atom,
 		    XCB_ATOM_CARDINAL, 0, 1),
 		NULL);
 	if (gpr) {
@@ -8689,14 +8694,14 @@ get_ws_idx(xcb_window_t id)
 		free(gpr);
 	}
 
-	if (ws_idx == -1)
-		if ((ws_idx = get_swm_ws(id)) != -1)
-			xcb_delete_property(conn, id, a_swm_ws);
+	if (ws_idx == -1 && !(win->quirks & SWM_Q_IGNORESPAWNWS))
+		ws_idx = get_swm_ws(win->id);
 
 	if (ws_idx > workspace_limit - 1 || ws_idx < -1)
 		ws_idx = -1;
 
-	DNPRINTF(SWM_D_PROP, "get_ws_idx: win %#x, ws_idx: %d\n", id, ws_idx);
+	DNPRINTF(SWM_D_PROP, "get_ws_idx: win %#x, ws_idx: %d\n", win->id,
+	    ws_idx);
 
 	return ws_idx;
 }
@@ -8844,7 +8849,7 @@ manage_window(xcb_window_t id, int mapped)
 		TAILQ_REMOVE(&pidlist, p, entry);
 		free(p);
 		p = NULL;
-	} else if ((ws_idx = get_ws_idx(win->id)) != -1 &&
+	} else if ((ws_idx = get_ws_idx(win)) != -1 &&
 	    !TRANS(win)) {
 		/* _SWM_WS is set; use that. */
 		win->ws = &r->s->ws[ws_idx];
@@ -8860,6 +8865,9 @@ manage_window(xcb_window_t id, int mapped)
 	    win->ws->idx);
 	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id,
 	    ewmh[_NET_WM_DESKTOP].atom, XCB_ATOM_CARDINAL, 32, 1, &win->ws->idx);
+
+	/* Remove any _SWM_WS now that we set _NET_WM_DESKTOP. */
+	xcb_delete_property(conn, win->id, a_swm_ws);
 
 	/* WS must already be set for this to work. */
 	store_float_geom(win);
