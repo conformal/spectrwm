@@ -671,6 +671,7 @@ struct quirk {
 #define SWM_Q_NOFOCUSONMAP	(1<<6)	/* Don't focus on window when mapped. */
 #define SWM_Q_FOCUSONMAP_SINGLE	(1<<7)	/* Only focus if single win of type. */
 #define SWM_Q_OBEYAPPFOCUSREQ	(1<<8)	/* Focus when applications ask. */
+#define SWM_Q_ACTIVE_WS		(1<<9)	/* Always make new window in active ws. */
 };
 TAILQ_HEAD(quirk_list, quirk);
 struct quirk_list		quirks = TAILQ_HEAD_INITIALIZER(quirks);
@@ -7550,6 +7551,7 @@ const char *quirkname[] = {
 	"NOFOCUSONMAP",
 	"FOCUSONMAP_SINGLE",
 	"OBEYAPPFOCUSREQ",
+	"ACTIVE_WS",
 };
 
 /* SWM_Q_WS: retain '|' for back compat for now (2009-08-11) */
@@ -8794,7 +8796,9 @@ manage_window(xcb_window_t id, int mapped)
 	get_wm_protocols(win);
 
 	/* Figure out which workspace the window belongs to. */
-	if ((p = find_pid(window_get_pid(win->id))) != NULL) {
+	if (!(win->quirks & SWM_Q_ACTIVE_WS) &&
+	    (p = find_pid(window_get_pid(win->id))) != NULL)
+	{
 		win->ws = &r->s->ws[p->ws];
 		TAILQ_REMOVE(&pidlist, p, entry);
 		free(p);
