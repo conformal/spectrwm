@@ -948,6 +948,9 @@ When an application requests focus on the window via a _NET_ACTIVE_WINDOW
 client message (source indication of 1), comply with the request.
 Note that a source indication of 0 (unspecified) or 2 (pager) are always
 obeyed.
+.It IGNOREPID
+Ignore the PID when determining the initial workspace for a new window.
+Especially useful for terminal windows that share a process.
 .El
 .Pp
 Custom quirks in the configuration file are specified as follows:

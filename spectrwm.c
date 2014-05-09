@@ -671,6 +671,7 @@ struct quirk {
 #define SWM_Q_NOFOCUSONMAP	(1<<6)	/* Don't focus on window when mapped. */
 #define SWM_Q_FOCUSONMAP_SINGLE	(1<<7)	/* Only focus if single win of type. */
 #define SWM_Q_OBEYAPPFOCUSREQ	(1<<8)	/* Focus when applications ask. */
+#define SWM_Q_IGNOREPID		(1<<9)	/* Ignore PID when determining ws. */
 };
 TAILQ_HEAD(quirk_list, quirk);
 struct quirk_list		quirks = TAILQ_HEAD_INITIALIZER(quirks);
@@ -7550,6 +7551,7 @@ const char *quirkname[] = {
 	"NOFOCUSONMAP",
 	"FOCUSONMAP_SINGLE",
 	"OBEYAPPFOCUSREQ",
+	"IGNOREPID",
 };
 
 /* SWM_Q_WS: retain '|' for back compat for now (2009-08-11) */
@@ -8793,32 +8795,6 @@ manage_window(xcb_window_t id, int mapped)
 	/* Get WM_PROTOCOLS. */
 	get_wm_protocols(win);
 
-	/* Figure out which workspace the window belongs to. */
-	if ((p = find_pid(window_get_pid(win->id))) != NULL) {
-		win->ws = &r->s->ws[p->ws];
-		TAILQ_REMOVE(&pidlist, p, entry);
-		free(p);
-		p = NULL;
-	} else if ((ws_idx = get_ws_idx(win->id)) != -1 &&
-	    !TRANS(win)) {
-		/* _SWM_WS is set; use that. */
-		win->ws = &r->s->ws[ws_idx];
-	} else if (trans && (ww = find_window(trans)) != NULL) {
-		/* Launch transients in the same ws as parent. */
-		win->ws = ww->ws;
-	} else {
-		win->ws = r->ws;
-	}
-
-	/* Set the _NET_WM_DESKTOP atom. */
-	DNPRINTF(SWM_D_PROP, "manage_window: set _NET_WM_DESKTOP: %d\n",
-	    win->ws->idx);
-	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id,
-	    ewmh[_NET_WM_DESKTOP].atom, XCB_ATOM_CARDINAL, 32, 1, &win->ws->idx);
-
-	/* WS must already be set for this to work. */
-	store_float_geom(win);
-
 	/* Set initial quirks based on EWMH. */
 	ewmh_autoquirk(win);
 
@@ -8860,6 +8836,33 @@ manage_window(xcb_window_t id, int mapped)
 		for (i = 0; i < SWM_MAX_FONT_STEPS; i++)
 			fake_keypress(win, XK_KP_Add, XCB_MOD_MASK_SHIFT);
 	}
+
+	/* Figure out which workspace the window belongs to. */
+	if (!(win->quirks & SWM_Q_IGNOREPID) &&
+	    (p = find_pid(window_get_pid(win->id))) != NULL) {
+		win->ws = &r->s->ws[p->ws];
+		TAILQ_REMOVE(&pidlist, p, entry);
+		free(p);
+		p = NULL;
+	} else if ((ws_idx = get_ws_idx(win->id)) != -1 &&
+	    !TRANS(win)) {
+		/* _SWM_WS is set; use that. */
+		win->ws = &r->s->ws[ws_idx];
+	} else if (trans && (ww = find_window(trans)) != NULL) {
+		/* Launch transients in the same ws as parent. */
+		win->ws = ww->ws;
+	} else {
+		win->ws = r->ws;
+	}
+
+	/* Set the _NET_WM_DESKTOP atom. */
+	DNPRINTF(SWM_D_PROP, "manage_window: set _NET_WM_DESKTOP: %d\n",
+	    win->ws->idx);
+	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id,
+	    ewmh[_NET_WM_DESKTOP].atom, XCB_ATOM_CARDINAL, 32, 1, &win->ws->idx);
+
+	/* WS must already be set for this to work. */
+	store_float_geom(win);
 
 	/* Make sure window is positioned inside its region, if its active. */
 	if (win->ws->r) {
