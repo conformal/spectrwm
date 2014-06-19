@@ -92,7 +92,7 @@ while :; do
 		if [ $(( ${I} % 1 )) -eq 0 ]; then
 			APM_DATA=`/usr/sbin/apm -alb`
 		fi
-		if [ $I -gt 2 ]; then
+		if [ $I -ge 2 ]; then
 			# print_date
 			print_mem $MEM
 			print_cpu $REPLY
@@ -100,6 +100,6 @@ while :; do
 			print_apm $APM_DATA
 			echo ""
 		fi
-		I=$(( ${I} + 1 ));
+		I=$(( ( ${I} + 1 ) % 22 ));
 	done
 done
