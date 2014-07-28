@@ -331,6 +331,7 @@ bool			cycle_visible = false;
 int			term_width = 0;
 int			font_adjusted = 0;
 unsigned int		mod_key = MODKEY;
+bool			warp_pointer = false;
 
 /* dmenu search */
 struct swm_region	*search_r;
@@ -964,6 +965,7 @@ void	 bar_window_name(char *, size_t, struct swm_region *);
 void	 bar_window_state(char *, size_t, struct swm_region *);
 void	 bar_workspace_name(char *, size_t, struct swm_region *);
 void	 buttonpress(xcb_button_press_event_t *);
+void	 center_pointer(struct swm_region *);
 void	 check_conn(void);
 void	 clear_keys(void);
 int	 clear_maximized(struct workspace *);
@@ -3206,6 +3208,23 @@ get_pointer_win(xcb_window_t root)
 	return win;
 }
 
+void
+center_pointer(struct swm_region *r)
+{
+	struct ws_win			*win;
+
+	if (!warp_pointer || r == NULL)
+		return;
+
+	win = r->ws->focus;
+	if (win && win->mapped)
+		xcb_warp_pointer(conn, XCB_NONE, win->id, 0, 0, 0, 0,
+		    WIDTH(win) / 2, HEIGHT(win) / 2);
+	else
+		xcb_warp_pointer(conn, XCB_NONE, r->id, 0, 0, 0, 0,
+		    WIDTH(r) / 2, HEIGHT(r) / 2);
+}
+
 struct swm_region *
 root_to_region(xcb_window_t root, int check)
 {
@@ -3823,6 +3842,7 @@ switchws(struct swm_region *r, union arg *args)
 
 	ewmh_update_current_desktop();
 
+	center_pointer(r);
 	focus_flush();
 	new_ws->state = SWM_WS_STATE_MAPPED;
 
@@ -3919,6 +3939,7 @@ focusrg(struct swm_region *r, union arg *args)
 		return;
 
 	focus_region(rr);
+	center_pointer(rr);
 	focus_flush();
 	DNPRINTF(SWM_D_FOCUS, "focusrg: done\n");
 }
@@ -3955,6 +3976,7 @@ cyclerg(struct swm_region *r, union arg *args)
 		return;
 
 	focus_region(rr);
+	center_pointer(rr);
 	focus_flush();
 	DNPRINTF(SWM_D_FOCUS, "cyclerg: done\n");
 }
@@ -4347,6 +4369,7 @@ focus(struct swm_region *r, union arg *args)
 		stack();
 
 	focus_win(get_focus_magic(winfocus));
+	center_pointer(r);
 	focus_flush();
 
 out:
@@ -5106,6 +5129,7 @@ send_to_ws(struct swm_region *r, union arg *args)
 		}
 	}
 
+	center_pointer(r);
 	focus_flush();
 }
 
@@ -5952,6 +5976,7 @@ floating_toggle(struct swm_region *r, union arg *args)
 	if (w == w->ws->focus)
 		focus_win(w);
 
+	center_pointer(r);
 	focus_flush();
 	DNPRINTF(SWM_D_MISC, "floating_toggle: done\n");
 }
@@ -7860,6 +7885,7 @@ enum {
 	SWM_S_TILE_GAP,
 	SWM_S_URGENT_ENABLED,
 	SWM_S_VERBOSE_LAYOUT,
+	SWM_S_WARP_POINTER,
 	SWM_S_WINDOW_CLASS_ENABLED,
 	SWM_S_WINDOW_INSTANCE_ENABLED,
 	SWM_S_WINDOW_NAME_ENABLED,
@@ -8070,6 +8096,9 @@ setconfvalue(const char *selector, const char *value, int flags)
 			else
 				layouts[i].l_string = plain_stacker;
 		}
+		break;
+	case SWM_S_WARP_POINTER:
+		warp_pointer = (atoi(value) != 0);
 		break;
 	case SWM_S_WINDOW_CLASS_ENABLED:
 		window_class_enabled = (atoi(value) != 0);
@@ -8404,6 +8433,7 @@ struct config_option configopt[] = {
 	{ "title_name_enabled",		setconfvalue,	SWM_S_WINDOW_INSTANCE_ENABLED }, /* For backwards compat. */
 	{ "urgent_enabled",		setconfvalue,	SWM_S_URGENT_ENABLED },
 	{ "verbose_layout",		setconfvalue,	SWM_S_VERBOSE_LAYOUT },
+	{ "warp_pointer",		setconfvalue,	SWM_S_WARP_POINTER },
 	{ "window_class_enabled",	setconfvalue,	SWM_S_WINDOW_CLASS_ENABLED },
 	{ "window_instance_enabled",	setconfvalue,	SWM_S_WINDOW_INSTANCE_ENABLED },
 	{ "window_name_enabled",	setconfvalue,	SWM_S_WINDOW_NAME_ENABLED },
@@ -9536,6 +9566,7 @@ mapnotify(xcb_map_notify_event_t *e)
 		if (ws->focus_pending == win) {
 			focus_win(win);
 			ws->focus_pending = NULL;
+			center_pointer(win->ws->r);
 			focus_flush();
 		}
 	}
@@ -9798,6 +9829,7 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 		}
 	}
 
+	center_pointer(ws->r);
 	focus_flush();
 }
 
