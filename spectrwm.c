@@ -83,6 +83,7 @@
 #include <pwd.h>
 #include <regex.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1058,7 +1059,7 @@ void	 kill_refs(struct ws_win *);
 void	 leavenotify(xcb_leave_notify_event_t *);
 #endif
 void	 load_float_geom(struct ws_win *);
-struct ws_win	*manage_window(xcb_window_t, int);
+struct ws_win	*manage_window(xcb_window_t, int, bool);
 void	 map_window(struct ws_win *);
 void	 mapnotify(xcb_map_notify_event_t *);
 void	 mappingnotify(xcb_mapping_notify_event_t *);
@@ -8707,7 +8708,7 @@ get_ws_idx(struct ws_win *win)
 }
 
 struct ws_win *
-manage_window(xcb_window_t id, int mapped)
+manage_window(xcb_window_t id, int spawn_pos, bool mapped)
 {
 	struct ws_win		*win, *ww;
 	struct swm_region	*r;
@@ -8883,12 +8884,12 @@ out:
 	/* Figure out where to stack the window in the workspace. */
 	if (trans && (ww = find_window(trans)))
 		TAILQ_INSERT_AFTER(&win->ws->winlist, ww, win, entry);
-	else if (win->ws->focus && spawn_position == SWM_STACK_ABOVE)
+	else if (win->ws->focus && spawn_pos == SWM_STACK_ABOVE)
 		TAILQ_INSERT_AFTER(&win->ws->winlist, win->ws->focus, win,
 		    entry);
-	else if (win->ws->focus && spawn_position == SWM_STACK_BELOW)
+	else if (win->ws->focus && spawn_pos == SWM_STACK_BELOW)
 		TAILQ_INSERT_BEFORE(win->ws->focus, win, entry);
-	else switch (spawn_position) {
+	else switch (spawn_pos) {
 	default:
 	case SWM_STACK_TOP:
 	case SWM_STACK_ABOVE:
@@ -9504,7 +9505,7 @@ mapnotify(xcb_map_notify_event_t *e)
 
 	DNPRINTF(SWM_D_EVENT, "mapnotify: win %#x\n", e->window);
 
-	if ((win = manage_window(e->window, 1)) == NULL)
+	if ((win = manage_window(e->window, spawn_position, true)) == NULL)
 		return;
 	ws = win->ws;
 
@@ -9577,7 +9578,7 @@ maprequest(xcb_map_request_event_t *e)
 		goto out;
 	}
 
-	win = manage_window(e->window,
+	win = manage_window(e->window, spawn_position,
 	    (war->map_state == XCB_MAP_STATE_VIEWABLE));
 	if (win == NULL)
 		goto out;
@@ -10339,7 +10340,7 @@ grab_windows(void)
 			manage = state != XCB_ICCCM_WM_STATE_WITHDRAWN;
 			mapped = gar->map_state == XCB_MAP_STATE_VIEWABLE;
 			if (mapped || manage)
-				manage_window(wins[j], mapped);
+				manage_window(wins[j], SWM_STACK_TOP, mapped);
 			free(gar);
 		}
 		/* transient windows */
@@ -10366,7 +10367,7 @@ grab_windows(void)
 			pc = xcb_icccm_get_wm_transient_for(conn, wins[j]);
 			if (xcb_icccm_get_wm_transient_for_reply(conn, pc,
 			    &trans, NULL) && manage)
-				manage_window(wins[j], mapped);
+				manage_window(wins[j], SWM_STACK_TOP, mapped);
 			free(gar);
 		}
 		free(qtr);
@@ -10613,14 +10614,14 @@ main(int argc, char *argv[])
 	struct swm_region	*r;
 	char			conf[PATH_MAX], *cfile = NULL;
 	struct stat		sb;
-	int			xfd, i, num_screens, startup = 1;
+	int			xfd, i, num_screens;
 	struct sigaction	sact;
 	xcb_generic_event_t	*evt;
 	struct timeval          tv;
 	fd_set			rd;
 	int			rd_max;
-	int			stdin_ready = 0;
 	int			num_readable;
+	bool			stdin_ready = false, startup = true;
 
 	/* suppress unused warning since var is needed */
 	(void)argc;
@@ -10766,7 +10767,7 @@ noconfig:
 
 		/* If just (re)started, set default focus if needed. */
 		if (startup) {
-			startup = 0;
+			startup = false;
 
 			if (focus_mode != SWM_FOCUS_FOLLOW) {
 				r = TAILQ_FIRST(&screens[0].rl);
@@ -10790,7 +10791,7 @@ noconfig:
 		if (num_readable == -1 && errno != EINTR) {
 			DNPRINTF(SWM_D_MISC, "select failed");
 		} else if (num_readable > 0 && FD_ISSET(STDIN_FILENO, &rd)) {
-			stdin_ready = 1;
+			stdin_ready = true;
 		}
 
 		if (restart_wm)
@@ -10803,7 +10804,7 @@ noconfig:
 			goto done;
 
 		if (stdin_ready) {
-			stdin_ready = 0;
+			stdin_ready = false;
 			bar_extra_update();
 		}
 
