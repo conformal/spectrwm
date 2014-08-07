@@ -479,7 +479,7 @@ struct ws_win {
 	bool			can_delete;
 	bool			take_focus;
 	bool			java;
-	unsigned long		quirks;
+	uint32_t		quirks;
 	struct workspace	*ws;	/* always valid */
 	struct swm_screen	*s;	/* always valid, never changes */
 	xcb_size_hints_t	sh;
@@ -663,7 +663,8 @@ struct quirk {
 	regex_t			regex_class;
 	regex_t			regex_instance;
 	regex_t			regex_name;
-	unsigned long		quirk;
+	uint32_t		quirk;
+	int			ws;		/* Initial workspace. */
 #define SWM_Q_FLOAT		(1<<0)	/* float this window */
 #define SWM_Q_TRANSSZ		(1<<1)	/* transiend window size too small */
 #define SWM_Q_ANYWHERE		(1<<2)	/* don't position this window */
@@ -1074,7 +1075,7 @@ uint32_t name_to_pixel(int, const char *);
 void	 name_workspace(struct swm_region *, union arg *);
 void	 new_region(struct swm_screen *, int, int, int, int);
 int	 parsekeys(const char *, unsigned int, unsigned int *, KeySym *);
-int	 parsequirks(const char *, unsigned long *);
+int	 parsequirks(const char *, uint32_t *, int *);
 int	 parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
 void	 pressbutton(struct swm_region *, union arg *);
 void	 priorws(struct swm_region *, union arg *);
@@ -1083,10 +1084,10 @@ void	 print_win_geom(xcb_window_t);
 #endif
 void	 propertynotify(xcb_property_notify_event_t *);
 void	 quirk_free(struct quirk *);
-void	 quirk_insert(const char *, const char *, const char *,unsigned long);
+void	 quirk_insert(const char *, const char *, const char *, uint32_t, int);
 void	 quirk_remove(struct quirk *);
 void	 quirk_replace(struct quirk *, const char *, const char *, const char *,
-	     unsigned long);
+	     uint32_t, int);
 void	 quit(struct swm_region *, union arg *);
 void	 raise_toggle(struct swm_region *, union arg *);
 void	 raise_window(struct ws_win *);
@@ -1121,7 +1122,7 @@ int	 setconfvalue(const char *, const char *, int);
 void	 setkeybinding(unsigned int, KeySym, enum keyfuncid, const char *);
 int	 setkeymapping(const char *, const char *, int);
 int	 setlayout(const char *, const char *, int);
-void	 setquirk(const char *, const char *, const char *,unsigned long);
+void	 setquirk(const char *, const char *, const char *, uint32_t, int);
 void	 setscreencolor(const char *, int, int);
 void	 setspawn(const char *, const char *, int);
 void	 setup_ewmh(void);
@@ -7584,10 +7585,10 @@ const char *quirkname[] = {
 	"IGNORESPAWNWS",
 };
 
-/* SWM_Q_WS: retain '|' for back compat for now (2009-08-11) */
-#define SWM_Q_WS		"\n|+ \t"
+/* SWM_Q_DELIM: retain '|' for back compat for now (2009-08-11) */
+#define SWM_Q_DELIM		"\n|+ \t"
 int
-parsequirks(const char *qstr, unsigned long *quirk)
+parsequirks(const char *qstr, uint32_t *quirk, int *ws)
 {
 	char			*str, *cp, *name;
 	int			i;
@@ -7600,9 +7601,16 @@ parsequirks(const char *qstr, unsigned long *quirk)
 
 	cp = str;
 	*quirk = 0;
-	while ((name = strsep(&cp, SWM_Q_WS)) != NULL) {
+	while ((name = strsep(&cp, SWM_Q_DELIM)) != NULL) {
 		if (cp)
-			cp += (long)strspn(cp, SWM_Q_WS);
+			cp += (long)strspn(cp, SWM_Q_DELIM);
+
+		if (sscanf(name, "WS[%d]", ws) == 1) {
+			if (*ws > 0)
+				*ws -= 1;
+			continue;
+		}
+
 		for (i = 0; i < LENGTH(quirkname); i++) {
 			if (strncasecmp(name, quirkname[i],
 			    SWM_QUIRK_LEN) == 0) {
@@ -7631,14 +7639,14 @@ parsequirks(const char *qstr, unsigned long *quirk)
 
 void
 quirk_insert(const char *class, const char *instance, const char *name,
-    unsigned long quirk)
+    uint32_t quirk, int ws)
 {
 	struct quirk		*qp;
 	char			*str;
 	bool			failed = false;
 
 	DNPRINTF(SWM_D_QUIRK, "quirk_insert: class: %s, instance: %s, name: %s,"
-	    " value: %lu\n", class, instance, name, quirk);
+	    " value: %u, ws: %d\n", class, instance, name, quirk, ws);
 
 	if ((qp = malloc(sizeof *qp)) == NULL)
 		err(1, "quirk_insert: malloc");
@@ -7685,6 +7693,7 @@ quirk_insert(const char *class, const char *instance, const char *name,
 		quirk_free(qp);
 	} else {
 		qp->quirk = quirk;
+		qp->ws = ws;
 		TAILQ_INSERT_TAIL(&quirks, qp, entry);
 	}
 	DNPRINTF(SWM_D_QUIRK, "quirk_insert: leave\n");
@@ -7693,7 +7702,7 @@ quirk_insert(const char *class, const char *instance, const char *name,
 void
 quirk_remove(struct quirk *qp)
 {
-	DNPRINTF(SWM_D_QUIRK, "quirk_remove: %s:%s [%lu]\n", qp->class,
+	DNPRINTF(SWM_D_QUIRK, "quirk_remove: %s:%s [%u]\n", qp->class,
 	    qp->name, qp->quirk);
 
 	TAILQ_REMOVE(&quirks, qp, entry);
@@ -7716,43 +7725,44 @@ quirk_free(struct quirk *qp)
 
 void
 quirk_replace(struct quirk *qp, const char *class, const char *instance,
-    const char *name, unsigned long quirk)
+    const char *name, uint32_t quirk, int ws)
 {
-	DNPRINTF(SWM_D_QUIRK, "quirk_replace: %s:%s:%s [%lu]\n", qp->class,
-	    qp->instance, qp->name, qp->quirk);
+	DNPRINTF(SWM_D_QUIRK, "quirk_replace: %s:%s:%s [%u], ws: %d\n", qp->class,
+	    qp->instance, qp->name, qp->quirk, qp->ws);
 
 	quirk_remove(qp);
-	quirk_insert(class, instance, name, quirk);
+	quirk_insert(class, instance, name, quirk, ws);
 
 	DNPRINTF(SWM_D_QUIRK, "quirk_replace: leave\n");
 }
 
 void
 setquirk(const char *class, const char *instance, const char *name,
-    unsigned long quirk)
+    uint32_t quirk, int ws)
 {
 	struct quirk		*qp;
 
-	DNPRINTF(SWM_D_QUIRK, "setquirk: enter %s:%s:%s [%lu]\n", class,
-	    instance, name, quirk);
+	DNPRINTF(SWM_D_QUIRK, "setquirk: enter %s:%s:%s [%u], ws: %d\n", class,
+	    instance, name, quirk, ws);
 
 	/* Remove/replace existing quirk. */
 	TAILQ_FOREACH(qp, &quirks, entry) {
 		if (strcmp(qp->class, class) == 0 &&
 		    strcmp(qp->instance, instance) == 0 &&
 		    strcmp(qp->name, name) == 0) {
-			if (quirk == 0)
+			if (quirk == 0 && ws == -1)
 				quirk_remove(qp);
 			else
-				quirk_replace(qp, class, instance, name, quirk);
+				quirk_replace(qp, class, instance, name, quirk,
+				    ws);
 			DNPRINTF(SWM_D_QUIRK, "setquirk: leave\n");
 			return;
 		}
 	}
 
-	/* Only insert if quirk is not NONE. */
-	if (quirk)
-		quirk_insert(class, instance, name, quirk);
+	/* Only insert if quirk is not NONE or forced ws is set. */
+	if (quirk || ws != -1)
+		quirk_insert(class, instance, name, quirk, ws);
 
 	DNPRINTF(SWM_D_QUIRK, "setquirk: leave\n");
 }
@@ -7778,8 +7788,8 @@ setconfquirk(const char *selector, const char *value, int flags)
 {
 	char			*str, *cp, *class;
 	char			*instance = NULL, *name = NULL;
-	int			retval, count = 0;
-	unsigned long		qrks;
+	int			retval, count = 0, ws = -1;
+	uint32_t		qrks;
 
 	/* suppress unused warning since var is needed */
 	(void)flags;
@@ -7822,8 +7832,8 @@ setconfquirk(const char *selector, const char *value, int flags)
 	DNPRINTF(SWM_D_CONF, "setconfquirk: class: %s, instance: %s, "
 	    "name: %s\n", class, instance, name);
 
-	if ((retval = parsequirks(value, &qrks)) == 0)
-		setquirk(class, instance, name, qrks);
+	if ((retval = parsequirks(value, &qrks, &ws)) == 0)
+		setquirk(class, instance, name, qrks, ws);
 
 	free(str);
 	return (retval);
@@ -7832,19 +7842,32 @@ setconfquirk(const char *selector, const char *value, int flags)
 void
 setup_quirks(void)
 {
-	setquirk("MPlayer",		"xv",		".*",	SWM_Q_FLOAT | SWM_Q_FULLSCREEN | SWM_Q_FOCUSPREV);
-	setquirk("OpenOffice.org 3.2",	"VCLSalFrame",	".*",	SWM_Q_FLOAT);
-	setquirk("Firefox-bin",		"firefox-bin",	".*",	SWM_Q_TRANSSZ);
-	setquirk("Firefox",		"Dialog",	".*",	SWM_Q_FLOAT);
-	setquirk("Gimp",		"gimp",		".*",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
-	setquirk("XTerm",		"xterm",	".*",	SWM_Q_XTERM_FONTADJ);
-	setquirk("xine",		"Xine Window",	".*",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
-	setquirk("Xitk",		"Xitk Combo",	".*",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
-	setquirk("xine",		"xine Panel",	".*",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
-	setquirk("Xitk",		"Xine Window",	".*",	SWM_Q_FLOAT | SWM_Q_ANYWHERE);
-	setquirk("xine",		"xine Video Fullscreen Window",	".*",	SWM_Q_FULLSCREEN | SWM_Q_FLOAT);
-	setquirk("pcb",			"pcb",		".*",	SWM_Q_FLOAT);
-	setquirk("SDL_App",		"SDL_App",	".*",	SWM_Q_FLOAT | SWM_Q_FULLSCREEN);
+	setquirk("MPlayer",		"xv",		".*",
+	    SWM_Q_FLOAT | SWM_Q_FULLSCREEN | SWM_Q_FOCUSPREV, -1);
+	setquirk("OpenOffice.org 3.2",	"VCLSalFrame",	".*",
+	    SWM_Q_FLOAT, -1);
+	setquirk("Firefox-bin",		"firefox-bin",	".*",
+	    SWM_Q_TRANSSZ, -1);
+	setquirk("Firefox",		"Dialog",	".*",
+	    SWM_Q_FLOAT, -1);
+	setquirk("Gimp",		"gimp",		".*",
+	    SWM_Q_FLOAT | SWM_Q_ANYWHERE, -1);
+	setquirk("XTerm",		"xterm",	".*",
+	    SWM_Q_XTERM_FONTADJ, -1);
+	setquirk("xine",		"Xine Window",	".*",
+	    SWM_Q_FLOAT | SWM_Q_ANYWHERE, -1);
+	setquirk("Xitk",		"Xitk Combo",	".*",
+	    SWM_Q_FLOAT | SWM_Q_ANYWHERE, -1);
+	setquirk("xine",		"xine Panel",	".*",
+	    SWM_Q_FLOAT | SWM_Q_ANYWHERE, -1);
+	setquirk("Xitk",		"Xine Window",	".*",
+	    SWM_Q_FLOAT | SWM_Q_ANYWHERE, -1);
+	setquirk("xine",		"xine Video Fullscreen Window",	".*",
+	    SWM_Q_FULLSCREEN | SWM_Q_FLOAT, -1);
+	setquirk("pcb",			"pcb",		".*",
+	    SWM_Q_FLOAT, -1);
+	setquirk("SDL_App",		"SDL_App",	".*",
+	    SWM_Q_FLOAT | SWM_Q_FULLSCREEN, -1);
 }
 
 /* conf file stuff */
@@ -8755,7 +8778,7 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapped)
 	xcb_get_geometry_reply_t	*gr;
 	xcb_window_t		trans = XCB_WINDOW_NONE;
 	uint32_t		i, wa[2], new_flags;
-	int			ws_idx;
+	int			ws_idx, force_ws = -1;
 	char			*class, *instance, *name;
 
 	if ((win = find_window(id)) != NULL) {
@@ -8865,9 +8888,11 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapped)
 		    regexec(&qp->regex_instance, instance, 0, NULL, 0) == 0 &&
 		    regexec(&qp->regex_name, name, 0, NULL, 0) == 0) {
 			DNPRINTF(SWM_D_CLASS, "manage_window: matched "
-			    "quirk: %s:%s:%s mask: %#lx\n", qp->class,
-			    qp->instance, qp->name, qp->quirk);
+			    "quirk: %s:%s:%s mask: %#x, ws: %d\n", qp->class,
+			    qp->instance, qp->name, qp->quirk, qp->ws);
 			win->quirks = qp->quirk;
+			if (qp->ws >= 0 && qp->ws < workspace_limit)
+				force_ws = qp->ws;
 		}
 	}
 
@@ -8898,6 +8923,9 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapped)
 	} else {
 		win->ws = r->ws;
 	}
+
+	if (force_ws != -1)
+		win->ws = &r->s->ws[force_ws];
 
 	/* Set the _NET_WM_DESKTOP atom. */
 	DNPRINTF(SWM_D_PROP, "manage_window: set _NET_WM_DESKTOP: %d\n",
