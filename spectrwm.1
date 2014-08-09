@@ -71,7 +71,10 @@ If that file is unavailable,
 it then tries to open the global configuration file
 .Pa /etc/spectrwm.conf .
 .Pp
-The format of the file is \*(Ltkeyword\*(Gt = \*(Ltsetting\*(Gt.
+The format of the file is
+.Pp
+.Dl Ar keyword Li = Ar setting
+.Pp
 For example:
 .Pp
 .Dl color_focus = red
@@ -82,14 +85,18 @@ Colors need to be specified per the
 .Xr XQueryColor 3
 specification.
 .Pp
-Comments begin with a #.  When a literal '#' is desired in an option, then it
+Comments begin with a #.  When a literal
+.Ql #
+is desired in an option, then it
 must be escaped with a backslash. i.e. \e#
 .Pp
 The file supports the following keywords:
 .Bl -tag -width 2m
 .It Ic autorun
 Launch an application in a specified workspace at start-of-day.
-Defined in the format ws[<idx>]:application, e.g. ws[2]:xterm launches an
+Defined in the format
+.Li ws Ns Bo Ar idx Bc : Ns Ar application ,
+e.g. ws[2]:xterm launches an
 xterm in workspace 2.
 .It Ic bar_action
 External script that populates additional information in the status bar,
@@ -110,22 +117,23 @@ Background color of the status bar(s) in screen
 .Ar x .
 .It Ic bar_enabled
 Set default
-.Ar bar_toggle
+.Ic bar_toggle
 state; default is 1.
 .It Ic bar_enabled_ws Ns Bq Ar x
 Set default
-.Ar bar_toggle_ws
+.Ic bar_toggle_ws
 state on workspace
 .Ar x ;
 default is 1.
 .It Ic bar_font
 Font used in the status bar. Either Xft or X Logical Font Description (XLFD)
 may be used to specify fonts. Fallback fonts may be specified by separating
-each font with a comma. If all entries are XLFD syntax, font set will be
+each font with a comma. If all entries are in XLFD syntax, font set will be
 used. If at least one entry is Xft, Xft will be used. Note that if Xft is in
 use, only the first font that successfully loads will be used regardless of
-missing glyphs. The default is to use font set. Also note that dmenu does
-not support Xft fonts.
+missing glyphs. The default is to use font set. Also note that
+.Xr dmenu 1
+does not support Xft fonts.
 .Pp
 Xft examples:
 .Bd -literal -offset indent
@@ -156,7 +164,7 @@ application can help with the XLFD setting.
 Color of the font in status bar in screen
 .Ar x .
 .It Ic bar_format
-Set the bar_format string and overrides
+Set the bar format string, overriding
 .Ic clock_format
 and all of the
 .Ic enabled
@@ -189,15 +197,14 @@ example +64A. Any characters that don't match the specification are copied
 as-is.
 .It Ic bar_justify
 Justify the status bar text. Possible values are
-.Pa left ,
-.Pa center ,
+.Ar left ,
+.Ar center ,
 and
-.Pa right .
+.Ar right .
 .Pp
-Note that if the output is not
-.Pa left
-justified, it may not be properly aligned in some circumstances, due to the
-white-spaces in the default static format.
+Note that if the output is not left justified, it may not be properly
+aligned in some circumstances, due to the white-spaces in the default
+static format.
 See the
 .Ic bar_format
 option for more details.
@@ -219,7 +226,7 @@ bindings.  Disable the window containment effect by setting to 0.
 Enable or disable displaying the clock in the status bar.
 Disable by setting to 0
 so a custom clock could be used in the
-.Pa bar_action
+.Ic bar_action
 script.
 .It Ic iconic_enabled
 Display the number of iconic (minimized) windows in the status bar.
@@ -228,12 +235,13 @@ Enable by setting to 1.
 Border color of the currently focused window.  Default is red.
 .It Ic color_focus_maximized
 Border color of the currently focused, maximized window.  Defaults to the
-value of color_focus.
+value of
+.Ic color_focus .
 .It Ic color_unfocus
 Border color of unfocused windows, default is rgb:88/88/88.
 .It Ic color_unfocus_maximized
 Border color of unfocused, maximized windows.  Defaults to the value of
-color_unfocus.
+.Ic color_unfocus .
 .It Ic dialog_ratio
 Some applications have dialogue windows that are too small to be useful.
 This ratio is the screen size to what they will be resized.
@@ -244,40 +252,40 @@ region.
 .It Ic focus_close
 Window to put focus when the focused window is closed.
 Possible values are
-.Pa first ,
-.Pa next ,
-.Pa previous
+.Ar first ,
+.Ar next ,
+.Ar previous
 (default) and
-.Pa last .
-.Pa next
+.Ar last .
+.Ar next
 and
-.Pa previous
+.Ar previous
 are relative to the window that is closed.
 .It Ic focus_close_wrap
 Whether to allow the focus to jump to the last window when the first window
 is closed or vice versa. Disable by setting to 0.
 .It Ic focus_default
 Window to put focus when no window has been focused. Possible values are
-.Pa first
+.Ar first
 and
-.Pa last
+.Ar last
 (default).
 .It Ic focus_mode
 Window focus behavior with respect to the mouse cursor. Possible values:
 .Pp
 .Bl -tag -width "default" -offset indent -compact
-.It Cm default
+.It Ar default
 Set window focus on border crossings caused by cursor motion and
 window interaction.
-.It Cm follow
+.It Ar follow
 Set window focus on all cursor border crossings, including workspace switches
 and changes to layout.
-.It Cm manual
+.It Ar manual
 Set window focus on window interaction only.
 .El
 .It Ic java_workaround
 Workaround a Java GUI rendering issue on non-reparenting window managers by
-impersonating LG3D window manager, written by Sun. Default is 1.
+impersonating the LG3D window manager, written by Sun. Default is 1.
 .It Ic keyboard_mapping
 Clear all key bindings and load new key bindings from the specified file.
 This allows you to load pre-defined key bindings for your keyboard layout.
@@ -287,31 +295,33 @@ section below for a list of keyboard mapping files that have been provided
 for several keyboard layouts.
 .It Ic layout
 Select layout to use at start-of-day. Defined in the format
-ws[idx]:master_grow:master_add:stack_inc:always_raise:stack_mode, e.g.
-ws[2]:-4:0:1:0:horizontal sets worskspace 2 to the horizontal stack mode and
-shrinks the master area by 4 ticks and adds one window to the stack, while
-maintaining default floating window behavior.
-Possible stack_mode values are
-.Pa vertical ,
-.Pa vertical_flip ,
-.Pa horizontal ,
-.Pa horizontal_flip
+.Li ws Ns Bo Ar idx Bc : Ns Ar master_grow : Ns Ar master_add : Ns Ar stack_inc : Ns Ar always_raise : Ns Ar stack_mode ,
+e.g. ws[2]:-4:0:1:0:horizontal sets worskspace 2 to the horizontal stack
+mode, shrinks the master area by 4 ticks and adds one window to the
+stack, while maintaining default floating window behavior.
+Possible
+.Ar stack_mode
+values are
+.Ar vertical ,
+.Ar vertical_flip ,
+.Ar horizontal ,
+.Ar horizontal_flip
 and
-.Pa fullscreen .
+.Ar fullscreen .
 .Pp
 See
-.Pa master_grow ,
-.Pa master_shrink ,
-.Pa master_add ,
-.Pa master_del ,
-.Pa stack_inc ,
-.Pa stack_dec ,
+.Ic master_grow ,
+.Ic master_shrink ,
+.Ic master_add ,
+.Ic master_del ,
+.Ic stack_inc ,
+.Ic stack_dec ,
 and
-.Pa always_raise
+.Ic always_raise
 for more information.
 Note that the stacking options are complicated and have side-effects. One
 should familiarize oneself with these commands before experimenting with the
-.Pa layout
+.Ic layout
 option.
 .Pp
 This setting is not retained at restart.
@@ -320,8 +330,9 @@ Change mod key.
 Mod1 is generally the ALT key and Mod4 is the windows key on a PC.
 .It Ic name
 Set the name of a workspace at start-of-day.
-Defined in the format ws[<idx>]:<name>, e.g. ws[1]:Console sets the name of
-workspace 1 to
+Defined in the format
+.Li ws Ns Bo Ar idx Bc : Ns Ar name ,
+e.g. ws[1]:Console sets the name of workspace 1 to
 .Dq Console .
 .It Ic program Ns Bq Ar p
 Define new action to spawn a program
@@ -329,7 +340,7 @@ Define new action to spawn a program
 See the
 .Sx PROGRAMS
 section below.
-.It Ic quirk Ns Bq Ar c:i:n
+.It Ic quirk Ns Bq Ar c Ns Li : Ns Ar i Ns Li : Ns Ar n
 Add "quirk" for windows with class
 .Ar c ,
 instance
@@ -342,8 +353,9 @@ section below.
 .It Ic region
 Allocates a custom region, removing any autodetected regions which occupy the
 same space on the screen.
-Defined in the format screen[<idx>]:WIDTHxHEIGHT+X+Y,
-e.g.\& screen[1]:800x1200+0+0.
+Defined in the format
+.Li screen Ns Bo Ar idx Ns Bc : Ns Ar width Ns x Ns Ar height Ns + Ns Ar x Ns + Ns Ar y ,
+e.g. screen[1]:800x1200+0+0.
 .Pp
 To make a region span multiple monitors, create a region big enough to cover
 them all, e.g. screen[1]:2048x768+0+0 makes the region span two monitors with
@@ -354,15 +366,15 @@ Disable by setting to 0.
 .It Ic spawn_position
 Position in stack to place newly spawned windows.
 Possible values are
-.Pa first ,
-.Pa next ,
-.Pa previous
+.Ar first ,
+.Ar next ,
+.Ar previous
 and
-.Pa last
+.Ar last
 (default).
-.Pa next
+.Ar next
 and
-.Pa previous
+.Ar previous
 are relative to the focused window.
 .It Ic stack_enabled
 Enable or disable displaying the current stacking algorithm in the status
@@ -391,8 +403,9 @@ Disable by setting to 0.
 .It Ic urgent_enabled
 Enable or disable the urgency hint indicator in the status bar.
 Note that many terminal emulators require an explicit setting for the bell
-character to trigger urgency on the window.  In xterm, for example, one needs to
-add the following line to
+character to trigger urgency on the window.  In
+.Xr xterm 1 ,
+for example, one needs to add the following line to
 .Pa .Xdefaults :
 .Bd -literal -offset indent
 xterm.bellIsUrgent: true
@@ -402,11 +415,11 @@ Enable or disable displaying the current master window count and stack column/ro
 count in the status bar.
 Enable by setting to 1.
 See
-.Pa master_add ,
-.Pa master_del ,
-.Pa stack_inc
+.Ar master_add ,
+.Ar master_del ,
+.Ar stack_inc
 and
-.Pa stack_dec
+.Ar stack_dec
 for more information.
 .It Ic window_class_enabled
 Enable or disable displaying the window class name (from WM_CLASS) in the
@@ -426,7 +439,6 @@ option for more details.
 .It Ic warp_pointer
 Centers the mouse pointer on the focused window when using key bindings to
 change focus, switch workspaces, change regions, etc.  Enable by setting to 1.
-Default is 0 (disabled.)
 .It Ic workspace_limit
 Set the total number of workspaces available. Minimum is 1, maximum is 22,
 default is 10.
@@ -441,13 +453,13 @@ section below.
 .Pp
 Custom programs in the configuration file are specified as follows:
 .Pp
-.Dl program[<action>] = <progpath> [<arg> [... <arg>]]
+.Dl program Ns Bo Ar action Bc = Ar progpath Op Ar arg Op Ar arg ...
 .Pp
-.Aq action
+.Ar action
 is any identifier that does not conflict with a built-in action or keyword,
-.Aq progpath
+.Ar progpath
 is the desired program, and
-.Aq arg
+.Ar arg
 is zero or more arguments to the program.
 .Pp
 Remember that when using # in your program call, it must be escaped with a
@@ -464,7 +476,7 @@ is spawned:
 .It Cm $color_focus
 .It Cm $color_unfocus
 .It Cm $dmenu_bottom
--b if bar_at_bottom is enabled.
+\-b if bar_at_bottom is enabled.
 .It Cm $region_index
 .It Cm $workspace_index
 .El
@@ -472,12 +484,12 @@ is spawned:
 Example:
 .Bd -literal -offset indent
 program[ff] = /usr/local/bin/firefox http://spectrwm.org/
-bind[ff] = Mod+Shift+b # Now M-S-b launches firefox
+bind[ff] = MOD+Shift+b # Now M-S-b launches firefox
 .Ed
 .Pp
 To cancel the previous, unbind it:
 .Bd -literal -offset indent
-bind[] = Mod+Shift+b
+bind[] = MOD+Shift+b
 .Ed
 .Pp
 Default programs:
@@ -505,7 +517,7 @@ by freeing the respective key binding.
 For example, to override
 .Ic lock :
 .Bd -literal -offset indent
-program[lock] = xscreensaver-command --lock
+program[lock] = xscreensaver\-command \-\-lock
 .Ed
 .Pp
 To unbind
@@ -544,7 +556,7 @@ quit
 restart
 .It Cm M- Ns Aq Cm Space
 cycle_layout
-.It Cm M-S- Ns Aq Cm \e
+.It Cm M-S-\e
 flip_layout
 .It Cm M-S- Ns Aq Cm Space
 stack_reset
@@ -724,13 +736,15 @@ Switch to workspace
 .Ar n ,
 where
 .Ar n
-is 1 through workspace_limit.
+is 1 through
+.Ic workspace_limit .
 .It Cm mvws_ Ns Ar n
 Move current window to workspace
 .Ar n ,
 where
 .Ar n
-is 1 through workspace_limit.
+is 1 through
+.Ic workspace_limit .
 .It Cm rg_ Ns Ar n
 Focus on region
 .Ar n ,
@@ -788,7 +802,9 @@ above).
 .It Cm iconify
 Minimize (unmap) currently focused window.
 .It Cm uniconify
-Restore (map) window returned by dmenu selection.
+Restore (map) window returned by
+.Xr dmenu 1
+selection.
 .It Cm maximize_toggle
 Toggle maximization of focused window.
 .It Cm always_raise
@@ -821,14 +837,15 @@ Search the windows in the current workspace.
 .Pp
 Custom bindings in the configuration file are specified as follows:
 .Pp
-.Dl bind[<action>] = <keys>
+.Dl bind Ns Bo Ar action Bc = Ar keys
 .Pp
-.Aq action
+.Ar action
 is one of the actions listed above (or empty to unbind) and
-.Aq keys
+.Ar keys
 is in the form of zero or more modifier keys
 (MOD, Mod1, Shift, etc.) and one or more normal keys
-(b, space, etc.), separated by "+".
+(b, Space, etc.), separated by
+.Ql + .
 .Pp
 Example:
 .Bd -literal -offset indent
@@ -855,7 +872,9 @@ KeyPress event, serial 41, synthetic NO, window 0x2600001,
     XFilterEvent returns: False
 .Ed
 .Pp
-The xkb name is aring. In other words, in .spectrwm.conf add:
+The xkb name is aring. In other words, in
+.Pa spectrwm.conf
+add:
 .Bd -literal -offset indent
 bind[program] = MOD+aring
 .Ed
@@ -863,7 +882,7 @@ bind[program] = MOD+aring
 Keyboard mapping files for several keyboard layouts are listed
 below.
 These files can be used with the
-.Pa keyboard_mapping
+.Ic keyboard_mapping
 setting to load pre-defined key bindings for the specified
 keyboard layout.
 .Pp
@@ -924,7 +943,8 @@ The quirks themselves are described below:
 .It FLOAT
 This window should not be tiled, but allowed to float freely.
 .It TRANSSZ
-Adjusts size on transient windows that are too small using dialog_ratio
+Adjusts size on transient windows that are too small using
+.Ic dialog_ratio
 (see
 .Sx CONFIGURATION FILES ) .
 .It ANYWHERE
@@ -940,13 +960,15 @@ application in the stack.
 Don't change focus to the window when it first appears on the screen.
 Has no effect when
 .Ic focus_mode
-is set to follow.
+is set to
+.Ar follow .
 .It FOCUSONMAP_SINGLE
 When the window first appears on the screen, change focus to the window
 if there are no other windows on the workspace with the same WM_CLASS
 class/instance value.  Has no effect when
 .Ic focus_mode
-is set to follow.
+is set to
+.Ar follow .
 .It OBEYAPPFOCUSREQ
 When an application requests focus on the window via a _NET_ACTIVE_WINDOW
 client message (source indication of 1), comply with the request.
@@ -962,15 +984,15 @@ new window.
 .Pp
 Custom quirks in the configuration file are specified as follows:
 .Pp
-.Dl quirk[<class>[:<instance>[:<name>]]] = <quirk> [ + <quirk> ... ]
+.Dl quirk Ns Bo Ar class Ns Bo : Ns Ar instance Ns Bo : Ns Ar name Bc Bc Bc = Ar quirk Op + Ar quirk ...
 .Pp
-.Aq class ,
-.Aq instance
+.Ar class ,
+.Ar instance
 (optional) and
-.Aq name
+.Ar name
 (optional) are patterns used to determine which window(s) the quirk(s) apply
-and
-.Aq quirk
+to and
+.Ar quirk
 is one of the quirks from the list above.
 .Pp
 Note that patterns are interpreted as POSIX Extended Regular Expressions.
@@ -995,16 +1017,16 @@ quirk[pcb:pcb] = NONE # remove existing quirk
 .Ed
 .Pp
 You can obtain
-.Aq class ,
-.Aq instance
+.Ar class ,
+.Ar instance
 and
-.Aq name
+.Ar name
 by running
 .Xr xprop 1
 and then clicking on the desired window.
 In the following example the main window of Firefox was clicked:
 .Bd -literal -offset indent
-$ xprop | grep -E "^(WM_CLASS|_NET_WM_NAME|WM_NAME)"
+$ xprop | grep \-E "^(WM_CLASS|_NET_WM_NAME|WM_NAME)"
 WM_CLASS(STRING) = "Navigator", "Firefox"
 WM_NAME(STRING) = "spectrwm - ConformalOpenSource"
 _NET_WM_NAME(UTF8_STRING) = "spectrwm - ConformalOpenSource"
@@ -1016,6 +1038,7 @@ displays WM_CLASS as:
 .Bd -literal -offset indent
 WM_CLASS(STRING) = "<instance>", "<class>"
 .Ed
+.Pp
 In the example above the quirk entry would be:
 .Bd -literal -offset indent
 quirk[Firefox:Navigator] = FLOAT
@@ -1096,8 +1119,8 @@ root window.
 For example, the following toggles the floating state of
 a window using
 .Xr wmctrl 1
-to send the message (assuming 0x4a0000b is the  id of the window floated
-or un-floated):
+to send the message (assuming 0x4a0000b is the id of the window to be
+floated or un-floated):
 .Bd -literal -offset indent
 $ wmctrl \-i \-r 0x4a0000b \-b toggle,_NET_WM_STATE_ABOVE
 .Ed
