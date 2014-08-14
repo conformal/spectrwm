@@ -402,6 +402,7 @@ bool		 stack_enabled = true;
 bool		 clock_enabled = true;
 bool		 iconic_enabled = false;
 bool		 urgent_enabled = false;
+bool		 urgent_collapse = false;
 char		*clock_format = NULL;
 bool		 window_class_enabled = false;
 bool		 window_instance_enabled = false;
@@ -2193,11 +2194,12 @@ bar_urgent(char *s, size_t sz)
 			}
 
 	for (i = 0; i < workspace_limit; i++) {
-		if (urgent[i])
+		if (urgent[i]) {
 			snprintf(b, sizeof b, "%d ", i + 1);
-		else
-			snprintf(b, sizeof b, "- ");
-		strlcat(s, b, sz);
+			strlcat(s, b, sz);
+		} else if (!urgent_collapse) {
+			strlcat(s, "- ", sz);
+		}
 	}
 }
 
@@ -7906,6 +7908,7 @@ enum {
 	SWM_S_STACK_ENABLED,
 	SWM_S_TERM_WIDTH,
 	SWM_S_TILE_GAP,
+	SWM_S_URGENT_COLLAPSE,
 	SWM_S_URGENT_ENABLED,
 	SWM_S_VERBOSE_LAYOUT,
 	SWM_S_WARP_POINTER,
@@ -8107,6 +8110,9 @@ setconfvalue(const char *selector, const char *value, int flags)
 		break;
 	case SWM_S_TILE_GAP:
 		tile_gap = atoi(value);
+		break;
+	case SWM_S_URGENT_COLLAPSE:
+		urgent_collapse = (atoi(value) != 0);
 		break;
 	case SWM_S_URGENT_ENABLED:
 		urgent_enabled = (atoi(value) != 0);
@@ -8454,6 +8460,7 @@ struct config_option configopt[] = {
 	{ "tile_gap",			setconfvalue,	SWM_S_TILE_GAP },
 	{ "title_class_enabled",	setconfvalue,	SWM_S_WINDOW_CLASS_ENABLED }, /* For backwards compat. */
 	{ "title_name_enabled",		setconfvalue,	SWM_S_WINDOW_INSTANCE_ENABLED }, /* For backwards compat. */
+	{ "urgent_collapse",		setconfvalue,	SWM_S_URGENT_COLLAPSE },
 	{ "urgent_enabled",		setconfvalue,	SWM_S_URGENT_ENABLED },
 	{ "verbose_layout",		setconfvalue,	SWM_S_VERBOSE_LAYOUT },
 	{ "warp_pointer",		setconfvalue,	SWM_S_WARP_POINTER },
