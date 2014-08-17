@@ -44,6 +44,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <dlfcn.h>
+#include <assert.h>
 #include <X11/Xlib.h>
 #include <X11/X.h>
 #include <X11/Xatom.h>
@@ -92,16 +93,36 @@ set_property(Display *dpy, Window id, char *name, char *val)
 {
 	Atom			atom = 0;
 	char			prop[SWM_PROPLEN];
+	char			*error;
 	static XIA		*xia = NULL;
 	static XCP		*xcp = NULL;
 
 	/* find the real Xlib and the real X function */
 	if (!lib_xlib)
 		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
+	if (!lib_xlib)
+		lib_xlib = dlopen("libX11.so.6", RTLD_GLOBAL | RTLD_LAZY);
+	if (!lib_xlib) {
+		if ((error = dlerror()) != NULL)
+			fprintf(stderr, "%s\n", error);
+		assert(lib_xlib);
+	}
+
 	if (!xia)
 		xia = (XIA *) dlsym(lib_xlib, "XInternAtom");
+	if (!xia) {
+		if ((error = dlerror()) != NULL)
+			fprintf(stderr, "%s\n", error);
+		assert(xia);
+	}
+
 	if (!xcp)
 		xcp = (XCP *) dlsym(lib_xlib, "XChangeProperty");
+	if (!xcp) {
+		if ((error = dlerror()) != NULL)
+			fprintf(stderr, "%s\n", error);
+		assert(xcp);
+	}
 
 	/* Try to update the window's workspace property */
 	atom = (*xia)(dpy, name, False);
@@ -130,14 +151,28 @@ XCreateWindow(Display *dpy, Window parent, int x, int y,
 {
 	static CWF	*func = NULL;
 	char		*env;
+	char		*error;
 	Window		id;
 
 	/* find the real Xlib and the real X function */
 	if (!lib_xlib)
 		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
+	if (!lib_xlib)
+		lib_xlib = dlopen("libX11.so.6", RTLD_GLOBAL | RTLD_LAZY);
+	if (!lib_xlib) {
+		if ((error = dlerror()) != NULL)
+			fprintf(stderr, "%s\n", error);
+		assert(lib_xlib);
+	}
+
 	if (!func) {
 		func = (CWF *) dlsym(lib_xlib, "XCreateWindow");
 		display = dpy;
+	}
+	if (!func) {
+		if ((error = dlerror()) != NULL)
+			fprintf(stderr, "%s\n", error);
+		assert(func);
 	}
 
 	if (parent == DefaultRootWindow(dpy))
@@ -175,13 +210,27 @@ XCreateSimpleWindow(Display *dpy, Window parent, int x, int y,
 {
 	static CSWF	*func = NULL;
 	char		*env;
+	char		*error;
 	Window		id;
 
 	/* find the real Xlib and the real X function */
 	if (!lib_xlib)
 		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
+	if (!lib_xlib)
+		lib_xlib = dlopen("libX11.so.6", RTLD_GLOBAL | RTLD_LAZY);
+	if (!lib_xlib) {
+		if ((error = dlerror()) != NULL)
+			fprintf(stderr, "%s\n", error);
+		assert(lib_xlib);
+	}
+
 	if (!func)
 		func = (CSWF *) dlsym(lib_xlib, "XCreateSimpleWindow");
+	if (!func) {
+		if ((error = dlerror()) != NULL)
+			fprintf(stderr, "%s\n", error);
+		assert(func);
+	}
 
 	if (parent == DefaultRootWindow(dpy))
 		parent = MyRoot(dpy);
@@ -210,12 +259,26 @@ int
 XReparentWindow(Display *dpy, Window window, Window parent, int x, int y)
 {
 	static RWF         *func = NULL;
+	char               *error;
 
 	/* find the real Xlib and the real X function */
 	if (!lib_xlib)
 		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
+	if (!lib_xlib)
+		lib_xlib = dlopen("libX11.so.6", RTLD_GLOBAL | RTLD_LAZY);
+	if (!lib_xlib) {
+		if ((error = dlerror()) != NULL)
+			fprintf(stderr, "%s\n", error);
+		assert(lib_xlib);
+	}
+
 	if (!func)
 		func = (RWF *) dlsym(lib_xlib, "XReparentWindow");
+	if (!func) {
+		if ((error = dlerror()) != NULL)
+			fprintf(stderr, "%s\n", error);
+		assert(func);
+	}
 
 	if (parent == DefaultRootWindow(dpy))
 		parent = MyRoot(dpy);
@@ -237,16 +300,30 @@ XtAppNextEvent(XtAppContext app_context, XEvent *event_return)
 {
 	static ANEF	*func = NULL;
 	static KeyCode	kp_add = 0, kp_subtract = 0;
+	char		*error;
 
 	/* find the real Xlib and the real X function */
 	if (!lib_xtlib)
 		lib_xtlib = dlopen("libXt.so", RTLD_GLOBAL | RTLD_LAZY);
+	if (!lib_xtlib)
+		lib_xtlib = dlopen("libXt.so.6", RTLD_GLOBAL | RTLD_LAZY);
+	if (!lib_xtlib) {
+		if ((error = dlerror()) != NULL)
+			fprintf(stderr, "%s\n", error);
+		assert(lib_xtlib);
+	}
+
 	if (!func) {
 		func = (ANEF *) dlsym(lib_xtlib, "XtAppNextEvent");
 		if (display != NULL) {
 			kp_add = XKeysymToKeycode(display, XK_KP_Add);
 			kp_subtract = XKeysymToKeycode(display, XK_KP_Subtract);
 		}
+	}
+	if (!func) {
+		if ((error = dlerror()) != NULL)
+			fprintf(stderr, "%s\n", error);
+		assert(func);
 	}
 
 	(*func) (app_context, event_return);
