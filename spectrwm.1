@@ -518,16 +518,16 @@ by installing the program, modifying the program call or disabling the program
 by freeing the respective key binding.
 .Pp
 For example, to override
-.Ic lock :
+.Ic term :
 .Bd -literal -offset indent
-program[lock] = xscreensaver\-command \-\-lock
+program[term] = rxvt
 .Ed
 .Pp
 To unbind
-.Ic lock
+.Ic term
 and prevent it from being validated:
 .Bd -literal -offset indent
-bind[] = MOD+Shift+Delete
+bind[] = MOD+Shift+Return
 .Ed
 .Sh BINDINGS
 .Nm

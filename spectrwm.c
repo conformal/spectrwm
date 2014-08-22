@@ -7063,8 +7063,6 @@ validate_spawns(void)
 void
 setup_spawn(void)
 {
-	setconfspawn("lock",		"xlock",		0);
-
 	setconfspawn("term",		"xterm",		0);
 	setconfspawn("spawn_term",	"xterm",		0);
 
@@ -7095,6 +7093,7 @@ setup_spawn(void)
 					" -sf $bar_color",	0);
 
 	 /* These are not verified for existence, even with a binding set. */
+	setconfspawn("lock",		"xlock",		SWM_SPAWN_OPTIONAL);
 	setconfspawn("screenshot_all",	"screenshot.sh full",	SWM_SPAWN_OPTIONAL);
 	setconfspawn("screenshot_wind",	"screenshot.sh window",	SWM_SPAWN_OPTIONAL);
 	setconfspawn("initscr",		"initscreen.sh",	SWM_SPAWN_OPTIONAL);
