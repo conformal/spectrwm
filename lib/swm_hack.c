@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2009 Marco Peereboom <marco@peereboom.us>
  * Copyright (c) 2009 Ryan McBride <mcbride@countersiege.com>
+ * Copyright (c) 2014 Andrea Bolognani <eof@kiyuko.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -44,11 +45,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <dlfcn.h>
-#include <assert.h>
 #include <X11/Xlib.h>
 #include <X11/X.h>
 #include <X11/Xatom.h>
 #include <X11/Intrinsic.h>
+
+/* X11 libraries major version as a string */
+#define X11_LIB_MAJOR "6"
 
 /* dlopened libs so we can find the symbols in the real one to call them */
 static void		*lib_xlib = NULL;
@@ -59,6 +62,55 @@ static int		xterm = 0;
 static Display		*display = NULL;
 
 void	set_property(Display *, Window, char *, char *);
+void*	actual_lib(char *);
+void*	actual_func(void *, char *);
+
+/* Obtain pointer to actual library */
+void *
+actual_lib(char *lname)
+{
+	void	*lib = NULL;
+	char	*vlname;
+	char	*error;
+	int	len;
+
+	lib = dlopen(lname, RTLD_GLOBAL | RTLD_LAZY);
+	if (!lib) {
+		/* Versioned library name */
+		len = strlen(lname) + strlen(X11_LIB_MAJOR) + 2;
+		vlname = calloc(len, sizeof(char));
+		snprintf(vlname, len, "%s.%s", lname, X11_LIB_MAJOR);
+
+		lib = dlopen(vlname, RTLD_GLOBAL | RTLD_LAZY);
+		free(vlname);
+	}
+	if (!lib) {
+		fprintf(stderr, "actual_lib: failed for %s, exiting\n", lname);
+		if ((error = dlerror()) != NULL)
+			fprintf(stderr, "%s\n", error);
+		exit(1);
+	}
+
+	return lib;
+}
+
+/* Obtain pointer to actual function */
+void *
+actual_func(void *lib, char *fname)
+{
+	void	*func = NULL;
+	char	*error;
+
+	func = dlsym(lib, fname);
+	if (!func) {
+		fprintf(stderr, "actual_func: failed for %s, extiting\n", fname);
+		if ((error = dlerror()) != NULL)
+			fprintf(stderr, "%s\n", error);
+		exit(1);
+	}
+
+	return func;
+}
 
 /* Find our root window */
 static              Window
@@ -93,36 +145,16 @@ set_property(Display *dpy, Window id, char *name, char *val)
 {
 	Atom			atom = 0;
 	char			prop[SWM_PROPLEN];
-	char			*error;
 	static XIA		*xia = NULL;
 	static XCP		*xcp = NULL;
 
 	/* find the real Xlib and the real X function */
 	if (!lib_xlib)
-		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
-	if (!lib_xlib)
-		lib_xlib = dlopen("libX11.so.6", RTLD_GLOBAL | RTLD_LAZY);
-	if (!lib_xlib) {
-		if ((error = dlerror()) != NULL)
-			fprintf(stderr, "%s\n", error);
-		assert(lib_xlib);
-	}
-
+		lib_xlib = actual_lib("libX11.so");
 	if (!xia)
-		xia = (XIA *) dlsym(lib_xlib, "XInternAtom");
-	if (!xia) {
-		if ((error = dlerror()) != NULL)
-			fprintf(stderr, "%s\n", error);
-		assert(xia);
-	}
-
+		xia = (XIA *) actual_func(lib_xlib, "XInternAtom");
 	if (!xcp)
-		xcp = (XCP *) dlsym(lib_xlib, "XChangeProperty");
-	if (!xcp) {
-		if ((error = dlerror()) != NULL)
-			fprintf(stderr, "%s\n", error);
-		assert(xcp);
-	}
+		xcp = (XCP *) actual_func(lib_xlib, "XChangeProperty");
 
 	/* Try to update the window's workspace property */
 	atom = (*xia)(dpy, name, False);
@@ -151,28 +183,14 @@ XCreateWindow(Display *dpy, Window parent, int x, int y,
 {
 	static CWF	*func = NULL;
 	char		*env;
-	char		*error;
 	Window		id;
 
 	/* find the real Xlib and the real X function */
 	if (!lib_xlib)
-		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
-	if (!lib_xlib)
-		lib_xlib = dlopen("libX11.so.6", RTLD_GLOBAL | RTLD_LAZY);
-	if (!lib_xlib) {
-		if ((error = dlerror()) != NULL)
-			fprintf(stderr, "%s\n", error);
-		assert(lib_xlib);
-	}
-
+		lib_xlib = actual_lib("libX11.so");
 	if (!func) {
-		func = (CWF *) dlsym(lib_xlib, "XCreateWindow");
+		func = (CWF *) actual_func(lib_xlib, "XCreateWindow");
 		display = dpy;
-	}
-	if (!func) {
-		if ((error = dlerror()) != NULL)
-			fprintf(stderr, "%s\n", error);
-		assert(func);
 	}
 
 	if (parent == DefaultRootWindow(dpy))
@@ -210,27 +228,13 @@ XCreateSimpleWindow(Display *dpy, Window parent, int x, int y,
 {
 	static CSWF	*func = NULL;
 	char		*env;
-	char		*error;
 	Window		id;
 
 	/* find the real Xlib and the real X function */
 	if (!lib_xlib)
-		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
-	if (!lib_xlib)
-		lib_xlib = dlopen("libX11.so.6", RTLD_GLOBAL | RTLD_LAZY);
-	if (!lib_xlib) {
-		if ((error = dlerror()) != NULL)
-			fprintf(stderr, "%s\n", error);
-		assert(lib_xlib);
-	}
-
+		lib_xlib = actual_lib("libX11.so");
 	if (!func)
-		func = (CSWF *) dlsym(lib_xlib, "XCreateSimpleWindow");
-	if (!func) {
-		if ((error = dlerror()) != NULL)
-			fprintf(stderr, "%s\n", error);
-		assert(func);
-	}
+		func = (CSWF *) actual_func(lib_xlib, "XCreateSimpleWindow");
 
 	if (parent == DefaultRootWindow(dpy))
 		parent = MyRoot(dpy);
@@ -259,26 +263,12 @@ int
 XReparentWindow(Display *dpy, Window window, Window parent, int x, int y)
 {
 	static RWF         *func = NULL;
-	char               *error;
 
 	/* find the real Xlib and the real X function */
 	if (!lib_xlib)
-		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
-	if (!lib_xlib)
-		lib_xlib = dlopen("libX11.so.6", RTLD_GLOBAL | RTLD_LAZY);
-	if (!lib_xlib) {
-		if ((error = dlerror()) != NULL)
-			fprintf(stderr, "%s\n", error);
-		assert(lib_xlib);
-	}
-
+		lib_xlib = actual_lib("libX11.so");
 	if (!func)
-		func = (RWF *) dlsym(lib_xlib, "XReparentWindow");
-	if (!func) {
-		if ((error = dlerror()) != NULL)
-			fprintf(stderr, "%s\n", error);
-		assert(func);
-	}
+		func = (RWF *) actual_func(lib_xlib, "XReparentWindow");
 
 	if (parent == DefaultRootWindow(dpy))
 		parent = MyRoot(dpy);
@@ -300,30 +290,16 @@ XtAppNextEvent(XtAppContext app_context, XEvent *event_return)
 {
 	static ANEF	*func = NULL;
 	static KeyCode	kp_add = 0, kp_subtract = 0;
-	char		*error;
 
 	/* find the real Xlib and the real X function */
 	if (!lib_xtlib)
-		lib_xtlib = dlopen("libXt.so", RTLD_GLOBAL | RTLD_LAZY);
-	if (!lib_xtlib)
-		lib_xtlib = dlopen("libXt.so.6", RTLD_GLOBAL | RTLD_LAZY);
-	if (!lib_xtlib) {
-		if ((error = dlerror()) != NULL)
-			fprintf(stderr, "%s\n", error);
-		assert(lib_xtlib);
-	}
-
+		lib_xtlib = actual_lib("libXt.so");
 	if (!func) {
-		func = (ANEF *) dlsym(lib_xtlib, "XtAppNextEvent");
+		func = (ANEF *) actual_func(lib_xtlib, "XtAppNextEvent");
 		if (display != NULL) {
 			kp_add = XKeysymToKeycode(display, XK_KP_Add);
 			kp_subtract = XKeysymToKeycode(display, XK_KP_Subtract);
 		}
-	}
-	if (!func) {
-		if ((error = dlerror()) != NULL)
-			fprintf(stderr, "%s\n", error);
-		assert(func);
 	}
 
 	(*func) (app_context, event_return);
