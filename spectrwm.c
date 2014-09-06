@@ -401,6 +401,7 @@ char		 *bar_format = NULL;
 bool		 stack_enabled = true;
 bool		 clock_enabled = true;
 bool		 iconic_enabled = false;
+bool		 maximize_hide_bar = false;
 bool		 urgent_enabled = false;
 bool		 urgent_collapse = false;
 char		*clock_format = NULL;
@@ -4558,7 +4559,7 @@ update_floater(struct ws_win *win)
 
 		win->g = r->g;
 
-		if (bar_enabled && ws->bar_enabled) {
+		if (bar_enabled && ws->bar_enabled && !maximize_hide_bar) {
 			if (!bar_at_bottom)
 				Y(win) += bar_height;
 			HEIGHT(win) -= bar_height;
@@ -7900,6 +7901,7 @@ enum {
 	SWM_S_FOCUS_MODE,
 	SWM_S_ICONIC_ENABLED,
 	SWM_S_JAVA_WORKAROUND,
+	SWM_S_MAXIMIZE_HIDE_BAR,
 	SWM_S_REGION_PADDING,
 	SWM_S_SPAWN_ORDER,
 	SWM_S_SPAWN_TERM,
@@ -8072,6 +8074,9 @@ setconfvalue(const char *selector, const char *value, int flags)
 		break;
 	case SWM_S_JAVA_WORKAROUND:
 		java_workaround = (atoi(value) != 0);
+		break;
+	case SWM_S_MAXIMIZE_HIDE_BAR:
+		maximize_hide_bar = atoi(value);
 		break;
 	case SWM_S_REGION_PADDING:
 		region_padding = atoi(value);
@@ -8444,6 +8449,7 @@ struct config_option configopt[] = {
 	{ "focus_mode",			setconfvalue,	SWM_S_FOCUS_MODE },
 	{ "iconic_enabled",		setconfvalue,	SWM_S_ICONIC_ENABLED },
 	{ "java_workaround",		setconfvalue,	SWM_S_JAVA_WORKAROUND },
+	{ "maximize_hide_bar",		setconfvalue,	SWM_S_MAXIMIZE_HIDE_BAR },
 	{ "keyboard_mapping",		setkeymapping,	0 },
 	{ "layout",			setlayout,	0 },
 	{ "modkey",			setconfmodkey,	0 },
