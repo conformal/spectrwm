@@ -2201,6 +2201,8 @@ bar_urgent(char *s, size_t sz)
 			strlcat(s, "- ", sz);
 		}
 	}
+	if(urgent_collapse && s[0])
+		s[strlen(s) - 1] = 0;
 }
 
 void
