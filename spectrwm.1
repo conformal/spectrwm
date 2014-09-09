@@ -85,10 +85,10 @@ Colors need to be specified per the
 .Xr XQueryColor 3
 specification.
 .Pp
-Comments begin with a #.  When a literal
+Comments begin with a #.
+When a literal
 .Ql #
-is desired in an option, then it
-must be escaped with a backslash. i.e. \e#
+is desired in an option, then it must be escaped with a backslash, i.e. \e#
 .Pp
 The file supports the following keywords:
 .Bl -tag -width 2m
@@ -97,7 +97,8 @@ Launch an application in a specified workspace at start-of-day.
 Defined in the format
 .Li ws Ns Bo Ar idx Bc : Ns Ar application ,
 e.g. ws[2]:xterm launches an
-xterm in workspace 2.
+.Xr xterm 1
+in workspace 2.
 .It Ic bar_action
 External script that populates additional information in the status bar,
 such as battery life.
@@ -126,12 +127,15 @@ state on workspace
 .Ar x ;
 default is 1.
 .It Ic bar_font
-Font used in the status bar. Either Xft or X Logical Font Description (XLFD)
-may be used to specify fonts. Fallback fonts may be specified by separating
-each font with a comma. If all entries are in XLFD syntax, font set will be
-used. If at least one entry is Xft, Xft will be used. Note that if Xft is in
-use, only the first font that successfully loads will be used regardless of
-missing glyphs. The default is to use font set. Also note that
+Font used in the status bar.
+Either Xft or X Logical Font Description (XLFD) may be used to specify fonts.
+Fallback fonts may be specified by separating each font with a comma.
+If all entries are in XLFD syntax, font set will be used.
+If at least one entry is Xft, Xft will be used.
+Note that if Xft is in use, only the first font that successfully loads will
+be used regardless of missing glyphs.
+The default is to use font set.
+Also note that
 .Xr dmenu 1
 does not support Xft fonts.
 .Pp
@@ -193,10 +197,11 @@ It may contain the following character sequences:
 .El
 .Pp
 All character sequences may limit its output to a specific length, for
-example +64A. Any characters that don't match the specification are copied
-as-is.
+example +64A.
+Any characters that don't match the specification are copied as-is.
 .It Ic bar_justify
-Justify the status bar text. Possible values are
+Justify the status bar text.
+Possible values are
 .Ar left ,
 .Ar center ,
 and
@@ -218,10 +223,11 @@ section below.
 Set window border thickness in pixels.
 Disable all borders by setting to 0.
 .It Ic boundary_width
-Set region containment boundary width in pixels.  This is how far a window
-must be dragged/resized beyond the region edge before it is allowed outside
-the region.  This has no effect when manipulating the window with key
-bindings.  Disable the window containment effect by setting to 0.
+Set region containment boundary width in pixels.
+This is how far a window must be dragged/resized beyond the region edge
+before it is allowed outside the region.
+This has no effect when manipulating the window with key bindings.
+Disable the window containment effect by setting to 0.
 .It Ic clock_enabled
 Enable or disable displaying the clock in the status bar.
 Disable by setting to 0
@@ -232,15 +238,17 @@ script.
 Display the number of iconic (minimized) windows in the status bar.
 Enable by setting to 1.
 .It Ic color_focus
-Border color of the currently focused window.  Default is red.
+Border color of the currently focused window.
+Default is red.
 .It Ic color_focus_maximized
-Border color of the currently focused, maximized window.  Defaults to the
-value of
+Border color of the currently focused, maximized window.
+Defaults to the value of
 .Ic color_focus .
 .It Ic color_unfocus
 Border color of unfocused windows, default is rgb:88/88/88.
 .It Ic color_unfocus_maximized
-Border color of unfocused, maximized windows.  Defaults to the value of
+Border color of unfocused, maximized windows.
+Defaults to the value of
 .Ic color_unfocus .
 .It Ic dialog_ratio
 Some applications have dialogue windows that are too small to be useful.
@@ -263,15 +271,18 @@ and
 are relative to the window that is closed.
 .It Ic focus_close_wrap
 Whether to allow the focus to jump to the last window when the first window
-is closed or vice versa. Disable by setting to 0.
+is closed or vice versa.
+Disable by setting to 0.
 .It Ic focus_default
-Window to put focus when no window has been focused. Possible values are
+Window to put focus when no window has been focused.
+Possible values are
 .Ar first
 and
 .Ar last
 (default).
 .It Ic focus_mode
-Window focus behavior with respect to the mouse cursor. Possible values:
+Window focus behavior with respect to the mouse cursor.
+Possible values:
 .Pp
 .Bl -tag -width "default" -offset indent -compact
 .It Ar default
@@ -285,7 +296,8 @@ Set window focus on window interaction only.
 .El
 .It Ic java_workaround
 Workaround a Java GUI rendering issue on non-reparenting window managers by
-impersonating the LG3D window manager, written by Sun. Default is 1.
+impersonating the LG3D window manager, written by Sun.
+Default is 1.
 .It Ic keyboard_mapping
 Clear all key bindings and load new key bindings from the specified file.
 This allows you to load pre-defined key bindings for your keyboard layout.
@@ -294,7 +306,8 @@ See the
 section below for a list of keyboard mapping files that have been provided
 for several keyboard layouts.
 .It Ic layout
-Select layout to use at start-of-day. Defined in the format
+Select layout to use at start-of-day.
+Defined in the format
 .Li ws Ns Bo Ar idx Bc : Ns Ar master_grow : Ns Ar master_add : Ns Ar stack_inc : Ns Ar always_raise : Ns Ar stack_mode ,
 e.g. ws[2]:-4:0:1:0:horizontal sets worskspace 2 to the horizontal stack
 mode, shrinks the master area by 4 ticks and adds one window to the
@@ -319,8 +332,9 @@ See
 and
 .Ic always_raise
 for more information.
-Note that the stacking options are complicated and have side-effects. One
-should familiarize oneself with these commands before experimenting with the
+Note that the stacking options are complicated and have side-effects.
+One should familiarize oneself with these commands before experimenting
+with the
 .Ic layout
 option.
 .Pp
@@ -397,16 +411,21 @@ section) to use an alternate copy of the
 .Xr xterm 1
 binary without the setgid bit set.
 .It Ic tile_gap
-Pixel width of empty space between tiled windows.  Negative values cause overlap.
-Set this to the opposite of border_width to collapse the border between tiles.
+Pixel width of empty space between tiled windows.
+Negative values cause overlap.
+Set this to the opposite of
+.Ic border_width
+to collapse the border between tiles.
 Disable by setting to 0.
 .It Ic urgent_collapse
 Enables hiding of placeholders in the urgency hint indicator for workspaces that
-do not have any urgent windows.  Enable by setting to 1.
+do not have any urgent windows.
+Enable by setting to 1.
 .It Ic urgent_enabled
 Enable or disable the urgency hint indicator in the status bar.
 Note that many terminal emulators require an explicit setting for the bell
-character to trigger urgency on the window.  In
+character to trigger urgency on the window.
+In
 .Xr xterm 1 ,
 for example, one needs to add the following line to
 .Pa .Xdefaults :
@@ -426,13 +445,16 @@ and
 for more information.
 .It Ic window_class_enabled
 Enable or disable displaying the window class name (from WM_CLASS) in the
-status bar.  Enable by setting to 1.
+status bar.
+Enable by setting to 1.
 .It Ic window_instance_enabled
 Enable or disable displaying the window instance name (from WM_CLASS) in the
-status bar.  Enable by setting to 1.
+status bar.
+Enable by setting to 1.
 .It Ic window_name_enabled
 Enable or disable displaying the window display name (from _NET_WM_NAME/WM_NAME)
-in the status bar.  Enable by setting to 1.
+in the status bar.
+Enable by setting to 1.
 .Pp
 To prevent excessively large window names from pushing the remaining text off
 the bar, it's limited to 64 characters, by default.
@@ -441,10 +463,11 @@ See the
 option for more details.
 .It Ic warp_pointer
 Centers the mouse pointer on the focused window when using key bindings to
-change focus, switch workspaces, change regions, etc.  Enable by setting to 1.
+change focus, switch workspaces, change regions, etc.
+Enable by setting to 1.
 .It Ic workspace_limit
-Set the total number of workspaces available. Minimum is 1, maximum is 22,
-default is 10.
+Set the total number of workspaces available.
+Minimum is 1, maximum is 22, default is 10.
 .El
 .Sh PROGRAMS
 .Nm
@@ -465,8 +488,9 @@ is the desired program, and
 .Ar arg
 is zero or more arguments to the program.
 .Pp
-Remember that when using # in your program call, it must be escaped with a
-backslash. i.e. \e#
+Remember that when using
+.Ql #
+in your program call, it must be escaped with a backslash, i.e. \e#
 .Pp
 The following argument variables will be substituted for values at the time the program
 is spawned:
@@ -479,7 +503,9 @@ is spawned:
 .It Cm $color_focus
 .It Cm $color_unfocus
 .It Cm $dmenu_bottom
-\-b if bar_at_bottom is enabled.
+\-b if
+.Ic bar_at_bottom
+is enabled.
 .It Cm $region_index
 .It Cm $workspace_index
 .El
@@ -721,7 +747,8 @@ Focus previous window in workspace.
 .It Cm focus_main
 Focus on main window in workspace.
 .It Cm focus_urgent
-Focus on next window with the urgency hint flag set.  The workspace is switched if needed.
+Focus on next window with the urgency hint flag set.
+The workspace is switched if needed.
 .It Cm swap_next
 Swap with next window in workspace.
 .It Cm swap_prev
@@ -863,8 +890,11 @@ specify MOD as the modifier key.
 Multiple key combinations may be bound to the same action.
 .Pp
 To bind non-latin characters such as \[oa] or \[*p] you must enter the xkb
-character name instead of the character itself. Run xev, focus the window
-and press the specific key and in the terminal output read the symbol name.
+character name instead of the character itself.
+Run
+.Xr xev 1 ,
+focus the window and press the specific key and in the terminal output read
+the symbol name.
 In the following example for \[oa]:
 .Bd -literal -offset indent
 KeyPress event, serial 41, synthetic NO, window 0x2600001,
@@ -875,7 +905,8 @@ KeyPress event, serial 41, synthetic NO, window 0x2600001,
     XFilterEvent returns: False
 .Ed
 .Pp
-The xkb name is aring. In other words, in
+The xkb name is aring.
+In other words, in
 .Pa spectrwm.conf
 add:
 .Bd -literal -offset indent
@@ -953,7 +984,9 @@ Adjusts size on transient windows that are too small using
 .It ANYWHERE
 Allow window to position itself, uncentered.
 .It XTERM_FONTADJ
-Adjust xterm fonts when resizing.
+Adjust
+.Xr xterm 1
+fonts when resizing.
 .It FULLSCREEN
 Remove border to allow window to use full region size.
 .It FOCUSPREV
@@ -968,7 +1001,8 @@ is set to
 .It FOCUSONMAP_SINGLE
 When the window first appears on the screen, change focus to the window
 if there are no other windows on the workspace with the same WM_CLASS
-class/instance value.  Has no effect when
+class/instance value.
+Has no effect when
 .Ic focus_mode
 is set to
 .Ar follow .
