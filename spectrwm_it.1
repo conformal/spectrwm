@@ -132,13 +132,16 @@ per l'area di lavoro
 .Ar x ;
 il valore predefinito per questa opzione \[`e] 1.
 .It Ic bar_font
-Font da usare per la barra di stato. Il font pu\[`o] essere specificato
-usando Xft o X Logical Font Description (XLFD). \[`E] possibile specificare
-dei font secondari separandoli tra loro con una virgola. Se tutte le
-specifiche sono nel formato XLFD verranno usati i gruppi di font; se almeno
-una delle specifiche \[`e] in formato Xft, verr\[`a] usato Xft. Quando Xft
-\[`e] in uso, verr\[`a] usato solo il primo font caricato con successo
-anche nel caso in cui non dovesse comprendere tutti i glifi necessari.
+Font da usare per la barra di stato.
+Il font pu\[`o] essere specificato usando Xft o X Logical Font
+Description (XLFD).
+\[`E] possibile specificare dei font secondari separandoli tra loro con
+una virgola.
+Se tutte le specifiche sono nel formato XLFD verranno usati i gruppi di font;
+se almeno una delle specifiche \[`e] in formato Xft, verr\[`a] usato Xft.
+Quando Xft \[`e] in uso, verr\[`a] usato solo il primo font caricato con
+successo anche nel caso in cui non dovesse comprendere tutti i glifi
+necessari.
 L'impostazione predefinita prevede l'uso dei gruppi di font; \[`e] bene
 tenere conto del fatto che
 .Xr dmenu 1
@@ -197,15 +200,17 @@ di caratteri:
 .It Li "+T" Ta "Istanza della finestra corrente (da WM_CLASS)"
 .It Li "+U" Ta "Indicatore di urgenza"
 .It Li "+V" Ta "Versione del programma"
-.It Li "+W" Ta "Nome della finestra corrente (da _NET_WM_NAME/WM_NAME)"
+.It Li "+W" Ta "Nome della finestra corrente (da _NET_WM_NAME o WM_NAME)"
 .It Li "++" Ta "Il carattere" Ql +
 .El
 .Pp
 Tutte le sequenze di caratteri possono limitare il numero di caratteri
-massimo utilizzato, eg. +64A. Il testo che non contribuisce a formare
-una di queste sequenze di caratteri viene copiato senza subire modifiche.
+massimo utilizzato, eg. +64A.
+Il testo che non contribuisce a formare una di queste sequenze di caratteri
+viene copiato senza subire modifiche.
 .It Ic bar_justify
-Allinea il test all'interno della barra di stato. I valori possibili sono
+Allinea il test all'interno della barra di stato.
+I valori possibili sono
 .Ar left
 (sinistra),
 .Ar center
@@ -312,7 +317,8 @@ Modifica il focus solo quando si interagisce con una finestra.
 .El
 .It Ic java_workaround
 Evita alcuni problemi di rendering nelle GUI Java impersonando il window
-manager LG3D, scritto da Sun. Il valore predefinito \[`e] 1.
+manager LG3D, scritto da Sun.
+Il valore predefinito \[`e] 1.
 .It Ic keyboard_mapping
 Rimuove tutte le scorciatoie da tastiera esistenti e carica le nuove
 scorciatoie dal file specificato.
@@ -449,7 +455,8 @@ Abilita o disabilita la visualizzazione dell'indicatore di urgenza
 all'interno della barra di stato.
 Molti emulatore di terminale devono essere configurati esplicitamente per
 fare s\[`i] che il carattere "bell" causi la modifica dello stato di
-urgenza della finestra. Ad esempio, in
+urgenza della finestra.
+Ad esempio, in
 .Xr xterm 1 ,
 \[`e] necessario aggiungere al file
 .Pa .Xdefaults
@@ -478,7 +485,7 @@ all'interno della barra di stato.
 Questa opzione pu\[`o] essere abilitata usando il valore 1.
 .It Ic window_name_enabled
 Abilita o disabilita la visualizzazione del titolo della finestra (da
-_NET_WM_NAME/WM_NAME) all'interno della barra di stato.
+_NET_WM_NAME o WM_NAME) all'interno della barra di stato.
 Questa opzione pu\[`o] essere abilitata usando il valore 1.
 .Pp
 Per impedire che titoli di finestra troppo lunghi impediscano di
@@ -518,8 +525,10 @@ azioni predefinite,
 .Ar arg
 sono gli argomenti (uno o pi\[`u]) da passare al programma.
 .Pp
-Se il percorso o gli argomenti comprendono il carattere #, questo dovr\[`a]
-essere preceduto da un carattere di escape, diventando \e#.
+Se il percorso o gli argomenti comprendono il carattere
+.Ql # ,
+questo dovr\[`a] essere preceduto da un carattere di escape,
+diventando \e#.
 .Pp
 I seguenti argomenti verranno sostituiti, al momento dell'esecuzione, con
 il valore assegnato all'opzione corrispondente:
