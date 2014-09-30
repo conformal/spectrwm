@@ -20,7 +20,7 @@ endif
 all: spectrwm libswmhack.so.$(LIBVERSION)
 
 spectrwm: spectrwm.o linux.o
-	$(CC) $(MAINT_LDFLAGS) $(LDFLAGS) $(MAINT_LDLIBS) $(LDLIBS) -o $@ $+
+	$(CC) $(MAINT_LDFLAGS) $(LDFLAGS) -o $@ $+ $(MAINT_LDLIBS) $(LDLIBS)
 
 spectrwm.o: ../spectrwm.c ../version.h tree.h util.h
 	$(CC) $(MAINT_CFLAGS) $(CFLAGS) $(MAINT_CPPFLAGS) $(CPPFLAGS) -c -o $@ $<
@@ -29,7 +29,7 @@ linux.o: linux.c util.h
 	$(CC) $(MAINT_CFLAGS) $(CFLAGS) $(MAINT_CPPFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 libswmhack.so.$(LIBVERSION): swm_hack.so
-	$(CC) $(MAINT_LDFLAGS) $(LDFLAGS) $(MAINT_LDLIBS) $(LDLIBS) -Wl,-soname,$@ -shared -fpic -o $@ $+
+	$(CC) $(MAINT_LDFLAGS) $(LDFLAGS) -Wl,-soname,$@ -shared -fpic -o $@ $+ $(MAINT_LDLIBS) $(LDLIBS)
 
 swm_hack.so: ../lib/swm_hack.c
 	$(CC) $(MAINT_CFLAGS) $(CFLAGS) $(MAINT_CPPFLAGS) $(CPPFLAGS) -fpic -DPIC -c -o $@ $<
