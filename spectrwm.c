@@ -3220,6 +3220,9 @@ center_pointer(struct swm_region *r)
 		return;
 
 	win = r->ws->focus;
+
+	DNPRINTF(SWM_D_EVENT, "center_pointer: win %#x.\n", WINID(win));
+
 	if (win && win->mapped)
 		xcb_warp_pointer(conn, XCB_NONE, win->id, 0, 0, 0, 0,
 		    WIDTH(win) / 2, HEIGHT(win) / 2);
@@ -4113,6 +4116,7 @@ swapwin(struct swm_region *r, union arg *args)
 	ewmh_update_client_list();
 
 	stack();
+	center_pointer(r);
 	focus_flush();
 out:
 	DNPRINTF(SWM_D_MOVE, "swapwin: done\n");
@@ -4400,6 +4404,7 @@ cycle_layout(struct swm_region *r, union arg *args)
 
 	focus_win(get_region_focus(r));
 
+	center_pointer(r);
 	focus_flush();
 }
 
@@ -4421,6 +4426,7 @@ stack_config(struct swm_region *r, union arg *args)
 		stack();
 	bar_draw();
 
+	center_pointer(r);
 	focus_flush();
 }
 
@@ -5948,6 +5954,7 @@ maximize_toggle(struct swm_region *r, union arg *args)
 	if (w == w->ws->focus)
 		focus_win(w);
 
+	center_pointer(r);
 	focus_flush();
 	DNPRINTF(SWM_D_MISC, "maximize_toggle: done\n");
 }
@@ -6328,6 +6335,7 @@ resize_step(struct swm_region *r, union arg *args)
 		return;
 
 	resize(win, args);
+	center_pointer(r);
 	focus_flush();
 }
 
@@ -6527,6 +6535,7 @@ move_step(struct swm_region *r, union arg *args)
 		return;
 
 	move(win, args);
+	center_pointer(r);
 	focus_flush();
 }
 
