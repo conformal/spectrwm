@@ -99,6 +99,27 @@ Defined in the format
 e.g. ws[2]:xterm launches an
 .Xr xterm 1
 in workspace 2.
+.Pp
+Note that workspace mapping is handled via
+.Pa libswmhack.so .
+When
+.Ic autorun
+spawns windows via a daemon, ensure the daemon is started
+with the correct
+.Pa LD_PRELOAD
+in its environment.
+.Pp
+For example, starting
+.Xr urxvtd 1
+via
+.Xr xinit 1 :
+.Bd -literal -offset indent
+LD_PRELOAD=/usr/lib/libswmhack.so.0.0 urxvtd -q -o -f
+.Ed
+.Pp
+Spawned programs automatically have
+.Pa LD_PRELOAD
+set when executed.
 .It Ic bar_action
 External script that populates additional information in the status bar,
 such as battery life.
