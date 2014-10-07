@@ -332,6 +332,7 @@ int			term_width = 0;
 int			font_adjusted = 0;
 unsigned int		mod_key = MODKEY;
 bool			warp_pointer = false;
+bool			visible_noswap = false;
 
 /* dmenu search */
 struct swm_region	*search_r;
@@ -3804,6 +3805,11 @@ switchws(struct swm_region *r, union arg *args)
 		old_ws->r = NULL;
 		unmap_old = true;
 	} else {
+		if (visible_noswap) {
+			center_pointer(other_r);
+			return;
+		}
+
 		/* the other ws is visible in another region, exchange them */
 		other_r->ws_prior = new_ws;
 		other_r->ws = old_ws;
@@ -7920,6 +7926,7 @@ enum {
 	SWM_S_URGENT_COLLAPSE,
 	SWM_S_URGENT_ENABLED,
 	SWM_S_VERBOSE_LAYOUT,
+	SWM_S_VISIBLE_NOSWAP,
 	SWM_S_WARP_POINTER,
 	SWM_S_WINDOW_CLASS_ENABLED,
 	SWM_S_WINDOW_INSTANCE_ENABLED,
@@ -8134,6 +8141,9 @@ setconfvalue(const char *selector, const char *value, int flags)
 			else
 				layouts[i].l_string = plain_stacker;
 		}
+		break;
+	case SWM_S_VISIBLE_NOSWAP:
+		visible_noswap = (atoi(value) != 0);
 		break;
 	case SWM_S_WARP_POINTER:
 		warp_pointer = (atoi(value) != 0);
@@ -8472,6 +8482,7 @@ struct config_option configopt[] = {
 	{ "urgent_collapse",		setconfvalue,	SWM_S_URGENT_COLLAPSE },
 	{ "urgent_enabled",		setconfvalue,	SWM_S_URGENT_ENABLED },
 	{ "verbose_layout",		setconfvalue,	SWM_S_VERBOSE_LAYOUT },
+	{ "visible_noswap",		setconfvalue,	SWM_S_VISIBLE_NOSWAP },
 	{ "warp_pointer",		setconfvalue,	SWM_S_WARP_POINTER },
 	{ "window_class_enabled",	setconfvalue,	SWM_S_WINDOW_CLASS_ENABLED },
 	{ "window_instance_enabled",	setconfvalue,	SWM_S_WINDOW_INSTANCE_ENABLED },
