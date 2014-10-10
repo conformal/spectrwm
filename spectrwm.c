@@ -3655,6 +3655,16 @@ focus_win(struct ws_win *win)
 				    &cfw->s->c[(MAXIMIZED(cfw) ?
 				    SWM_S_COLOR_UNFOCUS_MAXIMIZED :
 				    SWM_S_COLOR_UNFOCUS)].pixel);
+
+				/* Update border width */
+				if (cfw->bordered &&
+				    (cfw->quirks & SWM_Q_MINIMALBORDER) &&
+				    FLOATING(cfw)) {
+					cfw->bordered = 0;
+					X(cfw) += border_width;
+					Y(cfw) += border_width;
+					update_window(cfw);
+				}
 			} else {
 				unfocus_win(cfw);
 			}
