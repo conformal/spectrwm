@@ -1041,6 +1041,7 @@ char	*get_source_type_label(uint32_t);
 char	*get_stack_mode_name(uint8_t);
 #endif
 int32_t	 get_swm_ws(xcb_window_t);
+bool	 get_urgent(struct ws_win *);
 char	*get_win_name(xcb_window_t);
 uint8_t	 get_win_state(xcb_window_t);
 void	 get_wm_protocols(struct ws_win *);
@@ -2168,6 +2169,22 @@ bar_window_name(char *s, size_t sz, struct swm_region *r)
 	free(title);
 }
 
+bool
+get_urgent(struct ws_win *win)
+{
+	xcb_icccm_wm_hints_t		hints;
+	xcb_get_property_cookie_t	c;
+	bool				urgent = false;
+
+	if (win) {
+		c = xcb_icccm_get_wm_hints(conn, win->id);
+		if (xcb_icccm_get_wm_hints_reply(conn, c, &hints, NULL))
+			urgent = xcb_icccm_wm_hints_get_urgency(&hints);
+	}
+
+	return urgent;
+}
+
 void
 bar_urgent(char *s, size_t sz)
 {
@@ -2175,8 +2192,6 @@ bar_urgent(char *s, size_t sz)
 	int			i, j, num_screens;
 	bool			urgent[SWM_WS_MAX];
 	char			b[8];
-	xcb_get_property_cookie_t	c;
-	xcb_icccm_wm_hints_t	hints;
 
 	for (i = 0; i < workspace_limit; i++)
 		urgent[i] = false;
@@ -2184,14 +2199,8 @@ bar_urgent(char *s, size_t sz)
 	num_screens = get_screen_count();
 	for (i = 0; i < num_screens; i++)
 		for (j = 0; j < workspace_limit; j++)
-			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry) {
-				c = xcb_icccm_get_wm_hints(conn, win->id);
-				if (xcb_icccm_get_wm_hints_reply(conn, c,
-				    &hints, NULL) == 0)
-					continue;
-				if (hints.flags & XCB_ICCCM_WM_HINT_X_URGENCY)
-					urgent[j] = true;
-			}
+			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
+				urgent[j] = get_urgent(win);
 
 	for (i = 0; i < workspace_limit; i++) {
 		if (urgent[i]) {
@@ -4270,7 +4279,6 @@ focus(struct swm_region *r, union arg *args)
 	struct workspace	*ws = NULL;
 	union arg		a;
 	int			i;
-	xcb_icccm_wm_hints_t	hints;
 
 	if (!(r && r->ws))
 		goto out;
@@ -4343,27 +4351,26 @@ focus(struct swm_region *r, union arg *args)
 				head = TAILQ_FIRST(&r->s->ws[(ws->idx + i) %
 				    workspace_limit].winlist);
 
-			while (head != NULL &&
-			    (head = TAILQ_NEXT(head, entry)) != NULL) {
+			while (head) {
 				if (head == cur_focus) {
-					winfocus = cur_focus;
-					break;
-				}
-				if (xcb_icccm_get_wm_hints_reply(conn,
-				    xcb_icccm_get_wm_hints(conn, head->id),
-				    &hints, NULL) != 0 &&
-				    xcb_icccm_wm_hints_get_urgency(&hints)) {
+					if (i > 0) {
+						winfocus = cur_focus;
+						break;
+					}
+				} else if (get_urgent(head)) {
 					winfocus = head;
 					break;
 				}
+
+				head = TAILQ_NEXT(head, entry);
 			}
 
-			if (winfocus != NULL)
+			if (winfocus)
 				break;
 		}
 
 		/* Switch ws if new focus is on a different ws. */
-		if (winfocus != NULL && winfocus->ws != ws) {
+		if (winfocus && winfocus->ws != ws) {
 			a.id = winfocus->ws->idx;
 			switchws(r, &a);
 		}
