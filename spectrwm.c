@@ -333,8 +333,9 @@ bool			cycle_visible = false;
 int			term_width = 0;
 int			font_adjusted = 0;
 unsigned int		mod_key = MODKEY;
+bool			warp_focus = false;
 bool			warp_pointer = false;
-bool			visible_noswap = false;
+bool			workspace_clamp = false;
 
 /* dmenu search */
 struct swm_region	*search_r;
@@ -3884,6 +3885,20 @@ switchws(struct swm_region *r, union arg *args)
 	if (new_ws == old_ws)
 		return;
 
+	other_r = new_ws->r;
+	if (other_r && workspace_clamp) {
+		DNPRINTF(SWM_D_WS, "switchws: ws clamped.\n");
+
+		if (warp_focus) {
+			DNPRINTF(SWM_D_WS, "switchws: warping focus to region "
+			    "with ws %d.\n", wsid);
+			focus_region(other_r);
+			center_pointer(other_r);
+			focus_flush();
+		}
+		return;
+	}
+
 	if ((win = old_ws->focus) != NULL) {
 		update_window_color(win);
 
@@ -3892,22 +3907,17 @@ switchws(struct swm_region *r, union arg *args)
 		    &none);
 	}
 
-	other_r = new_ws->r;
-	if (other_r == NULL) {
-		/* the other workspace is hidden, hide this one */
-		old_ws->r = NULL;
-		unmap_old = true;
-	} else {
-		if (visible_noswap) {
-			center_pointer(other_r);
-			return;
-		}
-
+	if (other_r) {
 		/* the other ws is visible in another region, exchange them */
 		other_r->ws_prior = new_ws;
 		other_r->ws = old_ws;
 		old_ws->r = other_r;
+	} else {
+		/* the other workspace is hidden, hide this one */
+		old_ws->r = NULL;
+		unmap_old = true;
 	}
+
 	this_r->ws_prior = old_ws;
 	this_r->ws = new_ws;
 	new_ws->r = this_r;
@@ -8049,11 +8059,12 @@ enum {
 	SWM_S_URGENT_COLLAPSE,
 	SWM_S_URGENT_ENABLED,
 	SWM_S_VERBOSE_LAYOUT,
-	SWM_S_VISIBLE_NOSWAP,
+	SWM_S_WARP_FOCUS,
 	SWM_S_WARP_POINTER,
 	SWM_S_WINDOW_CLASS_ENABLED,
 	SWM_S_WINDOW_INSTANCE_ENABLED,
 	SWM_S_WINDOW_NAME_ENABLED,
+	SWM_S_WORKSPACE_CLAMP,
 	SWM_S_WORKSPACE_LIMIT,
 	SWM_S_WORKSPACE_NAME,
 };
@@ -8268,8 +8279,8 @@ setconfvalue(const char *selector, const char *value, int flags)
 				layouts[i].l_string = plain_stacker;
 		}
 		break;
-	case SWM_S_VISIBLE_NOSWAP:
-		visible_noswap = (atoi(value) != 0);
+	case SWM_S_WARP_FOCUS:
+		warp_focus = (atoi(value) != 0);
 		break;
 	case SWM_S_WARP_POINTER:
 		warp_pointer = (atoi(value) != 0);
@@ -8282,6 +8293,9 @@ setconfvalue(const char *selector, const char *value, int flags)
 		break;
 	case SWM_S_WINDOW_NAME_ENABLED:
 		window_name_enabled = (atoi(value) != 0);
+		break;
+	case SWM_S_WORKSPACE_CLAMP:
+		workspace_clamp = (atoi(value) != 0);
 		break;
 	case SWM_S_WORKSPACE_LIMIT:
 		workspace_limit = atoi(value);
@@ -8611,11 +8625,12 @@ struct config_option configopt[] = {
 	{ "urgent_collapse",		setconfvalue,	SWM_S_URGENT_COLLAPSE },
 	{ "urgent_enabled",		setconfvalue,	SWM_S_URGENT_ENABLED },
 	{ "verbose_layout",		setconfvalue,	SWM_S_VERBOSE_LAYOUT },
-	{ "visible_noswap",		setconfvalue,	SWM_S_VISIBLE_NOSWAP },
+	{ "warp_focus",			setconfvalue,	SWM_S_WARP_FOCUS },
 	{ "warp_pointer",		setconfvalue,	SWM_S_WARP_POINTER },
 	{ "window_class_enabled",	setconfvalue,	SWM_S_WINDOW_CLASS_ENABLED },
 	{ "window_instance_enabled",	setconfvalue,	SWM_S_WINDOW_INSTANCE_ENABLED },
 	{ "window_name_enabled",	setconfvalue,	SWM_S_WINDOW_NAME_ENABLED },
+	{ "workspace_clamp",		setconfvalue,	SWM_S_WORKSPACE_CLAMP },
 	{ "workspace_limit",		setconfvalue,	SWM_S_WORKSPACE_LIMIT },
 	{ "name",			setconfvalue,	SWM_S_WORKSPACE_NAME },
 };

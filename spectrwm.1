@@ -1,6 +1,6 @@
 .\" Copyright (c) 2009-2012 Marco Peereboom <marco@peereboom.us>
 .\" Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
-.\" Copyright (c) 2011-2014 Reginald Kennedy <rk@rejii.com>
+.\" Copyright (c) 2011-2015 Reginald Kennedy <rk@rejii.com>
 .\" Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
 .\" Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
 .\" Copyright (c) 2012 David Hill <dhill@mindcry.org>
@@ -470,11 +470,14 @@ See
 and
 .Ar stack_dec
 for more information.
-.It Ic visible_noswap
-Do not swap on already visible workspace, useful on multi screen setup.
+.It Ic workspace_clamp
+Prevents workspaces from being swapped when attempting to switch to a workspace
+that is mapped to another region.
 Use
+.Ar warp_focus
+if you want to focus on the region containing the workspace and
 .Ar warp_pointer
-if you want to send pointer in that region.
+if you want to also send the pointer.
 Enable by setting to 1.
 .It Ic window_class_enabled
 Enable or disable displaying the window class name (from WM_CLASS) in the
@@ -494,6 +497,13 @@ the bar, it's limited to 64 characters, by default.
 See the
 .Ic bar_format
 option for more details.
+.It Ic warp_focus
+Focus on the target window/workspace/region when clamped.
+For example, when attempting to switch to a workspace that is mapped on another
+region and
+.Ar workspace_clamp
+is enabled, focus on the region with the target workspace.
+Enable by setting to 1.
 .It Ic warp_pointer
 Centers the mouse pointer on the focused window when using key bindings to
 change focus, switch workspaces, change regions, etc.
