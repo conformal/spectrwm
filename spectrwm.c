@@ -2201,7 +2201,8 @@ bar_urgent(char *s, size_t sz)
 	for (i = 0; i < num_screens; i++)
 		for (j = 0; j < workspace_limit; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
-				urgent[j] = get_urgent(win);
+				if (get_urgent(win))
+					urgent[j] = true;
 
 	for (i = 0; i < workspace_limit; i++) {
 		if (urgent[i]) {
