@@ -5,12 +5,16 @@ DATAROOTDIR  ?= $(PREFIX)/share
 MANDIR       ?= $(DATAROOTDIR)/man
 XSESSIONSDIR ?= $(DATAROOTDIR)/xsessions
 
+# Major version of X11 libraries
+X11_LIB_MAJOR ?= 6
+
 BUILDVERSION    = $(shell sh $(CURDIR)/../buildver.sh)
 LIBVERSION      = $(shell .  $(CURDIR)/../lib/shlib_version; echo $$major.$$minor)
 LIBMAJORVERSION = $(shell .  $(CURDIR)/../lib/shlib_version; echo $$major)
+SWM_LIB         = $(LIBDIR)/libswmhack.so.$(LIBVERSION)
 
 MAINT_CFLAGS   = -std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Wno-uninitialized -g
-MAINT_CPPFLAGS = -D_GNU_SOURCE -I. -I/usr/include/freetype2 -DSWM_LIB=\"$(LIBDIR)/libswmhack.so.$(LIBVERSION)\"
+MAINT_CPPFLAGS = -D_GNU_SOURCE -I. -I/usr/include/freetype2 -DSWM_LIB=\"$(SWM_LIB)\" -DX11_LIB_MAJOR=\"$(X11_LIB_MAJOR)\"
 MAINT_LDLIBS   = -lX11 -lX11-xcb -lxcb -lxcb-icccm -lxcb-randr -lxcb-keysyms -lxcb-util -lxcb-xtest -lXft -lXcursor
 
 ifneq ("${BUILDVERSION}", "")

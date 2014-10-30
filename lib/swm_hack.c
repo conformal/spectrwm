@@ -50,9 +50,6 @@
 #include <X11/Xatom.h>
 #include <X11/Intrinsic.h>
 
-/* X11 libraries major version as a string */
-#define X11_LIB_MAJOR "6"
-
 /* dlopened libs so we can find the symbols in the real one to call them */
 static void		*lib_xlib = NULL;
 static void		*lib_xtlib = NULL;
@@ -70,11 +67,15 @@ void *
 actual_lib(char *lname)
 {
 	void	*lib = NULL;
-	char	*vlname;
 	char	*error;
+#ifdef X11_LIB_MAJOR
+	char	*vlname;
 	int	len;
+#endif
 
 	lib = dlopen(lname, RTLD_GLOBAL | RTLD_LAZY);
+
+#ifdef X11_LIB_MAJOR
 	if (!lib) {
 		/* Versioned library name */
 		len = strlen(lname) + strlen(X11_LIB_MAJOR) + 2;
@@ -84,6 +85,8 @@ actual_lib(char *lname)
 		lib = dlopen(vlname, RTLD_GLOBAL | RTLD_LAZY);
 		free(vlname);
 	}
+#endif
+
 	if (!lib) {
 		fprintf(stderr, "actual_lib: failed for %s, exiting\n", lname);
 		if ((error = dlerror()) != NULL)
