@@ -77,6 +77,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <poll.h>
 #include <fcntl.h>
 #include <locale.h>
 #include <paths.h>
@@ -10784,10 +10785,8 @@ main(int argc, char *argv[])
 	int			xfd, i, num_screens;
 	struct sigaction	sact;
 	xcb_generic_event_t	*evt;
-	struct timeval          tv;
-	fd_set			rd;
-	int			rd_max;
 	int			num_readable;
+	struct pollfd		pfd[2];
 	bool			stdin_ready = false, startup = true;
 
 	/* suppress unused warning since var is needed */
@@ -10924,7 +10923,11 @@ noconfig:
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			r->ws->state = SWM_WS_STATE_MAPPED;
 
-	rd_max = xfd > STDIN_FILENO ? xfd : STDIN_FILENO;
+	memset(&pfd, 0, sizeof(pfd));
+	pfd[0].fd = xfd;
+	pfd[0].events = POLLIN;
+	pfd[1].fd = STDIN_FILENO;
+	pfd[1].events = POLLIN;
 
 	while (running) {
 		while ((evt = xcb_poll_for_event(conn))) {
@@ -10948,18 +10951,10 @@ noconfig:
 			}
 		}
 
-		FD_ZERO(&rd);
-
-		if (bar_extra)
-			FD_SET(STDIN_FILENO, &rd);
-
-		FD_SET(xfd, &rd);
-		tv.tv_sec = 1;
-		tv.tv_usec = 0;
-		num_readable = select(rd_max + 1, &rd, NULL, NULL, &tv);
-		if (num_readable == -1 && errno != EINTR) {
-			DNPRINTF(SWM_D_MISC, "select failed");
-		} else if (num_readable > 0 && FD_ISSET(STDIN_FILENO, &rd)) {
+		num_readable = poll(pfd, bar_extra ? 2 : 1, 1000);
+		if (num_readable == -1) {
+			DNPRINTF(SWM_D_MISC, "poll failed: %s", strerror(errno));
+		} else if (num_readable > 0 && bar_extra && pfd[1].revents & POLLIN) {
 			stdin_ready = true;
 		}
 
