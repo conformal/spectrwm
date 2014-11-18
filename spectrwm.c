@@ -9615,6 +9615,12 @@ enternotify(xcb_enter_notify_event_t *e)
 		return;
 	}
 
+	if (focus_mode != SWM_FOCUS_FOLLOW &&
+	    e->mode == XCB_NOTIFY_MODE_UNGRAB) {
+		DNPRINTF(SWM_D_EVENT, "enternotify: ungrab; ignoring.\n");
+		return;
+	}
+
 	last_event_time = e->time;
 
 	if ((win = find_window(e->event)) == NULL) {
