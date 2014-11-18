@@ -3,6 +3,8 @@ BINDIR?= $(PREFIX)/bin
 LIBDIR?= $(PREFIX)/lib
 MANDIR?= $(PREFIX)/share/man
 
+BUILDVERSION    = $(shell sh $(CURDIR)/../buildver.sh)
+
 # To use xquartz, uncomment the following three lines.
 INCFLAGS+= -I/opt/X11/include -I/opt/X11/include/freetype2/
 LDADD+=  -L/opt/X11/lib -lX11 -lXcursor -lXft
@@ -23,6 +25,9 @@ LVERS= $(shell . ../lib/shlib_version; echo $$major.$$minor)
 CFLAGS+= -std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Wno-uninitialized -g
 CFLAGS+= -O2 -D_GNU_SOURCE -D__OSX__ -I. -I.. ${INCFLAGS}
 CFLAGS+= -DSWM_LIB=\"$(LIBDIR)/libswmhack.so.$(LVERS)\"
+ifneq ("${BUILDVERSION}", "")
+CFLAGS+= -DSPECTRWM_BUILDSTR=\"$(BUILDVERSION)\"
+endif
 
 CC?= cc
 
