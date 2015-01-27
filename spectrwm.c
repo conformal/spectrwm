@@ -7228,6 +7228,8 @@ parsekeys(const char *keystr, unsigned int currmod, unsigned int *mod, KeySym *k
 			*mod |= XCB_MOD_MASK_3;
 		else if (strncmp(name, "Mod4", SWM_MODNAME_SIZE) == 0)
 			*mod |= XCB_MOD_MASK_4;
+		else if (strncmp(name, "Mod5", SWM_MODNAME_SIZE) == 0)
+			*mod |= XCB_MOD_MASK_5;
 		else if (strncasecmp(name, "SHIFT", SWM_MODNAME_SIZE) == 0)
 			*mod |= XCB_MOD_MASK_SHIFT;
 		else if (strncasecmp(name, "CONTROL", SWM_MODNAME_SIZE) == 0)
@@ -8284,6 +8286,8 @@ setconfmodkey(const char *selector, const char *value, int flags)
 		update_modkey(XCB_MOD_MASK_3);
 	else if (strncasecmp(value, "Mod4", strlen("Mod4")) == 0)
 		update_modkey(XCB_MOD_MASK_4);
+	else if (strncasecmp(value, "Mod5", strlen("Mod5")) == 0)
+		update_modkey(XCB_MOD_MASK_5);
 	else
 		return (1);
 	return (0);
