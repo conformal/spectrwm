@@ -889,19 +889,19 @@ enum keyfuncid {
 	KF_RG_7,
 	KF_RG_8,
 	KF_RG_9,
-	KF_RG_NEXT,
-	KF_RG_PREV,
 	KF_RG_MOVE_NEXT,
 	KF_RG_MOVE_PREV,
+	KF_RG_NEXT,
+	KF_RG_PREV,
 	KF_SCREEN_NEXT,
 	KF_SCREEN_PREV,
 	KF_SEARCH_WIN,
 	KF_SEARCH_WORKSPACE,
 	KF_SPAWN_CUSTOM,
+	KF_STACK_BALANCE,
 	KF_STACK_INC,
 	KF_STACK_DEC,
 	KF_STACK_RESET,
-	KF_STACK_BALANCE,
 	KF_SWAP_MAIN,
 	KF_SWAP_NEXT,
 	KF_SWAP_PREV,
@@ -4973,9 +4973,6 @@ vertical_config(struct workspace *ws, int id)
 		ws->l_state.vertical_mwin = 1;
 		ws->l_state.vertical_stacks = 1;
 		break;
-	case SWM_ARG_ID_STACKBALANCE:
-		ws->l_state.vertical_msize = SWM_V_SLICE / (ws->l_state.vertical_stacks + 1);
-		break;
 	case SWM_ARG_ID_MASTERSHRINK:
 		if (ws->l_state.vertical_msize > 1)
 			ws->l_state.vertical_msize--;
@@ -4990,6 +4987,9 @@ vertical_config(struct workspace *ws, int id)
 	case SWM_ARG_ID_MASTERDEL:
 		if (ws->l_state.vertical_mwin > 0)
 			ws->l_state.vertical_mwin--;
+		break;
+	case SWM_ARG_ID_STACKBALANCE:
+		ws->l_state.vertical_msize = SWM_V_SLICE / (ws->l_state.vertical_stacks + 1);
 		break;
 	case SWM_ARG_ID_STACKINC:
 		ws->l_state.vertical_stacks++;
@@ -5026,9 +5026,6 @@ horizontal_config(struct workspace *ws, int id)
 		ws->l_state.horizontal_msize = SWM_H_SLICE / 2;
 		ws->l_state.horizontal_stacks = 1;
 		break;
-	case SWM_ARG_ID_STACKBALANCE:
-		ws->l_state.horizontal_msize = SWM_H_SLICE / (ws->l_state.horizontal_stacks + 1);
-		break;
 	case SWM_ARG_ID_MASTERSHRINK:
 		if (ws->l_state.horizontal_msize > 1)
 			ws->l_state.horizontal_msize--;
@@ -5043,6 +5040,9 @@ horizontal_config(struct workspace *ws, int id)
 	case SWM_ARG_ID_MASTERDEL:
 		if (ws->l_state.horizontal_mwin > 0)
 			ws->l_state.horizontal_mwin--;
+		break;
+	case SWM_ARG_ID_STACKBALANCE:
+		ws->l_state.horizontal_msize = SWM_H_SLICE / (ws->l_state.horizontal_stacks + 1);
 		break;
 	case SWM_ARG_ID_STACKINC:
 		ws->l_state.horizontal_stacks++;
@@ -6733,19 +6733,19 @@ struct keyfunc {
 	{ "rg_7",		focusrg,	{.id = 6} },
 	{ "rg_8",		focusrg,	{.id = 7} },
 	{ "rg_9",		focusrg,	{.id = 8} },
-	{ "rg_next",		cyclerg,	{.id = SWM_ARG_ID_CYCLERG_UP} },
-	{ "rg_prev",		cyclerg,	{.id = SWM_ARG_ID_CYCLERG_DOWN} },
 	{ "rg_move_next",	cyclerg,	{.id = SWM_ARG_ID_CYCLERG_MOVE_UP} },
 	{ "rg_move_prev",	cyclerg,	{.id = SWM_ARG_ID_CYCLERG_MOVE_DOWN} },
+	{ "rg_next",		cyclerg,	{.id = SWM_ARG_ID_CYCLERG_UP} },
+	{ "rg_prev",		cyclerg,	{.id = SWM_ARG_ID_CYCLERG_DOWN} },
 	{ "screen_next",	cyclerg,	{.id = SWM_ARG_ID_CYCLERG_UP} },
 	{ "screen_prev",	cyclerg,	{.id = SWM_ARG_ID_CYCLERG_DOWN} },
 	{ "search_win",		search_win,	{0} },
 	{ "search_workspace",	search_workspace,	{0} },
 	{ "spawn_custom",	NULL,		{0} },
+	{ "stack_balance",	stack_config,	{.id = SWM_ARG_ID_STACKBALANCE} },
 	{ "stack_inc",		stack_config,	{.id = SWM_ARG_ID_STACKINC} },
 	{ "stack_dec",		stack_config,	{.id = SWM_ARG_ID_STACKDEC} },
 	{ "stack_reset",	stack_config,	{.id = SWM_ARG_ID_STACKRESET} },
-	{ "stack_balance",	stack_config,	{.id = SWM_ARG_ID_STACKBALANCE} },
 	{ "swap_main",		swapwin,	{.id = SWM_ARG_ID_SWAPMAIN} },
 	{ "swap_next",		swapwin,	{.id = SWM_ARG_ID_SWAPNEXT} },
 	{ "swap_prev",		swapwin,	{.id = SWM_ARG_ID_SWAPPREV} },
@@ -7536,8 +7536,6 @@ setup_keys(void)
 	setkeybinding(MODKEY,		XK_KP_Up,	KF_RG_8,	NULL);
 	setkeybinding(MODKEY,		XK_KP_Prior,	KF_RG_9,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_Right,	KF_RG_NEXT,	NULL);
-	setkeybinding(MODKEY,		XK_c,		KF_RG_MOVE_NEXT,NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_c,		KF_RG_MOVE_PREV,NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_Left,	KF_RG_PREV,	NULL);
 	setkeybinding(MODKEY,		XK_f,		KF_SEARCH_WIN,	NULL);
 	setkeybinding(MODKEY,		XK_slash,	KF_SEARCH_WORKSPACE,NULL);
@@ -7550,7 +7548,6 @@ setup_keys(void)
 	setkeybinding(MODKEY_SHIFT,	XK_comma,	KF_STACK_INC,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_period,	KF_STACK_DEC,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_space,	KF_STACK_RESET,	NULL);
-	setkeybinding(MODKEY_SHIFT,	XK_h,		KF_STACK_BALANCE, NULL);
 	setkeybinding(MODKEY,		XK_Return,	KF_SWAP_MAIN,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_j,		KF_SWAP_NEXT,	NULL);
 	setkeybinding(MODKEY_SHIFT,	XK_k,		KF_SWAP_PREV,	NULL);
@@ -8656,9 +8653,9 @@ struct config_option configopt[] = {
 	{ "focus_mode",			setconfvalue,	SWM_S_FOCUS_MODE },
 	{ "iconic_enabled",		setconfvalue,	SWM_S_ICONIC_ENABLED },
 	{ "java_workaround",		setconfvalue,	SWM_S_JAVA_WORKAROUND },
-	{ "maximize_hide_bar",		setconfvalue,	SWM_S_MAXIMIZE_HIDE_BAR },
 	{ "keyboard_mapping",		setkeymapping,	0 },
 	{ "layout",			setlayout,	0 },
+	{ "maximize_hide_bar",		setconfvalue,	SWM_S_MAXIMIZE_HIDE_BAR },
 	{ "modkey",			setconfmodkey,	0 },
 	{ "move_button",		setconfmousebuttonmove, 0 },
 	{ "resize_button",		setconfmousebuttonresize, 0 },
