@@ -334,8 +334,6 @@ int			term_width = 0;
 int			font_adjusted = 0;
 unsigned int		mod_key = MODKEY;
 bool			warp_pointer = false;
-unsigned int		mouse_button_move = XCB_BUTTON_INDEX_1;
-unsigned int		mouse_button_resize = XCB_BUTTON_INDEX_3;
 
 /* dmenu search */
 struct swm_region	*search_r;
@@ -1130,8 +1128,6 @@ int	 setautorun(const char *, const char *, int);
 int	 setconfbinding(const char *, const char *, int);
 int	 setconfcolor(const char *, const char *, int);
 int	 setconfmodkey(const char *, const char *, int);
-int	 setconfmousebuttonmove(const char *, const char *, int);
-int	 setconfmousebuttonresize(const char *, const char *, int);
 int	 setconfquirk(const char *, const char *, int);
 int	 setconfregion(const char *, const char *, int);
 int	 setconfspawn(const char *, const char *, int);
@@ -1179,7 +1175,6 @@ void	 unmap_window(struct ws_win *);
 void	 updatenumlockmask(void);
 void	 update_floater(struct ws_win *);
 void	 update_modkey(unsigned int);
-unsigned char	update_mousebutton(unsigned char, unsigned int);
 void	 update_win_stacking(struct ws_win *);
 void	 update_window(struct ws_win *);
 void	 update_window_color(struct ws_win *);
@@ -6841,31 +6836,6 @@ update_modkey(unsigned int mod)
 			buttons[i].mask = mod;
 }
 
-unsigned char
-update_mousebutton(unsigned char type, unsigned int but)
-{
-	int			i;
-
-	switch (type) {
-		case 0:
-			mouse_button_move = but;
-			break;
-		case 1:
-			mouse_button_resize = but;
-			break;
-	}
-
-	for (i = 0; i < LENGTH(buttons); i++) {
-		if (buttons[i].func == move)
-			buttons[i].button = mouse_button_move;
-
-		if (buttons[i].func == resize)
-			buttons[i].button = mouse_button_resize;
-	}
-
-	return(1);
-}
-
 int
 spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
     char ***ret_args)
@@ -8367,48 +8337,6 @@ setconfmodkey(const char *selector, const char *value, int flags)
 }
 
 int
-setconfmousebuttonmove(const char *selector, const char *value, int flags)
-{
-	/* suppress unused warnings since vars are needed */
-	(void)selector;
-	(void)flags;
-
-	if (strncasecmp(value, "But1", strlen("But1")) == 0) {
-		if (!update_mousebutton(0, XCB_BUTTON_INDEX_1))
-			return (1);
-	} else if (strncasecmp(value, "But2", strlen("But2")) == 0) {
-		if (!update_mousebutton(0, XCB_BUTTON_INDEX_2))
-			return (1);
-	} else if (strncasecmp(value, "But3", strlen("But3")) == 0) {
-		if (!update_mousebutton(0, XCB_BUTTON_INDEX_3))
-			return (1);
-	} else
-		return (1);
-	return (0);
-}
-
-int
-setconfmousebuttonresize(const char *selector, const char *value, int flags)
-{
-	/* suppress unused warnings since vars are needed */
-	(void)selector;
-	(void)flags;
-
-	if (strncasecmp(value, "But1", strlen("But1")) == 0) {
-		if (!update_mousebutton(1, XCB_BUTTON_INDEX_1))
-			return (1);
-	} else if (strncasecmp(value, "But2", strlen("But2")) == 0) {
-		if (!update_mousebutton(1, XCB_BUTTON_INDEX_2))
-			return (1);
-	} else if (strncasecmp(value, "But3", strlen("But3")) == 0) {
-		if (!update_mousebutton(1, XCB_BUTTON_INDEX_3))
-			return (1);
-	} else
-		return (1);
-	return (0);
-}
-
-int
 setconfcolor(const char *selector, const char *value, int flags)
 {
 	int	first, last, i = 0, num_screens;
@@ -8657,8 +8585,6 @@ struct config_option configopt[] = {
 	{ "layout",			setlayout,	0 },
 	{ "maximize_hide_bar",		setconfvalue,	SWM_S_MAXIMIZE_HIDE_BAR },
 	{ "modkey",			setconfmodkey,	0 },
-	{ "move_button",		setconfmousebuttonmove, 0 },
-	{ "resize_button",		setconfmousebuttonresize, 0 },
 	{ "program",			setconfspawn,	0 },
 	{ "quirk",			setconfquirk,	0 },
 	{ "region",			setconfregion,	0 },
@@ -8824,12 +8750,6 @@ conf_load(const char *filename, int keymapping)
 	if (line)
 		free(line);
 	fclose(config);
-
-	if (mouse_button_move == mouse_button_resize) {
-		add_startup_exception("%s: move and resize mouse buttons match",
-		    filename);
-	}
-
 	DNPRINTF(SWM_D_CONF, "conf_load: end\n");
 
 	return (0);
