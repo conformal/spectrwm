@@ -50,16 +50,12 @@ Meta
 .It Cm S
 Shift
 .It Aq Cm Name
-Named key
-.It Cm M1
-Mouse button 1
-.It Cm M3
-Mouse button 3
+Named key or button
 .El
 .Pp
 .Nm
 is very simple in its use.
-Most of the actions are initiated via key or mouse bindings.
+Most of the actions are initiated via key or pointer bindings.
 See the
 .Sx BINDINGS
 section below for defaults and customizations.
@@ -235,7 +231,7 @@ See the
 .Ic bar_format
 option for more details.
 .It Ic bind Ns Bq Ar x
-Bind key combo to action
+Bind key or button combo to action
 .Ar x .
 See the
 .Sx BINDINGS
@@ -245,9 +241,8 @@ Set window border thickness in pixels.
 Disable all borders by setting to 0.
 .It Ic boundary_width
 Set region containment boundary width in pixels.
-This is how far a window must be dragged/resized beyond the region edge
-before it is allowed outside the region.
-This has no effect when manipulating the window with key bindings.
+This is how far a window must be dragged/resized (with the pointer)
+beyond the region edge before it is allowed outside the region.
 Disable the window containment effect by setting to 0.
 .It Ic clock_enabled
 Enable or disable displaying the clock in the status bar.
@@ -302,7 +297,7 @@ and
 .Ar last
 (default).
 .It Ic focus_mode
-Window focus behavior with respect to the mouse cursor.
+Window focus behavior with respect to the pointer.
 Possible values:
 .Pp
 .Bl -tag -width "default" -offset indent -compact
@@ -325,7 +320,8 @@ Workaround a Java GUI rendering issue on non-reparenting window managers by
 impersonating the LG3D window manager, written by Sun.
 Default is 1.
 .It Ic keyboard_mapping
-Clear all key bindings and load new key bindings from the specified file.
+Clear all key bindings (not button bindings) and load new bindings from the
+specified file.
 This allows you to load pre-defined key bindings for your keyboard layout.
 See the
 .Sx KEYBOARD MAPPING FILES
@@ -506,7 +502,7 @@ region and
 is enabled, focus on the region with the target workspace.
 Enable by setting to 1.
 .It Ic warp_pointer
-Centers the mouse pointer on the focused window when using key bindings to
+Centers the pointer on the focused window when using bindings to
 change focus, switch workspaces, change regions, etc.
 Enable by setting to 1.
 .It Ic workspace_limit
@@ -585,7 +581,7 @@ screenshot.sh window # optional
 Note that optional default programs will not be validated unless overridden.
 If a default program fails validation, you can resolve the exception
 by installing the program, modifying the program call or disabling the program
-by freeing the respective key binding.
+by freeing the respective binding.
 .Pp
 For example, to override
 .Ic lock :
@@ -601,24 +597,19 @@ bind[] = MOD+Shift+Delete
 .Ed
 .Sh BINDINGS
 .Nm
-provides many functions (or actions) accessed via key or mouse bindings.
+provides many functions (or actions) accessed via key or pointer bindings.
 .Pp
-The current mouse bindings are described below:
-.Pp
-.Bl -tag -width "M-j, M-<TAB>XXX" -offset indent -compact
-.It Cm M1
-Focus window
-.It Cm M-M1
-Move window
-.It Cm M-M3
-Resize window
-.It Cm M-S-M3
-Resize window while maintaining it centered
-.El
-.Pp
-The default key bindings are described below:
+The default bindings are listed below:
 .Pp
 .Bl -tag -width "M-j, M-<TAB>XXXXXX" -offset indent -compact
+.It Cm Ns Aq Cm Button1
+focus
+.It Cm M- Ns Aq Cm Button1
+move
+.It Cm M- Ns Aq Cm Button3
+resize
+.It Cm M-S- Ns Aq Cm Button3
+resize_centered
 .It Cm M-S- Ns Aq Cm Return
 term
 .It Cm M-p
@@ -754,6 +745,16 @@ search_win
 The action names and descriptions are listed below:
 .Pp
 .Bl -tag -width "M-j, M-<TAB>XXXX" -offset indent -compact
+.It Cm focus
+Focus window/region under pointer.
+.It Cm move
+Move window with pointer while binding is pressed.
+.It Cm resize
+Resize window with pointer while binding is pressed.
+.It Cm resize_centered
+Same as
+.Ic resize
+but keep window centered.
 .It Cm term
 Spawn a new terminal
 (see
@@ -896,7 +897,7 @@ Toggle maximization of focused window.
 .It Cm always_raise
 When set tiled windows are allowed to obscure floating windows.
 .It Cm button2
-Fake a middle mouse button click (mouse button 2).
+Fake a middle mouse button click (Button2).
 .It Cm width_shrink
 Shrink the width of a floating window.
 .It Cm width_grow
@@ -923,27 +924,67 @@ Search the windows in the current workspace.
 .Pp
 Custom bindings in the configuration file are specified as follows:
 .Pp
-.Dl bind Ns Bo Ar action Bc = Ar keys
+.Dl bind Ns Bo Ar action Bc = Ar combo
 .Pp
 .Ar action
 is one of the actions listed above (or empty to unbind) and
-.Ar keys
-is in the form of zero or more modifier keys
-(MOD, Mod1, Shift, etc.) and one or more normal keys
-(b, Space, etc.), separated by
+.Ar combo
+is in the form of zero or more modifier keys and/or special arguments
+(Mod1, Shift, MOD, etc.) and a normal key (b, Space, etc.)
+or a button (Button1 .. Button255), separated by
 .Ql + .
+Multiple key/button combinations may be bound to the same action.
 .Pp
-Example:
+Special arguments:
+.Bl -tag -width "anymodxxxx" -offset indent -compact
+.It Cm MOD
+Substituted for the currently defined
+.Ic modkey .
+.It Cm ANYMOD
+Select all modifier combinations not handled by another binding.
+.It Cm REPLAY
+Reprocess binding press/release events for other programs to handle.  Unavailable for
+.Ic move ,
+.Ic resize
+and
+.Ic resize_centered .
+.El
+.Pp
+.Cm MOD
+example:
 .Bd -literal -offset indent
 bind[reset] = Mod4+q # bind Windows-key + q to reset
 bind[] = Mod1+q # unbind Alt + q
+bind[move] = MOD+Button3 # Bind move to M-Button3
+bind[] = MOD+Button1 # Unbind default move binding.
 .Ed
 .Pp
-To use the currently defined
-.Ic modkey ,
-specify MOD as the modifier key.
+.Cm ANYMOD
+example:
+.Bd -literal -offset indent
+bind[focus] = ANYMOD+Button3
+bind[move] = MOD+Button3
+.Ed
 .Pp
-Multiple key combinations may be bound to the same action.
+In the above example,
+.Cm M- Ns Aq Cm Button3
+initiates
+.Ic move
+and
+.Cm Aq Cm Button3
+pressed with any other combination of modifiers
+sets focus to the window/region under the pointer.
+.Pp
+.Cm REPLAY
+example:
+.Bd -literal -offset indent
+bind[focus] = REPLAY+Button3
+.Ed
+.Pp
+In the above example, when
+.Cm Aq Cm Button3
+is pressed without any modifier(s), focus is set to the window under the
+pointer and the button press is passed to the window.
 .Pp
 To bind non-latin characters such as \[oa] or \[*p] you must enter the xkb
 character name instead of the character itself.
