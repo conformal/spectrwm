@@ -5858,10 +5858,13 @@ ewmh_update_current_desktop(void)
 	int			num_screens, i;
 
 	num_screens = get_screen_count();
-	for (i = 0; i < num_screens; ++i)
-		xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
-		    screens[i].root, ewmh[_NET_CURRENT_DESKTOP].atom,
-		    XCB_ATOM_CARDINAL, 32, 1, &screens[i].r_focus->ws->idx);
+	for (i = 0; i < num_screens; ++i) {
+		if (screens[i].r_focus)
+			xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
+			    screens[i].root, ewmh[_NET_CURRENT_DESKTOP].atom,
+			    XCB_ATOM_CARDINAL, 32, 1,
+			    &screens[i].r_focus->ws->idx);
+	}
 }
 
 void
