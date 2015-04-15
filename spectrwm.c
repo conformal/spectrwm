@@ -10794,6 +10794,7 @@ shutdown_cleanup(void)
 
 	num_screens = get_screen_count();
 	for (i = 0; i < num_screens; ++i) {
+		struct swm_region	*r;
 		int j;
 
 		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
@@ -10813,19 +10814,39 @@ shutdown_cleanup(void)
 		}
 
 		for (j = 0; j < SWM_WS_MAX; ++j) {
+			struct ws_win		*win;
+
 			free(screens[i].ws[j].name);
+
+			while ((win = TAILQ_FIRST(&screens[i].ws[j].winlist)) != NULL) {
+				TAILQ_REMOVE(&screens[i].ws[j].winlist, win, entry);
+				free(win);
+			}
+		}
+
+		while ((r = TAILQ_FIRST(&screens[i].rl)) != NULL) {
+			TAILQ_REMOVE(&screens[i].rl, r, entry);
+			free(r->bar);
+			free(r);
+		}
+
+		while ((r = TAILQ_FIRST(&screens[i].orl)) != NULL) {
+			TAILQ_REMOVE(&screens[i].rl, r, entry);
+			free(r->bar);
+			free(r);
 		}
 	}
 	free(screens);
 
 	free(bar_format);
+	free(bar_fonts);
 	free(clock_format);
+	free(startup_exception);
 
-	if (bar_font_legacy)
+	if (bar_fs)
 		XFreeFontSet(display, bar_fs);
-	else {
+	if (bar_font_legacy == false)
 		XftFontClose(display, bar_font);
-	}
 
 	xcb_key_symbols_free(syms);
 	xcb_flush(conn);
