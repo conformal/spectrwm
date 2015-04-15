@@ -983,6 +983,8 @@ void	 center_pointer(struct swm_region *);
 void	 check_conn(void);
 void	 clear_keys(void);
 int	 clear_maximized(struct workspace *);
+void	 clear_quirks(void);
+void	 clear_spawns(void);
 void	 clientmessage(xcb_client_message_event_t *);
 void	 client_msg(struct ws_win *, xcb_atom_t, xcb_timestamp_t);
 int	 conf_load(const char *, int);
@@ -1099,7 +1101,6 @@ void	 print_win_geom(xcb_window_t);
 #endif
 void	 propertynotify(xcb_property_notify_event_t *);
 void	 quirk_free(struct quirk *);
-void	 clear_quirks(void);
 void	 quirk_insert(const char *, const char *, const char *, uint32_t, int);
 void	 quirk_remove(struct quirk *);
 void	 quirk_replace(struct quirk *, const char *, const char *, const char *,
@@ -1159,7 +1160,6 @@ int	 spawn_expand(struct swm_region *, union arg *, const char *, char ***);
 void	 spawn_insert(const char *, const char *, int);
 struct spawn_prog	*spawn_find(const char *);
 void	 spawn_remove(struct spawn_prog *);
-void	 clear_spawns(void);
 void	 spawn_replace(struct spawn_prog *, const char *, const char *, int);
 void	 spawn_select(struct swm_region *, union arg *, const char *, int *);
 void	 stack_config(struct swm_region *, union arg *);
