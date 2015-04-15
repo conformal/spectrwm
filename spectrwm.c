@@ -1088,6 +1088,7 @@ void	 print_win_geom(xcb_window_t);
 #endif
 void	 propertynotify(xcb_property_notify_event_t *);
 void	 quirk_free(struct quirk *);
+void	 clear_quirks(void);
 void	 quirk_insert(const char *, const char *, const char *, uint32_t, int);
 void	 quirk_remove(struct quirk *);
 void	 quirk_replace(struct quirk *, const char *, const char *, const char *,
@@ -1147,6 +1148,7 @@ int	 spawn_expand(struct swm_region *, union arg *, const char *, char ***);
 void	 spawn_insert(const char *, const char *, int);
 struct spawn_prog	*spawn_find(const char *);
 void	 spawn_remove(struct spawn_prog *);
+void	 clear_spawns(void);
 void	 spawn_replace(struct spawn_prog *, const char *, const char *, int);
 void	 spawn_select(struct swm_region *, union arg *, const char *, int *);
 void	 stack_config(struct swm_region *, union arg *);
@@ -7064,6 +7066,16 @@ spawn_remove(struct spawn_prog *sp)
 	DNPRINTF(SWM_D_SPAWN, "spawn_remove: leave\n");
 }
 
+void
+clear_spawns(void)
+{
+	struct spawn_prog	*sp;
+
+	while ((sp = TAILQ_FIRST(&spawns)) != NULL) {
+		spawn_remove(sp);
+	}
+}
+
 struct spawn_prog*
 spawn_find(const char *name)
 {
@@ -7813,6 +7825,16 @@ quirk_free(struct quirk *qp)
 	free(qp->instance);
 	free(qp->name);
 	free(qp);
+}
+
+void
+clear_quirks(void)
+{
+	struct quirk		*qp;
+
+	while ((qp = TAILQ_FIRST(&quirks)) != NULL) {
+		quirk_remove(qp);
+	}
 }
 
 void
@@ -10687,10 +10709,16 @@ shutdown_cleanup(void)
 
 	cursors_cleanup();
 
+	clear_quirks();
+	clear_spawns();
+	clear_keys();
+
 	teardown_ewmh();
 
 	num_screens = get_screen_count();
 	for (i = 0; i < num_screens; ++i) {
+		int j;
+
 		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
 		    screens[i].root, XCB_CURRENT_TIME);
 
@@ -10702,7 +10730,19 @@ shutdown_cleanup(void)
 			XftColorFree(display, DefaultVisual(display, i),
 			    DefaultColormap(display, i), &search_font_color);
 		}
+
+		for (j = 0; j < SWM_S_COLOR_MAX; ++j) {
+			free(screens[i].c[j].name);
+		}
+
+		for (j = 0; j < SWM_WS_MAX; ++j) {
+			free(screens[i].ws[j].name);
+		}
 	}
+	free(screens);
+
+	free(bar_format);
+	free(clock_format);
 
 	if (bar_font_legacy)
 		XFreeFontSet(display, bar_fs);
