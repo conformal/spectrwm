@@ -401,7 +401,7 @@ bool		 bar_at_bottom = false;
 bool		 bar_extra = false;
 int		 bar_height = 0;
 int		 bar_justify = SWM_BAR_JUSTIFY_LEFT;
-char		 *bar_format = NULL;
+char		*bar_format = NULL;
 bool		 stack_enabled = true;
 bool		 clock_enabled = true;
 bool		 iconic_enabled = false;
@@ -427,15 +427,14 @@ bool		 verbose_layout = false;
 time_t		 time_started;
 #endif
 pid_t		 bar_pid;
-XFontSet	 bar_fs;
+XFontSet	 bar_fs = NULL;
 XFontSetExtents	*bar_fs_extents;
-XftFont		*bar_font;
+XftFont		*bar_font = NULL;
 bool		 bar_font_legacy = true;
-char		*bar_fonts;
+char		*bar_fonts = NULL;
 XftColor	 bar_font_color;
 XftColor	 search_font_color;
-struct passwd	*pwd;
-char		*startup_exception;
+char		*startup_exception = NULL;
 unsigned int	 nr_exceptions = 0;
 
 /* layout manager data */
@@ -674,19 +673,19 @@ struct quirk {
 	regex_t			regex_name;
 	uint32_t		quirk;
 	int			ws;		/* Initial workspace. */
-#define SWM_Q_FLOAT		(1<<0)	/* float this window */
-#define SWM_Q_TRANSSZ		(1<<1)	/* transiend window size too small */
-#define SWM_Q_ANYWHERE		(1<<2)	/* don't position this window */
-#define SWM_Q_XTERM_FONTADJ	(1<<3)	/* adjust xterm fonts when resizing */
-#define SWM_Q_FULLSCREEN	(1<<4)	/* remove border when fullscreen */
-#define SWM_Q_FOCUSPREV		(1<<5)	/* focus on caller */
+#define SWM_Q_FLOAT		(1<<0)	/* Float this window. */
+#define SWM_Q_TRANSSZ		(1<<1)	/* Transient window size too small. */
+#define SWM_Q_ANYWHERE		(1<<2)	/* Don't position this window */
+#define SWM_Q_XTERM_FONTADJ	(1<<3)	/* Adjust xterm fonts when resizing. */
+#define SWM_Q_FULLSCREEN	(1<<4)	/* Remove border when fullscreen. */
+#define SWM_Q_FOCUSPREV		(1<<5)	/* Focus on caller. */
 #define SWM_Q_NOFOCUSONMAP	(1<<6)	/* Don't focus on window when mapped. */
 #define SWM_Q_FOCUSONMAP_SINGLE	(1<<7)	/* Only focus if single win of type. */
 #define SWM_Q_OBEYAPPFOCUSREQ	(1<<8)	/* Focus when applications ask. */
 #define SWM_Q_IGNOREPID		(1<<9)	/* Ignore PID when determining ws. */
 #define SWM_Q_IGNORESPAWNWS	(1<<10)	/* Ignore _SWM_WS when managing win. */
 #define SWM_Q_NOFOCUSCYCLE	(1<<11)	/* Remove from normal focus cycle. */
-#define SWM_Q_MINIMALBORDER	(1<<12)	/* Remove border when floating/unfocused */
+#define SWM_Q_MINIMALBORDER	(1<<12)	/* No border when floating/unfocused. */
 };
 TAILQ_HEAD(quirk_list, quirk);
 struct quirk_list		quirks = TAILQ_HEAD_INITIALIZER(quirks);
@@ -2710,13 +2709,13 @@ fontset_init(void)
 void
 xft_init(struct swm_region *r)
 {
-	char			*font, *d, *search;
+	char			*font, *str, *search;
 	XRenderColor		color;
 
 	if (bar_font == NULL) {
-		if ((d = strdup(bar_fonts)) == NULL)
+		if ((search = str = strdup(bar_fonts)) == NULL)
 			errx(1, "insufficient memory.");
-		search = d;
+
 		while ((font = strsep(&search, ",")) != NULL) {
 			if (*font == '\0')
 				continue;
@@ -2740,7 +2739,7 @@ xft_init(struct swm_region *r)
 				break;
 			}
 		}
-		free(d);
+		free(str);
 	}
 
 	if (bar_font == NULL)
@@ -2847,7 +2846,7 @@ set_win_state(struct ws_win *win, uint8_t state)
 	uint16_t		data[2] = { state, XCB_ATOM_NONE };
 
 	DNPRINTF(SWM_D_EVENT, "set_win_state: win %#x, state: %u\n",
-	    win->id, state);
+	    WINID(win), state);
 
 	if (win == NULL)
 		return;
@@ -3040,12 +3039,12 @@ lower_window(struct ws_win *win)
 	struct ws_win		*target = NULL;
 	struct workspace	*ws;
 
+	DNPRINTF(SWM_D_EVENT, "lower_window: win %#x\n", WINID(win));
+
 	if (win == NULL)
 		return;
 
 	ws = win->ws;
-
-	DNPRINTF(SWM_D_EVENT, "lower_window: win %#x\n", win->id);
 
 	TAILQ_FOREACH(target, &ws->stack, stack_entry) {
 		if (target == win || ICONIC(target))
@@ -3101,11 +3100,12 @@ raise_window(struct ws_win *win)
 	struct ws_win		*target = NULL;
 	struct workspace	*ws;
 
+	DNPRINTF(SWM_D_EVENT, "raise_window: win %#x\n", WINID(win));
+
 	if (win == NULL)
 		return;
-	ws = win->ws;
 
-	DNPRINTF(SWM_D_EVENT, "raise_window: win %#x\n", win->id);
+	ws = win->ws;
 
 	TAILQ_FOREACH(target, &ws->stack, stack_entry) {
 		if (target == win || ICONIC(target))
@@ -3494,23 +3494,29 @@ spawn(int ws_idx, union arg *args, bool close_fd)
 void
 kill_refs(struct ws_win *win)
 {
-	int			i, x, num_screens;
-	struct swm_region	*r;
 	struct workspace	*ws;
+	struct ws_win		*w;
+	int			i, j, num_screens;
 
 	if (win == NULL)
 		return;
 
 	num_screens = get_screen_count();
-	for (i = 0; i < num_screens; i++)
-		TAILQ_FOREACH(r, &screens[i].rl, entry)
-			for (x = 0; x < workspace_limit; x++) {
-				ws = &r->s->ws[x];
-				if (win == ws->focus)
-					ws->focus = NULL;
-				if (win == ws->focus_prev)
-					ws->focus_prev = NULL;
-			}
+	for (i = 0; i < num_screens; i++) {
+		for (j = 0; j < workspace_limit; j++) {
+			ws = &screens[i].ws[j];
+
+			if (win == ws->focus)
+				ws->focus = NULL;
+			if (win == ws->focus_prev)
+				ws->focus_prev = NULL;
+
+			if (TRANS(win))
+				TAILQ_FOREACH(w, &ws->winlist, entry)
+					if (win == w->focus_child)
+						w->focus_child = NULL;
+		}
+	}
 }
 
 int
@@ -3678,9 +3684,8 @@ focus_win(struct ws_win *win)
 		ws->focus = win;
 	}
 
-	/* If this window directs focus to a child window, then clear. */
-	if (win->focus_child)
-		win->focus_child = NULL;
+	/* Clear focus child redirect. */
+	win->focus_child = NULL;
 
 	/* If transient, adjust parent's focus child for focus_magic. */
 	if (TRANS(win)) {
@@ -4695,6 +4700,8 @@ update_floater(struct ws_win *win)
 	struct workspace	*ws;
 	struct swm_region	*r;
 
+	DNPRINTF(SWM_D_MISC, "update_floater: win %#x\n", WINID(win));
+
 	if (win == NULL)
 		return;
 
@@ -4702,8 +4709,6 @@ update_floater(struct ws_win *win)
 
 	if ((r = ws->r) == NULL)
 		return;
-
-	DNPRINTF(SWM_D_MISC, "update_floater: win %#x\n", win->id);
 
 	win->bordered = true;
 
@@ -7793,10 +7798,9 @@ parsequirks(const char *qstr, uint32_t *quirk, int *ws)
 	if (quirk == NULL || qstr == NULL)
 		return (1);
 
-	if ((str = strdup(qstr)) == NULL)
+	if ((cp = str = strdup(qstr)) == NULL)
 		err(1, "parsequirks: strdup");
 
-	cp = str;
 	*quirk = 0;
 	while ((name = strsep(&cp, SWM_Q_DELIM)) != NULL) {
 		if (cp)
@@ -8132,7 +8136,7 @@ setconfvalue(const char *selector, const char *value, int flags)
 {
 	struct workspace	*ws;
 	int			i, ws_id, num_screens;
-	char			*b, *str, s[1024];
+	char			*b, *str, *sp, s[1024];
 
 	switch (flags) {
 	case SWM_S_BAR_ACTION:
@@ -8177,11 +8181,11 @@ setconfvalue(const char *selector, const char *value, int flags)
 		if (!bar_font_legacy)
 			break;
 
-		if ((str = strdup(value)) == NULL)
+		if ((sp = str = strdup(value)) == NULL)
 			err(1, "setconfvalue: strdup");
 
 		/* If there are any non-XLFD entries, switch to Xft mode. */
-		while ((b = strsep(&str, ",")) != NULL) {
+		while ((b = strsep(&sp, ",")) != NULL) {
 			if (*b == '\0')
 				continue;
 			if (!isxlfd(b)) {
@@ -8476,7 +8480,7 @@ setautorun(const char *selector, const char *value, int flags)
 {
 	int			ws_id;
 	char			s[1024];
-	char			*ap, *sp;
+	char			*ap, *sp, *str;
 	union arg		a;
 	int			argc = 0;
 	pid_t			pid;
@@ -8496,7 +8500,7 @@ setautorun(const char *selector, const char *value, int flags)
 	if (ws_id < 0 || ws_id >= workspace_limit)
 		errx(1, "autorun: invalid workspace %d", ws_id + 1);
 
-	sp = expand_tilde((char *)&s);
+	sp = str = expand_tilde((char *)&s);
 
 	/*
 	 * This is a little intricate
@@ -8515,7 +8519,7 @@ setautorun(const char *selector, const char *value, int flags)
 			err(1, "setautorun: realloc");
 		a.argv[argc - 1] = ap;
 	}
-	free(sp);
+	free(str);
 
 	if ((a.argv = realloc(a.argv, (argc + 1) * sizeof(char *))) == NULL)
 		err(1, "setautorun: realloc");
@@ -9231,16 +9235,12 @@ out:
 void
 free_window(struct ws_win *win)
 {
-	DNPRINTF(SWM_D_MISC, "free_window: win %#x\n", win->id);
+	DNPRINTF(SWM_D_MISC, "free_window: win %#x\n", WINID(win));
 
 	if (win == NULL)
 		return;
 
-	TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
-
 	xcb_icccm_get_wm_class_reply_wipe(&win->ch);
-
-	kill_refs(win);
 
 	/* paint memory */
 	memset(win, 0xff, sizeof *win);	/* XXX kill later */
@@ -9254,10 +9254,10 @@ unmanage_window(struct ws_win *win)
 {
 	struct ws_win		*parent;
 
+	DNPRINTF(SWM_D_MISC, "unmanage_window: win %#x\n", WINID(win));
+
 	if (win == NULL)
 		return;
-
-	DNPRINTF(SWM_D_MISC, "unmanage_window: win %#x\n", win->id);
 
 	if (TRANS(win)) {
 		parent = find_window(win->transient);
@@ -9631,35 +9631,41 @@ destroynotify(xcb_destroy_notify_event_t *e)
 
 	DNPRINTF(SWM_D_EVENT, "destroynotify: win %#x\n", e->window);
 
-	if ((win = find_window(e->window)) == NULL) {
-		if ((win = find_unmanaged_window(e->window)) == NULL)
-			return;
-		free_window(win);
-		return;
-	}
-
-	if (focus_mode != SWM_FOCUS_FOLLOW) {
-		/* If we were focused, make sure we focus on something else. */
-		if (win == win->ws->focus)
-			win->ws->focus_pending = get_focus_prev(win);
-	}
-
-	unmanage_window(win);
-	stack();
-
-	if (focus_mode != SWM_FOCUS_FOLLOW && WS_FOCUSED(win->ws)) {
-		if (win->ws->focus_pending) {
-			focus_win(win->ws->focus_pending);
-			win->ws->focus_pending = NULL;
-		} else if (win == win->ws->focus) {
-			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_PARENT,
-			    win->ws->r->id, XCB_CURRENT_TIME);
+	if ((win = find_window(e->window))) {
+		/* Managed window cleanup. */
+		if (focus_mode != SWM_FOCUS_FOLLOW) {
+			/* If focused, focus on something else. */
+			if (win == win->ws->focus)
+				win->ws->focus_pending = get_focus_prev(win);
 		}
+
+		unmanage_window(win);
+		stack();
+
+		if (focus_mode != SWM_FOCUS_FOLLOW && WS_FOCUSED(win->ws)) {
+			if (win->ws->focus_pending) {
+				focus_win(win->ws->focus_pending);
+				win->ws->focus_pending = NULL;
+			} else if (win == win->ws->focus) {
+				xcb_set_input_focus(conn,
+				    XCB_INPUT_FOCUS_PARENT, win->ws->r->id,
+				    XCB_CURRENT_TIME);
+			}
+		}
+
+		kill_refs(win);
+		focus_flush();
+	} else {
+		win = find_unmanaged_window(e->window);
 	}
 
-	free_window(win);
+	if (win) {
+		/* unmanage_window() puts win into unmanaged list. */
+		TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
+		free_window(win);
+	}
 
-	focus_flush();
+	DNPRINTF(SWM_D_EVENT, "destroynotify: done.\n");
 }
 
 #ifdef SWM_DEBUG
@@ -10693,8 +10699,7 @@ setup_screens(void)
 	xcb_randr_query_version_reply_t		*r;
 
 	num_screens = get_screen_count();
-	if ((screens = calloc(num_screens,
-	     sizeof(struct swm_screen))) == NULL)
+	if ((screens = calloc(num_screens, sizeof(struct swm_screen))) == NULL)
 		err(1, "setup_screens: calloc: failed to allocate memory for "
 		    "screens");
 
@@ -10807,6 +10812,9 @@ setup_globals(void)
 void
 shutdown_cleanup(void)
 {
+	struct swm_region	*r;
+	struct ws_win		*w;
+	struct workspace	*ws;
 	int			i, num_screens;
 
 	/* disable alarm because the following code may not be interrupted */
@@ -10827,7 +10835,6 @@ shutdown_cleanup(void)
 
 	num_screens = get_screen_count();
 	for (i = 0; i < num_screens; ++i) {
-		struct swm_region	*r;
 		int j;
 
 		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
@@ -10846,17 +10853,23 @@ shutdown_cleanup(void)
 			free(screens[i].c[j].name);
 		}
 
+		/* Free window memory. */
 		for (j = 0; j < SWM_WS_MAX; ++j) {
-			struct ws_win		*win;
+			ws = &screens[i].ws[j];
+			free(ws->name);
 
-			free(screens[i].ws[j].name);
+			while ((w = TAILQ_FIRST(&ws->winlist)) != NULL) {
+				TAILQ_REMOVE(&ws->winlist, w, entry);
+				free_window(w);
+			}
 
-			while ((win = TAILQ_FIRST(&screens[i].ws[j].winlist)) != NULL) {
-				TAILQ_REMOVE(&screens[i].ws[j].winlist, win, entry);
-				free(win);
+			while ((w = TAILQ_FIRST(&ws->unmanagedlist)) != NULL) {
+				TAILQ_REMOVE(&ws->unmanagedlist, w, entry);
+				free_window(w);
 			}
 		}
 
+		/* Free region memory. */
 		while ((r = TAILQ_FIRST(&screens[i].rl)) != NULL) {
 			TAILQ_REMOVE(&screens[i].rl, r, entry);
 			free(r->bar);
@@ -10878,7 +10891,7 @@ shutdown_cleanup(void)
 
 	if (bar_fs)
 		XFreeFontSet(display, bar_fs);
-	if (bar_font_legacy == false)
+	if (bar_font)
 		XftFontClose(display, bar_font);
 
 	xcb_key_symbols_free(syms);
@@ -10956,14 +10969,14 @@ event_handle(xcb_generic_event_t *evt)
 int
 main(int argc, char *argv[])
 {
-	struct swm_region	*r;
-	char			conf[PATH_MAX], *cfile = NULL;
-	struct stat		sb;
-	int			xfd, i, num_screens;
-	struct sigaction	sact;
-	xcb_generic_event_t	*evt;
-	int			num_readable;
 	struct pollfd		pfd[2];
+	struct sigaction	sact;
+	struct stat		sb;
+	struct passwd		*pwd;
+	struct swm_region	*r;
+	xcb_generic_event_t	*evt;
+	int			xfd, i, num_screens, num_readable;
+	char			conf[PATH_MAX], *cfile = NULL;
 	bool			stdin_ready = false, startup = true;
 
 	/* suppress unused warning since var is needed */
@@ -11130,8 +11143,10 @@ noconfig:
 
 		num_readable = poll(pfd, bar_extra ? 2 : 1, 1000);
 		if (num_readable == -1) {
-			DNPRINTF(SWM_D_MISC, "poll failed: %s", strerror(errno));
-		} else if (num_readable > 0 && bar_extra && pfd[1].revents & POLLIN) {
+			DNPRINTF(SWM_D_MISC, "poll failed: %s",
+			    strerror(errno));
+		} else if (num_readable > 0 && bar_extra &&
+		    pfd[1].revents & POLLIN) {
 			stdin_ready = true;
 		}
 
