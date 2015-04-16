@@ -61,7 +61,11 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#ifdef __OSX__
+#include "queue.h"
+#else
 #include <sys/queue.h>
+#endif
 #include <sys/param.h>
 #include <sys/select.h>
 #if defined(__linux__)
