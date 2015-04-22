@@ -1029,24 +1029,29 @@ XTERM_FONTADJ
 The quirks themselves are described below:
 .Pp
 .Bl -tag -width "XTERM_FONTADJ<TAB>XXX" -offset indent -compact
-.It FLOAT
-This window should not be tiled, but allowed to float freely.
-.It TRANSSZ
-Adjusts size on transient windows that are too small using
-.Ic dialog_ratio
-(see
-.Sx CONFIGURATION FILES ) .
 .It ANYWHERE
 Allow window to position itself, uncentered.
-.It XTERM_FONTADJ
-Adjust
-.Xr xterm 1
-fonts when resizing.
-.It FULLSCREEN
-Remove border to allow window to use full region size.
+.It FLOAT
+This window should not be tiled, but allowed to float freely.
+.It FOCUSONMAP_SINGLE
+When the window first appears on the screen, change focus to the window
+if there are no other windows on the workspace with the same WM_CLASS
+class/instance value.
+Has no effect when
+.Ic focus_mode
+is set to
+.Ar follow .
 .It FOCUSPREV
 On exit force focus on previously focused application not previous
 application in the stack.
+.It FULLSCREEN
+Remove border to allow window to use full region size.
+.It IGNOREPID
+Ignore the PID when determining the initial workspace for a new window.
+Especially useful for terminal windows that share a process.
+.It IGNORESPAWNWS
+Ignore the spawn workspace when determining the initial workspace for a
+new window.
 .It MINIMALBORDER
 Remove border when window is unfocused and floating.
 .It NOFOCUSCYCLE
@@ -1058,28 +1063,23 @@ Has no effect when
 .Ic focus_mode
 is set to
 .Ar follow .
-.It FOCUSONMAP_SINGLE
-When the window first appears on the screen, change focus to the window
-if there are no other windows on the workspace with the same WM_CLASS
-class/instance value.
-Has no effect when
-.Ic focus_mode
-is set to
-.Ar follow .
 .It OBEYAPPFOCUSREQ
 When an application requests focus on the window via a _NET_ACTIVE_WINDOW
 client message (source indication of 1), comply with the request.
 Note that a source indication of 0 (unspecified) or 2 (pager) are always
 obeyed.
-.It IGNOREPID
-Ignore the PID when determining the initial workspace for a new window.
-Especially useful for terminal windows that share a process.
-.It IGNORESPAWNWS
-Ignore the spawn workspace when determining the initial workspace for a
-new window.
+.It TRANSSZ
+Adjusts size on transient windows that are too small using
+.Ic dialog_ratio
+(see
+.Sx CONFIGURATION FILES ) .
 .It WS Ns Bq Ar n
 Force a new window to appear on workspace
 .Ar n .
+.It XTERM_FONTADJ
+Adjust
+.Xr xterm 1
+fonts when resizing.
 .El
 .Pp
 Custom quirks in the configuration file are specified as follows:
