@@ -2280,7 +2280,7 @@ bar_fmt(const char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
 
 	/* bar_urgent already adds the space before the last asterisk */
 	if (urgent_enabled)
-		strlcat(fmtnew, "* +U*+4<", sz);
+		strlcat(fmtnew, (urgent_collapse ? "*+U*+4<" : "* +U*+4<"), sz);
 
 	if (window_class_enabled) {
 		strlcat(fmtnew, "+C", sz);
