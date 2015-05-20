@@ -49,7 +49,10 @@
 #include <X11/Xatom.h>
 #include <X11/Intrinsic.h>
 
-/* dlopened libs so we can find the symbols in the real one to call them */
+/* dlopened libs so we can find the symbols in the real one to call them
+ * If we have _GNU_SOURCE we use RTLD_NEXT to call the next function in
+ * the search order.
+ */
 static void		*lib_xlib = NULL;
 static void		*lib_xtlib = NULL;
 
@@ -58,6 +61,24 @@ static int		xterm = 0;
 static Display		*display = NULL;
 
 void	set_property(Display *, Window, char *, char *);
+
+static void*
+get_xlib() {
+#ifdef _GNU_SOURCE
+	return RTLD_NEXT;
+#else
+	return dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
+#endif
+}
+
+static void*
+get_xtlib() {
+#ifdef _GNU_SOURCE
+	return RTLD_NEXT;
+#else
+	return dlopen("libXt.so", RTLD_GLOBAL | RTLD_LAZY);
+#endif
+}
 
 /* Find our root window */
 static              Window
@@ -95,13 +116,16 @@ set_property(Display *dpy, Window id, char *name, char *val)
 	static XIA		*xia = NULL;
 	static XCP		*xcp = NULL;
 
-	/* find the real Xlib and the real X function */
 	if (!lib_xlib)
-		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
-	if (!xia)
+		lib_xlib = get_xlib();
+	if (lib_xlib && !xia)
 		xia = (XIA *) dlsym(lib_xlib, "XInternAtom");
-	if (!xcp)
+	if (lib_xlib && !xcp)
 		xcp = (XCP *) dlsym(lib_xlib, "XChangeProperty");
+	if (!xia || !xcp) {
+		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
+		return;
+	}
 
 	/* Try to update the window's workspace property */
 	atom = (*xia)(dpy, name, False);
@@ -132,12 +156,15 @@ XCreateWindow(Display *dpy, Window parent, int x, int y,
 	char		*env;
 	Window		id;
 
-	/* find the real Xlib and the real X function */
 	if (!lib_xlib)
-		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
-	if (!func) {
+		lib_xlib = get_xlib();
+	if (lib_xlib && !func) {
 		func = (CWF *) dlsym(lib_xlib, "XCreateWindow");
 		display = dpy;
+	}
+	if (!func) {
+		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
+		return BadImplementation;
 	}
 
 	if (parent == DefaultRootWindow(dpy))
@@ -177,11 +204,14 @@ XCreateSimpleWindow(Display *dpy, Window parent, int x, int y,
 	char		*env;
 	Window		id;
 
-	/* find the real Xlib and the real X function */
 	if (!lib_xlib)
-		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
-	if (!func)
+		lib_xlib = get_xlib();
+	if (lib_xlib && !func)
 		func = (CSWF *) dlsym(lib_xlib, "XCreateSimpleWindow");
+	if (!func) {
+		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
+		return BadImplementation;
+	}
 
 	if (parent == DefaultRootWindow(dpy))
 		parent = MyRoot(dpy);
@@ -211,11 +241,14 @@ XReparentWindow(Display *dpy, Window window, Window parent, int x, int y)
 {
 	static RWF         *func = NULL;
 
-	/* find the real Xlib and the real X function */
 	if (!lib_xlib)
-		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
-	if (!func)
+		lib_xlib = get_xlib();
+	if (lib_xlib && !func)
 		func = (RWF *) dlsym(lib_xlib, "XReparentWindow");
+	if (!func) {
+		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
+		return BadImplementation;
+	}
 
 	if (parent == DefaultRootWindow(dpy))
 		parent = MyRoot(dpy);
@@ -238,15 +271,18 @@ XtAppNextEvent(XtAppContext app_context, XEvent *event_return)
 	static ANEF	*func = NULL;
 	static KeyCode	kp_add = 0, kp_subtract = 0;
 
-	/* find the real Xlib and the real X function */
 	if (!lib_xtlib)
-		lib_xtlib = dlopen("libXt.so", RTLD_GLOBAL | RTLD_LAZY);
-	if (!func) {
+		lib_xtlib = get_xtlib();
+	if (lib_xtlib && !func) {
 		func = (ANEF *) dlsym(lib_xtlib, "XtAppNextEvent");
 		if (display != NULL) {
 			kp_add = XKeysymToKeycode(display, XK_KP_Add);
 			kp_subtract = XKeysymToKeycode(display, XK_KP_Subtract);
 		}
+	}
+	if (!func) {
+		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
+		return;
 	}
 
 	(*func) (app_context, event_return);
