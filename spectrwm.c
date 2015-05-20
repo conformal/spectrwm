@@ -4817,11 +4817,12 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 {
 	struct swm_geometry	win_g, r_g = *g;
 	struct ws_win		*win;
-	int			i, j, s, stacks;
+	int			i = 0, j = 0, s = 0, stacks = 0;
 	int			w_inc = 1, h_inc, w_base = 1, h_base;
-	int			hrh, extra = 0, h_slice, last_h = 0;
-	int			split, colno, winno, mwin, msize, mscale;
-	int			remain, missing, v_slice;
+	int			hrh = 0, extra = 0, h_slice = 0, last_h = 0;
+	int			split = 0, colno = 0;
+	int			winno, mwin = 0, msize = 0;
+	int			remain, missing, v_slice, mscale;
 	bool			bordered = true, reconfigure = false;
 
 	DNPRINTF(SWM_D_STACK, "stack_master: workspace: %d, rot: %s, "
