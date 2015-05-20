@@ -49,7 +49,10 @@
 #include <X11/Xatom.h>
 #include <X11/Intrinsic.h>
 
-/* dlopened libs so we can find the symbols in the real one to call them */
+/* dlopened libs so we can find the symbols in the real one to call them
+ * If we have _GNU_SOURCE we use RTLD_NEXT to call the next function in
+ * the search order.
+ */
 static void		*lib_xlib = NULL;
 static void		*lib_xtlib = NULL;
 
@@ -58,6 +61,24 @@ static int		xterm = 0;
 static Display		*display = NULL;
 
 void	set_property(Display *, Window, char *, char *);
+
+static void*
+get_xlib() {
+#ifdef _GNU_SOURCE
+	return RTLD_NEXT;
+#else
+	return dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
+#endif
+}
+
+static void*
+get_xtlib() {
+#ifdef _GNU_SOURCE
+	return RTLD_NEXT;
+#else
+	return dlopen("libXt.so", RTLD_GLOBAL | RTLD_LAZY);
+#endif
+}
 
 /* Find our root window */
 static              Window
@@ -95,18 +116,8 @@ set_property(Display *dpy, Window id, char *name, char *val)
 	static XIA		*xia = NULL;
 	static XCP		*xcp = NULL;
 
-#ifdef _GNU_SOURCE
-	/* load the function pointer with RTLD_NEXT
-	 * this might be the real X function or another
-	 * preloaded intercept
-	 */
 	if (!lib_xlib)
-		lib_xlib = RTLD_NEXT;
-#else
-	/* find the real Xlib and the real X function */
-	if (!lib_xlib)
-		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
-#endif
+		lib_xlib = get_xlib();
 	if (lib_xlib && !xia)
 		xia = (XIA *) dlsym(lib_xlib, "XInternAtom");
 	if (lib_xlib && !xcp)
@@ -145,18 +156,8 @@ XCreateWindow(Display *dpy, Window parent, int x, int y,
 	char		*env;
 	Window		id;
 
-#ifdef _GNU_SOURCE
-	/* load the function pointer with RTLD_NEXT
-	 * this might be the real X function or another
-	 * preloaded intercept
-	 */
 	if (!lib_xlib)
-		lib_xlib = RTLD_NEXT;
-#else
-	/* find the real Xlib and the real X function */
-	if (!lib_xlib)
-		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
-#endif
+		lib_xlib = get_xlib();
 	if (lib_xlib && !func) {
 		func = (CWF *) dlsym(lib_xlib, "XCreateWindow");
 		display = dpy;
@@ -203,18 +204,8 @@ XCreateSimpleWindow(Display *dpy, Window parent, int x, int y,
 	char		*env;
 	Window		id;
 
-#ifdef _GNU_SOURCE
-	/* load the function pointer with RTLD_NEXT
-	 * this might be the real X function or another
-	 * preloaded intercept
-	 */
 	if (!lib_xlib)
-		lib_xlib = RTLD_NEXT;
-#else
-	/* find the real Xlib and the real X function */
-	if (!lib_xlib)
-		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
-#endif
+		lib_xlib = get_xlib();
 	if (lib_xlib && !func)
 		func = (CSWF *) dlsym(lib_xlib, "XCreateSimpleWindow");
 	if (!func) {
@@ -250,18 +241,8 @@ XReparentWindow(Display *dpy, Window window, Window parent, int x, int y)
 {
 	static RWF         *func = NULL;
 
-#ifdef _GNU_SOURCE
-	/* load the function pointer with RTLD_NEXT
-	 * this might be the real X function or another
-	 * preloaded intercept
-	 */
 	if (!lib_xlib)
-		lib_xlib = RTLD_NEXT;
-#else
-	/* find the real Xlib and the real X function */
-	if (!lib_xlib)
-		lib_xlib = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
-#endif
+		lib_xlib = get_xlib();
 	if (lib_xlib && !func)
 		func = (RWF *) dlsym(lib_xlib, "XReparentWindow");
 	if (!func) {
@@ -290,18 +271,8 @@ XtAppNextEvent(XtAppContext app_context, XEvent *event_return)
 	static ANEF	*func = NULL;
 	static KeyCode	kp_add = 0, kp_subtract = 0;
 
-#ifdef _GNU_SOURCE
-	/* load the function pointer with RTLD_NEXT
-	 * this might be the real X function or another
-	 * preloaded intercept
-	 */
 	if (!lib_xtlib)
-		lib_xtlib = RTLD_NEXT;
-#else
-	/* find the real Xlib and the real X function */
-	if (!lib_xtlib)
-		lib_xtlib = dlopen("libXt.so", RTLD_GLOBAL | RTLD_LAZY);
-#endif
+		lib_xtlib = get_xtlib();
 	if (lib_xtlib && !func) {
 		func = (ANEF *) dlsym(lib_xtlib, "XtAppNextEvent");
 		if (display != NULL) {
