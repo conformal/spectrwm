@@ -868,6 +868,8 @@ enum actionid {
 	FN_MVWS_20,
 	FN_MVWS_21,
 	FN_MVWS_22,
+	KF_MVWS_NEXT,
+	KF_MVWS_PREV,
 	FN_NAME_WORKSPACE,
 	FN_QUIT,
 	FN_RAISE_FOCUSED,
@@ -1158,6 +1160,7 @@ void	 search_win_cleanup(void);
 void	 search_workspace(struct binding *, struct swm_region *, union arg *);
 void	 send_to_rg(struct binding *, struct swm_region *, union arg *);
 void	 send_to_ws(struct binding *, struct swm_region *, union arg *);
+void	 send_to_ws_relative(struct binding *, struct swm_region *, union arg *);
 void	 set_region(struct swm_region *);
 int	 setautorun(const char *, const char *, int);
 void	 setbinding(uint16_t, enum binding_type, uint32_t, enum actionid,
@@ -5633,6 +5636,30 @@ send_to_ws(struct binding *bp, struct swm_region *r, union arg *args)
 	focus_flush();
 }
 
+/* Transfer focused window to region-relative workspace and focus. */
+void
+send_to_ws_relative(struct binding *bp, struct swm_region *r, union arg *args)
+{
+	union arg args_abs;
+	struct swm_region *r_other;
+
+	if (args->id == 1) {
+		r_other = TAILQ_NEXT(r, entry);
+		if (r_other == NULL)
+			r_other = TAILQ_FIRST(&r->s->rl);
+	} else {
+		r_other = TAILQ_PREV(r, swm_region_list, entry);
+		if (r_other == NULL)
+			r_other = TAILQ_LAST(&r->s->rl, swm_region_list);
+	}
+
+	/* Map relative to absolute */
+	args_abs = *args;
+	args_abs.id = r_other->ws->idx;
+
+	send_to_ws(bp, r, &args_abs);
+}
+
 void
 win_to_ws(struct ws_win *win, int wsid, bool unfocus)
 {
@@ -7355,6 +7382,8 @@ struct action {
 	{ "mvws_20",		send_to_ws,	0, {.id = 19} },
 	{ "mvws_21",		send_to_ws,	0, {.id = 20} },
 	{ "mvws_22",		send_to_ws,	0, {.id = 21} },
+	{ "mvws_next",		send_to_ws_relative,	0, {.id = 1} },
+	{ "mvws_prev",		send_to_ws_relative,	0, {.id = -1} },
 	{ "name_workspace",	name_workspace,	0, {0} },
 	{ "quit",		quit,		0, {0} },
 	{ "raise_focused",	raise_focused,	0, {0} },
