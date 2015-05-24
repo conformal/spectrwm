@@ -8832,7 +8832,6 @@ setautorun(const char *selector, const char *value, int flags)
 			err(1, "setautorun: realloc");
 		a.argv[argc - 1] = ap;
 	}
-	free(str);
 
 	if ((a.argv = realloc(a.argv, (argc + 1) * sizeof(char *))) == NULL)
 		err(1, "setautorun: realloc");
@@ -8844,6 +8843,7 @@ setautorun(const char *selector, const char *value, int flags)
 		_exit(1);
 	}
 	free(a.argv);
+	free(str);
 
 	/* parent */
 	p = find_pid(pid);
