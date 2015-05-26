@@ -243,7 +243,7 @@ uint32_t		swm_debug = 0
 #define CLEANMASK(mask)		((mask) & (XCB_KEY_BUT_MASK_SHIFT |	\
     XCB_KEY_BUT_MASK_CONTROL | XCB_KEY_BUT_MASK_MOD_1 |			\
     XCB_KEY_BUT_MASK_MOD_2 | XCB_KEY_BUT_MASK_MOD_3 |			\
-    XCB_KEY_BUT_MASK_MOD_4 | XCB_KEY_BUT_MASK_MOD_5))
+    XCB_KEY_BUT_MASK_MOD_4 | XCB_KEY_BUT_MASK_MOD_5) & ~(numlockmask))
 #define BUTTONMASK		(XCB_EVENT_MASK_BUTTON_PRESS |		\
     XCB_EVENT_MASK_BUTTON_RELEASE)
 #define MOUSEMASK		(BUTTONMASK|XCB_EVENT_MASK_POINTER_MOTION)
@@ -8002,7 +8002,7 @@ grabkeys(void)
 				for (j = 0; j < LENGTH(modifiers); j++) {
 					DNPRINTF(SWM_D_MOUSE, "grabkeys: grab, "
 					    "key: %u, modifiers: %d\n",
-					    bp->value, bp->mod);
+					    bp->value, bp->mod | modifiers[j]);
 					xcb_grab_key(conn, 1,
 					    screens[k].root,
 					    bp->mod | modifiers[j],
@@ -9638,9 +9638,10 @@ keypress(xcb_key_press_event_t *e)
 
 	DNPRINTF(SWM_D_EVENT, "keypress: keysym: %u, win (x,y): %#x (%d,%d), "
 	    "detail: %u, time: %u, root (x,y): %#x (%d,%d), child: %#x, "
-	    "state: %u, same_screen: %s\n", keysym, e->event, e->event_x,
-	    e->event_y, e->detail, e->time, e->root, e->root_x, e->root_y,
-	    e->child, e->state, YESNO(e->same_screen));
+	    "state: %u, cleaned: %u, same_screen: %s\n", keysym, e->event,
+	    e->event_x, e->event_y, e->detail, e->time, e->root, e->root_x,
+	    e->root_y, e->child, e->state, CLEANMASK(e->state),
+	    YESNO(e->same_screen));
 
 	bp = binding_lookup(CLEANMASK(e->state), KEYBIND, keysym);
 	if (bp == NULL) {
