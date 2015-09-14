@@ -824,6 +824,7 @@ enum actionid {
 	FN_FOCUS_NEXT,
 	FN_FOCUS_PREV,
 	FN_FOCUS_URGENT,
+	FN_FULLSCREEN_TOGGLE,
 	FN_MAXIMIZE_TOGGLE,
 	FN_HEIGHT_GROW,
 	FN_HEIGHT_SHRINK,
@@ -1061,6 +1062,7 @@ void	 focusout(xcb_focus_out_event_t *);
 void	 focusrg(struct binding *, struct swm_region *, union arg *);
 void	 fontset_init(void);
 void	 free_window(struct ws_win *);
+void	 fullscreen_toggle(struct binding *, struct swm_region *, union arg *);
 xcb_atom_t get_atom_from_string(const char *);
 #ifdef SWM_DEBUG
 char	*get_atom_name(xcb_atom_t);
@@ -6553,6 +6555,32 @@ floating_toggle(struct binding *bp, struct swm_region *r, union arg *args)
 }
 
 void
+fullscreen_toggle(struct binding *bp, struct swm_region *r, union arg *args)
+{
+	struct ws_win		*w = r->ws->focus;
+
+	/* suppress unused warning since var is needed */
+	(void)bp;
+	(void)args;
+
+	if (w == NULL)
+		return;
+
+	DNPRINTF(SWM_D_MISC, "fullscreen_toggle: win %#x\n", w->id);
+
+	ewmh_apply_flags(w, w->ewmh_flags ^ EWMH_F_FULLSCREEN);
+	ewmh_update_wm_state(w);
+
+	stack(r);
+
+	if (w == w->ws->focus)
+		focus_win(w);
+
+	center_pointer(r);
+	focus_flush();
+	DNPRINTF(SWM_D_MISC, "fullscreen_toggle: done\n");
+}
+void
 region_containment(struct ws_win *win, struct swm_region *r, int opts)
 {
 	struct swm_geometry		g = r->g;
@@ -7338,6 +7366,7 @@ struct action {
 	{ "focus_next",		focus,		0, {.id = SWM_ARG_ID_FOCUSNEXT} },
 	{ "focus_prev",		focus,		0, {.id = SWM_ARG_ID_FOCUSPREV} },
 	{ "focus_urgent",	focus,		0, {.id = SWM_ARG_ID_FOCUSURGENT} },
+	{ "fullscreen_toggle",	fullscreen_toggle, 0, {0} },
 	{ "maximize_toggle",	maximize_toggle,0, {0} },
 	{ "height_grow",	resize,		0, {.id = SWM_ARG_ID_HEIGHTGROW} },
 	{ "height_shrink",	resize,		0, {.id = SWM_ARG_ID_HEIGHTSHRINK} },
@@ -8124,6 +8153,7 @@ setup_keybindings(void)
 	BINDKEY(MODKEY,		XK_k,			FN_FOCUS_PREV);
 	BINDKEY(MODSHIFT,	XK_Tab,			FN_FOCUS_PREV);
 	BINDKEY(MODKEY,		XK_u,			FN_FOCUS_URGENT);
+	BINDKEY(MODSHIFT,	XK_e,			FN_FULLSCREEN_TOGGLE);
 	BINDKEY(MODKEY,		XK_e,			FN_MAXIMIZE_TOGGLE);
 	BINDKEY(MODSHIFT,	XK_equal,		FN_HEIGHT_GROW);
 	BINDKEY(MODSHIFT,	XK_minus,		FN_HEIGHT_SHRINK);
