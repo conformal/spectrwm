@@ -202,6 +202,7 @@ It may contain the following character sequences:
 .It Li "+D" Ta "Workspace name"
 .It Li "+F" Ta "Floating indicator"
 .It Li "+I" Ta "Workspace index"
+.It Li "+L" Ta "List of active workspaces on this screen"
 .It Li "+M" Ta "Number of iconic (minimized) windows in workspace"
 .It Li "+N" Ta "Screen number"
 .It Li "+P" Ta "Window class and instance separated by a colon"
@@ -230,6 +231,32 @@ static format.
 See the
 .Ic bar_format
 option for more details.
+.It Ic bar_ws_list_show
+When the bar workspace list is enabled, define which set of workspaces
+should be displayed.
+Possible values are
+.Ar active ,
+.Ar named ,
+and
+.Ar all ,
+where each is a superset of the previous one.
+.Pp
+Workspaces are in the
+.Ar active
+set if they either contain windows or are associated with the current
+region (the default).
+The
+.Ar named
+set contains all those considered
+.Ar active ,
+plus any that are named (regardless of whether they contain windows).
+Finally,
+.Ar all
+will simply display all workspaces associated with this screen.
+.It Ic bar_ws_list_urgent
+When the bar workspace list is enabled, whether to display an urgency
+hint (!) next to workspaces with an urgent window.
+Enable by setting to 1 (the default is 0, off).
 .It Ic bind Ns Bq Ar x
 Bind key or button combo to action
 .Ar x .

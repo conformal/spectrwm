@@ -355,6 +355,9 @@ double			dialog_ratio = 0.6;
 				"-*-times-medium-r-*-*-12-*-*-*-*-*-*-*,"	\
 				"-misc-fixed-medium-r-*-*-12-*-*-*-*-*-*-*,"	\
 				"-*-*-*-r-*-*-*-*-*-*-*-*-*-*"
+#define SWM_BAR_WS_LIST_ACTIVE	(0)
+#define SWM_BAR_WS_LIST_NAMED	(1)
+#define SWM_BAR_WS_LIST_ALL	(2)
 
 #ifdef X_HAVE_UTF8_STRING
 #define DRAWSTRING(x...)	Xutf8DrawString(x)
@@ -375,6 +378,8 @@ bool		 bar_extra = false;
 int		 bar_height = 0;
 int		 bar_justify = SWM_BAR_JUSTIFY_LEFT;
 char		*bar_format = NULL;
+int		 bar_ws_list_show = SWM_BAR_WS_LIST_ACTIVE;
+bool		 bar_ws_list_urgent = false;
 bool		 stack_enabled = true;
 bool		 clock_enabled = true;
 bool		 iconic_enabled = false;
@@ -991,6 +996,7 @@ void	 bar_window_instance(char *, size_t, struct swm_region *);
 void	 bar_window_name(char *, size_t, struct swm_region *);
 void	 bar_window_state(char *, size_t, struct swm_region *);
 void	 bar_workspace_name(char *, size_t, struct swm_region *);
+void	 bar_workspace_list(char *, size_t, struct swm_region *);
 int	 binding_cmp(struct binding *, struct binding *);
 void	 binding_insert(uint16_t, enum binding_type, uint32_t, enum actionid,
 	     uint32_t, const char *);
@@ -2424,6 +2430,62 @@ bar_urgent(char *s, size_t sz)
 }
 
 void
+bar_workspace_list(char *s, size_t sz, struct swm_region *r)
+{
+	struct ws_win		*w;
+	struct workspace	*ws;
+	int		 	 i;
+	char			 ws_mark;
+	char			 tmp[SWM_BAR_MAX];
+	bool			 curr, named, win, urgent;
+
+	if (r == NULL)
+		return;
+
+	strlcat(s, "[", sz);
+
+	for (i = 0; i < workspace_limit; i++) {
+		ws = &r->s->ws[i];
+
+		curr = ws == r->ws;
+		named = ws->name != NULL;
+
+		win = false;
+		urgent = false;
+		TAILQ_FOREACH(w, &ws->winlist, entry) {
+			win = true;
+			if (get_urgent(w)) {
+				urgent = true;
+				break;
+			}
+		}
+
+		if (curr || win ||
+		    (bar_ws_list_urgent && urgent) ||
+		    (bar_ws_list_show == SWM_BAR_WS_LIST_NAMED && named) ||
+		    bar_ws_list_show == SWM_BAR_WS_LIST_ALL) {
+			ws_mark = ' ';
+			if (curr)
+				ws_mark = '*';
+			if (bar_ws_list_urgent && urgent)
+				ws_mark = '!';
+
+			if (named)
+				snprintf(tmp, sizeof tmp, "%c%d:%s ", ws_mark,
+				    ws->idx + 1, ws->name);
+			else
+				snprintf(tmp, sizeof tmp, "%c%d ", ws_mark,
+				    ws->idx + 1);
+
+			if (strlcat(s, tmp, sz) >= sz)
+				return;
+		}
+	}
+
+	strlcat(s, "]", sz);
+}
+
+void
 bar_workspace_name(char *s, size_t sz, struct swm_region *r)
 {
 	if (r == NULL || r->ws == NULL)
@@ -2553,6 +2615,9 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		break;
 	case 'I':
 		snprintf(tmp, sizeof tmp, "%d", r->ws->idx + 1);
+		break;
+	case 'L':
+		bar_workspace_list(tmp, sizeof tmp, r);
 		break;
 	case 'M':
 		count = 0;
@@ -8842,6 +8907,8 @@ enum {
 	SWM_S_BAR_FONT,
 	SWM_S_BAR_FORMAT,
 	SWM_S_BAR_JUSTIFY,
+	SWM_S_BAR_WS_LIST_SHOW,
+	SWM_S_BAR_WS_LIST_URGENT,
 	SWM_S_BORDER_WIDTH,
 	SWM_S_BOUNDARY_WIDTH,
 	SWM_S_CLOCK_ENABLED,
@@ -8957,6 +9024,19 @@ setconfvalue(const char *selector, const char *value, int flags)
 			bar_justify = SWM_BAR_JUSTIFY_RIGHT;
 		else
 			errx(1, "invalid bar_justify");
+		break;
+	case SWM_S_BAR_WS_LIST_SHOW:
+		if (strcmp(value, "active") == 0)
+			bar_ws_list_show = SWM_BAR_WS_LIST_ACTIVE;
+		else if (strcmp(value, "named") == 0)
+			bar_ws_list_show = SWM_BAR_WS_LIST_NAMED;
+		else if (strcmp(value, "all") == 0)
+			bar_ws_list_show = SWM_BAR_WS_LIST_ALL;
+		else
+			errx(1, "invalid bar_ws_list_show");
+		break;
+	case SWM_S_BAR_WS_LIST_URGENT:
+		bar_ws_list_urgent = (atoi(value) != 0);
 		break;
 	case SWM_S_BORDER_WIDTH:
 		border_width = atoi(value);
@@ -9395,6 +9475,8 @@ struct config_option configopt[] = {
 	{ "bar_font_color",		setconfcolor,	SWM_S_COLOR_BAR_FONT },
 	{ "bar_format",			setconfvalue,	SWM_S_BAR_FORMAT },
 	{ "bar_justify",		setconfvalue,	SWM_S_BAR_JUSTIFY },
+	{ "bar_ws_list_show",		setconfvalue,	SWM_S_BAR_WS_LIST_SHOW },
+	{ "bar_ws_list_urgent",		setconfvalue,	SWM_S_BAR_WS_LIST_URGENT },
 	{ "bind",			setconfbinding,	0 },
 	{ "border_width",		setconfvalue,	SWM_S_BORDER_WIDTH },
 	{ "boundary_width",		setconfvalue,	SWM_S_BOUNDARY_WIDTH },
