@@ -444,6 +444,7 @@ XftColor	 bar_font_color;
 XftColor	 search_font_color;
 char		*startup_exception = NULL;
 unsigned int	 nr_exceptions = 0;
+bool spawn_on_current = false;
 
 /* layout manager data */
 struct swm_geometry {
@@ -3499,7 +3500,14 @@ spawn(int ws_idx, union arg *args, bool close_fd)
 		warn("spawn: asprintf SWM_WS");
 		_exit(1);
 	}
-	setenv("_SWM_WS", ret, 1);
+
+	// Unsetting _SWM_WS leads to windows always being 
+	// spawned on the current workspace.
+	if (!spawn_on_current)
+		setenv("_SWM_WS", ret, 1);
+	else
+		unsetenv("_SWM_WS");
+
 	free(ret);
 	ret = NULL;
 
@@ -8442,6 +8450,7 @@ enum {
 	SWM_S_WORKSPACE_CLAMP,
 	SWM_S_WORKSPACE_LIMIT,
 	SWM_S_WORKSPACE_NAME,
+	SWM_S_SPAWN_ON_CURRENT,
 };
 
 int
@@ -8706,6 +8715,9 @@ setconfvalue(const char *selector, const char *value, int flags)
 				ewmh_get_desktop_names();
 			}
 		}
+		break;
+	case SWM_S_SPAWN_ON_CURRENT:
+		spawn_on_current = (atoi(value) != 0);
 		break;
 	default:
 		return (1);
@@ -9008,6 +9020,7 @@ struct config_option configopt[] = {
 	{ "workspace_clamp",		setconfvalue,	SWM_S_WORKSPACE_CLAMP },
 	{ "workspace_limit",		setconfvalue,	SWM_S_WORKSPACE_LIMIT },
 	{ "name",			setconfvalue,	SWM_S_WORKSPACE_NAME },
+	{ "spawn_on_current_workspace", setconfvalue, SWM_S_SPAWN_ON_CURRENT }
 };
 
 void
