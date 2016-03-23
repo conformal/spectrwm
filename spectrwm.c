@@ -11613,6 +11613,9 @@ noconfig:
 			}
 		}
 
+		if (search_resp)
+			search_do_resp();
+
 		num_readable = poll(pfd, bar_extra ? 2 : 1, 1000);
 		if (num_readable == -1) {
 			DNPRINTF(SWM_D_MISC, "poll failed: %s",
@@ -11624,9 +11627,6 @@ noconfig:
 
 		if (restart_wm)
 			restart(NULL, NULL, NULL);
-
-		if (search_resp)
-			search_do_resp();
 
 		if (!running)
 			goto done;
