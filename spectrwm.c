@@ -268,6 +268,8 @@ uint32_t		swm_debug = 0
 #define SH_INC_H(w)		((w)->sh.height_inc)
 #define SWM_MAX_FONT_STEPS	(3)
 #define WINID(w)		((w) ? (w)->id : XCB_WINDOW_NONE)
+#define ACCEPTS_FOCUS(w)	(!((w)->hints.flags & XCB_ICCCM_WM_HINT_INPUT) \
+    || ((w)->hints.input))
 #define WS_FOCUSED(ws)		((ws)->r && (ws)->r->s->r_focus == (ws)->r)
 #define YESNO(x)		((x) ? "yes" : "no")
 #define ICONIC(w)		((w)->ewmh_flags & EWMH_F_HIDDEN)
@@ -491,6 +493,7 @@ struct ws_win {
 	xcb_window_t		transient;
 	struct ws_win		*focus_child;	/* focus on child transient */
 	struct swm_geometry	g;		/* current geometry */
+	struct swm_geometry	g_prev;		/* prev configured geometry */
 	struct swm_geometry	g_float;	/* region coordinates */
 	bool			g_floatvalid;	/* g_float geometry validity */
 	bool			mapped;
@@ -1089,8 +1092,8 @@ void	 focus_flush(void);
 void	 focus_pointer(struct binding *, struct swm_region *, union arg *);
 void	 focus_region(struct swm_region *);
 void	 focus_win(struct ws_win *);
-#ifdef SWM_DEBUG
 void	 focusin(xcb_focus_in_event_t *);
+#ifdef SWM_DEBUG
 void	 focusout(xcb_focus_out_event_t *);
 #endif
 void	 focusrg(struct binding *, struct swm_region *, union arg *);
@@ -1119,6 +1122,9 @@ char	*get_state_mask_label(uint16_t);
 #endif
 int32_t	 get_swm_ws(xcb_window_t);
 bool	 get_urgent(struct ws_win *);
+#ifdef SWM_DEBUG
+char	*get_win_input_model(struct ws_win *);
+#endif
 char	*get_win_name(xcb_window_t);
 uint8_t	 get_win_state(xcb_window_t);
 void	 get_wm_protocols(struct ws_win *);
@@ -1159,7 +1165,6 @@ void	 pressbutton(struct binding *, struct swm_region *, union arg *);
 void	 priorws(struct binding *, struct swm_region *, union arg *);
 #ifdef SWM_DEBUG
 void	 print_win_geom(xcb_window_t);
-void	 print_win_input_model(struct ws_win *);
 #endif
 void	 propertynotify(xcb_property_notify_event_t *);
 void	 put_back_event(xcb_generic_event_t *);
@@ -1938,7 +1943,8 @@ debug_refresh(struct ws_win *win)
 				break;
 		}
 
-		if (asprintf(&s, "%#x wl:%d s:%d", win->id, widx, sidx) == -1)
+		if (asprintf(&s, "%#x f:%#x wl:%d s:%d im:%s", win->id,
+		    win->frame, widx, sidx, get_win_input_model(win)) == -1)
 			return;
 
 		len = strlen(s);
@@ -3686,6 +3692,8 @@ find_window(xcb_window_t id)
 	int			i, j, num_screens;
 	xcb_query_tree_reply_t	*qtr;
 
+	DNPRINTF(SWM_D_MISC, "find_window: id: %#x\n", id);
+
 	num_screens = get_screen_count();
 	for (i = 0; i < num_screens; i++)
 		for (j = 0; j < workspace_limit; j++)
@@ -3928,7 +3936,8 @@ focus_win(struct ws_win *win)
 {
 	struct ws_win			*cfw = NULL, *parent = NULL, *w, *tmpw;
 	struct workspace		*ws;
-	xcb_get_input_focus_reply_t	*gifr;
+	xcb_get_input_focus_reply_t	*gifr = NULL;
+	xcb_get_window_attributes_reply_t	*war = NULL;
 
 	DNPRINTF(SWM_D_FOCUS, "focus_win: win %#x\n", WINID(win));
 
@@ -3951,15 +3960,24 @@ focus_win(struct ws_win *win)
 		    gifr->focus);
 
 		cfw = find_window(gifr->focus);
-		if (cfw != NULL && cfw != win) {
-			if (cfw->ws != ws && cfw->ws->r != NULL &&
-			    cfw->frame != XCB_WINDOW_NONE) {
-				draw_frame(cfw);
-			} else {
-				unfocus_win(cfw);
+		if (cfw) {
+			if (cfw != win) {
+				if (cfw->ws != ws && cfw->ws->r != NULL &&
+				    cfw->frame != XCB_WINDOW_NONE) {
+					draw_frame(cfw);
+				} else {
+					unfocus_win(cfw);
+				}
+			}
+		} else {
+			war = xcb_get_window_attributes_reply(conn,
+			    xcb_get_window_attributes(conn, gifr->focus), NULL);
+			if (war && war->override_redirect && ws->focus == win) {
+				DNPRINTF(SWM_D_FOCUS, "focus_win: skip refocus "
+				    "from override_redirect.\n");
+				goto out;
 			}
 		}
-		free(gifr);
 	}
 
 	if (ws->focus != win) {
@@ -3988,8 +4006,7 @@ focus_win(struct ws_win *win)
 
 	if (ws->r) {
 		/* Set input focus if no input hint, or indicated by hint. */
-		if (!(win->hints.flags & XCB_ICCCM_WM_HINT_INPUT) ||
-		    win->hints.input) {
+		if (ACCEPTS_FOCUS(win)) {
 			DNPRINTF(SWM_D_FOCUS, "focus_win: set_input_focus: %#x,"
 			    " revert-to: parent, time: %#x\n", win->id,
 			    last_event_time);
@@ -4058,6 +4075,8 @@ focus_win(struct ws_win *win)
 	}
 
 out:
+	free(gifr);
+	free(war);
 	DNPRINTF(SWM_D_FOCUS, "focus_win: done.\n");
 }
 
@@ -6700,7 +6719,16 @@ update_window(struct ws_win *win)
 	    "(%d,%d) %d x %d, bordered: %s\n", win->id, wc[0], wc[1], wc[2],
 	    wc[3], YESNO(win->bordered));
 	xcb_configure_window(conn, win->id, mask, wc);
-	config_win(win, NULL);
+
+	/* ICCCM 4.2.3 Synthetic ConfigureNotify when moved and not resized. */
+	if ((X(win) != win->g_prev.x || Y(win) != win->g_prev.y) &&
+	    (win->java || (WIDTH(win) == win->g_prev.w &&
+	    HEIGHT(win) == win->g_prev.h))) {
+		/* Java has special needs when moved together with a resize. */
+		config_win(win, NULL);
+	}
+
+	win->g_prev = win->g;
 }
 
 struct event {
@@ -9829,7 +9857,8 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 
 #ifdef SWM_DEBUG
 	/* Must be after getting WM_HINTS and WM_PROTOCOLS. */
-	print_win_input_model(win);
+	DNPRINTF(SWM_D_FOCUS, "manage_window: input_model: %s\n",
+	    get_win_input_model(win));
 #endif
 
 	/* Set initial quirks based on EWMH. */
@@ -10036,15 +10065,29 @@ expose(xcb_expose_event_t *e)
 	DNPRINTF(SWM_D_EVENT, "expose: done\n");
 }
 
-#ifdef SWM_DEBUG
 void
 focusin(xcb_focus_in_event_t *e)
 {
+	struct ws_win		*win;
+
 	DNPRINTF(SWM_D_EVENT, "focusin: win %#x, mode: %s(%u), "
 	    "detail: %s(%u)\n", e->event, get_notify_mode_label(e->mode),
 	    e->mode, get_notify_detail_label(e->detail), e->detail);
+	if ((win = find_window(e->event)) && win != win->ws->focus &&
+	    win != win->ws->focus_pending &&
+	    e->mode == XCB_NOTIFY_MODE_NORMAL) {
+		win->ws->focus_prev = win->ws->focus;
+		win->ws->focus = win;
+		win->ws->focus_pending = NULL;
+
+		if (win->ws->focus_prev)
+			draw_frame(win->ws->focus_prev);
+		draw_frame(win);
+		raise_window(win);
+	}
 }
 
+#ifdef SWM_DEBUG
 void
 focusout(xcb_focus_out_event_t *e)
 {
@@ -10146,7 +10189,7 @@ keyrelease(xcb_key_release_event_t *e)
 void
 buttonpress(xcb_button_press_event_t *e)
 {
-	struct ws_win		*win = NULL;
+	struct ws_win		*win = NULL, *newf;
 	struct swm_region	*r, *old_r;
 	struct action		*ap;
 	struct binding		*bp;
@@ -10190,8 +10233,15 @@ buttonpress(xcb_button_press_event_t *e)
 		win = find_window(e->event);
 	}
 
-	if (win)
-		focus_win(get_focus_magic(win));
+	if (win) {
+		newf = get_focus_magic(win);
+		if (win->ws->focus == newf && newf != win) {
+			if (win->focus_child == win)
+				win->focus_child = NULL;
+			newf = win;
+		}
+		focus_win(newf);
+	}
 
 	/* Handle any bound action. */
 	bp = binding_lookup(CLEANMASK(e->state), BTNBIND, e->detail);
@@ -10259,8 +10309,8 @@ buttonrelease(xcb_button_release_event_t *e)
 }
 
 #ifdef SWM_DEBUG
-void
-print_win_input_model(struct ws_win *win)
+char *
+get_win_input_model(struct ws_win *win)
 {
 	char		*inputmodel;
 	/*
@@ -10271,13 +10321,12 @@ print_win_input_model(struct ws_win *win)
 	 *	Globally Active		False		Present
 	 */
 
-	if (!(win->hints.flags & XCB_ICCCM_WM_HINT_INPUT) || win->hints.input)
+	if (ACCEPTS_FOCUS(win))
 		inputmodel = (win->take_focus) ? "Locally Active" : "Passive";
 	else
 		inputmodel = (win->take_focus) ? "Globally Active" : "No Input";
 
-	DNPRINTF(SWM_D_FOCUS, "print_win_input_model: win %#x, model:  %s\n",
-	    win->id, inputmodel);
+	return inputmodel;
 }
 
 void
@@ -10810,24 +10859,9 @@ void
 maprequest(xcb_map_request_event_t *e)
 {
 	struct ws_win		*win, *w = NULL;
-	xcb_get_window_attributes_reply_t *war;
 
 	DNPRINTF(SWM_D_EVENT, "maprequest: win %#x\n",
 	    e->window);
-
-	war = xcb_get_window_attributes_reply(conn,
-	    xcb_get_window_attributes(conn, e->window),
-	    NULL);
-	if (war == NULL) {
-		DNPRINTF(SWM_D_EVENT, "maprequest: window lost.\n");
-		goto out;
-	}
-
-	if (war->override_redirect) {
-		DNPRINTF(SWM_D_EVENT, "maprequest: override_redirect; "
-		    "skipping.\n");
-		goto out;
-	}
 
 	win = manage_window(e->window, spawn_position, true);
 	if (win == NULL)
@@ -10835,10 +10869,7 @@ maprequest(xcb_map_request_event_t *e)
 
 	/* The new window should get focus; prepare. */
 	if (focus_mode != SWM_FOCUS_FOLLOW &&
-	    !(win->quirks & SWM_Q_NOFOCUSONMAP) &&
-	    (!(win->hints.flags & XCB_ICCCM_WM_HINT_INPUT) ||
-	     (win->hints.flags & XCB_ICCCM_WM_HINT_INPUT &&
-	      win->hints.input))) {
+	    !(win->quirks & SWM_Q_NOFOCUSONMAP) && ACCEPTS_FOCUS(win)) {
 		if (win->quirks & SWM_Q_FOCUSONMAP_SINGLE) {
 			/* See if other wins of same type are already mapped. */
 			TAILQ_FOREACH(w, &win->ws->winlist, entry) {
@@ -10868,7 +10899,6 @@ maprequest(xcb_map_request_event_t *e)
 	if (focus_mode == SWM_FOCUS_DEFAULT)
 		event_drain(XCB_ENTER_NOTIFY);
 out:
-	free(war);
 	DNPRINTF(SWM_D_EVENT, "maprequest: done.\n");
 }
 
@@ -11906,8 +11936,8 @@ event_handle(xcb_generic_event_t *evt)
 	EVENT(XCB_DESTROY_NOTIFY, destroynotify);
 	EVENT(XCB_ENTER_NOTIFY, enternotify);
 	EVENT(XCB_EXPOSE, expose);
-#ifdef SWM_DEBUG
 	EVENT(XCB_FOCUS_IN, focusin);
+#ifdef SWM_DEBUG
 	EVENT(XCB_FOCUS_OUT, focusout);
 #endif
 	/*EVENT(XCB_GRAPHICS_EXPOSURE, );*/
