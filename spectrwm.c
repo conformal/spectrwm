@@ -11569,32 +11569,27 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 	print_win_geom(e->root);
 #endif
 	/* add bars to all regions */
-	for (i = 0; i < num_screens; i++) {
-		TAILQ_FOREACH(r, &screens[i].rl, entry)
-			bar_setup(r);
-	}
+	TAILQ_FOREACH(r, &screens[i].rl, entry)
+		bar_setup(r);
 
 	/* Stack all regions. */
 	TAILQ_FOREACH(r, &screens[i].rl, entry)
 		stack(r);
 
-	/* Make sure a region has focus on each screen. */
-	for (i = 0; i < num_screens; i++) {
-		if (screens[i].r_focus == NULL) {
-			r = TAILQ_FIRST(&screens[i].rl);
-			if (r != NULL)
-				focus_region(r);
-		}
+	/* Make sure a region has focus. */
+	if (screens[i].r_focus == NULL) {
+		r = TAILQ_FIRST(&screens[i].rl);
+		if (r != NULL)
+			focus_region(r);
 	}
 
 	focus_flush();
 
 	/* Update workspace state and bar on all regions. */
-	for (i = 0; i < num_screens; i++)
-		TAILQ_FOREACH(r, &screens[i].rl, entry) {
-			r->ws->state = SWM_WS_STATE_MAPPED;
-			bar_draw(r->bar);
-		}
+	TAILQ_FOREACH(r, &screens[i].rl, entry) {
+		r->ws->state = SWM_WS_STATE_MAPPED;
+		bar_draw(r->bar);
+	}
 }
 
 void
