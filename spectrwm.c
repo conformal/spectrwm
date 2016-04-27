@@ -3688,7 +3688,7 @@ find_frame_window(xcb_window_t id) {
 struct ws_win *
 find_window(xcb_window_t id)
 {
-	struct ws_win		*win;
+	struct ws_win		*win = NULL;
 	int			i, j, num_screens;
 	xcb_query_tree_reply_t	*qtr;
 
@@ -3701,7 +3701,6 @@ find_window(xcb_window_t id)
 				if (id == win->id || id == win->frame)
 					return (win);
 
-	/* win NULL */
 
 	/* If window isn't top-level, try to find managed ancestor. */
 	qtr = xcb_query_tree_reply(conn, xcb_query_tree(conn, id), NULL);
@@ -5157,6 +5156,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 
 	DNPRINTF(SWM_D_STACK, "stack_master: workspace: %d, rot: %s, "
 	    "flip: %s\n", ws->idx, YESNO(rot), YESNO(flip));
+
+	memset(&cell, 0, sizeof(cell));
 
 	/* Prepare tiling variables, if needed. */
 	if ((winno = count_win(ws, false)) > 0) {
@@ -6738,7 +6739,7 @@ struct event {
 SIMPLEQ_HEAD(event_queue, event) events = SIMPLEQ_HEAD_INITIALIZER(events);
 
 xcb_generic_event_t *
-get_next_event(bool wait)
+get_next_event(bool dowait)
 {
 	struct event		*ep;
 	xcb_generic_event_t	*evt;
@@ -6748,7 +6749,7 @@ get_next_event(bool wait)
 		evt = ep->ev;
 		SIMPLEQ_REMOVE_HEAD(&events, entry);
 		free(ep);
-	} else if (wait)
+	} else if (dowait)
 		evt = xcb_wait_for_event(conn);
 	else
 		evt = xcb_poll_for_event(conn);
@@ -9736,7 +9737,7 @@ unparent_window(struct ws_win *win)
 struct ws_win *
 manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 {
-	struct ws_win				*win, *ww;
+	struct ws_win				*win = NULL, *ww;
 	struct swm_region			*r;
 	struct pid_e				*p;
 	struct quirk				*qp;
