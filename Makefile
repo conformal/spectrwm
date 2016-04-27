@@ -9,7 +9,8 @@ PROG=spectrwm
 #MAN=spectrwm_pt.1 spectrwm_ru.1 spectrwm_es.1 spectrwm_it.1
 MAN=spectrwm.1
 
-CFLAGS+=-std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Wno-uninitialized -g
+CFLAGS+=-std=c99 -Wmissing-prototypes -Werror -Wall -Wextra -Wshadow
+CFLAGS+=-Wno-uninitialized -g
 # Uncomment define below to disallow user settable clock format string
 #CFLAGS+=-DSWM_DENY_CLOCK_FORMAT
 CPPFLAGS+= -I${X11BASE}/include -I${X11BASE}/include/freetype2
