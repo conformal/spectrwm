@@ -22,8 +22,8 @@ LDADD+=  -lxcb-keysyms -lxcb-util -lxcb-randr -lX11-xcb -lxcb-xtest -lxcb -lxcb-
 
 LVERS= $(shell . ../lib/shlib_version; echo $$major.$$minor)
 
-CFLAGS+= -std=c99 -Wmissing-prototypes -Werror -Wall -Wextra -Wshadow
-CFLAGS+= -Wno-uninitialized -g -O2 -D_GNU_SOURCE -D__OSX__ -I. -I.. ${INCFLAGS}
+CFLAGS+= -std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Wno-uninitialized -g
+CFLAGS+= -O2 -D_GNU_SOURCE -D__OSX__ -I. -I.. ${INCFLAGS}
 CFLAGS+= -DSWM_LIB=\"$(LIBDIR)/libswmhack.so.$(LVERS)\"
 ifneq ("${BUILDVERSION}", "")
 CFLAGS+= -DSPECTRWM_BUILDSTR=\"$(BUILDVERSION)\"
