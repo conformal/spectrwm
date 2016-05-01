@@ -4166,8 +4166,6 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 	int			wsid = args->id;
 	bool			unmap_old = false;
 
-	(void)bp;
-
 	if (!(r && r->s))
 		return;
 
@@ -4187,7 +4185,8 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 		return;
 
 	other_r = new_ws->r;
-	if (other_r && workspace_clamp) {
+	if (other_r && workspace_clamp &&
+	    bp->action != FN_RG_MOVE_NEXT && bp->action != FN_RG_MOVE_PREV) {
 		DNPRINTF(SWM_D_WS, "switchws: ws clamped.\n");
 
 		if (warp_focus) {
