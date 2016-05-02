@@ -52,6 +52,9 @@ channel #spectrwm.
 * Multi OS support (*BSD, Linux, OSX, Windows/cygwin) 
 * Reparenting window manager
 
+## Documentation
+[Click here for current man page]](https://htmlpreview.github.io/?https://github.com/conformal/spectrwm/blob/master/spectrwm.html)
+
 ## License
 
 spectrwm is ISC licensed unless otherwise specified in individual files.
