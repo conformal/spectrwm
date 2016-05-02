@@ -57,8 +57,5 @@ channel #spectrwm.
 spectrwm is ISC licensed unless otherwise specified in individual files.
 
 ## Screenshots
-<a href="wiki/Scrotwm1.png">[[Scrotwm1.png|width=400px|alt=Vertical stack]]</a>
-<a href="wiki/Scrotwm2.png">[[Scrotwm2.png|width=400px|alt=Horizontal stack]]</a>
-<a href="wiki/Scrotwm3.png">[[Scrotwm3.png|width=400px|alt=Horizontal stack]]</a>
-<a href="wiki/Scrotwm4.png">[[Scrotwm4.png|width=400px|alt=Vertical stack with floater and extra window in master area]]</a>
-<a href="wiki/Scrotwm5.png">[[Scrotwm5.png|width=400px|alt=mplayer, resized and moved]]</a>
+![Vertical stack]
+(https://github.com/conformal/spectrwm/wiki/Scrotwm1.png)
