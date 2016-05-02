@@ -59,3 +59,16 @@ spectrwm is ISC licensed unless otherwise specified in individual files.
 ## Screenshots
 ![Vertical stack]
 (https://github.com/conformal/spectrwm/wiki/Scrotwm1.png)
+
+![Horizontal stack]
+(https://github.com/conformal/spectrwm/wiki/Scrotwm2.png)
+
+![Horizontal stack]
+(https://github.com/conformal/spectrwm/wiki/Scrotwm3.png)
+
+![Vertical stack with floater and extra window in master area]
+(https://github.com/conformal/spectrwm/wiki/Scrotwm4.png)
+
+![mplayer, resized and moved]
+(https://github.com/conformal/spectrwm/wiki/Scrotwm1.png)
+
