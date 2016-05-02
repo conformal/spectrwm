@@ -25,6 +25,7 @@ brand new window manager was whooped up to serve no other purpose than to obey
 its masters. It is released under the ISC license. Patches can be accepted
 provided they are ISC licensed as well.
 
+## Feedback and questions
 You can and come chat with us on IRC. We use [OFTC](https://www.oftc.net)
 channel #spectrwm.
 
@@ -73,5 +74,4 @@ spectrwm is ISC licensed unless otherwise specified in individual files.
 (https://github.com/conformal/spectrwm/wiki/Scrotwm4.png)
 
 ![mplayer, resized and moved]
-(https://github.com/conformal/spectrwm/wiki/Scrotwm1.png)
-
+(https://github.com/conformal/spectrwm/wiki/Scrotwm5.png)
