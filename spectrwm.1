@@ -674,6 +674,10 @@ wind_kill
 .Pf rg_ Aq Ar 1-9
 .It Cm M-S- Ns Aq Ar Keypad 1-9
 .Pf mvrg_ Aq Ar 1-9
+.It Cm Aq Ar unbound
+mvrg_next
+.It Cm Aq Ar unbound
+mvrg_prev
 .It Cm M- Ns Aq Cm Right
 ws_next
 .It Cm M- Ns Aq Cm Left
@@ -684,7 +688,7 @@ ws_next_all
 ws_prev_all
 .It Cm M-a
 ws_prior
-.It Cm M-S- Ns Aq Cm Left
+.It Cm M-S- Ns Aq Cm Down
 ws_prev_move
 .It Cm M-S- Ns Aq Cm Up
 ws_next_move
@@ -714,8 +718,8 @@ iconify
 uniconify
 .It Cm M-e
 maximize_toggle
-.It Cm Aq Ar unbound
-raise_focused
+.It Cm M-r
+raise
 .It Cm M-S-r
 always_raise
 .It Cm M-v
@@ -830,10 +834,6 @@ where
 .Ar n
 is 1 through
 .Ic workspace_limit .
-.It Cm mvws_prev
-Move current window to previous regions workspace.
-.It Cm mvws_next
-Move current window to next regions workspace.
 .It Cm rg_ Ns Ar n
 Focus on region
 .Ar n ,
@@ -846,6 +846,10 @@ Move current window to region
 where
 .Ar n
 is 1 through 9.
+.It Cm mvrg_next
+Move current window to workspace in next region.
+.It Cm mvrg_prev
+Move current window to workspace in previous region.
 .It Cm ws_next
 Switch to next workspace with a window in it.
 .It Cm ws_prev
@@ -900,7 +904,7 @@ Restore (map) window returned by
 selection.
 .It Cm maximize_toggle
 Toggle maximization of focused window.
-.It Cm raise_focused
+.It Cm raise
 Raise the current window.
 .It Cm always_raise
 When set tiled windows are allowed to obscure floating windows.

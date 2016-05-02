@@ -534,7 +534,7 @@ struct workspace {
 	struct ws_win		*focus;		/* may be NULL */
 	struct ws_win		*focus_prev;	/* may be NULL */
 	struct ws_win		*focus_pending;	/* may be NULL */
-	struct ws_win		*raised;	/* may be NULL */
+	struct ws_win		*focus_raise;		/* may be NULL */
 	struct swm_region	*r;		/* may be NULL */
 	struct swm_region	*old_r;		/* may be NULL */
 	struct ws_win_list	winlist;	/* list of windows in ws */
@@ -846,6 +846,8 @@ enum actionid {
 	FN_MVRG_7,
 	FN_MVRG_8,
 	FN_MVRG_9,
+	KF_MVRG_NEXT,
+	KF_MVRG_PREV,
 	FN_MVWS_1,
 	FN_MVWS_2,
 	FN_MVWS_3,
@@ -868,11 +870,9 @@ enum actionid {
 	FN_MVWS_20,
 	FN_MVWS_21,
 	FN_MVWS_22,
-	KF_MVWS_NEXT,
-	KF_MVWS_PREV,
 	FN_NAME_WORKSPACE,
 	FN_QUIT,
-	FN_RAISE_FOCUSED,
+	FN_RAISE,
 	FN_RAISE_TOGGLE,
 	FN_RESIZE,
 	FN_RESIZE_CENTERED,
@@ -1136,7 +1136,7 @@ void	 quirk_remove(struct quirk *);
 void	 quirk_replace(struct quirk *, const char *, const char *, const char *,
 	     uint32_t, int);
 void	 quit(struct binding *, struct swm_region *, union arg *);
-void	 raise_focused(struct binding *, struct swm_region *, union arg *);
+void	 raise_focus(struct binding *, struct swm_region *, union arg *);
 void	 raise_toggle(struct binding *, struct swm_region *, union arg *);
 void	 raise_window(struct ws_win *);
 void	 region_containment(struct ws_win *, struct swm_region *, int);
@@ -1159,8 +1159,8 @@ void	 search_win(struct binding *, struct swm_region *, union arg *);
 void	 search_win_cleanup(void);
 void	 search_workspace(struct binding *, struct swm_region *, union arg *);
 void	 send_to_rg(struct binding *, struct swm_region *, union arg *);
+void	 send_to_rg_relative(struct binding *, struct swm_region *, union arg *);
 void	 send_to_ws(struct binding *, struct swm_region *, union arg *);
-void	 send_to_ws_relative(struct binding *, struct swm_region *, union arg *);
 void	 set_region(struct swm_region *);
 int	 setautorun(const char *, const char *, int);
 void	 setbinding(uint16_t, enum binding_type, uint32_t, enum actionid,
@@ -2416,7 +2416,7 @@ bar_urgent(char *s, size_t sz)
 			strlcat(s, "- ", sz);
 		}
 	}
-	if(urgent_collapse && s[0])
+	if (urgent_collapse && s[0])
 		s[strlen(s) - 1] = 0;
 }
 
@@ -3776,8 +3776,8 @@ kill_refs(struct ws_win *win)
 				ws->focus_prev = NULL;
 			if (win == ws->focus_pending)
 				ws->focus_pending = NULL;
-			if (win == ws->raised)
-				ws->raised = NULL;
+			if (win == ws->focus_raise)
+				ws->focus_raise = NULL;
 
 			if (TRANS(win))
 				TAILQ_FOREACH(w, &ws->winlist, entry)
@@ -3863,7 +3863,7 @@ unfocus_win(struct ws_win *win)
 	if (win->ws->focus == win) {
 		win->ws->focus = NULL;
 		win->ws->focus_prev = win;
-		if(win->ws->raised == win && !FLOATING(win)) {
+		if (win->ws->focus_raise == win && !FLOATING(win)) {
 			update_win_stacking(win);
 		}
 	}
@@ -5638,10 +5638,10 @@ send_to_ws(struct binding *bp, struct swm_region *r, union arg *args)
 
 /* Transfer focused window to region-relative workspace and focus. */
 void
-send_to_ws_relative(struct binding *bp, struct swm_region *r, union arg *args)
+send_to_rg_relative(struct binding *bp, struct swm_region *r, union arg *args)
 {
-	union arg args_abs;
-	struct swm_region *r_other;
+	union arg		args_abs;
+	struct swm_region	*r_other;
 
 	if (args->id == 1) {
 		r_other = TAILQ_NEXT(r, entry);
@@ -5768,7 +5768,7 @@ pressbutton(struct binding *bp, struct swm_region *r, union arg *args)
 }
 
 void
-raise_focused(struct binding *bp, struct swm_region *r, union arg *args)
+raise_focus(struct binding *bp, struct swm_region *r, union arg *args)
 {
 	struct ws_win	*win;
 	uint32_t	val;
@@ -5781,7 +5781,7 @@ raise_focused(struct binding *bp, struct swm_region *r, union arg *args)
 		return;
 
 	win = r->ws->focus;
-	r->ws->raised = win;
+	r->ws->focus_raise = win;
 	raise_window(win);
 
 	/* Temporarily override stacking order also in the stack */
@@ -6174,7 +6174,7 @@ ewmh_update_desktop_names(void)
 			++len;
 		}
 
-		if((name_list = calloc(len, sizeof(char))) == NULL)
+		if ((name_list = calloc(len, sizeof(char))) == NULL)
 			err(1, "update_desktop_names: calloc: failed to "
 			    "allocate memory.");
 
@@ -7360,6 +7360,8 @@ struct action {
 	{ "mvrg_7",		send_to_rg,	0, {.id = 6} },
 	{ "mvrg_8",		send_to_rg,	0, {.id = 7} },
 	{ "mvrg_9",		send_to_rg,	0, {.id = 8} },
+	{ "mvrg_next",		send_to_rg_relative,	0, {.id = 1} },
+	{ "mvrg_prev",		send_to_rg_relative,	0, {.id = -1} },
 	{ "mvws_1",		send_to_ws,	0, {.id = 0} },
 	{ "mvws_2",		send_to_ws,	0, {.id = 1} },
 	{ "mvws_3",		send_to_ws,	0, {.id = 2} },
@@ -7382,11 +7384,9 @@ struct action {
 	{ "mvws_20",		send_to_ws,	0, {.id = 19} },
 	{ "mvws_21",		send_to_ws,	0, {.id = 20} },
 	{ "mvws_22",		send_to_ws,	0, {.id = 21} },
-	{ "mvws_next",		send_to_ws_relative,	0, {.id = 1} },
-	{ "mvws_prev",		send_to_ws_relative,	0, {.id = -1} },
 	{ "name_workspace",	name_workspace,	0, {0} },
 	{ "quit",		quit,		0, {0} },
-	{ "raise_focused",	raise_focused,	0, {0} },
+	{ "raise",		raise_focus,	0, {0} },
 	{ "raise_toggle",	raise_toggle,	0, {0} },
 	{ "resize",		resize, FN_F_NOREPLAY, {.id = SWM_ARG_ID_DONTCENTER} },
 	{ "resize_centered",	resize, FN_F_NOREPLAY, {.id = SWM_ARG_ID_CENTER} },
@@ -8169,6 +8169,7 @@ setup_keybindings(void)
 	BINDKEY(MODSHIFT,	XK_F12,			FN_MVWS_22);
 	BINDKEY(MODSHIFT,	XK_slash,		FN_NAME_WORKSPACE);
 	BINDKEY(MODSHIFT,	XK_q,			FN_QUIT);
+	BINDKEY(MODKEY,		XK_r,			FN_RAISE);
 	BINDKEY(MODSHIFT,	XK_r,			FN_RAISE_TOGGLE);
 	BINDKEY(MODKEY,		XK_q,			FN_RESTART);
 	BINDKEY(MODKEY,		XK_KP_End,		FN_RG_1);
@@ -10377,7 +10378,7 @@ get_stack_mode_name(uint8_t mode)
 {
 	char	*name;
 
-	switch(mode) {
+	switch (mode) {
 	case XCB_STACK_MODE_ABOVE:
 		name = "Above";
 		break;
@@ -11777,7 +11778,7 @@ setup_screens(void)
 			ws->focus = NULL;
 			ws->focus_prev = NULL;
 			ws->focus_pending = NULL;
-			ws->raised = NULL;
+			ws->focus_raise = NULL;
 			ws->r = NULL;
 			ws->old_r = NULL;
 			ws->state = SWM_WS_STATE_HIDDEN;
