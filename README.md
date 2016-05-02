@@ -53,7 +53,7 @@ channel #spectrwm.
 * Reparenting window manager
 
 ## Documentation
-[Click here for current man page]](https://htmlpreview.github.io/?https://github.com/conformal/spectrwm/blob/master/spectrwm.html)
+[Click here for current man page](https://htmlpreview.github.io/?https://github.com/conformal/spectrwm/blob/master/spectrwm.html)
 
 ## License
 
