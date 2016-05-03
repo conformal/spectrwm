@@ -47,10 +47,6 @@ install: all
 	install -m 755 spectrwm $(SWM_BINDIR)
 	install -m 755 libswmhack.so.$(LVERS) $(SWM_LIBDIR)
 	install -m 644 ../spectrwm.1 $(SWM_MANDIR)/man1/spectrwm.1
-	install -m 644 ../spectrwm_es.1 $(SWM_MANDIR)/man1/spectrwm_es.1
-	install -m 644 ../spectrwm_it.1 $(SWM_MANDIR)/man1/spectrwm_it.1
-	install -m 644 ../spectrwm_pt.1 $(SWM_MANDIR)/man1/spectrwm_pt.1
-	install -m 644 ../spectrwm_ru.1 $(SWM_MANDIR)/man1/spectrwm_ru.1
 	ln -sf spectrwm $(SWM_BINDIR)/scrotwm
 
 clean:

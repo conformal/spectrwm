@@ -41,10 +41,6 @@ install: all
 	install -m 755 -d $(DESTDIR)$(BINDIR)
 	install -m 755 -d $(DESTDIR)$(LIBDIR)
 	install -m 755 -d $(DESTDIR)$(MANDIR)/man1
-	install -m 755 -d $(DESTDIR)$(MANDIR)/es/man1
-	install -m 755 -d $(DESTDIR)$(MANDIR)/it/man1
-	install -m 755 -d $(DESTDIR)$(MANDIR)/pt/man1
-	install -m 755 -d $(DESTDIR)$(MANDIR)/ru/man1
 	install -m 755 -d $(DESTDIR)$(XSESSIONSDIR)
 	install -m 755 spectrwm                    $(DESTDIR)$(BINDIR)
 	ln -sf spectrwm                            $(DESTDIR)$(BINDIR)/scrotwm
@@ -52,10 +48,6 @@ install: all
 	ln -sf libswmhack.so.$(LIBVERSION)         $(DESTDIR)$(LIBDIR)/libswmhack.so.$(LIBMAJORVERSION)
 	ln -sf libswmhack.so.$(LIBVERSION)         $(DESTDIR)$(LIBDIR)/libswmhack.so
 	install -m 644 ../spectrwm.1               $(DESTDIR)$(MANDIR)/man1/spectrwm.1
-	install -m 644 ../spectrwm_es.1            $(DESTDIR)$(MANDIR)/es/man1/spectrwm.1
-	install -m 644 ../spectrwm_it.1            $(DESTDIR)$(MANDIR)/it/man1/spectrwm.1
-	install -m 644 ../spectrwm_pt.1            $(DESTDIR)$(MANDIR)/pt/man1/spectrwm.1
-	install -m 644 ../spectrwm_ru.1            $(DESTDIR)$(MANDIR)/ru/man1/spectrwm.1
 	install -m 644 spectrwm.desktop            $(DESTDIR)$(XSESSIONSDIR)
 
 uninstall:
@@ -65,10 +57,6 @@ uninstall:
 	rm -f $(DESTDIR)$(LIBDIR)/libswmhack.so.$(LIBMAJORVERSION)
 	rm -f $(DESTDIR)$(LIBDIR)/libswmhack.so
 	rm -f $(DESTDIR)$(MANDIR)/man1/spectrwm.1
-	rm -f $(DESTDIR)$(MANDIR)/es/man1/spectrwm.1
-	rm -f $(DESTDIR)$(MANDIR)/it/man1/spectrwm.1
-	rm -f $(DESTDIR)$(MANDIR)/pt/man1/spectrwm.1
-	rm -f $(DESTDIR)$(MANDIR)/ru/man1/spectrwm.1
 	rm -f $(DESTDIR)$(XSESSIONSDIR)/spectrwm.desktop
 
 .PHONY: all clean install uninstall
