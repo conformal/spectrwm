@@ -4144,6 +4144,10 @@ set_region(struct swm_region *r)
 
 	r->s->r_focus = r;
 
+	/* Update the focus window frame on the now unfocused region. */
+	if (rf && rf->ws->focus)
+		draw_frame(rf->ws->focus);
+
 	ewmh_update_current_desktop();
 }
 
