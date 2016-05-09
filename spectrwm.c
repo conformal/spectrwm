@@ -11522,7 +11522,6 @@ scan_randr(int idx)
 	int						ncrtc = 0;
 #endif /* SWM_XRR_HAS_CRTC */
 	struct swm_region				*r;
-	struct ws_win					*win;
 	int						num_screens;
 	xcb_randr_get_screen_resources_current_cookie_t	src;
 	xcb_randr_get_screen_resources_current_reply_t	*srr;
@@ -11597,13 +11596,8 @@ scan_randr(int idx)
 		    screen->height_in_pixels);
 
 out:
-	/* Cleanup unused previously visible workspaces. */
+	/* The screen shouldn't focus on unused regions. */
 	TAILQ_FOREACH(r, &screens[idx].orl, entry) {
-		TAILQ_FOREACH(win, &r->ws->winlist, entry)
-			unmap_window(win);
-		r->ws->state = SWM_WS_STATE_HIDDEN;
-
-		/* The screen shouldn't focus on an unused region. */
 		if (screens[idx].r_focus == r)
 			screens[idx].r_focus = NULL;
 	}
@@ -11615,7 +11609,9 @@ void
 screenchange(xcb_randr_screen_change_notify_event_t *e)
 {
 	struct swm_region		*r;
-	int				i, num_screens;
+	struct workspace		*ws;
+	struct ws_win			*win;
+	int				i, j, num_screens;
 
 	DNPRINTF(SWM_D_EVENT, "screenchange: root: %#x\n", e->root);
 
@@ -11646,6 +11642,16 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 		r = TAILQ_FIRST(&screens[i].rl);
 		if (r != NULL)
 			focus_region(r);
+	}
+
+	/* Cleanup unused previously visible workspaces. */
+	for (j = 0; j < workspace_limit; j++) {
+		ws = &screens[i].ws[j];
+		if (ws->r == NULL && ws->state != SWM_WS_STATE_HIDDEN) {
+			TAILQ_FOREACH(win, &ws->winlist, entry)
+				unmap_window(win);
+			ws->state = SWM_WS_STATE_HIDDEN;
+		}
 	}
 
 	focus_flush();
