@@ -11096,7 +11096,7 @@ reparentnotify(xcb_reparent_notify_event_t *e)
 		if (win->state == SWM_WIN_STATE_REPARENTING) {
 			win->state = SWM_WIN_STATE_REPARENTED;
 
-			if (win->ws->r)
+			if (win->ws->r && !ICONIC(win))
 				map_window(win);
 			else
 				unmap_window(win);
