@@ -16,10 +16,10 @@ ifneq ("${BUILDVERSION}", "")
 MAINT_CPPFLAGS += -DSPECTRWM_BUILDSTR=\"$(BUILDVERSION)\"
 endif
 
-BIN_CPPFLAGS = -I/usr/include/freetype2
-BIN_LDLIBS   = -lX11 -lX11-xcb -lxcb -lxcb-icccm -lxcb-randr -lxcb-keysyms -lxcb-util -lxcb-xtest -lXft -lXcursor
-LIB_CPPFLAGS =
-LIB_LDLIBS   = -lX11 -ldl
+BIN_CPPFLAGS = $(shell pkg-config --cflags x11 x11-xcb xcb-icccm xcb-keysyms xcb-randr xcb-util xcb-xtest xcursor xft)
+BIN_LDLIBS   = $(shell pkg-config --libs   x11 x11-xcb xcb-icccm xcb-keysyms xcb-randr xcb-util xcb-xtest xcursor xft)
+LIB_CPPFLAGS = $(shell pkg-config --cflags x11)
+LIB_LDLIBS   = $(shell pkg-config --libs   x11) -ldl
 
 all: spectrwm libswmhack.so.$(LIBVERSION)
 
