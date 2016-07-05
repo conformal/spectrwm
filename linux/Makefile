@@ -10,6 +10,7 @@ LIBVERSION      = $(shell .  $(CURDIR)/../lib/shlib_version; echo $$major.$$mino
 LIBMAJORVERSION = $(shell .  $(CURDIR)/../lib/shlib_version; echo $$major)
 
 MAINT_CFLAGS   = -std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Wno-uninitialized -g
+MAINT_LDFLAGS  = -Wl,--as-needed
 MAINT_CPPFLAGS = -I. -D_GNU_SOURCE -DSWM_LIB=\"$(LIBDIR)/libswmhack.so.$(LIBVERSION)\"
 
 ifneq ("${BUILDVERSION}", "")
