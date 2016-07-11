@@ -69,11 +69,10 @@
 #include <X11/Xcursor/Xcursor.h>
 #include <X11/Xft/Xft.h>
 #include <X11/Xlib-xcb.h>
-#include <xcb/xcb_atom.h>
-#include <xcb/xcb_aux.h>
-#include <xcb/xcb_event.h>
+#include <xcb/xcb.h>
 #include <xcb/xcb_icccm.h>
 #include <xcb/xcb_keysyms.h>
+#include <xcb/xcb_util.h>
 #include <xcb/xtest.h>
 #include <xcb/randr.h>
 
