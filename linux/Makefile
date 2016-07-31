@@ -17,27 +17,31 @@ ifneq ("${BUILDVERSION}", "")
 MAINT_CPPFLAGS += -DSPECTRWM_BUILDSTR=\"$(BUILDVERSION)\"
 endif
 
+BIN_CFLAGS   = -fPIE
+BIN_LDFLAGS  = -fPIE -pie
 BIN_CPPFLAGS = $(shell pkg-config --cflags x11 x11-xcb xcb-icccm xcb-keysyms xcb-randr xcb-util xcb-xtest xcursor xft)
 BIN_LDLIBS   = $(shell pkg-config --libs   x11 x11-xcb xcb-icccm xcb-keysyms xcb-randr xcb-util xcb-xtest xcursor xft)
+LIB_CFLAGS   = -fPIC
+LIB_LDFLAGS  = -fPIC -shared
 LIB_CPPFLAGS = $(shell pkg-config --cflags x11)
 LIB_LDLIBS   = $(shell pkg-config --libs   x11) -ldl
 
 all: spectrwm libswmhack.so.$(LIBVERSION)
 
 spectrwm: spectrwm.o linux.o
-	$(CC) $(MAINT_LDFLAGS) $(LDFLAGS) -o $@ $+ $(BIN_LDLIBS) $(LDLIBS)
+	$(CC) $(MAINT_LDFLAGS) $(BIN_LDFLAGS) $(LDFLAGS) -o $@ $+ $(BIN_LDLIBS) $(LDLIBS)
 
 spectrwm.o: ../spectrwm.c ../version.h tree.h util.h
-	$(CC) $(MAINT_CFLAGS) $(CFLAGS) $(MAINT_CPPFLAGS) $(BIN_CPPFLAGS) $(CPPFLAGS) -c -o $@ $<
+	$(CC) $(MAINT_CFLAGS) $(BIN_CFLAGS) $(CFLAGS) $(MAINT_CPPFLAGS) $(BIN_CPPFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 linux.o: linux.c util.h
-	$(CC) $(MAINT_CFLAGS) $(CFLAGS) $(MAINT_CPPFLAGS) $(BIN_CPPFLAGS) $(CPPFLAGS) -c -o $@ $<
+	$(CC) $(MAINT_CFLAGS) $(BIN_CFLAGS) $(CFLAGS) $(MAINT_CPPFLAGS) $(BIN_CPPFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 libswmhack.so.$(LIBVERSION): swm_hack.so
-	$(CC) $(MAINT_LDFLAGS) $(LDFLAGS) -Wl,-soname,$@ -shared -fPIC -o $@ $+ $(LIB_LDLIBS) $(LDLIBS)
+	$(CC) $(MAINT_LDFLAGS) $(LIB_LDFLAGS) $(LDFLAGS) -Wl,-soname,$@ -o $@ $+ $(LIB_LDLIBS) $(LDLIBS)
 
 swm_hack.so: ../lib/swm_hack.c
-	$(CC) $(MAINT_CFLAGS) $(CFLAGS) $(MAINT_CPPFLAGS) $(LIB_CPPFLAGS) $(CPPFLAGS) -fPIC -c -o $@ $<
+	$(CC) $(MAINT_CFLAGS) $(LIB_CFLAGS) $(CFLAGS) $(MAINT_CPPFLAGS) $(LIB_CPPFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 clean:
 	rm -f spectrwm *.o libswmhack.so.* *.so
