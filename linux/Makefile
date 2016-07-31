@@ -34,10 +34,10 @@ linux.o: linux.c util.h
 	$(CC) $(MAINT_CFLAGS) $(CFLAGS) $(MAINT_CPPFLAGS) $(BIN_CPPFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 libswmhack.so.$(LIBVERSION): swm_hack.so
-	$(CC) $(MAINT_LDFLAGS) $(LDFLAGS) -Wl,-soname,$@ -shared -fpic -o $@ $+ $(LIB_LDLIBS) $(LDLIBS)
+	$(CC) $(MAINT_LDFLAGS) $(LDFLAGS) -Wl,-soname,$@ -shared -fPIC -o $@ $+ $(LIB_LDLIBS) $(LDLIBS)
 
 swm_hack.so: ../lib/swm_hack.c
-	$(CC) $(MAINT_CFLAGS) $(CFLAGS) $(MAINT_CPPFLAGS) $(LIB_CPPFLAGS) $(CPPFLAGS) -fpic -DPIC -c -o $@ $<
+	$(CC) $(MAINT_CFLAGS) $(CFLAGS) $(MAINT_CPPFLAGS) $(LIB_CPPFLAGS) $(CPPFLAGS) -fPIC -c -o $@ $<
 
 clean:
 	rm -f spectrwm *.o libswmhack.so.* *.so
