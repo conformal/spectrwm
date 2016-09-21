@@ -709,6 +709,7 @@ enum {
 	_NET_WM_STATE_SKIP_PAGER,
 	_NET_WM_STATE_SKIP_TASKBAR,
 	_NET_WM_WINDOW_TYPE,
+	_NET_WM_WINDOW_TYPE_DESKTOP,
 	_NET_WM_WINDOW_TYPE_DIALOG,
 	_NET_WM_WINDOW_TYPE_DOCK,
 	_NET_WM_WINDOW_TYPE_NORMAL,
@@ -753,6 +754,7 @@ struct ewmh_hint {
     {"_NET_WM_STATE_SKIP_PAGER", XCB_ATOM_NONE},
     {"_NET_WM_STATE_SKIP_TASKBAR", XCB_ATOM_NONE},
     {"_NET_WM_WINDOW_TYPE", XCB_ATOM_NONE},
+    {"_NET_WM_WINDOW_TYPE_DESKTOP", XCB_ATOM_NONE},
     {"_NET_WM_WINDOW_TYPE_DIALOG", XCB_ATOM_NONE},
     {"_NET_WM_WINDOW_TYPE_DOCK", XCB_ATOM_NONE},
     {"_NET_WM_WINDOW_TYPE_NORMAL", XCB_ATOM_NONE},
@@ -1034,6 +1036,7 @@ void	 ewmh_apply_flags(struct ws_win *, uint32_t);
 void	 ewmh_autoquirk(struct ws_win *);
 void	 ewmh_get_desktop_names(void);
 void	 ewmh_get_wm_state(struct ws_win *);
+int	 ewmh_handle_special_types(xcb_window_t, struct swm_region *);
 void	 ewmh_update_actions(struct ws_win *);
 void	 ewmh_update_client_list(void);
 void	 ewmh_update_current_desktop(void);
@@ -1509,6 +1512,51 @@ teardown_ewmh(void)
 	}
 }
 
+int
+ewmh_handle_special_types(xcb_window_t id, struct swm_region *region)
+{
+	xcb_get_property_reply_t	*r;
+	xcb_get_property_cookie_t	c;
+	xcb_atom_t			*type;
+	int				i, n;
+	uint16_t			configure_mask = 0;
+	uint32_t			wa[2];
+
+	c = xcb_get_property(conn, 0, id,
+	    ewmh[_NET_WM_WINDOW_TYPE].atom, XCB_ATOM_ATOM, 0, UINT32_MAX);
+	r = xcb_get_property_reply(conn, c, NULL);
+	if (r == NULL)
+		return 0;
+
+	type = xcb_get_property_value(r);
+	n = xcb_get_property_value_length(r) / sizeof(xcb_atom_t);
+
+	for (i = 0; i < n; i++) {
+		if (type[i] == ewmh[_NET_WM_WINDOW_TYPE_DESKTOP].atom) {
+			configure_mask = XCB_CONFIG_WINDOW_STACK_MODE |
+				XCB_CONFIG_WINDOW_SIBLING;
+			wa[0] = region->id;
+			wa[1] = XCB_STACK_MODE_ABOVE;
+			break;
+		}
+
+		if (type[i] == ewmh[_NET_WM_WINDOW_TYPE_DOCK].atom) {
+			configure_mask = XCB_CONFIG_WINDOW_STACK_MODE;
+			wa[0] = XCB_STACK_MODE_ABOVE;
+			break;
+		}
+	}
+	free(r);
+
+	if (configure_mask != 0) {
+		xcb_map_window(conn, id);
+		xcb_configure_window (conn, id, configure_mask, wa);
+		return 1;
+	}
+
+	return 0;
+}
+
 void
 ewmh_autoquirk(struct ws_win *win)
 {
@@ -1529,8 +1577,7 @@ ewmh_autoquirk(struct ws_win *win)
 	for (i = 0; i < n; i++) {
 		if (type[i] == ewmh[_NET_WM_WINDOW_TYPE_NORMAL].atom)
 			break;
-		if (type[i] == ewmh[_NET_WM_WINDOW_TYPE_DOCK].atom ||
-		    type[i] == ewmh[_NET_WM_WINDOW_TYPE_TOOLBAR].atom ||
+		if (type[i] == ewmh[_NET_WM_WINDOW_TYPE_TOOLBAR].atom ||
 		    type[i] == ewmh[_NET_WM_WINDOW_TYPE_UTILITY].atom) {
 			win->quirks = SWM_Q_FLOAT | SWM_Q_ANYWHERE;
 			break;
@@ -3379,18 +3426,20 @@ update_win_stacking(struct ws_win *win)
 
 	sibling = TAILQ_NEXT(win, stack_entry);
 	if (sibling != NULL && (FLOATING(win) == FLOATING(sibling) ||
-	    (win->ws->always_raise && win->ws->focus == win)))
+	    (win->ws->always_raise && win->ws->focus == win))) {
 		val[0] = sibling->frame;
-	else if (FLOATING(win) || (win->ws->always_raise &&
-	    win->ws->focus == win))
+		val[1] = XCB_STACK_MODE_ABOVE;
+	} else if (FLOATING(win) || (win->ws->always_raise &&
+	    win->ws->focus == win)) {
 		val[0] = r->bar->id;
-	else
-		val[0] = r->id;
+		val[1] = XCB_STACK_MODE_ABOVE;
+	} else {
+		val[0] = r->bar->id;
+		val[1] = XCB_STACK_MODE_BELOW;
+	}
 
 	DNPRINTF(SWM_D_EVENT, "update_win_stacking: win %#x (%#x), "
-	    "sibling %#x\n", win->frame, win->id, val[0]);
-
-	val[1] = XCB_STACK_MODE_ABOVE;
+	    "sibling %#x mode %#x\n", win->frame, win->id, val[0], val[1]);
 
 	xcb_configure_window(conn, win->frame, XCB_CONFIG_WINDOW_SIBLING |
 	    XCB_CONFIG_WINDOW_STACK_MODE, val);
@@ -9872,15 +9921,22 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 		goto out;
 	}
 
+	/* Figure out which region the window belongs to. */
+	r = root_to_region(gr->root, SWM_CK_ALL);
+
+	/* Handle special windows with special _NET_WM_WINDOW_TYPE */
+	if (ewmh_handle_special_types(id, r)) {
+		DNPRINTF(SWM_D_EVENT, "manage_window: "
+		     "unmanaged ewmh window type\n");
+		goto out;
+	}
+
 	/* Create and initialize ws_win object. */
 	if ((win = calloc(1, sizeof(struct ws_win))) == NULL)
 		err(1, "manage_window: calloc: failed to allocate memory for "
 		    "new window");
 
 	win->id = id;
-
-	/* Figureout which region the window belongs to. */
-	r = root_to_region(gr->root, SWM_CK_ALL);
 
 	/* Ignore window border if there is one. */
 	WIDTH(win) = gr->width;
