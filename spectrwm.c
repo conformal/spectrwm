@@ -9885,11 +9885,6 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 		DNPRINTF(SWM_D_MISC, "manage_window: win %#x found on "
 		    "unmanaged list.\n", id);
 		TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
-
-		if (TRANS(win))
-			set_child_transient(win, &trans);
-
-		goto remanage;
 	} else {
 		DNPRINTF(SWM_D_MISC, "manage_window: win %#x is new.\n", id);
 	}
@@ -9931,12 +9926,14 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 		goto out;
 	}
 
-	/* Create and initialize ws_win object. */
-	if ((win = calloc(1, sizeof(struct ws_win))) == NULL)
-		err(1, "manage_window: calloc: failed to allocate memory for "
-		    "new window");
+	if (!win) {
+		/* Create and initialize ws_win object. */
+		if ((win = calloc(1, sizeof(struct ws_win))) == NULL)
+			err(1, "manage_window: calloc: failed to allocate "
+			    "memory for new window");
 
-	win->id = id;
+		win->id = id;
+	}
 
 	/* Ignore window border if there is one. */
 	WIDTH(win) = gr->width;
@@ -10067,7 +10064,6 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 		update_window(win);
 	}
 
-remanage:
 	/* Figure out where to insert the window in the workspace list. */
 	if (trans && (ww = find_window(trans)))
 		TAILQ_INSERT_AFTER(&win->ws->winlist, ww, win, entry);
