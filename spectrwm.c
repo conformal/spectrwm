@@ -1542,6 +1542,25 @@ ewmh_autoquirk(struct ws_win *win)
 		}
 	}
 	free(r);
+
+
+	c = xcb_get_property(conn, 0, win->id,
+	    ewmh[_NET_WM_STATE].atom, XCB_ATOM_ATOM, 0, UINT32_MAX);
+	r = xcb_get_property_reply(conn, c, NULL);
+	if (r == NULL)
+		return;
+
+	type = xcb_get_property_value(r);
+	n = xcb_get_property_value_length(r) / sizeof(xcb_atom_t);
+
+	for (i = 0; i < n; i++) {
+		if (type[i] == ewmh[_NET_WM_STATE_SKIP_PAGER].atom ||
+		    type[i] == ewmh[_NET_WM_STATE_SKIP_TASKBAR].atom) {
+			win->quirks = SWM_Q_FLOAT | SWM_Q_ANYWHERE;
+			break;
+		}
+	}
+	free(r);
 }
 
 void
