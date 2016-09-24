@@ -9570,6 +9570,10 @@ conf_load(const char *filename, int keymapping)
 			    configopt[optidx].optname);
 			continue;
 		}
+		/* trim trailing spaces */
+		ce = optval + strlen(optval) - 1;
+		while (ce > optval && isspace(*ce)) --ce;
+		*(ce + 1) = '\0';
 		/* call function to deal with it all */
 		if (configopt[optidx].func(optsub, optval,
 		    configopt[optidx].funcflags) != 0) {
