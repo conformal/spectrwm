@@ -3039,7 +3039,7 @@ bar_cleanup(struct swm_region *r)
 void
 set_win_state(struct ws_win *win, uint8_t state)
 {
-	uint16_t		data[2] = { state, XCB_ATOM_NONE };
+	uint32_t		data[2] = { state, XCB_ATOM_NONE };
 
 	DNPRINTF(SWM_D_EVENT, "set_win_state: win %#x, state: %u\n",
 	    WINID(win), state);
