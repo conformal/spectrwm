@@ -3761,6 +3761,9 @@ spawn(int ws_idx, union arg *args, bool close_fd)
 			close(fd);
 	}
 
+	if (signal(SIGPIPE, SIG_DFL) == SIG_ERR)
+		err(1, "could not reset SIGPIPE");
+
 	execvp(args->argv[0], args->argv);
 
 	warn("spawn: execvp");
