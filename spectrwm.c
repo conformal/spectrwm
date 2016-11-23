@@ -5484,7 +5484,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		if (ICONIC(w))
 			continue;
 
-		if (TRANS(w)) {
+		if (TRANS(w) || FULLSCREEN(w)) {
 			update_floater(w);
 			continue;
 		}
