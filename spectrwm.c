@@ -12122,21 +12122,41 @@ main(int argc, char *argv[])
 		conf[0] = '\0';
 		switch (i) {
 		case 0:
+			/* $XDG_CONFIG_HOME */
+			snprintf(conf, sizeof conf, "%s/spectrwm/%s",
+			    getenv("XDG_CONFIG_HOME"), SWM_CONF_FILE);
+			break;
+		case 1:
+			/* XDG spec default ~/.config */
+			snprintf(conf, sizeof conf, "%s/.config/spectrwm/%s",
+			    pwd->pw_dir, SWM_CONF_FILE);
+			break;
+		case 2:
 			/* ~ */
 			snprintf(conf, sizeof conf, "%s/.%s",
 			    pwd->pw_dir, SWM_CONF_FILE);
 			break;
-		case 1:
+		case 3:
 			/* global */
 			snprintf(conf, sizeof conf, "/etc/%s",
 			    SWM_CONF_FILE);
 			break;
-		case 2:
+		case 4:
+			/* $XDG_CONFIG_HOME compat */
+			snprintf(conf, sizeof conf, "%s/scrotwm/%s",
+			    getenv("XDG_CONFIG_HOME"), SWM_CONF_FILE_OLD);
+			break;
+		case 5:
+			/* XDG spec default ~/.config compat */
+			snprintf(conf, sizeof conf, "%s/.config/spectrwm/%s",
+			    pwd->pw_dir, SWM_CONF_FILE_OLD);
+			break;
+		case 6:
 			/* ~ compat */
 			snprintf(conf, sizeof conf, "%s/.%s",
 			    pwd->pw_dir, SWM_CONF_FILE_OLD);
 			break;
-		case 3:
+		case 7:
 			/* global compat */
 			snprintf(conf, sizeof conf, "/etc/%s",
 			    SWM_CONF_FILE_OLD);

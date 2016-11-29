@@ -61,9 +61,17 @@ See the
 section below for defaults and customizations.
 .Sh CONFIGURATION FILES
 .Nm
-first tries to open the user specific file,
+follows the XDG Base Directory Specification.
+If
+.Pa $XDG_CONFIG_HOME
+is set and non-empty,
+it tries to open the user specific file located at
+.Pa $XDG_CONFIG_HOME/spectrwm/spectrwm.conf .
+It falls back to
+.Pa ~/.config/spectrwm/spectrwm.conf
+and then
 .Pa ~/.spectrwm.conf .
-If that file is unavailable,
+If no user specific file is found,
 it then tries to open the global configuration file
 .Pa /etc/spectrwm.conf .
 .Pp
@@ -1308,7 +1316,11 @@ Sending
 .Nm
 a HUP signal will restart it.
 .Sh FILES
-.Bl -tag -width "/etc/spectrwm.confXXX" -compact
+.Bl -tag -width "$XDG_CONFIG_HOME/spectrwm/spectrwm.conf" -compact
+.It Pa $XDG_CONFIG_HOME/spectrwm/spectrwm.conf
+or
+.It Pa ~/.config/spectrwm/spectrwm.conf
+or
 .It Pa ~/.spectrwm.conf
 .Nm
 user specific settings.
