@@ -9414,6 +9414,7 @@ struct config_option configopt[] = {
 	{ "focus_mode",			setconfvalue,	SWM_S_FOCUS_MODE },
 	{ "iconic_enabled",		setconfvalue,	SWM_S_ICONIC_ENABLED },
 	{ "java_workaround",		setconfvalue,	SWM_S_JAVA_WORKAROUND },
+	{ "maximize_hide_bar",		setconfvalue,	SWM_S_MAXIMIZE_HIDE_BAR },
 	{ "keyboard_mapping",		setkeymapping,	0 },
 	{ "layout",			setlayout,	0 },
 	{ "maximize_hide_bar",		setconfvalue,	SWM_S_MAXIMIZE_HIDE_BAR },
