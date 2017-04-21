@@ -12047,6 +12047,7 @@ main(int argc, char *argv[])
 	struct passwd		*pwd;
 	struct swm_region	*r;
 	xcb_generic_event_t	*evt;
+	xcb_mapping_notify_event_t *mne;
 	int			xfd, i, num_screens, num_readable;
 	char			conf[PATH_MAX], *cfile = NULL;
 	bool			stdin_ready = false, startup = true;
@@ -12097,10 +12098,22 @@ main(int argc, char *argv[])
 	xcb_grab_server(conn);
 	xcb_aux_sync(conn);
 
-	/* flush all events */
+	/* Flush the event queue. */
 	while ((evt = get_next_event(false))) {
-		if (XCB_EVENT_RESPONSE_TYPE(evt) == 0)
+		switch (XCB_EVENT_RESPONSE_TYPE(evt)) {
+		case XCB_MAPPING_NOTIFY:
+			/* Need to handle mapping changes during startup. */
+			mne = (xcb_mapping_notify_event_t *)evt;
+			if (mne->request == XCB_MAPPING_KEYBOARD)
+				xcb_refresh_keyboard_mapping(syms, mne);
+			break;
+#ifdef SWM_DEBUG
+		case 0:
+			/* Display errors. */
 			event_handle(evt);
+			break;
+#endif
+		}
 		free(evt);
 	}
 
