@@ -413,6 +413,14 @@ and
 and
 .Ar previous
 are relative to the focused window.
+.It Ic spawn_on_current_workspace
+Spawn new windows of a running program on the current workspace instead the
+workspace the program was originally started on.
+Possible values are:
+.Ar 1 
+- spawn on current,
+.Ar 0 
+(default) - spawn on original.
 .It Ic stack_enabled
 Enable or disable displaying the current stacking algorithm in the status
 bar.
