@@ -6014,7 +6014,7 @@ search_win(struct binding *bp, struct swm_region *r, union arg *args)
 	uint32_t		wa[3];
 	xcb_screen_t		*screen;
 	int			i, width, height;
-	char			s[8];
+	char			s[11];
 	FILE			*lfile;
 	size_t			len;
 	XftDraw			*draw;
