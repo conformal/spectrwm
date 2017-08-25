@@ -12228,12 +12228,15 @@ noconfig:
 		if (startup) {
 			startup = false;
 
-			if (focus_mode != SWM_FOCUS_FOLLOW) {
+			if (focus_mode == SWM_FOCUS_FOLLOW)
+				r = root_to_region(screens[0].root,
+				    SWM_CK_POINTER);
+			else
 				r = TAILQ_FIRST(&screens[0].rl);
-				if (r) {
-					focus_region(r);
-					focus_flush();
-				}
+
+			if (r) {
+				focus_region(r);
+				focus_flush();
 				continue;
 			}
 		}
