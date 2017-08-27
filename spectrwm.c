@@ -2518,20 +2518,34 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 	char			tmp[SWM_BAR_MAX];
 	int			limit, size, count;
 	size_t			len;
+	int pre_padding = 0, post_padding = 0, padding_len = 0;
 
 	/* reset strlcat(3) buffer */
 	*tmp = '\0';
 
-	/* get number, if any */
 	fmt++;
+	/* determine if pre-padding is requested */
+	if (*fmt == '_') {
+	    pre_padding = 1;
+	    fmt++;
+	}
+
+	/* get number, if any */
 	size = 0;
 	if (sscanf(fmt, "%d%n", &limit, &size) != 1)
 		limit = sizeof tmp - 1;
 	if (limit <= 0 || limit >= (int)sizeof tmp)
 		limit = sizeof tmp - 1;
 
-	/* there is nothing to replace (ie EOL) */
 	fmt += size;
+
+    /* determine if post padding is requested*/
+	if (*fmt == '_') {
+	    post_padding = 1;
+	    fmt++;
+	}
+
+	/* there is nothing to replace (ie EOL) */
 	if (*fmt == '\0')
 		return (fmt);
 
@@ -2590,13 +2604,40 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 	}
 
 	len = strlen(tmp);
-	ptr = tmp;
-	if ((int)len < limit)
+
+	/* calculate the padding lengths */
+	padding_len = limit - (int)len;
+	if (padding_len > 0) {
 		limit = len;
+
+	    if (pre_padding)
+	        pre_padding = padding_len/(pre_padding + post_padding);
+	    if (post_padding)
+	        post_padding = padding_len - pre_padding;
+    } else {
+        pre_padding = 0;
+        post_padding = 0;
+    }
+
+    /* do pre padding */
+	while (pre_padding-- > 0) {
+		if (*offrep >= sz - 1)
+			break;
+		fmtrep[(*offrep)++] = ' ';
+	}
+
+	ptr = tmp;
 	while (limit-- > 0) {
 		if (*offrep >= sz - 1)
 			break;
 		fmtrep[(*offrep)++] = *ptr++;
+	}
+
+    /* do post padding */
+	while (post_padding-- > 0) {
+		if (*offrep >= sz - 1)
+			break;
+		fmtrep[(*offrep)++] = ' ';
 	}
 
 	fmt++;

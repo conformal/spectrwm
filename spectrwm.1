@@ -214,7 +214,11 @@ It may contain the following character sequences:
 .El
 .Pp
 All character sequences may limit its output to a specific length, for
-example +64A.
+example +64A. By default, no padding will be added if the length of the 
+replaced string is less than the specified length (64 in the example).
+The padding is enabled using a '_' character in the sequence. For 
+example: +_64W and +64_W will enable padding before window name and
+after window name, respectively.
 Any characters that don't match the specification are copied as-is.
 .It Ic bar_justify
 Justify the status bar text.
