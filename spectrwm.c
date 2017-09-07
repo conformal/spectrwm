@@ -394,7 +394,6 @@ bool		 disable_border = false;
 int		 border_width = 1;
 int		 region_padding = 0;
 int		 tile_gap = 0;
-bool		 java_workaround = true;
 bool		 verbose_layout = false;
 #ifdef SWM_DEBUG
 bool		 debug_enabled;
@@ -8836,7 +8835,6 @@ enum {
 	SWM_S_BAR_ACTION,
 	SWM_S_BAR_AT_BOTTOM,
 	SWM_S_BAR_BORDER_WIDTH,
-	SWM_S_BAR_DELAY,
 	SWM_S_BAR_ENABLED,
 	SWM_S_BAR_ENABLED_WS,
 	SWM_S_BAR_FONT,
@@ -8855,13 +8853,10 @@ enum {
 	SWM_S_FOCUS_DEFAULT,
 	SWM_S_FOCUS_MODE,
 	SWM_S_ICONIC_ENABLED,
-	SWM_S_JAVA_WORKAROUND,
 	SWM_S_MAXIMIZE_HIDE_BAR,
 	SWM_S_REGION_PADDING,
 	SWM_S_SPAWN_ORDER,
 	SWM_S_SPAWN_TERM,
-	SWM_S_SS_APP,
-	SWM_S_SS_ENABLED,
 	SWM_S_STACK_ENABLED,
 	SWM_S_TERM_WIDTH,
 	SWM_S_TILE_GAP,
@@ -8898,9 +8893,6 @@ setconfvalue(const char *selector, const char *value, int flags)
 		bar_border_width = atoi(value);
 		if (bar_border_width < 0)
 			bar_border_width = 0;
-		break;
-	case SWM_S_BAR_DELAY:
-		/* No longer needed; leave to not break old conf files. */
 		break;
 	case SWM_S_BAR_ENABLED:
 		bar_enabled = (atoi(value) != 0);
@@ -9029,9 +9021,6 @@ setconfvalue(const char *selector, const char *value, int flags)
 	case SWM_S_ICONIC_ENABLED:
 		iconic_enabled = (atoi(value) != 0);
 		break;
-	case SWM_S_JAVA_WORKAROUND:
-		java_workaround = (atoi(value) != 0);
-		break;
 	case SWM_S_MAXIMIZE_HIDE_BAR:
 		maximize_hide_bar = atoi(value);
 		break;
@@ -9055,12 +9044,6 @@ setconfvalue(const char *selector, const char *value, int flags)
 	case SWM_S_SPAWN_TERM:
 		setconfspawn("term", value, 0);
 		setconfspawn("spawn_term", value, 0);
-		break;
-	case SWM_S_SS_APP:
-		/* No longer needed; leave to not break old conf files. */
-		break;
-	case SWM_S_SS_ENABLED:
-		/* No longer needed; leave to not break old conf files. */
 		break;
 	case SWM_S_STACK_ENABLED:
 		stack_enabled = (atoi(value) != 0);
@@ -9376,9 +9359,9 @@ setlayout(const char *selector, const char *value, int flags)
 
 /* config options */
 struct config_option {
-	char			*optname;
+	char			*name;
 	int			(*func)(const char*, const char*, int);
-	int			funcflags;
+	int			flags;
 };
 struct config_option configopt[] = {
 	{ "autorun",			setautorun,	0 },
@@ -9388,7 +9371,7 @@ struct config_option configopt[] = {
 	{ "bar_border_unfocus",		setconfcolor,	SWM_S_COLOR_BAR_BORDER_UNFOCUS },
 	{ "bar_border_width",		setconfvalue,	SWM_S_BAR_BORDER_WIDTH },
 	{ "bar_color",			setconfcolor,	SWM_S_COLOR_BAR },
-	{ "bar_delay",			setconfvalue,	SWM_S_BAR_DELAY },
+	{ "bar_delay",			NULL,		0 }, /* dummy */
 	{ "bar_enabled",		setconfvalue,	SWM_S_BAR_ENABLED },
 	{ "bar_enabled_ws",		setconfvalue,	SWM_S_BAR_ENABLED_WS },
 	{ "bar_font",			setconfvalue,	SWM_S_BAR_FONT },
@@ -9413,7 +9396,7 @@ struct config_option configopt[] = {
 	{ "focus_default",		setconfvalue,	SWM_S_FOCUS_DEFAULT },
 	{ "focus_mode",			setconfvalue,	SWM_S_FOCUS_MODE },
 	{ "iconic_enabled",		setconfvalue,	SWM_S_ICONIC_ENABLED },
-	{ "java_workaround",		setconfvalue,	SWM_S_JAVA_WORKAROUND },
+	{ "java_workaround",		NULL,		0 }, /* dummy */
 	{ "keyboard_mapping",		setkeymapping,	0 },
 	{ "layout",			setlayout,	0 },
 	{ "maximize_hide_bar",		setconfvalue,	SWM_S_MAXIMIZE_HIDE_BAR },
@@ -9422,8 +9405,8 @@ struct config_option configopt[] = {
 	{ "quirk",			setconfquirk,	0 },
 	{ "region",			setconfregion,	0 },
 	{ "region_padding",		setconfvalue,	SWM_S_REGION_PADDING },
-	{ "screenshot_app",		setconfvalue,	SWM_S_SS_APP },
-	{ "screenshot_enabled",		setconfvalue,	SWM_S_SS_ENABLED },
+	{ "screenshot_app",		NULL,		0 }, /* dummy */
+	{ "screenshot_enabled",		NULL,		0 }, /* dummy */
 	{ "spawn_position",		setconfvalue,	SWM_S_SPAWN_ORDER },
 	{ "spawn_term",			setconfvalue,	SWM_S_SPAWN_TERM },
 	{ "stack_enabled",		setconfvalue,	SWM_S_STACK_ENABLED },
@@ -9519,8 +9502,8 @@ conf_load(const char *filename, int keymapping)
 		optidx = -1;
 		for (i = 0; i < LENGTH(configopt); i++) {
 			opt = &configopt[i];
-			if (strncasecmp(cp, opt->optname, wordlen) == 0 &&
-			    (int)strlen(opt->optname) == wordlen) {
+			if (strncasecmp(cp, opt->name, wordlen) == 0 &&
+			    (int)strlen(opt->name) == wordlen) {
 				optidx = i;
 				break;
 			}
@@ -9530,7 +9513,7 @@ conf_load(const char *filename, int keymapping)
 			    "%.*s", filename, lineno, wordlen, cp);
 			continue;
 		}
-		if (keymapping && opt && strcmp(opt->optname, "bind")) {
+		if (keymapping && opt && strcmp(opt->name, "bind")) {
 			add_startup_exception("%s: line %zd: invalid option "
 			    "%.*s", filename, lineno, wordlen, cp);
 			continue;
@@ -9569,8 +9552,7 @@ conf_load(const char *filename, int keymapping)
 		optval = cp;
 		if (strlen(optval) == 0) {
 			add_startup_exception("%s: line %zd: must supply value "
-			    "to %s", filename, lineno,
-			    configopt[optidx].optname);
+			    "to %s", filename, lineno, opt->name);
 			continue;
 		}
 		/* trim trailing spaces */
@@ -9579,10 +9561,9 @@ conf_load(const char *filename, int keymapping)
 			--ce;
 		*(ce + 1) = '\0';
 		/* call function to deal with it all */
-		if (configopt[optidx].func(optsub, optval,
-		    configopt[optidx].funcflags) != 0) {
+		if (opt->func && opt->func(optsub, optval, opt->flags) != 0) {
 			add_startup_exception("%s: line %zd: invalid data for "
-			    "%s", filename, lineno, configopt[optidx].optname);
+			    "%s", filename, lineno, opt->name);
 			continue;
 		}
 	}
