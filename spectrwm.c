@@ -5,7 +5,7 @@
  * Copyright (c) 2009 Pierre-Yves Ritschard <pyr@spootnik.org>
  * Copyright (c) 2010 Tuukka Kataja <stuge@xor.fi>
  * Copyright (c) 2011 Jason L. Wright <jason@thought.net>
- * Copyright (c) 2011-2016 Reginald Kennedy <rk@rejii.com>
+ * Copyright (c) 2011-2017 Reginald Kennedy <rk@rejii.com>
  * Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
  * Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
  * Copyright (c) 2012-2015 David Hill <dhill@mindcry.org>
@@ -2513,7 +2513,7 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
     size_t sz)
 {
 	struct ws_win		*w;
-	char			*ptr;
+	char			*ptr, *cur = fmt;
 	char			tmp[SWM_BAR_MAX];
 	int			limit, size, count;
 	size_t			len;
@@ -2524,33 +2524,30 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 	/* reset strlcat(3) buffer */
 	*tmp = '\0';
 
-	fmt++;
+	cur++;
 	/* determine if pre-padding is requested */
-	if (*fmt == '_') {
+	if (*cur == '_') {
 		pre_padding = 1;
-		fmt++;
+		cur++;
 	}
 
 	/* get number, if any */
 	size = 0;
-	if (sscanf(fmt, "%d%n", &limit, &size) != 1)
+	if (sscanf(cur, "%d%n", &limit, &size) != 1)
 		limit = sizeof tmp - 1;
 	if (limit <= 0 || limit >= (int)sizeof tmp)
 		limit = sizeof tmp - 1;
 
-	fmt += size;
+	cur += size;
 
 	/* determine if post padding is requested*/
-	if (*fmt == '_') {
+	if (*cur == '_') {
 		post_padding = 1;
-		fmt++;
+		cur++;
 	}
 
-	/* there is nothing to replace (ie EOL) */
-	if (*fmt == '\0')
-		return (fmt);
-
-	switch (*fmt) {
+	/* character sequence */
+	switch (*cur) {
 	case '<':
 		bar_replace_pad(tmp, &limit, sizeof tmp);
 		break;
@@ -2599,8 +2596,8 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		bar_window_name(tmp, sizeof tmp, r);
 		break;
 	default:
-		/* unknown character sequence; copy as-is */
-		snprintf(tmp, sizeof tmp, "+%c", *fmt);
+		/* Unknown character sequence or EOL; copy as-is. */
+		strlcpy(tmp, fmt, cur - fmt + 2);
 		break;
 	}
 
@@ -2642,8 +2639,10 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		fmtrep[(*offrep)++] = ' ';
 	}
 
-	fmt++;
-	return (fmt);
+	if (*cur != '\0')
+		cur++;
+
+	return (cur);
 }
 
 void
