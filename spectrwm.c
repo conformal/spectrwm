@@ -325,8 +325,8 @@ struct search_window {
 	xcb_gcontext_t			gc;
 	xcb_window_t			indicator;
 };
-TAILQ_HEAD(search_winlist, search_window);
-struct search_winlist			search_wl;
+TAILQ_HEAD(search_winlist, search_window) search_wl =
+    TAILQ_HEAD_INITIALIZER(search_wl);
 
 /* search actions */
 enum {
@@ -487,8 +487,7 @@ struct pid_e {
 	pid_t			pid;
 	int			ws;
 };
-TAILQ_HEAD(pid_list, pid_e);
-struct pid_list			pidlist = TAILQ_HEAD_INITIALIZER(pidlist);
+TAILQ_HEAD(pid_list, pid_e) pidlist = TAILQ_HEAD_INITIALIZER(pidlist);
 
 /* layout handlers */
 void	stack(struct swm_region *);
@@ -671,8 +670,7 @@ struct quirk {
 #define SWM_Q_NOFOCUSCYCLE	(1<<11)	/* Remove from normal focus cycle. */
 #define SWM_Q_MINIMALBORDER	(1<<12)	/* No border when floating/unfocused. */
 };
-TAILQ_HEAD(quirk_list, quirk);
-struct quirk_list		quirks = TAILQ_HEAD_INITIALIZER(quirks);
+TAILQ_HEAD(quirk_list, quirk) quirks = TAILQ_HEAD_INITIALIZER(quirks);
 
 /*
  * Supported EWMH hints should be added to
@@ -804,8 +802,7 @@ struct spawn_prog {
 	char			**argv;
 	int			flags;
 };
-TAILQ_HEAD(spawn_list, spawn_prog);
-struct spawn_list		spawns = TAILQ_HEAD_INITIALIZER(spawns);
+TAILQ_HEAD(spawn_list, spawn_prog) spawns = TAILQ_HEAD_INITIALIZER(spawns);
 
 enum {
 	FN_F_NOREPLAY = 0x1,
@@ -963,7 +960,7 @@ struct binding {
 	uint32_t		flags;
 	char			*spawn_name;
 };
-RB_HEAD(binding_tree, binding);
+RB_HEAD(binding_tree, binding) bindings = RB_INITIALIZER(&bindings);
 
 /* function prototypes */
 void	 adjust_font(struct ws_win *);
@@ -1235,8 +1232,9 @@ void	 _add_startup_exception(const char *, va_list);
 void	 add_startup_exception(const char *, ...);
 
 RB_PROTOTYPE(binding_tree, binding, entry, binding_cmp);
+#ifndef __clang_analyzer__ /* Suppress false warnings. */
 RB_GENERATE(binding_tree, binding, entry, binding_cmp);
-struct binding_tree                 bindings;
+#endif
 
 void
 cursors_load(void)
@@ -2396,19 +2394,17 @@ void
 bar_urgent(char *s, size_t sz)
 {
 	struct ws_win		*win;
-	int			i, j, num_screens;
-	bool			urgent[SWM_WS_MAX];
+	int			i, j, num_screens, urgent[SWM_WS_MAX];
 	char			b[8];
 
-	for (i = 0; i < workspace_limit; i++)
-		urgent[i] = false;
+	memset(&urgent, 0, sizeof(urgent));
 
 	num_screens = get_screen_count();
 	for (i = 0; i < num_screens; i++)
 		for (j = 0; j < workspace_limit; j++)
 			TAILQ_FOREACH(win, &screens[i].ws[j].winlist, entry)
 				if (get_urgent(win))
-					urgent[j] = true;
+					urgent[j] = 1;
 
 	for (i = 0; i < workspace_limit; i++) {
 		if (urgent[i]) {
@@ -2521,8 +2517,8 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 	int			post_padding = 0;
 	int			padding_len = 0;
 
-	/* reset strlcat(3) buffer */
-	*tmp = '\0';
+	/* Reset replace buffer. */
+	bzero(tmp, sizeof tmp);
 
 	cur++;
 	/* determine if pre-padding is requested */
@@ -2540,7 +2536,7 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 
 	cur += size;
 
-	/* determine if post padding is requested*/
+	/* determine if post padding is requested */
 	if (*cur == '_') {
 		post_padding = 1;
 		cur++;
@@ -3750,6 +3746,9 @@ spawn(int ws_idx, union arg *args, bool close_fd)
 {
 	int			fd;
 	char			*ret = NULL;
+
+	if (args == NULL || args->argv[0] == NULL)
+		return;
 
 	DNPRINTF(SWM_D_MISC, "spawn: %s\n", args->argv[0]);
 
@@ -6039,12 +6038,13 @@ void
 search_win_cleanup(void)
 {
 	struct search_window	*sw = NULL;
-
+#ifndef __clang_analyzer__ /* Suppress false warnings. */
 	while ((sw = TAILQ_FIRST(&search_wl)) != NULL) {
 		xcb_destroy_window(conn, sw->indicator);
 		TAILQ_REMOVE(&search_wl, sw, entry);
 		free(sw);
 	}
+#endif
 }
 
 void
@@ -6079,8 +6079,6 @@ search_win(struct binding *bp, struct swm_region *r, union arg *args)
 
 	if ((screen = get_screen(r->s->idx)) == NULL)
 		errx(1, "ERROR: can't get screen %d.", r->s->idx);
-
-	TAILQ_INIT(&search_wl);
 
 	i = 1;
 	TAILQ_FOREACH(win, &r->ws->winlist, entry) {
@@ -7828,10 +7826,11 @@ void
 clear_spawns(void)
 {
 	struct spawn_prog	*sp;
-
+#ifndef __clang_analyzer__ /* Suppress false warnings. */
 	while ((sp = TAILQ_FIRST(&spawns)) != NULL) {
 		spawn_remove(sp);
 	}
+#endif
 }
 
 struct spawn_prog*
@@ -8016,6 +8015,7 @@ parsebinding(const char *bindstr, uint16_t *mod, enum binding_type *type,
 			if (*val > 255 || *val == 0) {
 				DNPRINTF(SWM_D_KEY,
 				    "parsebinding: invalid button %u\n", *val);
+				free(str);
 				return (1);
 			}
 		} else {
@@ -8717,10 +8717,11 @@ void
 clear_quirks(void)
 {
 	struct quirk		*qp;
-
+#ifndef __clang_analyzer__ /* Suppress false warnings. */
 	while ((qp = TAILQ_FIRST(&quirks)) != NULL) {
 		quirk_remove(qp);
 	}
+#endif
 }
 
 void
