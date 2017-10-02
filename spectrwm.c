@@ -928,6 +928,7 @@ enum actionid {
 	FN_WS_20,
 	FN_WS_21,
 	FN_WS_22,
+	FN_WS_EMPTY,
 	FN_WS_NEXT,
 	FN_WS_NEXT_ALL,
 	FN_WS_NEXT_MOVE,
@@ -1021,6 +1022,7 @@ void	 debug_refresh(struct ws_win *);
 void	 debug_toggle(struct binding *, struct swm_region *, union arg *);
 void	 destroynotify(xcb_destroy_notify_event_t *);
 void	 dumpwins(struct binding *, struct swm_region *, union arg *);
+void	 emptyws(struct binding *, struct swm_region *, union arg *);
 int	 enable_wm(void);
 void	 enternotify(xcb_enter_notify_event_t *);
 void	 event_drain(uint8_t);
@@ -4391,6 +4393,27 @@ cyclews(struct binding *bp, struct swm_region *r, union arg *args)
 }
 
 void
+emptyws(struct binding *bp, struct swm_region *r, union arg *args)
+{
+	int		i;
+	union arg	a;
+
+	(void)args;
+
+	DNPRINTF(SWM_D_WS, "emptyws: id: %d, screen[%d]:%dx%d+%d+%d, ws: %d\n",
+	    args->id, r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
+
+	for (i = 0; i < workspace_limit; ++i)
+		if (TAILQ_EMPTY(&r->s->ws[i].winlist)) {
+			a.id = i;
+			switchws(bp, r, &a);
+			break;
+		}
+
+	DNPRINTF(SWM_D_FOCUS, "emptyws: done\n");
+}
+
+void
 priorws(struct binding *bp, struct swm_region *r, union arg *args)
 {
 	union arg		a;
@@ -7530,6 +7553,7 @@ struct action {
 	{ "ws_20",		switchws,	0, {.id = 19} },
 	{ "ws_21",		switchws,	0, {.id = 20} },
 	{ "ws_22",		switchws,	0, {.id = 21} },
+	{ "ws_empty",		emptyws,	0, {0} },
 	{ "ws_next",		cyclews,	0, {.id = SWM_ARG_ID_CYCLEWS_UP} },
 	{ "ws_next_all",	cyclews,	0, {.id = SWM_ARG_ID_CYCLEWS_UP_ALL} },
 	{ "ws_next_move",	cyclews,	0, {.id = SWM_ARG_ID_CYCLEWS_MOVE_UP} },
