@@ -2581,7 +2581,7 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		bar_window_class_instance(tmp, sizeof tmp, r);
 		break;
 	case 'R':
-	        snprintf(tmp, sizeof tmp, "%d", get_region_index(r));
+	        snprintf(tmp, sizeof tmp, "%d", get_region_index(r) + 1);
 	        break;
 	case 'S':
 		snprintf(tmp, sizeof tmp, "%s", r->ws->stacker);
