@@ -133,6 +133,11 @@ Disable border by setting to 0.
 .It Ic bar_color Ns Bq Ar x
 Background color of the status bar(s) in screen
 .Ar x .
+.It Ic bar_color_selected Ns Bq Ar x
+Background color for selections on the status bar(s) in screen
+.Ar x .
+Defaults to the value of
+.Ic bar_border .
 .It Ic bar_enabled
 Set default
 .Ic bar_toggle
@@ -182,8 +187,13 @@ The
 .Xr xfontsel 1
 application can help with the XLFD setting.
 .It Ic bar_font_color Ns Bq Ar x
-Color of the font in status bar in screen
+Foreground color of the status bar(s) in screen
 .Ar x .
+.It Ic bar_font_color_selected Ns Bq Ar x
+Foreground color for selections on the status bar(s) in screen
+.Ar x .
+Defaults to the value of
+.Ic bar_color .
 .It Ic bar_format
 Set the bar format string, overriding
 .Ic clock_format
@@ -539,8 +549,10 @@ is spawned:
 .Bl -tag -width "$bar_font_color" -offset indent -compact
 .It Cm $bar_border
 .It Cm $bar_color
+.It Cm $bar_color_selected
 .It Cm $bar_font
 .It Cm $bar_font_color
+.It Cm $bar_font_color_selected
 .It Cm $color_focus
 .It Cm $color_unfocus
 .It Cm $dmenu_bottom
@@ -564,13 +576,19 @@ bind[] = MOD+Shift+b
 .Pp
 Default programs:
 .Bl -tag -width "screenshot_wind" -offset indent -compact
+.It Cm term
+xterm
 .It Cm lock
 xlock
 .It Cm menu
 dmenu_run $dmenu_bottom \-fn $bar_font \-nb $bar_color \-nf $bar_font_color \-sb
-$bar_border \-sf $bar_color
-.It Cm term
-xterm
+$bar_color_selected \-sf $bar_font_color_selected
+.It Cm search
+dmenu $dmenu_bottom \-i \-fn $bar_font \-nb $bar_color \-nf $bar_font_color \-sb
+$bar_color_selected \-sf $bar_font_color_selected
+.It Cm name_workspace
+dmenu $dmenu_bottom \-p Workspace \-fn $bar_font \-nb $bar_color \-nf
+$bar_font_color \-sb $bar_color_selected \-sf $bar_font_color_selected
 .It Cm initscr
 initscreen.sh        # optional
 .It Cm screenshot_all

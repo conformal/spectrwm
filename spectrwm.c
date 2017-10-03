@@ -563,9 +563,11 @@ enum {
 
 enum {
 	SWM_S_COLOR_BAR,
+	SWM_S_COLOR_BAR_SELECTED,
 	SWM_S_COLOR_BAR_BORDER,
 	SWM_S_COLOR_BAR_BORDER_UNFOCUS,
 	SWM_S_COLOR_BAR_FONT,
+	SWM_S_COLOR_BAR_FONT_SELECTED,
 	SWM_S_COLOR_FOCUS,
 	SWM_S_COLOR_FOCUS_MAXIMIZED,
 	SWM_S_COLOR_UNFOCUS,
@@ -7621,6 +7623,11 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
 			    strdup(r->s->c[SWM_S_COLOR_BAR].name))
 			    == NULL)
 				err(1, "spawn_custom bar color");
+		} else if (strcasecmp(ap, "$bar_color_selected") == 0) {
+			if ((real_args[c] =
+			    strdup(r->s->c[SWM_S_COLOR_BAR_SELECTED].name))
+			    == NULL)
+				err(1, "spawn_custom bar color selected");
 		} else if (strcasecmp(ap, "$bar_font") == 0) {
 			if ((real_args[c] = strdup(bar_fonts))
 			    == NULL)
@@ -7630,6 +7637,11 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
 			    strdup(r->s->c[SWM_S_COLOR_BAR_FONT].name))
 			    == NULL)
 				err(1, "spawn_custom color font");
+		} else if (strcasecmp(ap, "$bar_font_color_selected") == 0) {
+			if ((real_args[c] =
+			    strdup(r->s->c[SWM_S_COLOR_BAR_FONT_SELECTED].name))
+			    == NULL)
+				err(1, "spawn_custom bar font color selected");
 		} else if (strcasecmp(ap, "$color_focus") == 0) {
 			if ((real_args[c] =
 			    strdup(r->s->c[SWM_S_COLOR_FOCUS].name))
@@ -7955,8 +7967,8 @@ setup_spawn(void)
 					" -fn $bar_font"
 					" -nb $bar_color"
 					" -nf $bar_font_color"
-					" -sb $bar_border"
-					" -sf $bar_color",	0);
+					" -sb $bar_color_selected"
+					" -sf $bar_font_color_selected", 0);
 
 	setconfspawn("search",		"dmenu"
 					" $dmenu_bottom"
@@ -7964,8 +7976,8 @@ setup_spawn(void)
 					" -fn $bar_font"
 					" -nb $bar_color"
 					" -nf $bar_font_color"
-					" -sb $bar_border"
-					" -sf $bar_color",	0);
+					" -sb $bar_color_selected"
+					" -sf $bar_font_color_selected", 0);
 
 	setconfspawn("name_workspace",	"dmenu"
 					" $dmenu_bottom"
@@ -7973,8 +7985,8 @@ setup_spawn(void)
 					" -fn $bar_font"
 					" -nb $bar_color"
 					" -nf $bar_font_color"
-					" -sb $bar_border"
-					" -sf $bar_color",	0);
+					" -sb $bar_color_selected"
+					" -sf $bar_font_color_selected", 0);
 
 	 /* These are not verified for existence, even with a binding set. */
 	setconfspawn("screenshot_all",	"screenshot.sh full",	SWM_SPAWN_OPTIONAL);
@@ -9246,15 +9258,31 @@ setconfcolor(const char *selector, const char *value, int flags)
 		setscreencolor(value, i, flags);
 
 		/*
-		 * When setting focus/unfocus colors, we need to also
-		 * set maximize colors to match if they haven't been customized.
+		 * Need to sync 'maximized' and 'selected' colors with their
+		 * respective colors if they haven't been customized.
 		 */
-		if (flags == SWM_S_COLOR_FOCUS &&
-		    !screens[i].c[SWM_S_COLOR_FOCUS_MAXIMIZED].manual)
-			setscreencolor(value, i, SWM_S_COLOR_FOCUS_MAXIMIZED);
-		else if (flags == SWM_S_COLOR_UNFOCUS &&
-		    !screens[i].c[SWM_S_COLOR_UNFOCUS_MAXIMIZED].manual)
-			setscreencolor(value, i, SWM_S_COLOR_UNFOCUS_MAXIMIZED);
+		switch (flags) {
+		case SWM_S_COLOR_FOCUS:
+			if (!screens[i].c[SWM_S_COLOR_FOCUS_MAXIMIZED].manual)
+				setscreencolor(value, i,
+				    SWM_S_COLOR_FOCUS_MAXIMIZED);
+			break;
+		case SWM_S_COLOR_UNFOCUS:
+			if (!screens[i].c[SWM_S_COLOR_UNFOCUS_MAXIMIZED].manual)
+				setscreencolor(value, i,
+				    SWM_S_COLOR_UNFOCUS_MAXIMIZED);
+			break;
+		case SWM_S_COLOR_BAR:
+			if (!screens[i].c[SWM_S_COLOR_BAR_FONT_SELECTED].manual)
+				setscreencolor(value, i,
+				    SWM_S_COLOR_BAR_FONT_SELECTED);
+			break;
+		case SWM_S_COLOR_BAR_BORDER:
+			if (!screens[i].c[SWM_S_COLOR_BAR_SELECTED].manual)
+				setscreencolor(value, i,
+				    SWM_S_COLOR_BAR_SELECTED);
+			break;
+		}
 
 		screens[i].c[flags].manual = 1;
 	}
@@ -9439,11 +9467,13 @@ struct config_option configopt[] = {
 	{ "bar_border_unfocus",		setconfcolor,	SWM_S_COLOR_BAR_BORDER_UNFOCUS },
 	{ "bar_border_width",		setconfvalue,	SWM_S_BAR_BORDER_WIDTH },
 	{ "bar_color",			setconfcolor,	SWM_S_COLOR_BAR },
+	{ "bar_color_selected",		setconfcolor,	SWM_S_COLOR_BAR_SELECTED },
 	{ "bar_delay",			NULL,		0 }, /* dummy */
 	{ "bar_enabled",		setconfvalue,	SWM_S_BAR_ENABLED },
 	{ "bar_enabled_ws",		setconfvalue,	SWM_S_BAR_ENABLED_WS },
 	{ "bar_font",			setconfvalue,	SWM_S_BAR_FONT },
 	{ "bar_font_color",		setconfcolor,	SWM_S_COLOR_BAR_FONT },
+	{ "bar_font_color_selected",	setconfcolor,	SWM_S_COLOR_BAR_FONT_SELECTED },
 	{ "bar_format",			setconfvalue,	SWM_S_BAR_FORMAT },
 	{ "bar_justify",		setconfvalue,	SWM_S_BAR_JUSTIFY },
 	{ "bind",			setconfbinding,	0 },
@@ -11855,15 +11885,17 @@ setup_screens(void)
 
 		/* set default colors */
 		setscreencolor("red", i, SWM_S_COLOR_FOCUS);
+		setscreencolor("red", i, SWM_S_COLOR_FOCUS_MAXIMIZED);
 		setscreencolor("rgb:88/88/88", i, SWM_S_COLOR_UNFOCUS);
+		setscreencolor("rgb:88/88/88", i,
+		    SWM_S_COLOR_UNFOCUS_MAXIMIZED);
 		setscreencolor("rgb:00/80/80", i, SWM_S_COLOR_BAR_BORDER);
 		setscreencolor("rgb:00/40/40", i,
 		    SWM_S_COLOR_BAR_BORDER_UNFOCUS);
 		setscreencolor("black", i, SWM_S_COLOR_BAR);
+		setscreencolor("rgb:00/80/80", i, SWM_S_COLOR_BAR_SELECTED);
 		setscreencolor("rgb:a0/a0/a0", i, SWM_S_COLOR_BAR_FONT);
-		setscreencolor("red", i, SWM_S_COLOR_FOCUS_MAXIMIZED);
-		setscreencolor("rgb:88/88/88", i,
-		    SWM_S_COLOR_UNFOCUS_MAXIMIZED);
+		setscreencolor("black", i, SWM_S_COLOR_BAR_FONT_SELECTED);
 
 		/* create graphics context on screen */
 		screens[i].bar_gc = xcb_generate_id(conn);
