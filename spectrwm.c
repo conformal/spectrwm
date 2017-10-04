@@ -652,6 +652,8 @@ union arg {
 #define SWM_ARG_ID_BAR_TOGGLE_WS	(111)
 #define SWM_ARG_ID_CYCLERG_MOVE_UP	(112)
 #define SWM_ARG_ID_CYCLERG_MOVE_DOWN	(113)
+#define SWM_ARG_ID_WS_EMPTY	(120)
+#define SWM_ARG_ID_WS_EMPTY_MOVE	(121)
 	char			**argv;
 };
 
@@ -939,6 +941,7 @@ enum actionid {
 	FN_WS_21,
 	FN_WS_22,
 	FN_WS_EMPTY,
+	FN_WS_EMPTY_MOVE,
 	FN_WS_NEXT,
 	FN_WS_NEXT_ALL,
 	FN_WS_NEXT_MOVE,
@@ -4420,20 +4423,44 @@ cyclews(struct binding *bp, struct swm_region *r, union arg *args)
 void
 emptyws(struct binding *bp, struct swm_region *r, union arg *args)
 {
-	int		i;
+	int		i, empty = -1;
 	union arg	a;
-
-	(void)args;
+	struct ws_win	*win;
 
 	DNPRINTF(SWM_D_WS, "id: %d, screen[%d]:%dx%d+%d+%d, ws: %d\n", args->id,
 	    r->s->idx, WIDTH(r), HEIGHT(r), X(r), Y(r), r->ws->idx);
 
+	/* Find first empty ws. */
 	for (i = 0; i < workspace_limit; ++i)
 		if (TAILQ_EMPTY(&r->s->ws[i].winlist)) {
-			a.id = i;
-			switchws(bp, r, &a);
+			empty = i;
 			break;
 		}
+
+	if (empty == -1) {
+		DNPRINTF(SWM_D_FOCUS, "no empty ws.\n");
+		return;
+	}
+
+	a.id = empty;
+
+	switch (args->id) {
+	case SWM_ARG_ID_WS_EMPTY_MOVE:
+		/* Only move & switch if there is a focused window. */
+		if (r->ws->focus)
+			TAILQ_FOREACH(win, &r->ws->winlist, entry)
+				if (win != r->ws->focus) {
+					send_to_ws(bp, r, &a);
+					switchws(bp, r, &a);
+					break;
+				}
+		break;
+	case SWM_ARG_ID_WS_EMPTY:
+		switchws(bp, r, &a);
+		break;
+	default:
+		DNPRINTF(SWM_D_FOCUS, "invalid id: %d\n", args->id);
+	}
 
 	DNPRINTF(SWM_D_FOCUS, "done\n");
 }
@@ -7565,7 +7592,8 @@ struct action {
 	{ "ws_20",		switchws,	0, {.id = 19} },
 	{ "ws_21",		switchws,	0, {.id = 20} },
 	{ "ws_22",		switchws,	0, {.id = 21} },
-	{ "ws_empty",		emptyws,	0, {0} },
+	{ "ws_empty",		emptyws,	0, {.id = SWM_ARG_ID_WS_EMPTY} },
+	{ "ws_empty_move",	emptyws,	0, {.id = SWM_ARG_ID_WS_EMPTY_MOVE} },
 	{ "ws_next",		cyclews,	0, {.id = SWM_ARG_ID_CYCLEWS_UP} },
 	{ "ws_next_all",	cyclews,	0, {.id = SWM_ARG_ID_CYCLEWS_UP_ALL} },
 	{ "ws_next_move",	cyclews,	0, {.id = SWM_ARG_ID_CYCLEWS_MOVE_UP} },
