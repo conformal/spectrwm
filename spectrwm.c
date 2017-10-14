@@ -2761,7 +2761,7 @@ bar_extra_update(void)
 	while (fgets(b, sizeof(b), stdin) != NULL) {
 		if (bar_enabled) {
 			len = strlen(b);
-			if (b[len - 1] == '\n') {
+			if (len > 0 && b[len - 1] == '\n') {
 				/* Remove newline. */
 				b[--len] = '\0';
 
