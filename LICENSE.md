@@ -1,13 +1,13 @@
-Copyright (c) 2009-2016 Marco Peereboom <marco@peereboom.us>  
-Copyright (c) 2009-2011 Ryan McBride <mcbride@countersiege.com>  
-Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>  
-Copyright (c) 2009 Pierre-Yves Ritschard <pyr@spootnik.org>  
-Copyright (c) 2010 Tuukka Kataja <stuge@xor.fi>  
-Copyright (c) 2011 Jason L. Wright <jason@thought.net>  
-Copyright (c) 2011-2016 Reginald Kennedy <rk@rejii.com>  
-Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>  
-Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>  
-Copyright (c) 2012-2015 David Hill <dhill@mindcry.org>  
+Copyright (c) 2009-2016 Marco Peereboom <marco@peereboom.us>
+Copyright (c) 2009-2011 Ryan McBride <mcbride@countersiege.com>
+Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
+Copyright (c) 2009 Pierre-Yves Ritschard <pyr@spootnik.org>
+Copyright (c) 2010 Tuukka Kataja <stuge@xor.fi>
+Copyright (c) 2011 Jason L. Wright <jason@thought.net>
+Copyright (c) 2011-2016 Reginald Kennedy <rk@rejii.com>
+Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
+Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
+Copyright (c) 2012-2015 David Hill <dhill@mindcry.org>
 Copyright (c) 2014-2016 Yuri D'Elia <yuri.delia@eurac.edu>
 
 Permission to use, copy, modify, and distribute this software for any
