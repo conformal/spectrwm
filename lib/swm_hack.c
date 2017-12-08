@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2009 Marco Peereboom <marco@peereboom.us>
  * Copyright (c) 2009 Ryan McBride <mcbride@countersiege.com>
+ * Copyright (c) 2011-2017 Reginald Kennedy <rk@rejii.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -49,16 +50,19 @@
 #include <X11/X.h>
 #include <X11/Xatom.h>
 #include <X11/Intrinsic.h>
+#include <xcb/xcb.h>
 
-/* dlopened libs so we can find the symbols in the real one to call them */
+static void		*lib_xcb = NULL;
 static void		*lib_xlib = NULL;
 static void		*lib_xtlib = NULL;
 
-static Window		root = None;
-static bool		xterm = false;
+static xcb_connection_t	*conn = NULL;
 static Display		*display = NULL;
 
-void	set_property(Display *, Window, char *, char *);
+static bool		xterm = false;
+
+void	set_property_xcb(xcb_connection_t *, xcb_window_t, char *, char *);
+void	set_property_xlib(Display *, Window, char *, char *);
 
 #ifdef _GNU_SOURCE
 #define DLOPEN(s)	RTLD_NEXT
@@ -66,106 +70,293 @@ void	set_property(Display *, Window, char *, char *);
 #define DLOPEN(s)	dlopen((s), RTLD_GLOBAL | RTLD_LAZY)
 #endif
 
-/* Find our root window */
-static              Window
-MyRoot(Display * dpy)
-{
-	char               *s;
-
-	if (root != None)
-		return root;
-
-	root = DefaultRootWindow(dpy);
-
-	s = getenv("ENL_WM_ROOT");
-	if (s == NULL)
-		return root;
-
-	sscanf(s, "%lx", &root);
-	return root;
-}
-
-
-typedef Atom	(XIA) (Display *display, char *atom_name, Bool
-		    only_if_exists);
-
-typedef int	(XCP) (Display *display, Window w, Atom property,
-		    Atom type, int format, int mode, unsigned char *data,
-		    int nelements);
-
 #define SWM_PROPLEN	(16)
-void
-set_property(Display *dpy, Window id, char *name, char *val)
-{
-	Atom			atom = 0;
-	char			prop[SWM_PROPLEN];
-	static XIA		*xia = NULL;
-	static XCP		*xcp = NULL;
 
-	if (lib_xlib == NULL)
-		lib_xlib = DLOPEN("libX11.so");
-	if (lib_xlib) {
-		if (xia == NULL)
-			xia = (XIA *) dlsym(lib_xlib, "XInternAtom");
-		if (xcp == NULL)
-			xcp = (XCP *) dlsym(lib_xlib, "XChangeProperty");
+/* xcb_intern_atom */
+typedef xcb_intern_atom_cookie_t (XIAF)(xcb_connection_t *, uint8_t, uint16_t,
+    const char *);
+
+/* xcb_intern_atom_reply */
+typedef xcb_intern_atom_reply_t *(XIARF)(xcb_connection_t *,
+    xcb_intern_atom_cookie_t, xcb_generic_error_t **);
+
+/* xcb_change_property */
+typedef xcb_void_cookie_t (XCPF)(xcb_connection_t *, uint8_t, xcb_window_t,
+    xcb_atom_t, xcb_atom_t, uint8_t, uint32_t, const void *);
+
+void
+set_property_xcb(xcb_connection_t *c, xcb_window_t wid, char *name, char *val)
+{
+	xcb_atom_t			atom = XCB_ATOM_NONE;
+	xcb_intern_atom_cookie_t	iac;
+	xcb_intern_atom_reply_t		*iar;
+	char				prop[SWM_PROPLEN];
+	static XIAF			*xiaf = NULL;
+	static XIARF			*xiarf = NULL;
+	static XCPF			*xcpf = NULL;
+
+	/* Obtain function pointers. */
+	if (lib_xcb == NULL)
+		lib_xcb = DLOPEN("libxcb.so");
+	if (lib_xcb) {
+		if (xiaf == NULL)
+			xiaf = (XIAF *)dlsym(lib_xcb, "xcb_intern_atom");
+		if (xiarf == NULL)
+			xiarf = (XIARF *)dlsym(lib_xcb, "xcb_intern_atom_reply");
+		if (xcpf == NULL)
+			xcpf = (XCPF *)dlsym(lib_xcb, "xcb_change_property");
 	}
-	if (xia == NULL || xcp == NULL) {
+	if (xiaf == NULL || xiarf == NULL || xcpf == NULL) {
 		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
 		return;
 	}
 
-	/* Try to update the window's workspace property */
-	atom = (*xia)(dpy, name, False);
-	if (atom)
+	/* Set the window property with the located functions. */
+	iac = (*xiaf)(c, 0, strlen(name), name);
+	iar = (*xiarf)(c, iac, NULL);
+	if (iar) {
+		atom = iar->atom;
+		free(iar);
+
 		if (snprintf(prop, SWM_PROPLEN, "%s", val) < SWM_PROPLEN)
-			(*xcp)(dpy, id, atom, XA_STRING,
-			    8, PropModeReplace, (unsigned char *)prop,
-			    strlen((char *)prop));
+			(*xcpf)(c, XCB_PROP_MODE_REPLACE, wid, atom,
+			    XCB_ATOM_STRING, 8, strlen((char *)prop), prop);
+	}
 }
 
-typedef             Window(CWF) (Display * _display, Window _parent, int _x,
-				 int _y, unsigned int _width,
-				 unsigned int _height,
-				 unsigned int _border_width, int _depth,
-				 unsigned int _class, Visual * _visual,
-				 unsigned long _valuemask,
-				 XSetWindowAttributes * _attributes);
+/* xcb_create_window/xcb_create_window_checked */
+typedef xcb_void_cookie_t (XCWF)(xcb_connection_t *, uint8_t, xcb_window_t,
+    xcb_window_t, int16_t, int16_t, uint16_t, uint16_t, uint16_t, uint16_t,
+    xcb_visualid_t, uint32_t, const void *);
 
-/* XCreateWindow intercept hack */
-Window
-XCreateWindow(Display *dpy, Window parent, int x, int y,
-   unsigned int width, unsigned int height,
-   unsigned int border_width,
-   int depth, unsigned int clss, Visual * visual,
-   unsigned long valuemask, XSetWindowAttributes * attributes)
+xcb_void_cookie_t
+xcb_create_window(xcb_connection_t *c, uint8_t depth, xcb_window_t wid,
+    xcb_window_t parent, int16_t x, int16_t y, uint16_t width, uint16_t height,
+    uint16_t border_width, uint16_t _class, xcb_visualid_t visual,
+    uint32_t value_mask, const void *value_list)
 {
-	static CWF	*func = NULL;
+	static XCWF		*xcwf = NULL;
+	char			*env;
+	xcb_void_cookie_t	xcb_ret;
+
+	if (lib_xcb == NULL)
+		lib_xcb = DLOPEN("libxcb.so");
+	if (lib_xcb && xcwf == NULL) {
+		xcwf = (XCWF *)dlsym(lib_xcb, "xcb_create_window");
+		conn = c;
+	}
+	if (xcwf == NULL) {
+		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
+		return xcb_ret;
+	}
+
+	xcb_ret = (*xcwf)(c, depth, wid, parent, x, y, width, height,
+	    border_width, _class, visual, value_mask, value_list);
+
+	if (wid != XCB_WINDOW_NONE) {
+		if ((env = getenv("_SWM_WS")) != NULL)
+			set_property_xcb(c, wid, "_SWM_WS", env);
+		if ((env = getenv("_SWM_PID")) != NULL)
+			set_property_xcb(c, wid, "_SWM_PID", env);
+		if ((env = getenv("_SWM_XTERM_FONTADJ")) != NULL) {
+			unsetenv("_SWM_XTERM_FONTADJ");
+			xterm = true;
+		}
+	}
+
+	return xcb_ret;
+}
+
+xcb_void_cookie_t
+xcb_create_window_checked(xcb_connection_t *c, uint8_t depth, xcb_window_t wid,
+    xcb_window_t parent, int16_t x, int16_t y, uint16_t width, uint16_t height,
+    uint16_t border_width, uint16_t _class, xcb_visualid_t visual,
+    uint32_t value_mask, const void *value_list)
+{
+	static XCWF		*xcwf = NULL;
+	char			*env;
+	xcb_void_cookie_t	xcb_ret;
+
+	if (lib_xcb == NULL)
+		lib_xcb = DLOPEN("libxcb.so");
+	if (lib_xcb && xcwf == NULL) {
+		xcwf = (XCWF *)dlsym(lib_xcb, "xcb_create_window_checked");
+		conn = c;
+	}
+	if (xcwf == NULL) {
+		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
+		return xcb_ret;
+	}
+
+	xcb_ret = (*xcwf)(c, depth, wid, parent, x, y, width, height,
+	    border_width, _class, visual, value_mask, value_list);
+
+	if (wid != XCB_WINDOW_NONE) {
+		if ((env = getenv("_SWM_WS")) != NULL)
+			set_property_xcb(c, wid, "_SWM_WS", env);
+		if ((env = getenv("_SWM_PID")) != NULL)
+			set_property_xcb(c, wid, "_SWM_PID", env);
+		if ((env = getenv("_SWM_XTERM_FONTADJ")) != NULL) {
+			unsetenv("_SWM_XTERM_FONTADJ");
+			xterm = true;
+		}
+	}
+
+	return xcb_ret;
+}
+
+/* xcb_create_window_aux/xcb_create_window_aux_checked */
+typedef xcb_void_cookie_t (XCWAF)(xcb_connection_t *, uint8_t, xcb_window_t,
+    xcb_window_t, int16_t, int16_t, uint16_t, uint16_t, uint16_t, uint16_t,
+    xcb_visualid_t, uint32_t, const xcb_create_window_value_list_t *);
+
+xcb_void_cookie_t
+xcb_create_window_aux(xcb_connection_t *c, uint8_t depth, xcb_window_t wid,
+    xcb_window_t parent, int16_t x, int16_t y, uint16_t width, uint16_t height,
+    uint16_t border_width, uint16_t _class, xcb_visualid_t visual,
+    uint32_t value_mask, const xcb_create_window_value_list_t *value_list)
+{
+	static XCWAF		*xcwaf = NULL;
+	char			*env;
+	xcb_void_cookie_t	xcb_ret;
+
+	if (lib_xcb == NULL)
+		lib_xcb = DLOPEN("libxcb.so");
+	if (lib_xcb && xcwaf == NULL) {
+		xcwaf = (XCWAF *)dlsym(lib_xcb, "xcb_create_window_aux");
+		conn = c;
+	}
+	if (xcwaf == NULL) {
+		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
+		return xcb_ret;
+	}
+
+	xcb_ret = (*xcwaf)(c, depth, wid, parent, x, y, width, height,
+	    border_width, _class, visual, value_mask, value_list);
+
+	if (wid != XCB_WINDOW_NONE) {
+		if ((env = getenv("_SWM_WS")) != NULL)
+			set_property_xcb(c, wid, "_SWM_WS", env);
+		if ((env = getenv("_SWM_PID")) != NULL)
+			set_property_xcb(c, wid, "_SWM_PID", env);
+		if ((env = getenv("_SWM_XTERM_FONTADJ")) != NULL) {
+			unsetenv("_SWM_XTERM_FONTADJ");
+			xterm = true;
+		}
+	}
+
+	return xcb_ret;
+}
+
+xcb_void_cookie_t
+xcb_create_window_aux_checked(xcb_connection_t *c, uint8_t depth,
+    xcb_window_t wid, xcb_window_t parent, int16_t x, int16_t y, uint16_t width,
+    uint16_t height, uint16_t border_width, uint16_t _class,
+    xcb_visualid_t visual, uint32_t value_mask,
+    const xcb_create_window_value_list_t *value_list)
+{
+	static XCWAF		*xcwaf = NULL;
+	char			*env;
+	xcb_void_cookie_t	xcb_ret;
+
+	if (lib_xcb == NULL)
+		lib_xcb = DLOPEN("libxcb.so");
+	if (lib_xcb && xcwaf == NULL) {
+		xcwaf = (XCWAF *)dlsym(lib_xcb, "xcb_create_window_aux");
+		conn = c;
+	}
+	if (xcwaf == NULL) {
+		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
+		return xcb_ret;
+	}
+
+	xcb_ret = (*xcwaf)(c, depth, wid, parent, x, y, width, height,
+	    border_width, _class, visual, value_mask, value_list);
+
+	if (wid != XCB_WINDOW_NONE) {
+		if ((env = getenv("_SWM_WS")) != NULL)
+			set_property_xcb(c, wid, "_SWM_WS", env);
+		if ((env = getenv("_SWM_PID")) != NULL)
+			set_property_xcb(c, wid, "_SWM_PID", env);
+		if ((env = getenv("_SWM_XTERM_FONTADJ")) != NULL) {
+			unsetenv("_SWM_XTERM_FONTADJ");
+			xterm = true;
+		}
+	}
+
+	return xcb_ret;
+}
+
+/* XInternAtom */
+typedef Atom (IAF)(Display *, char *, Bool);
+
+/* XChangeProperty */
+typedef int (CPF)(Display *, Window, Atom, Atom, int, int, unsigned char *, int);
+
+void
+set_property_xlib(Display *dpy, Window id, char *name, char *val)
+{
+	Atom			atom = 0;
+	char			prop[SWM_PROPLEN];
+	static IAF		*iaf = NULL;
+	static CPF		*cpf = NULL;
+
+	/* Obtain function pointers. */
+	if (lib_xlib == NULL)
+		lib_xlib = DLOPEN("libX11.so");
+	if (lib_xlib) {
+		if (iaf == NULL)
+			iaf = (IAF *)dlsym(lib_xlib, "XInternAtom");
+		if (cpf == NULL)
+			cpf = (CPF *)dlsym(lib_xlib, "XChangeProperty");
+	}
+	if (iaf == NULL || cpf == NULL) {
+		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
+		return;
+	}
+
+	/* Set the window property with the located functions. */
+	atom = (*iaf)(dpy, name, False);
+	if (atom)
+		if (snprintf(prop, SWM_PROPLEN, "%s", val) < SWM_PROPLEN)
+			(*cpf)(dpy, id, atom, XA_STRING, 8, PropModeReplace,
+			    (unsigned char *)prop, strlen((char *)prop));
+}
+
+
+/* XCreateWindow */
+typedef Window (CWF)(Display *, Window, int, int, unsigned int, unsigned int,
+    unsigned int, int, unsigned int, Visual *, unsigned long,
+    XSetWindowAttributes *);
+
+Window
+XCreateWindow(Display *dpy, Window parent, int x, int y, unsigned int width,
+    unsigned int height, unsigned int border_width, int depth, unsigned int clss,
+    Visual *visual, unsigned long valuemask, XSetWindowAttributes *attributes)
+{
+	static CWF	*cwf = NULL;
 	char		*env;
 	Window		id;
 
 	if (lib_xlib == NULL)
 		lib_xlib = DLOPEN("libX11.so");
-	if (lib_xlib && func == NULL) {
-		func = (CWF *) dlsym(lib_xlib, "XCreateWindow");
+	if (lib_xlib && cwf == NULL) {
+		cwf = (CWF *)dlsym(lib_xlib, "XCreateWindow");
 		display = dpy;
 	}
-	if (func == NULL) {
+	if (cwf == NULL) {
 		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
 		return None;
 	}
 
-	if (parent == DefaultRootWindow(dpy))
-		parent = MyRoot(dpy);
-
-	id = (*func) (dpy, parent, x, y, width, height, border_width,
+	id = (*cwf)(dpy, parent, x, y, width, height, border_width,
 	    depth, clss, visual, valuemask, attributes);
 
 	if (id) {
 		if ((env = getenv("_SWM_WS")) != NULL)
-			set_property(dpy, id, "_SWM_WS", env);
+			set_property_xlib(dpy, id, "_SWM_WS", env);
 		if ((env = getenv("_SWM_PID")) != NULL)
-			set_property(dpy, id, "_SWM_PID", env);
+			set_property_xlib(dpy, id, "_SWM_PID", env);
 		if ((env = getenv("_SWM_XTERM_FONTADJ")) != NULL) {
 			unsetenv("_SWM_XTERM_FONTADJ");
 			xterm = true;
@@ -174,44 +365,38 @@ XCreateWindow(Display *dpy, Window parent, int x, int y,
 	return (id);
 }
 
-typedef             Window(CSWF) (Display * _display, Window _parent, int _x,
-				  int _y, unsigned int _width,
-				  unsigned int _height,
-				  unsigned int _border_width,
-				  unsigned long _border,
-				  unsigned long _background);
+/* XCreateSimpleWindow */
+typedef Window (CSWF)(Display *, Window, int, int, unsigned int, unsigned int,
+    unsigned int, unsigned long, unsigned long);
 
-/* XCreateSimpleWindow intercept hack */
 Window
 XCreateSimpleWindow(Display *dpy, Window parent, int x, int y,
-    unsigned int width, unsigned int height,
-    unsigned int border_width,
+    unsigned int width, unsigned int height, unsigned int border_width,
     unsigned long border, unsigned long background)
 {
-	static CSWF	*func = NULL;
+	static CSWF	*cswf = NULL;
 	char		*env;
 	Window		id;
 
 	if (lib_xlib == NULL)
 		lib_xlib = DLOPEN("libX11.so");
-	if (lib_xlib && func == NULL)
-		func = (CSWF *) dlsym(lib_xlib, "XCreateSimpleWindow");
-	if (func == NULL) {
+	if (lib_xlib && cswf == NULL) {
+		cswf = (CSWF *)dlsym(lib_xlib, "XCreateSimpleWindow");
+		display = dpy;
+	}
+	if (cswf == NULL) {
 		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
 		return None;
 	}
 
-	if (parent == DefaultRootWindow(dpy))
-		parent = MyRoot(dpy);
-
-	id = (*func) (dpy, parent, x, y, width, height,
+	id = (*cswf)(dpy, parent, x, y, width, height,
 	    border_width, border, background);
 
 	if (id) {
 		if ((env = getenv("_SWM_WS")) != NULL)
-			set_property(dpy, id, "_SWM_WS", env);
+			set_property_xlib(dpy, id, "_SWM_WS", env);
 		if ((env = getenv("_SWM_PID")) != NULL)
-			set_property(dpy, id, "_SWM_PID", env);
+			set_property_xlib(dpy, id, "_SWM_PID", env);
 		if ((env = getenv("_SWM_XTERM_FONTADJ")) != NULL) {
 			unsetenv("_SWM_XTERM_FONTADJ");
 			xterm = true;
@@ -220,36 +405,13 @@ XCreateSimpleWindow(Display *dpy, Window parent, int x, int y,
 	return (id);
 }
 
-typedef int         (RWF) (Display * _display, Window _window, Window _parent,
-			   int x, int y);
+/* XtAppNextEvent */
+typedef	void (ANEF)(XtAppContext, XEvent *);
 
-/* XReparentWindow intercept hack */
-int
-XReparentWindow(Display *dpy, Window window, Window parent, int x, int y)
-{
-	static RWF         *func = NULL;
-
-	if (lib_xlib == NULL)
-		lib_xlib = DLOPEN("libX11.so");
-	if (lib_xlib && func == NULL)
-		func = (RWF *) dlsym(lib_xlib, "XReparentWindow");
-	if (func == NULL) {
-		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
-		/* Xlib function always returns 1, so return 0 here. */
-		return 0;
-	}
-
-	if (parent == DefaultRootWindow(dpy))
-		parent = MyRoot(dpy);
-
-	return (*func) (dpy, window, parent, x, y);
-}
-
-typedef		void (ANEF) (XtAppContext app_context, XEvent *event_return);
-int		evcount = 0;
+/* XKeysymToKeycode */
+typedef KeyCode (KTKF)(Display *, KeySym);
 
 /*
- * XtAppNextEvent Intercept Hack
  * Normally xterm rejects "synthetic" (XSendEvent) events to prevent spoofing.
  * We don't want to disable this completely, it's insecure. But hook here
  * and allow these mostly harmless ones that we use to adjust fonts.
@@ -257,24 +419,29 @@ int		evcount = 0;
 void
 XtAppNextEvent(XtAppContext app_context, XEvent *event_return)
 {
-	static ANEF	*func = NULL;
+	static ANEF	*anef = NULL;
+	static KTKF	*ktkf = NULL;
 	static KeyCode	kp_add = 0, kp_subtract = 0;
 
+	if (lib_xlib == NULL)
+		lib_xlib = DLOPEN("libX11.so");
+	if (lib_xlib && ktkf == NULL)
+		ktkf = (KTKF *)dlsym(lib_xlib, "XKeysymToKeycode");
 	if (lib_xtlib == NULL)
 		lib_xtlib = DLOPEN("libXt.so");
-	if (lib_xtlib && func == NULL) {
-		func = (ANEF *) dlsym(lib_xtlib, "XtAppNextEvent");
-		if (display) {
-			kp_add = XKeysymToKeycode(display, XK_KP_Add);
-			kp_subtract = XKeysymToKeycode(display, XK_KP_Subtract);
-		}
-	}
-	if (func == NULL) {
+	if (lib_xtlib && anef == NULL)
+		anef = (ANEF *)dlsym(lib_xtlib, "XtAppNextEvent");
+	if (anef == NULL || ktkf == NULL) {
 		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
 		return;
 	}
 
-	(*func) (app_context, event_return);
+	if (display && (kp_add == 0 || kp_subtract == 0)) {
+		kp_add = (*ktkf)(display, XK_KP_Add);
+		kp_subtract = (*ktkf)(display, XK_KP_Subtract);
+	}
+
+	(*anef)(app_context, event_return);
 
 	/* Return here if it's not an Xterm. */
 	if (!xterm)
