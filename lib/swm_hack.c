@@ -262,7 +262,7 @@ xcb_create_window_aux_checked(xcb_connection_t *c, uint8_t depth,
 	if (lib_xcb == NULL)
 		lib_xcb = DLOPEN("libxcb.so");
 	if (lib_xcb && xcwaf == NULL) {
-		xcwaf = (XCWAF *)dlsym(lib_xcb, "xcb_create_window_aux");
+		xcwaf = (XCWAF *)dlsym(lib_xcb, "xcb_create_window_aux_checked");
 		conn = c;
 	}
 	if (xcwaf == NULL) {
@@ -322,7 +322,6 @@ set_property_xlib(Display *dpy, Window id, char *name, char *val)
 			(*cpf)(dpy, id, atom, XA_STRING, 8, PropModeReplace,
 			    (unsigned char *)prop, strlen((char *)prop));
 }
-
 
 /* XCreateWindow */
 typedef Window (CWF)(Display *, Window, int, int, unsigned int, unsigned int,
@@ -406,10 +405,7 @@ XCreateSimpleWindow(Display *dpy, Window parent, int x, int y,
 }
 
 /* XtAppNextEvent */
-typedef	void (ANEF)(XtAppContext, XEvent *);
-
-/* XKeysymToKeycode */
-typedef KeyCode (KTKF)(Display *, KeySym);
+typedef void (ANEF)(XtAppContext, XEvent *);
 
 /*
  * Normally xterm rejects "synthetic" (XSendEvent) events to prevent spoofing.
@@ -420,25 +416,20 @@ void
 XtAppNextEvent(XtAppContext app_context, XEvent *event_return)
 {
 	static ANEF	*anef = NULL;
-	static KTKF	*ktkf = NULL;
 	static KeyCode	kp_add = 0, kp_subtract = 0;
 
-	if (lib_xlib == NULL)
-		lib_xlib = DLOPEN("libX11.so");
-	if (lib_xlib && ktkf == NULL)
-		ktkf = (KTKF *)dlsym(lib_xlib, "XKeysymToKeycode");
 	if (lib_xtlib == NULL)
 		lib_xtlib = DLOPEN("libXt.so");
-	if (lib_xtlib && anef == NULL)
+	if (lib_xtlib && anef == NULL) {
 		anef = (ANEF *)dlsym(lib_xtlib, "XtAppNextEvent");
-	if (anef == NULL || ktkf == NULL) {
+		if (display) {
+			kp_add = XKeysymToKeycode(display, XK_KP_Add);
+			kp_subtract = XKeysymToKeycode(display, XK_KP_Subtract);
+		}
+	}
+	if (anef == NULL) {
 		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
 		return;
-	}
-
-	if (display && (kp_add == 0 || kp_subtract == 0)) {
-		kp_add = (*ktkf)(display, XK_KP_Add);
-		kp_subtract = (*ktkf)(display, XK_KP_Subtract);
 	}
 
 	(*anef)(app_context, event_return);
