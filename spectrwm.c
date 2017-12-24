@@ -2927,11 +2927,13 @@ fontset_init(void)
 
 		XFreeStringList(missing_charsets);
 
-		if (strcmp(default_string, ""))
-			warnx("Glyphs from those sets will be replaced "
-			    "by '%s'.", default_string);
-		else
-			warnx("Glyphs from those sets won't be drawn.");
+		if(bar_fs && default_string) {
+			if (strcmp(default_string, ""))
+				warnx("Glyphs from those sets will be replaced "
+				    "by '%s'.", default_string);
+			else
+				warnx("Glyphs from those sets won't be drawn.");
+		}
 	}
 
 	if (bar_fs == NULL)
