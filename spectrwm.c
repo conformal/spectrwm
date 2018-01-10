@@ -1040,7 +1040,7 @@ void	 binding_remove(struct binding *);
 void	 buttonpress(xcb_button_press_event_t *);
 void	 buttonrelease(xcb_button_release_event_t *);
 void	 center_pointer(struct swm_region *);
-void	 check_conn(void);
+const struct xcb_setup_t	*get_setup(void);
 void	 clear_bindings(void);
 void	 clear_keybindings(void);
 int	 clear_maximized(struct workspace *);
@@ -1108,6 +1108,7 @@ xcb_atom_t get_atom_from_string(const char *);
 #ifdef SWM_DEBUG
 char	*get_atom_name(xcb_atom_t);
 #endif
+xcb_keycode_t	 get_binding_keycode(struct binding *);
 struct ws_win   *get_focus_magic(struct ws_win *);
 struct ws_win   *get_focus_prev(struct ws_win *);
 xcb_generic_event_t	*get_next_event(bool);
@@ -1386,17 +1387,47 @@ parse_rgb(const char *rgb, uint16_t *rr, uint16_t *gg, uint16_t *bb)
 	return (0);
 }
 
+const struct xcb_setup_t *
+get_setup(void)
+{
+	int	 errcode = xcb_connection_has_error(conn);
+#ifdef XCB_CONN_ERROR
+	char	*s;
+	switch (errcode) {
+	case XCB_CONN_ERROR:
+		s = "Socket error, pipe error or other stream error.";
+		break;
+	case XCB_CONN_CLOSED_EXT_NOTSUPPORTED:
+		s = "Extension not supported.";
+		break;
+	case XCB_CONN_CLOSED_MEM_INSUFFICIENT:
+		s = "Insufficient memory.";
+		break;
+	case XCB_CONN_CLOSED_REQ_LEN_EXCEED:
+		s = "Request length was exceeded.";
+		break;
+	case XCB_CONN_CLOSED_PARSE_ERR:
+		s = "Error parsing display string.";
+		break;
+	default:
+		s = "Unknown error.";
+	}
+	if (errcode)
+		errx(errcode, "X CONNECTION ERROR: %s", s);
+#else
+	if (errcode)
+		errx(errcode, "X CONNECTION ERROR");
+#endif
+	return (xcb_get_setup(conn));
+}
+
 xcb_screen_t *
 get_screen(int screen)
 {
 	const xcb_setup_t	*r;
 	xcb_screen_iterator_t	iter;
 
-	if ((r = xcb_get_setup(conn)) == NULL) {
-		DNPRINTF(SWM_D_MISC, "xcb_get_setup\n");
-		check_conn();
-	}
-
+	r = get_setup();
 	iter = xcb_setup_roots_iterator(r);
 	for (; iter.rem; --screen, xcb_screen_next(&iter))
 		if (screen == 0)
@@ -1408,14 +1439,7 @@ get_screen(int screen)
 int
 get_screen_count(void)
 {
-	const xcb_setup_t	*r;
-
-	if ((r = xcb_get_setup(conn)) == NULL) {
-		DNPRINTF(SWM_D_MISC, "xcb_get_setup\n");
-		check_conn();
-	}
-
-	return (xcb_setup_roots_length(r));
+	return (xcb_setup_roots_length(get_setup()));
 }
 
 int
@@ -8035,9 +8059,11 @@ setspawn(const char *name, const char *args, int flags)
 	if (name == NULL)
 		return;
 
+#ifndef __clang_analyzer__ /* Suppress false warnings. */
 	/* Remove any old spawn under the same name. */
 	if ((sp = spawn_find(name)) != NULL)
 		spawn_remove(sp);
+#endif
 
 	if (*args != '\0')
 		spawn_insert(name, args, flags);
@@ -8593,13 +8619,42 @@ updatenumlockmask(void)
 	DNPRINTF(SWM_D_MISC, "numlockmask: %#x\n", numlockmask);
 }
 
+xcb_keycode_t
+get_binding_keycode(struct binding *bp)
+{
+	const xcb_setup_t			*s;
+	xcb_get_keyboard_mapping_reply_t	*kmr;
+	int					col;
+	xcb_keycode_t				i, min, max;
+
+	s = get_setup();
+	min = s->min_keycode;
+	max = s->max_keycode;
+
+	kmr = xcb_get_keyboard_mapping_reply(conn,
+	    xcb_get_keyboard_mapping(conn, min, max - min + 1), NULL);
+	if (kmr == NULL)
+		return (XCB_NO_SYMBOL);
+
+	/* Search for keycode by keysym column. */
+	for (col = 0; col < kmr->keysyms_per_keycode; col++) {
+		for (i = min; i <= max; i++) {
+			if (xcb_key_symbols_get_keysym(syms, i, col) ==
+			    bp->value)
+				return (i);
+		}
+	}
+
+	return (XCB_NO_SYMBOL);
+}
+
 void
 grabkeys(void)
 {
 	struct binding		*bp;
-	int			num_screens, k, j;
+	int			num_screens, i, j;
 	uint16_t		modifiers[4];
-	xcb_keycode_t		*code;
+	xcb_keycode_t		keycode;
 
 	DNPRINTF(SWM_D_MISC, "begin\n");
 	updatenumlockmask();
@@ -8610,10 +8665,10 @@ grabkeys(void)
 	modifiers[3] = numlockmask | XCB_MOD_MASK_LOCK;
 
 	num_screens = get_screen_count();
-	for (k = 0; k < num_screens; k++) {
-		if (TAILQ_EMPTY(&screens[k].rl))
+	for (i = 0; i < num_screens; i++) {
+		if (TAILQ_EMPTY(&screens[i].rl))
 			continue;
-		xcb_ungrab_key(conn, XCB_GRAB_ANY, screens[k].root,
+		xcb_ungrab_key(conn, XCB_GRAB_ANY, screens[i].root,
 			XCB_MOD_MASK_ANY);
 		RB_FOREACH(bp, binding_tree, &bindings) {
 			if (bp->type != KEYBIND)
@@ -8634,31 +8689,30 @@ grabkeys(void)
 			    bp->action <= FN_MVWS_22)
 				continue;
 
-			if ((code = xcb_key_symbols_get_keycode(syms,
-			    bp->value)) == NULL)
+			/* Try to get keycode for the grab. */
+			keycode = get_binding_keycode(bp);
+			if (keycode == XCB_NO_SYMBOL)
 				continue;
 
 			if (bp->mod == XCB_MOD_MASK_ANY) {
 				/* All modifiers are grabbed in one pass. */
-				DNPRINTF(SWM_D_MOUSE, "grab key: %u, "
-				    "modmask: %d\n", bp->value, bp->mod);
-				xcb_grab_key(conn, 1, screens[k].root,
-				    bp->mod, *code, XCB_GRAB_MODE_ASYNC,
+				DNPRINTF(SWM_D_KEY, "key: %u, modmask: %d\n",
+				    bp->value, bp->mod);
+				xcb_grab_key(conn, 1, screens[i].root, bp->mod,
+				    keycode, XCB_GRAB_MODE_ASYNC,
 				    XCB_GRAB_MODE_SYNC);
 			} else {
 				/* Need to grab each modifier permutation. */
 				for (j = 0; j < LENGTH(modifiers); j++) {
-					DNPRINTF(SWM_D_MOUSE, "grab key: %u, "
-					    "modmask: %d\n",
-					    bp->value, bp->mod | modifiers[j]);
-					xcb_grab_key(conn, 1,
-					    screens[k].root,
-					    bp->mod | modifiers[j],
-					    *code, XCB_GRAB_MODE_ASYNC,
+					DNPRINTF(SWM_D_KEY, "key: %u, "
+					    "modmask: %d\n", bp->value,
+					    bp->mod | modifiers[j]);
+					xcb_grab_key(conn, 1, screens[i].root,
+					    bp->mod | modifiers[j], keycode,
+					    XCB_GRAB_MODE_ASYNC,
 					    XCB_GRAB_MODE_SYNC);
 				}
 			}
-			free(code);
 		}
 	}
 	DNPRINTF(SWM_D_MISC, "done\n");
@@ -11632,39 +11686,6 @@ clientmessage(xcb_client_message_event_t *e)
 	}
 
 	focus_flush();
-}
-
-void
-check_conn(void)
-{
-	int	 errcode = xcb_connection_has_error(conn);
-#ifdef XCB_CONN_ERROR
-	char	*s;
-	switch (errcode) {
-	case XCB_CONN_ERROR:
-		s = "Socket error, pipe error or other stream error.";
-		break;
-	case XCB_CONN_CLOSED_EXT_NOTSUPPORTED:
-		s = "Extension not supported.";
-		break;
-	case XCB_CONN_CLOSED_MEM_INSUFFICIENT:
-		s = "Insufficient memory.";
-		break;
-	case XCB_CONN_CLOSED_REQ_LEN_EXCEED:
-		s = "Request length was exceeded.";
-		break;
-	case XCB_CONN_CLOSED_PARSE_ERR:
-		s = "Error parsing display string.";
-		break;
-	default:
-		s = "Unknown error.";
-	}
-	if (errcode)
-		errx(errcode, "X CONNECTION ERROR: %s", s);
-#else
-	if (errcode)
-		errx(errcode, "X CONNECTION ERROR");
-#endif
 }
 
 int
