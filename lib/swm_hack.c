@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2009 Marco Peereboom <marco@peereboom.us>
  * Copyright (c) 2009 Ryan McBride <mcbride@countersiege.com>
+ * Copyright (c) 2011-2018 Reginald Kennedy <rk@rejii.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -54,11 +55,13 @@
 static void		*lib_xlib = NULL;
 static void		*lib_xtlib = NULL;
 
-static Window		root = None;
 static bool		xterm = false;
 static Display		*display = NULL;
 
-void	set_property(Display *, Window, char *, char *);
+static Atom		swmws = None, swmpid = None;
+
+void	set_property(Display *, Window, Atom, char *);
+Atom	get_atom_from_string(Display *, char *);
 
 #ifdef _GNU_SOURCE
 #define DLOPEN(s)	RTLD_NEXT
@@ -66,57 +69,51 @@ void	set_property(Display *, Window, char *, char *);
 #define DLOPEN(s)	dlopen((s), RTLD_GLOBAL | RTLD_LAZY)
 #endif
 
-/* Find our root window */
-static              Window
-MyRoot(Display * dpy)
+typedef Atom (XIA)(Display *_display, char *atom_name, Bool only_if_exists);
+
+Atom
+get_atom_from_string(Display *dpy, char *name)
 {
-	char               *s;
-
-	if (root != None)
-		return root;
-
-	root = DefaultRootWindow(dpy);
-
-	s = getenv("ENL_WM_ROOT");
-	if (s == NULL)
-		return root;
-
-	sscanf(s, "%lx", &root);
-	return root;
-}
-
-
-typedef Atom	(XIA) (Display *display, char *atom_name, Bool
-		    only_if_exists);
-
-typedef int	(XCP) (Display *display, Window w, Atom property,
-		    Atom type, int format, int mode, unsigned char *data,
-		    int nelements);
-
-#define SWM_PROPLEN	(16)
-void
-set_property(Display *dpy, Window id, char *name, char *val)
-{
-	Atom			atom = 0;
-	char			prop[SWM_PROPLEN];
+	Atom			atom = None;
 	static XIA		*xia = NULL;
-	static XCP		*xcp = NULL;
 
 	if (lib_xlib == NULL)
 		lib_xlib = DLOPEN("libX11.so");
 	if (lib_xlib) {
 		if (xia == NULL)
 			xia = (XIA *) dlsym(lib_xlib, "XInternAtom");
+	}
+	if (xia == NULL) {
+		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
+		return atom;
+	}
+
+	atom = (*xia)(dpy, name, False);
+	return atom;
+}
+
+typedef int (XCP)(Display *_display, Window w, Atom property, Atom type,
+    int format, int mode, unsigned char *data, int nelements);
+
+#define SWM_PROPLEN	(16)
+void
+set_property(Display *dpy, Window id, Atom atom, char *val)
+{
+	char			prop[SWM_PROPLEN];
+	static XCP		*xcp = NULL;
+
+	if (lib_xlib == NULL)
+		lib_xlib = DLOPEN("libX11.so");
+	if (lib_xlib) {
 		if (xcp == NULL)
 			xcp = (XCP *) dlsym(lib_xlib, "XChangeProperty");
 	}
-	if (xia == NULL || xcp == NULL) {
+	if (xcp == NULL) {
 		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
 		return;
 	}
 
 	/* Try to update the window's workspace property */
-	atom = (*xia)(dpy, name, False);
 	if (atom)
 		if (snprintf(prop, SWM_PROPLEN, "%s", val) < SWM_PROPLEN)
 			(*xcp)(dpy, id, atom, XA_STRING,
@@ -124,21 +121,45 @@ set_property(Display *dpy, Window id, char *name, char *val)
 			    strlen((char *)prop));
 }
 
-typedef             Window(CWF) (Display * _display, Window _parent, int _x,
-				 int _y, unsigned int _width,
-				 unsigned int _height,
-				 unsigned int _border_width, int _depth,
-				 unsigned int _class, Visual * _visual,
-				 unsigned long _valuemask,
-				 XSetWindowAttributes * _attributes);
+typedef Display *(ODF)(register _Xconst char *_display);
+
+/* XOpenDisplay intercept hack */
+Display *
+XOpenDisplay(register _Xconst char *_display)
+{
+	static ODF	*func = NULL;
+
+	if (lib_xlib == NULL)
+		lib_xlib = DLOPEN("libX11.so");
+	if (lib_xlib && func == NULL)
+		func = (ODF *) dlsym(lib_xlib, "XOpenDisplay");
+	if (func == NULL) {
+		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
+		return None;
+	}
+
+	display = (*func) (_display);
+
+	/* Preload atoms to prevent deadlock. */
+	if (swmws == None)
+		swmws = get_atom_from_string(display, "_SWM_WS");
+	if (swmpid == None)
+		swmpid = get_atom_from_string(display, "_SWM_PID");
+
+	return display;
+}
+
+typedef Window (CWF)(Display * _display, Window _parent, int _x, int _y,
+    unsigned int _width, unsigned int _height, unsigned int _border_width,
+    int _depth, unsigned int _class, Visual * _visual, unsigned long _valuemask,
+    XSetWindowAttributes * _attributes);
 
 /* XCreateWindow intercept hack */
 Window
-XCreateWindow(Display *dpy, Window parent, int x, int y,
-   unsigned int width, unsigned int height,
-   unsigned int border_width,
-   int depth, unsigned int clss, Visual * visual,
-   unsigned long valuemask, XSetWindowAttributes * attributes)
+XCreateWindow(Display *dpy, Window parent, int x, int y, unsigned int width,
+    unsigned int height, unsigned int border_width, int depth,
+    unsigned int clss, Visual * visual, unsigned long valuemask,
+    XSetWindowAttributes * attributes)
 {
 	static CWF	*func = NULL;
 	char		*env;
@@ -146,26 +167,21 @@ XCreateWindow(Display *dpy, Window parent, int x, int y,
 
 	if (lib_xlib == NULL)
 		lib_xlib = DLOPEN("libX11.so");
-	if (lib_xlib && func == NULL) {
+	if (lib_xlib && func == NULL)
 		func = (CWF *) dlsym(lib_xlib, "XCreateWindow");
-		display = dpy;
-	}
 	if (func == NULL) {
 		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
 		return None;
 	}
-
-	if (parent == DefaultRootWindow(dpy))
-		parent = MyRoot(dpy);
 
 	id = (*func) (dpy, parent, x, y, width, height, border_width,
 	    depth, clss, visual, valuemask, attributes);
 
 	if (id) {
 		if ((env = getenv("_SWM_WS")) != NULL)
-			set_property(dpy, id, "_SWM_WS", env);
+			set_property(dpy, id, swmws, env);
 		if ((env = getenv("_SWM_PID")) != NULL)
-			set_property(dpy, id, "_SWM_PID", env);
+			set_property(dpy, id, swmpid, env);
 		if ((env = getenv("_SWM_XTERM_FONTADJ")) != NULL) {
 			unsetenv("_SWM_XTERM_FONTADJ");
 			xterm = true;
@@ -174,18 +190,14 @@ XCreateWindow(Display *dpy, Window parent, int x, int y,
 	return (id);
 }
 
-typedef             Window(CSWF) (Display * _display, Window _parent, int _x,
-				  int _y, unsigned int _width,
-				  unsigned int _height,
-				  unsigned int _border_width,
-				  unsigned long _border,
-				  unsigned long _background);
+typedef Window (CSWF)(Display * _display, Window _parent, int _x, int _y,
+    unsigned int _width, unsigned int _height, unsigned int _border_width,
+    unsigned long _border, unsigned long _background);
 
 /* XCreateSimpleWindow intercept hack */
 Window
 XCreateSimpleWindow(Display *dpy, Window parent, int x, int y,
-    unsigned int width, unsigned int height,
-    unsigned int border_width,
+    unsigned int width, unsigned int height, unsigned int border_width,
     unsigned long border, unsigned long background)
 {
 	static CSWF	*func = NULL;
@@ -201,17 +213,14 @@ XCreateSimpleWindow(Display *dpy, Window parent, int x, int y,
 		return None;
 	}
 
-	if (parent == DefaultRootWindow(dpy))
-		parent = MyRoot(dpy);
-
 	id = (*func) (dpy, parent, x, y, width, height,
 	    border_width, border, background);
 
 	if (id) {
 		if ((env = getenv("_SWM_WS")) != NULL)
-			set_property(dpy, id, "_SWM_WS", env);
+			set_property(dpy, id, swmws, env);
 		if ((env = getenv("_SWM_PID")) != NULL)
-			set_property(dpy, id, "_SWM_PID", env);
+			set_property(dpy, id, swmpid, env);
 		if ((env = getenv("_SWM_XTERM_FONTADJ")) != NULL) {
 			unsetenv("_SWM_XTERM_FONTADJ");
 			xterm = true;
@@ -220,33 +229,7 @@ XCreateSimpleWindow(Display *dpy, Window parent, int x, int y,
 	return (id);
 }
 
-typedef int         (RWF) (Display * _display, Window _window, Window _parent,
-			   int x, int y);
-
-/* XReparentWindow intercept hack */
-int
-XReparentWindow(Display *dpy, Window window, Window parent, int x, int y)
-{
-	static RWF         *func = NULL;
-
-	if (lib_xlib == NULL)
-		lib_xlib = DLOPEN("libX11.so");
-	if (lib_xlib && func == NULL)
-		func = (RWF *) dlsym(lib_xlib, "XReparentWindow");
-	if (func == NULL) {
-		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
-		/* Xlib function always returns 1, so return 0 here. */
-		return 0;
-	}
-
-	if (parent == DefaultRootWindow(dpy))
-		parent = MyRoot(dpy);
-
-	return (*func) (dpy, window, parent, x, y);
-}
-
-typedef		void (ANEF) (XtAppContext app_context, XEvent *event_return);
-int		evcount = 0;
+typedef void (ANEF)(XtAppContext app_context, XEvent *event_return);
 
 /*
  * XtAppNextEvent Intercept Hack
