@@ -5252,17 +5252,19 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 			msize = cell.w;
 			if (flip)
 				cell.x += r_g.w - msize;
+			s = stacks;
 		} else {
-			msize = -2;
+			msize = - 2 * border_width;
 			colno = split = winno / stacks;
 			cell.w = ((r_g.w - (stacks * 2 * border_width) +
 			    2 * border_width) / stacks);
+			s = stacks - 1;
 		}
 
 		hrh = r_g.h / colno;
 		extra = r_g.h - (colno * hrh);
 		cell.h = hrh - 2 * border_width;
-		i = j = 0, s = stacks;
+		i = j = 0;
 	}
 
 	/* Update window geometry. */
@@ -5285,8 +5287,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 			extra = r_g.h - (colno * hrh);
 
 			if (!flip)
-				cell.x += cell.w + 2 * border_width +
-				    tile_gap;
+				cell.x += cell.w + 2 * border_width + tile_gap;
 
 			cell.w = (r_g.w - msize -
 			    (stacks * (2 * border_width + tile_gap))) / stacks;
