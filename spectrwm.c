@@ -205,6 +205,8 @@ uint32_t		swm_debug = 0
 
 #define EWMH_F_MAXIMIZED	(EWMH_F_MAXIMIZED_VERT | EWMH_F_MAXIMIZED_HORZ)
 
+#define OPACITY_OPAQUE			(0xffffffff)
+
 /* convert 8-bit to 16-bit */
 #define RGB_8_TO_16(col)	(((col) << 8) + (col))
 
@@ -403,6 +405,9 @@ bool		 iconic_enabled = false;
 bool		 maximize_hide_bar = false;
 bool		 urgent_enabled = false;
 bool		 urgent_collapse = false;
+bool		 opacity_hinting = false;
+uint32_t	 opacity_focus = OPACITY_OPAQUE;
+uint32_t	 opacity_unfocus = (0.8 * OPACITY_OPAQUE);
 char		*clock_format = NULL;
 bool		 window_class_enabled = false;
 bool		 window_instance_enabled = false;
@@ -450,6 +455,7 @@ struct swm_bar {
 	xcb_pixmap_t		buffer;
 	struct swm_geometry	g;
 	struct swm_region	*r;	/* Associated region. */
+	uint32_t		opacity; /* Current opacity. */
 };
 
 /* virtual "screens" */
@@ -486,6 +492,7 @@ struct ws_win {
 	bool			mapped;
 	uint8_t			state;
 	bool			bordered;
+	uint32_t		opacity;
 	uint32_t		ewmh_flags;
 	int			font_size_boundary[SWM_MAX_FONT_STEPS];
 	int			font_steps;
@@ -587,9 +594,9 @@ enum {
 };
 
 enum {
-	SWM_S_COLOR_BAR,
+	SWM_S_COLOR_BAR_FOCUS,
 	SWM_S_COLOR_BAR_SELECTED,
-	SWM_S_COLOR_BAR_BORDER,
+	SWM_S_COLOR_BAR_BORDER_FOCUS,
 	SWM_S_COLOR_BAR_BORDER_UNFOCUS,
 	SWM_S_COLOR_BAR_FONT,
 	SWM_S_COLOR_BAR_FONT_SELECTED,
@@ -627,6 +634,8 @@ struct swm_screen {
 	Visual			*xvisual; /* Needed for Xft. */
 	xcb_colormap_t		colormap;
 	xcb_gcontext_t		gc;
+	uint32_t		bar_opacity_focus;
+	uint32_t		bar_opacity_unfocus;
 };
 struct swm_screen	*screens;
 
@@ -708,6 +717,7 @@ struct quirk {
 #define SWM_Q_IGNORESPAWNWS	(1<<10)	/* Ignore _SWM_WS when managing win. */
 #define SWM_Q_NOFOCUSCYCLE	(1<<11)	/* Remove from normal focus cycle. */
 #define SWM_Q_MINIMALBORDER	(1<<12)	/* No border when floating/unfocused. */
+#define SWM_Q_ALWAYSOPAQUE	(1<<13)	/* No opacity hinting. */
 };
 TAILQ_HEAD(quirk_list, quirk) quirks = TAILQ_HEAD_INITIALIZER(quirks);
 
@@ -744,6 +754,7 @@ enum {
 	_NET_WM_STATE_MAXIMIZED_HORZ,
 	_NET_WM_STATE_SKIP_PAGER,
 	_NET_WM_STATE_SKIP_TASKBAR,
+	_NET_WM_WINDOW_OPACITY,
 	_NET_WM_WINDOW_TYPE,
 	_NET_WM_WINDOW_TYPE_DIALOG,
 	_NET_WM_WINDOW_TYPE_DOCK,
@@ -758,44 +769,46 @@ enum {
 struct ewmh_hint {
 	char		*name;
 	xcb_atom_t	atom;
+	bool		enabled;
 } ewmh[SWM_EWMH_HINT_MAX] =	{
     /* must be in same order as in the enum */
-    {"_NET_ACTIVE_WINDOW", XCB_ATOM_NONE},
-    {"_NET_CLIENT_LIST", XCB_ATOM_NONE},
-    {"_NET_CLOSE_WINDOW", XCB_ATOM_NONE},
-    {"_NET_CURRENT_DESKTOP", XCB_ATOM_NONE},
-    {"_NET_DESKTOP_GEOMETRY", XCB_ATOM_NONE},
-    {"_NET_DESKTOP_NAMES", XCB_ATOM_NONE},
-    {"_NET_DESKTOP_VIEWPORT", XCB_ATOM_NONE},
-    {"_NET_MOVERESIZE_WINDOW", XCB_ATOM_NONE},
-    {"_NET_NUMBER_OF_DESKTOPS", XCB_ATOM_NONE},
-    {"_NET_REQUEST_FRAME_EXTENTS", XCB_ATOM_NONE},
-    {"_NET_RESTACK_WINDOW", XCB_ATOM_NONE},
-    {"_NET_WM_ACTION_ABOVE", XCB_ATOM_NONE},
-    {"_NET_WM_ACTION_CLOSE", XCB_ATOM_NONE},
-    {"_NET_WM_ACTION_FULLSCREEN", XCB_ATOM_NONE},
-    {"_NET_WM_ACTION_MOVE", XCB_ATOM_NONE},
-    {"_NET_WM_ACTION_RESIZE", XCB_ATOM_NONE},
-    {"_NET_WM_ALLOWED_ACTIONS", XCB_ATOM_NONE},
-    {"_NET_WM_DESKTOP", XCB_ATOM_NONE},
-    {"_NET_WM_FULL_PLACEMENT", XCB_ATOM_NONE},
-    {"_NET_WM_NAME", XCB_ATOM_NONE},
-    {"_NET_WM_STATE", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_ABOVE", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_FULLSCREEN", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_HIDDEN", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_MAXIMIZED_VERT", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_MAXIMIZED_HORZ", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_SKIP_PAGER", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_SKIP_TASKBAR", XCB_ATOM_NONE},
-    {"_NET_WM_WINDOW_TYPE", XCB_ATOM_NONE},
-    {"_NET_WM_WINDOW_TYPE_DIALOG", XCB_ATOM_NONE},
-    {"_NET_WM_WINDOW_TYPE_DOCK", XCB_ATOM_NONE},
-    {"_NET_WM_WINDOW_TYPE_NORMAL", XCB_ATOM_NONE},
-    {"_NET_WM_WINDOW_TYPE_SPLASH", XCB_ATOM_NONE},
-    {"_NET_WM_WINDOW_TYPE_TOOLBAR", XCB_ATOM_NONE},
-    {"_NET_WM_WINDOW_TYPE_UTILITY", XCB_ATOM_NONE},
-    {"_SWM_WM_STATE_MANUAL", XCB_ATOM_NONE},
+    {"_NET_ACTIVE_WINDOW",		XCB_ATOM_NONE,	true},
+    {"_NET_CLIENT_LIST",		XCB_ATOM_NONE,	true},
+    {"_NET_CLOSE_WINDOW",		XCB_ATOM_NONE,	true},
+    {"_NET_CURRENT_DESKTOP",		XCB_ATOM_NONE,	true},
+    {"_NET_DESKTOP_GEOMETRY",		XCB_ATOM_NONE,	true},
+    {"_NET_DESKTOP_NAMES",		XCB_ATOM_NONE,	true},
+    {"_NET_DESKTOP_VIEWPORT",		XCB_ATOM_NONE,	true},
+    {"_NET_MOVERESIZE_WINDOW",		XCB_ATOM_NONE,	true},
+    {"_NET_NUMBER_OF_DESKTOPS",		XCB_ATOM_NONE,	true},
+    {"_NET_REQUEST_FRAME_EXTENTS",	XCB_ATOM_NONE,	true},
+    {"_NET_RESTACK_WINDOW",		XCB_ATOM_NONE,	true},
+    {"_NET_WM_ACTION_ABOVE",		XCB_ATOM_NONE,	true},
+    {"_NET_WM_ACTION_CLOSE",		XCB_ATOM_NONE,	true},
+    {"_NET_WM_ACTION_FULLSCREEN",	XCB_ATOM_NONE,	true},
+    {"_NET_WM_ACTION_MOVE",		XCB_ATOM_NONE,	true},
+    {"_NET_WM_ACTION_RESIZE",		XCB_ATOM_NONE,	true},
+    {"_NET_WM_ALLOWED_ACTIONS",		XCB_ATOM_NONE,	true},
+    {"_NET_WM_DESKTOP",			XCB_ATOM_NONE,	true},
+    {"_NET_WM_FULL_PLACEMENT",		XCB_ATOM_NONE,	true},
+    {"_NET_WM_NAME",			XCB_ATOM_NONE,	true},
+    {"_NET_WM_STATE",			XCB_ATOM_NONE,	true},
+    {"_NET_WM_STATE_ABOVE",		XCB_ATOM_NONE,	true},
+    {"_NET_WM_STATE_FULLSCREEN",	XCB_ATOM_NONE,	true},
+    {"_NET_WM_STATE_HIDDEN",		XCB_ATOM_NONE,	true},
+    {"_NET_WM_STATE_MAXIMIZED_VERT",	XCB_ATOM_NONE,	true},
+    {"_NET_WM_STATE_MAXIMIZED_HORZ",	XCB_ATOM_NONE,	true},
+    {"_NET_WM_STATE_SKIP_PAGER",	XCB_ATOM_NONE,	true},
+    {"_NET_WM_STATE_SKIP_TASKBAR",	XCB_ATOM_NONE,	true},
+    {"_NET_WM_WINDOW_OPACITY",		XCB_ATOM_NONE,	false},
+    {"_NET_WM_WINDOW_TYPE",		XCB_ATOM_NONE,	true},
+    {"_NET_WM_WINDOW_TYPE_DIALOG",	XCB_ATOM_NONE,	true},
+    {"_NET_WM_WINDOW_TYPE_DOCK",	XCB_ATOM_NONE,	true},
+    {"_NET_WM_WINDOW_TYPE_NORMAL",	XCB_ATOM_NONE,	true},
+    {"_NET_WM_WINDOW_TYPE_SPLASH",	XCB_ATOM_NONE,	true},
+    {"_NET_WM_WINDOW_TYPE_TOOLBAR",	XCB_ATOM_NONE,	true},
+    {"_NET_WM_WINDOW_TYPE_UTILITY",	XCB_ATOM_NONE,	true},
+    {"_SWM_WM_STATE_MANUAL",		XCB_ATOM_NONE,	true},
 };
 
 /* EWMH source type */
@@ -1080,6 +1093,7 @@ void	 ewmh_update_client_list(void);
 void	 ewmh_update_current_desktop(void);
 void	 ewmh_update_desktop_names(void);
 void	 ewmh_update_desktops(void);
+void	 ewmh_update_supported(void);
 void	 ewmh_change_wm_state(struct ws_win *, xcb_atom_t, long);
 void	 ewmh_update_wm_state(struct ws_win *);
 char	*expand_tilde(const char *);
@@ -1209,6 +1223,7 @@ void	 search_workspace(struct binding *, struct swm_region *, union arg *);
 void	 send_to_rg(struct binding *, struct swm_region *, union arg *);
 void	 send_to_rg_relative(struct binding *, struct swm_region *, union arg *);
 void	 send_to_ws(struct binding *, struct swm_region *, union arg *);
+void	 set_bar_opacity(struct swm_bar *, uint32_t);
 void	 set_region(struct swm_region *);
 int	 setautorun(const char *, const char *, int);
 void	 setbinding(uint16_t, enum binding_type, uint32_t, enum actionid,
@@ -1216,6 +1231,7 @@ void	 setbinding(uint16_t, enum binding_type, uint32_t, enum actionid,
 int	 setconfbinding(const char *, const char *, int);
 int	 setconfcolor(const char *, const char *, int);
 int	 setconfmodkey(const char *, const char *, int);
+int	 setconfopacity(const char *, const char *, int);
 int	 setconfquirk(const char *, const char *, int);
 int	 setconfregion(const char *, const char *, int);
 int	 setconfspawn(const char *, const char *, int);
@@ -1234,6 +1250,7 @@ void	 setup_quirks(void);
 void	 setup_screens(void);
 void	 setup_spawn(void);
 void	 set_child_transient(struct ws_win *, xcb_window_t *);
+void	 set_win_opacity(struct ws_win *, uint32_t);
 void	 set_win_state(struct ws_win *, uint8_t);
 void	 shutdown_cleanup(void);
 void	 sighdlr(int);
@@ -1513,7 +1530,7 @@ void
 setup_ewmh(void)
 {
 	xcb_window_t			root, win;
-	int				i, j, num_screens;
+	int				i, num_screens;
 
 	for (i = 0; i < LENGTH(ewmh); i++)
 		ewmh[i].atom = get_atom_from_string(ewmh[i].name);
@@ -1536,18 +1553,34 @@ setup_ewmh(void)
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win,
 		    ewmh[_NET_WM_NAME].atom, a_utf8_string,
 		    8, strlen("spectrwm"), "spectrwm");
+	}
+
+	ewmh_update_supported();
+	ewmh_update_desktops();
+	ewmh_get_desktop_names();
+}
+
+void
+ewmh_update_supported(void)
+{
+	xcb_window_t	root;
+	int		i, j, num_screens;
+
+	num_screens = get_screen_count();
+	for (i = 0; i < num_screens; i++) {
+		root = screens[i].root;
 
 		/* Report supported atoms */
 		xcb_delete_property(conn, root, a_net_supported);
-		for (j = 0; j < LENGTH(ewmh); j++)
+		for (j = 0; j < LENGTH(ewmh); j++) {
+			if (!ewmh[j].enabled)
+				continue;
 			xcb_change_property(conn, XCB_PROP_MODE_APPEND, root,
 			    a_net_supported, XCB_ATOM_ATOM, 32, 1,
 			    &ewmh[j].atom);
-
+			DNPRINTF(SWM_D_CONF, "adding %s\n", ewmh[j].name);
+		}
 	}
-
-	ewmh_update_desktops();
-	ewmh_get_desktop_names();
 }
 
 void
@@ -1573,10 +1606,12 @@ teardown_ewmh(void)
 			xcb_destroy_window(conn, id);
 			xcb_delete_property(conn, screens[i].root,
 			    a_net_wm_check);
-			xcb_delete_property(conn, screens[i].root,
-			    a_net_supported);
 		}
 		free(pr);
+
+		/* Cleanup _NET_SUPPORTED */
+		xcb_delete_property(conn, screens[i].root,
+		    a_net_supported);
 	}
 }
 
@@ -1951,8 +1986,8 @@ debug_refresh(struct ws_win *win)
 				    win->s->idx);
 
 			win->debug = xcb_generate_id(conn);
-			wc[0] = win->s->c[SWM_S_COLOR_BAR].pixel;
-			wc[1] = win->s->c[SWM_S_COLOR_BAR_BORDER].pixel;
+			wc[0] = win->s->c[SWM_S_COLOR_BAR_FOCUS].pixel;
+			wc[1] = win->s->c[SWM_S_COLOR_BAR_BORDER_FOCUS].pixel;
 			wc[2] = win->s->colormap;
 
 			xcb_create_window(conn, win->s->depth, win->debug,
@@ -2018,7 +2053,7 @@ debug_refresh(struct ws_win *win)
 		rect.width = width;
 		rect.height = height;
 
-		gcv[0] = win->s->c[SWM_S_COLOR_BAR].pixel;
+		gcv[0] = win->s->c[SWM_S_COLOR_BAR_FOCUS].pixel;
 		xcb_change_gc(conn, win->s->gc, XCB_GC_FOREGROUND, gcv);
 		xcb_poly_fill_rectangle(conn, win->debug, win->s->gc, 1, &rect);
 
@@ -2301,7 +2336,7 @@ bar_print_legacy(struct swm_region *r, const char *s)
 	rect.width = WIDTH(r->bar);
 	rect.height = HEIGHT(r->bar);
 
-	gcv[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
+	gcv[0] = r->s->c[SWM_S_COLOR_BAR_FOCUS].pixel;
 	xcb_change_gc(conn, r->s->gc, XCB_GC_FOREGROUND, gcv);
 	xcb_poly_fill_rectangle(conn, r->bar->buffer, r->s->gc, 1, &rect);
 
@@ -2354,7 +2389,7 @@ bar_print(struct swm_region *r, const char *s)
 	rect.width = WIDTH(r->bar);
 	rect.height = HEIGHT(r->bar);
 
-	gcv[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
+	gcv[0] = r->s->c[SWM_S_COLOR_BAR_FOCUS].pixel;
 	xcb_change_gc(conn, r->s->gc, XCB_GC_FOREGROUND, gcv);
 	xcb_poly_fill_rectangle(conn, r->bar->buffer, r->s->gc, 1, &rect);
 
@@ -3123,7 +3158,7 @@ xft_init(struct swm_region *r)
 	    &color, &bar_font_color))
 		warn("Xft error: unable to allocate color.");
 
-	PIXEL_TO_XRENDERCOLOR(r->s->c[SWM_S_COLOR_BAR].pixel, color);
+	PIXEL_TO_XRENDERCOLOR(r->s->c[SWM_S_COLOR_BAR_FOCUS].pixel, color);
 
 	if (!XftColorAllocValue(display, r->s->xvisual, r->s->colormap, &color,
 	    &search_font_color))
@@ -3162,10 +3197,11 @@ bar_setup(struct swm_region *r)
 	Y(r->bar) = bar_at_bottom ? (Y(r) + HEIGHT(r) - bar_height) : Y(r);
 	WIDTH(r->bar) = WIDTH(r) - 2 * bar_border_width;
 	HEIGHT(r->bar) = bar_height - 2 * bar_border_width;
+	r->bar->opacity = OPACITY_OPAQUE;
 
 	/* Assume region is unfocused when we create the bar. */
 	r->bar->id = xcb_generate_id(conn);
-	wa[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
+	wa[0] = r->s->c[SWM_S_COLOR_BAR_FOCUS].pixel;
 	wa[1] = r->s->c[SWM_S_COLOR_BAR_BORDER_UNFOCUS].pixel;
 	wa[2] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_POINTER_MOTION |
 	    XCB_EVENT_MASK_POINTER_MOTION_HINT;
@@ -4029,6 +4065,47 @@ validate_ws(struct workspace *testws)
 }
 
 void
+set_bar_opacity(struct swm_bar *bar, uint32_t opacity)
+{
+	if (opacity == bar->opacity)
+		return;
+	DNPRINTF(SWM_D_BAR, "id: %#x, cur_opacity: %#x, opacity: %#x\n",
+	    bar->id, bar->opacity, opacity);
+
+	if (opacity != OPACITY_OPAQUE) {
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, bar->id,
+		    ewmh[_NET_WM_WINDOW_OPACITY].atom, XCB_ATOM_CARDINAL, 32, 1,
+		    &opacity);
+	} else {
+		xcb_delete_property(conn, bar->id,
+		    ewmh[_NET_WM_WINDOW_OPACITY].atom);
+	}
+
+	bar->opacity = opacity;
+}
+
+void
+set_win_opacity(struct ws_win *win, uint32_t opacity)
+{
+	if (win->quirks & SWM_Q_ALWAYSOPAQUE)
+		return;
+
+	if (opacity == win->opacity)
+		return;
+
+	if (opacity != OPACITY_OPAQUE) {
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->frame,
+		    ewmh[_NET_WM_WINDOW_OPACITY].atom, XCB_ATOM_CARDINAL, 32, 1,
+		    &opacity);
+	} else {
+		xcb_delete_property(conn, win->frame,
+		    ewmh[_NET_WM_WINDOW_OPACITY].atom);
+	}
+
+	win->opacity = opacity;
+}
+
+void
 unfocus_win(struct ws_win *win)
 {
 	xcb_window_t		none = XCB_WINDOW_NONE;
@@ -4142,6 +4219,8 @@ focus_win(struct ws_win *win)
 				DNPRINTF(SWM_D_FOCUS, "skip refocus "
 				    "from override_redirect.\n");
 				goto out;
+			} else {
+				unfocus_win(cfw);
 			}
 		}
 	}
@@ -4312,6 +4391,9 @@ set_region(struct swm_region *r)
 		xcb_change_window_attributes(conn, rf->bar->id,
 		    XCB_CW_BORDER_PIXEL,
 		    &r->s->c[SWM_S_COLOR_BAR_BORDER_UNFOCUS].pixel);
+
+		if (opacity_hinting)
+			set_bar_opacity(rf->bar, r->s->bar_opacity_unfocus);
 	}
 
 	if (rf != NULL && rf != r && (X(rf) != X(r) || Y(rf) != Y(r) ||
@@ -4326,7 +4408,10 @@ set_region(struct swm_region *r)
 
 	/* Set region bar border to focus_color. */
 	xcb_change_window_attributes(conn, r->bar->id,
-	    XCB_CW_BORDER_PIXEL, &r->s->c[SWM_S_COLOR_BAR_BORDER].pixel);
+	    XCB_CW_BORDER_PIXEL, &r->s->c[SWM_S_COLOR_BAR_BORDER_FOCUS].pixel);
+
+	if (opacity_hinting)
+		set_bar_opacity(r->bar, r->s->bar_opacity_focus);
 
 	r->s->r_focus = r;
 
@@ -6326,7 +6411,7 @@ search_win(struct binding *bp, struct swm_region *r, union arg *args)
 			l_draw = XCreateGC(display, w, 0, &l_gcv);
 
 			XSetForeground(display, l_draw,
-				r->s->c[SWM_S_COLOR_BAR].pixel);
+				r->s->c[SWM_S_COLOR_BAR_FOCUS].pixel);
 
 			DRAWSTRING(display, w, bar_fs, l_draw, 2,
 			    (bar_fs_extents->max_logical_extent.height -
@@ -6929,14 +7014,21 @@ draw_frame(struct ws_win *win)
 		DNPRINTF(SWM_D_EVENT, "win %#x frame disabled\n", win->id);
 	}
 
-	if (WS_FOCUSED(win->ws) && win->ws->focus == win)
+	if (WS_FOCUSED(win->ws) && win->ws->focus == win) {
 		pixel = MAXIMIZED(win) ?
 		    &win->s->c[SWM_S_COLOR_FOCUS_MAXIMIZED].pixel :
 		    &win->s->c[SWM_S_COLOR_FOCUS].pixel;
-	else
+
+		if (opacity_hinting)
+			set_win_opacity(win, opacity_focus);
+	} else {
 		pixel = MAXIMIZED(win) ?
 		    &win->s->c[SWM_S_COLOR_UNFOCUS_MAXIMIZED].pixel :
 		    &win->s->c[SWM_S_COLOR_UNFOCUS].pixel;
+
+		if (opacity_hinting)
+			set_win_opacity(win, opacity_unfocus);
+	}
 
 	/* Top (with corners) */
 	rect[n].x = 0;
@@ -7784,12 +7876,12 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
 		DNPRINTF(SWM_D_SPAWN, "raw arg: %s\n", ap);
 		if (strcasecmp(ap, "$bar_border") == 0) {
 			if ((real_args[c] =
-			    strdup(r->s->c[SWM_S_COLOR_BAR_BORDER].name))
+			    strdup(r->s->c[SWM_S_COLOR_BAR_BORDER_FOCUS].name))
 			    == NULL)
 				err(1,  "spawn_custom border color");
 		} else if (strcasecmp(ap, "$bar_color") == 0) {
 			if ((real_args[c] =
-			    strdup(r->s->c[SWM_S_COLOR_BAR].name))
+			    strdup(r->s->c[SWM_S_COLOR_BAR_FOCUS].name))
 			    == NULL)
 				err(1, "spawn_custom bar color");
 		} else if (strcasecmp(ap, "$bar_color_selected") == 0) {
@@ -8858,6 +8950,7 @@ const char *quirkname[] = {
 	"IGNORESPAWNWS",
 	"NOFOCUSCYCLE",
 	"MINIMALBORDER",
+	"ALWAYSOPAQUE",
 };
 
 /* SWM_Q_DELIM: retain '|' for back compat for now (2009-08-11) */
@@ -9180,6 +9273,11 @@ enum {
 	SWM_S_FOCUS_MODE,
 	SWM_S_ICONIC_ENABLED,
 	SWM_S_MAXIMIZE_HIDE_BAR,
+	SWM_S_OPACITY_BAR_FOCUS,
+	SWM_S_OPACITY_BAR_UNFOCUS,
+	SWM_S_OPACITY_FOCUS,
+	SWM_S_OPACITY_HINTING,
+	SWM_S_OPACITY_UNFOCUS,
 	SWM_S_REGION_PADDING,
 	SWM_S_SPAWN_ORDER,
 	SWM_S_SPAWN_TERM,
@@ -9390,6 +9488,11 @@ setconfvalue(const char *selector, const char *value, int flags)
 	case SWM_S_URGENT_ENABLED:
 		urgent_enabled = (atoi(value) != 0);
 		break;
+	case SWM_S_OPACITY_HINTING:
+		opacity_hinting = (atoi(value) != 0);
+		ewmh[_NET_WM_WINDOW_OPACITY].enabled = opacity_hinting;
+		ewmh_update_supported();
+		break;
 	case SWM_S_VERBOSE_LAYOUT:
 		verbose_layout = (atoi(value) != 0);
 		for (i = 0; layouts[i].l_stack != NULL; i++) {
@@ -9485,6 +9588,57 @@ setconfmodkey(const char *selector, const char *value, int flags)
 }
 
 int
+setconfopacity(const char *selector, const char *value, int flags)
+{
+	int		first, last, i = 0, num_screens;
+	double		d;
+	uint32_t	opacity;
+
+	num_screens = get_screen_count();
+
+	/* conf screen indices begin at 1; treat vals <= 0 as 'all screens.' */
+	if (selector == NULL || strlen(selector) == 0 ||
+	    (last = atoi(selector) - 1) < 0) {
+		first = 0;
+		last = num_screens - 1;
+	} else {
+		first = last;
+	}
+
+	if (last >= num_screens) {
+		add_startup_exception("invalid screen index: %d out of bounds "
+		    "(maximum %d)", last + 1, num_screens);
+		return (1);
+	}
+
+	d = atof(value);
+	if (d < 0.0)
+		d = 0.0;
+	else if (d > 1.0)
+		d = 1.0;
+	opacity = d * OPACITY_OPAQUE;
+
+	for (i = first; i <= last; ++i) {
+		switch (flags) {
+		case SWM_S_OPACITY_FOCUS:
+			opacity_focus = opacity;
+			break;
+		case SWM_S_OPACITY_UNFOCUS:
+			opacity_unfocus = opacity;
+			break;
+		case SWM_S_OPACITY_BAR_FOCUS:
+			screens[i].bar_opacity_focus = opacity;
+			break;
+		case SWM_S_OPACITY_BAR_UNFOCUS:
+			screens[i].bar_opacity_unfocus = opacity;
+			break;
+		}
+	}
+
+	return (0);
+}
+
+int
 setconfcolor(const char *selector, const char *value, int flags)
 {
 	int	first, last, i = 0, num_screens;
@@ -9524,12 +9678,12 @@ setconfcolor(const char *selector, const char *value, int flags)
 				setscreencolor(value, i,
 				    SWM_S_COLOR_UNFOCUS_MAXIMIZED);
 			break;
-		case SWM_S_COLOR_BAR:
+		case SWM_S_COLOR_BAR_FOCUS:
 			if (!screens[i].c[SWM_S_COLOR_BAR_FONT_SELECTED].manual)
 				setscreencolor(value, i,
 				    SWM_S_COLOR_BAR_FONT_SELECTED);
 			break;
-		case SWM_S_COLOR_BAR_BORDER:
+		case SWM_S_COLOR_BAR_BORDER_FOCUS:
 			if (!screens[i].c[SWM_S_COLOR_BAR_SELECTED].manual)
 				setscreencolor(value, i,
 				    SWM_S_COLOR_BAR_SELECTED);
@@ -9718,10 +9872,10 @@ struct config_option configopt[] = {
 	{ "autorun",			setautorun,	0 },
 	{ "bar_action",			setconfvalue,	SWM_S_BAR_ACTION },
 	{ "bar_at_bottom",		setconfvalue,	SWM_S_BAR_AT_BOTTOM },
-	{ "bar_border",			setconfcolor,	SWM_S_COLOR_BAR_BORDER },
+	{ "bar_border",			setconfcolor,	SWM_S_COLOR_BAR_BORDER_FOCUS },
 	{ "bar_border_unfocus",		setconfcolor,	SWM_S_COLOR_BAR_BORDER_UNFOCUS },
 	{ "bar_border_width",		setconfvalue,	SWM_S_BAR_BORDER_WIDTH },
-	{ "bar_color",			setconfcolor,	SWM_S_COLOR_BAR },
+	{ "bar_color",			setconfcolor,	SWM_S_COLOR_BAR_FOCUS },
 	{ "bar_color_selected",		setconfcolor,	SWM_S_COLOR_BAR_SELECTED },
 	{ "bar_delay",			NULL,		0 }, /* dummy */
 	{ "bar_enabled",		setconfvalue,	SWM_S_BAR_ENABLED },
@@ -9731,6 +9885,8 @@ struct config_option configopt[] = {
 	{ "bar_font_color_selected",	setconfcolor,	SWM_S_COLOR_BAR_FONT_SELECTED },
 	{ "bar_format",			setconfvalue,	SWM_S_BAR_FORMAT },
 	{ "bar_justify",		setconfvalue,	SWM_S_BAR_JUSTIFY },
+	{ "bar_opacity",		setconfopacity,	SWM_S_OPACITY_BAR_FOCUS },
+	{ "bar_opacity_unfocus",	setconfopacity,	SWM_S_OPACITY_BAR_UNFOCUS },
 	{ "bind",			setconfbinding,	0 },
 	{ "border_width",		setconfvalue,	SWM_S_BORDER_WIDTH },
 	{ "boundary_width",		setconfvalue,	SWM_S_BOUNDARY_WIDTH },
@@ -9754,6 +9910,9 @@ struct config_option configopt[] = {
 	{ "layout",			setlayout,	0 },
 	{ "maximize_hide_bar",		setconfvalue,	SWM_S_MAXIMIZE_HIDE_BAR },
 	{ "modkey",			setconfmodkey,	0 },
+	{ "opacity_focus",		setconfopacity,	SWM_S_OPACITY_FOCUS },
+	{ "opacity_hinting",		setconfvalue,	SWM_S_OPACITY_HINTING },
+	{ "opacity_unfocus",		setconfopacity,	SWM_S_OPACITY_UNFOCUS },
 	{ "program",			setconfspawn,	0 },
 	{ "quirk",			setconfquirk,	0 },
 	{ "region",			setconfregion,	0 },
@@ -10117,6 +10276,9 @@ reparent_window(struct ws_win *win)
 	    Y(win), WIDTH(win), HEIGHT(win), 0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
 	    win->s->visual, XCB_CW_BORDER_PIXEL | XCB_CW_EVENT_MASK |
 	    XCB_CW_COLORMAP, wa);
+
+	if (opacity_hinting)
+		set_win_opacity(win, opacity_unfocus);
 
 	win->state = SWM_WIN_STATE_REPARENTING;
 	c = xcb_reparent_window_checked(conn, win->id, win->frame, 0, 0);
@@ -12116,6 +12278,8 @@ setup_screens(void)
 		DNPRINTF(SWM_D_WS, "init screen: %d\n", i);
 		screens[i].idx = i;
 		screens[i].r_focus = NULL;
+		screens[i].bar_opacity_focus = OPACITY_OPAQUE;
+		screens[i].bar_opacity_unfocus = 0.8 * OPACITY_OPAQUE;
 
 		TAILQ_INIT(&screens[i].rl);
 		TAILQ_INIT(&screens[i].orl);
@@ -12178,10 +12342,10 @@ setup_screens(void)
 		setscreencolor("rgb:88/88/88", i, SWM_S_COLOR_UNFOCUS);
 		setscreencolor("rgb:88/88/88", i,
 		    SWM_S_COLOR_UNFOCUS_MAXIMIZED);
-		setscreencolor("rgb:00/80/80", i, SWM_S_COLOR_BAR_BORDER);
+		setscreencolor("rgb:00/80/80", i, SWM_S_COLOR_BAR_BORDER_FOCUS);
 		setscreencolor("rgb:00/40/40", i,
 		    SWM_S_COLOR_BAR_BORDER_UNFOCUS);
-		setscreencolor("black", i, SWM_S_COLOR_BAR);
+		setscreencolor("black", i, SWM_S_COLOR_BAR_FOCUS);
 		setscreencolor("rgb:00/80/80", i, SWM_S_COLOR_BAR_SELECTED);
 		setscreencolor("rgb:a0/a0/a0", i, SWM_S_COLOR_BAR_FONT);
 		setscreencolor("black", i, SWM_S_COLOR_BAR_FONT_SELECTED);

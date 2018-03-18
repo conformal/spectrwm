@@ -246,6 +246,20 @@ in some circumstances, due to the white-spaces in the default static format.
 See the
 .Ic bar_format
 option for more details.
+.It Ic bar_opacity_focus
+Bar transparency of the focused region on screen
+.Ar x
+when
+.Ic opacity_hinting
+is enabled.  Values range from 0.0 (fully transparent) to 1.0 (opaque).
+Default is 1.0.
+.It Ic bar_opacity_unfocus Ns Bq Ar x
+Bar transparency of unfocused region(s) on screen
+.Ar x
+when
+.Ic opacity_hinting
+is enabled.  Values range from 0.0 (fully transparent) to 1.0 (opaque).
+Default is 0.75.
 .It Ic bind Ns Bq Ar x
 Bind key or button combo to action
 .Ar x .
@@ -389,6 +403,19 @@ Defined in the format
 .Li ws Ns Bo Ar idx Bc : Ns Ar name ,
 e.g. ws[1]:Console sets the name of workspace 1 to
 .Dq Console .
+.It Ic opacity_focus
+The transparency of the focused window when
+.Ic opacity_hinting
+is enabled.  Values range from 0.0 (fully transparent) to 1.0 (opaque).
+Default is 1.0.
+.It Ic opacity_hinting
+Utilize compositing manager window opacity (_NET_WM_WINDOW_OPACITY) as
+complementary visual feedback.  Enable by setting to 1.
+.It Ic opacity_unfocus
+The transparency of unfocused windows when
+.Ic opacity_hinting
+is enabled.  Values range from 0.0 (fully transparent) to 1.0 (opaque).
+Default is 0.75.
 .It Ic program Ns Bq Ar p
 Define new action to spawn a program
 .Ar p .
@@ -1157,6 +1184,10 @@ XTERM_FONTADJ
 The quirks themselves are described below:
 .Pp
 .Bl -tag -width "XTERM_FONTADJ<TAB>XXX" -offset indent -compact
+.It ALWAYSOPAQUE
+When
+.Ic opacity_hinting
+is enabled, disregard this window.
 .It ANYWHERE
 Allow window to position itself, uncentered.
 .It FLOAT
