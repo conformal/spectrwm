@@ -7313,8 +7313,8 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 			mne = (xcb_motion_notify_event_t *)evt;
 			DNPRINTF(SWM_D_EVENT, "MOTION_NOTIFY: root: %#x\n",
 			    mne->root);
-			X(win) = mne->root_x - qpr->win_x - border_width;
-			Y(win) = mne->root_y - qpr->win_y - border_width;
+			X(win) = mne->root_x - qpr->win_x;
+			Y(win) = mne->root_y - qpr->win_y;
 
 			/* not free, don't sync more than 120 times / second */
 			if ((mne->time - timestamp) > (1000 / 120) ) {
