@@ -8923,8 +8923,8 @@ int
 setconfvalue(const char *selector, const char *value, int flags)
 {
 	struct workspace	*ws;
-	int			i, ws_id, num_screens;
-	char			*b, *str, *sp, s[1024];
+	int			i, ws_id, num_screens, n;
+	char			*b, *str, *sp;
 
 	switch (flags) {
 	case SWM_S_BAR_ACTION:
@@ -9148,9 +9148,11 @@ setconfvalue(const char *selector, const char *value, int flags)
 		if (getenv("SWM_STARTED") != NULL)
 			return (0);
 
-		bzero(s, sizeof s);
-		if (sscanf(value, "ws[%d]:%1023c", &ws_id, s) != 2)
+		n = 0;
+		if (sscanf(value, "ws[%d]:%n", &ws_id, &n) != 1 || n == 0 ||
+		    value[n] == '\0')
 			errx(1, "invalid entry, should be 'ws[<idx>]:name'");
+		value += n;
 		ws_id--;
 		if (ws_id < 0 || ws_id >= workspace_limit)
 			errx(1, "setconfvalue: workspace_name: invalid "
@@ -9160,14 +9162,12 @@ setconfvalue(const char *selector, const char *value, int flags)
 		for (i = 0; i < num_screens; ++i) {
 			ws = (struct workspace *)&screens[i].ws;
 
-			if (strlen(s) > 0) {
-				free(ws[ws_id].name);
-				if ((ws[ws_id].name = strdup(s)) == NULL)
-					err(1, "setconfvalue: workspace_name.");
+			free(ws[ws_id].name);
+			if ((ws[ws_id].name = strdup(value)) == NULL)
+				err(1, "setconfvalue: workspace_name.");
 
-				ewmh_update_desktop_names();
-				ewmh_get_desktop_names();
-			}
+			ewmh_update_desktop_names();
+			ewmh_get_desktop_names();
 		}
 		break;
 	default:
@@ -9271,10 +9271,9 @@ int
 setautorun(const char *selector, const char *value, int flags)
 {
 	int			ws_id;
-	char			s[1024];
 	char			*ap, *sp, *str;
 	union arg		a;
-	int			argc = 0;
+	int			argc = 0, n;
 	pid_t			pid;
 	struct pid_e		*p;
 
@@ -9285,14 +9284,16 @@ setautorun(const char *selector, const char *value, int flags)
 	if (getenv("SWM_STARTED"))
 		return (0);
 
-	bzero(s, sizeof s);
-	if (sscanf(value, "ws[%d]:%1023c", &ws_id, s) != 2)
+	n = 0;
+	if (sscanf(value, "ws[%d]:%n", &ws_id, &n) != 1 || n == 0 ||
+	    value[n] == '\0')
 		errx(1, "invalid autorun entry, should be 'ws[<idx>]:command'");
+	value += n;
 	ws_id--;
 	if (ws_id < 0 || ws_id >= workspace_limit)
 		errx(1, "autorun: invalid workspace %d", ws_id + 1);
 
-	sp = str = expand_tilde((char *)&s);
+	sp = str = expand_tilde(value);
 
 	/*
 	 * This is a little intricate
@@ -9343,9 +9344,8 @@ int
 setlayout(const char *selector, const char *value, int flags)
 {
 	struct workspace	*ws;
-	int			ws_id, i, x, mg, ma, si, ar;
+	int			ws_id, i, x, mg, ma, si, ar, n;
 	int			st = SWM_V_STACK, num_screens;
-	char			s[1024];
 	bool			f = false;
 
 	/* suppress unused warnings since vars are needed */
@@ -9355,27 +9355,28 @@ setlayout(const char *selector, const char *value, int flags)
 	if (getenv("SWM_STARTED"))
 		return (0);
 
-	bzero(s, sizeof s);
-	if (sscanf(value, "ws[%d]:%d:%d:%d:%d:%1023c",
-	    &ws_id, &mg, &ma, &si, &ar, s) != 6)
+	n = 0;
+	if (sscanf(value, "ws[%d]:%d:%d:%d:%d:%n",
+	    &ws_id, &mg, &ma, &si, &ar, &n) != 5 || n == 0 || value[n] == '\0')
 		errx(1, "invalid layout entry, should be 'ws[<idx>]:"
 		    "<master_grow>:<master_add>:<stack_inc>:<always_raise>:"
 		    "<type>'");
+	value += n;
 	ws_id--;
 	if (ws_id < 0 || ws_id >= workspace_limit)
 		errx(1, "layout: invalid workspace %d", ws_id + 1);
 
-	if (strcasecmp(s, "vertical") == 0)
+	if (strcasecmp(value, "vertical") == 0)
 		st = SWM_V_STACK;
-	else if (strcasecmp(s, "vertical_flip") == 0) {
+	else if (strcasecmp(value, "vertical_flip") == 0) {
 		st = SWM_V_STACK;
 		f = true;
-	} else if (strcasecmp(s, "horizontal") == 0)
+	} else if (strcasecmp(value, "horizontal") == 0)
 		st = SWM_H_STACK;
-	else if (strcasecmp(s, "horizontal_flip") == 0) {
+	else if (strcasecmp(value, "horizontal_flip") == 0) {
 		st = SWM_H_STACK;
 		f = true;
-	} else if (strcasecmp(s, "fullscreen") == 0)
+	} else if (strcasecmp(value, "fullscreen") == 0)
 		st = SWM_MAX_STACK;
 	else
 		errx(1, "invalid layout entry, should be 'ws[<idx>]:"
