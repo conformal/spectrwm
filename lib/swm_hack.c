@@ -85,11 +85,11 @@ get_atom_from_string(Display *dpy, char *name)
 	}
 	if (xia == NULL) {
 		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
-		return atom;
+		return (atom);
 	}
 
 	atom = (*xia)(dpy, name, False);
-	return atom;
+	return (atom);
 }
 
 typedef int (XCP)(Display *_display, Window w, Atom property, Atom type,
@@ -135,7 +135,7 @@ XOpenDisplay(register _Xconst char *_display)
 		func = (ODF *) dlsym(lib_xlib, "XOpenDisplay");
 	if (func == NULL) {
 		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
-		return None;
+		return (None);
 	}
 
 	display = (*func) (_display);
@@ -146,7 +146,7 @@ XOpenDisplay(register _Xconst char *_display)
 	if (swmpid == None)
 		swmpid = get_atom_from_string(display, "_SWM_PID");
 
-	return display;
+	return (display);
 }
 
 typedef Window (CWF)(Display * _display, Window _parent, int _x, int _y,
@@ -171,7 +171,7 @@ XCreateWindow(Display *dpy, Window parent, int x, int y, unsigned int width,
 		func = (CWF *) dlsym(lib_xlib, "XCreateWindow");
 	if (func == NULL) {
 		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
-		return None;
+		return (None);
 	}
 
 	id = (*func) (dpy, parent, x, y, width, height, border_width,
@@ -210,7 +210,7 @@ XCreateSimpleWindow(Display *dpy, Window parent, int x, int y,
 		func = (CSWF *) dlsym(lib_xlib, "XCreateSimpleWindow");
 	if (func == NULL) {
 		fprintf(stderr, "libswmhack.so: ERROR: %s\n", dlerror());
-		return None;
+		return (None);
 	}
 
 	id = (*func) (dpy, parent, x, y, width, height,

@@ -1324,7 +1324,7 @@ out:
 	if (result == NULL)
 		errx(1, "expand_tilde: failed to allocate memory.");
 
-	return result;
+	return (result);
 }
 
 int
@@ -1371,7 +1371,7 @@ get_screen_count(void)
 		check_conn();
 	}
 
-	return xcb_setup_roots_length(r);
+	return (xcb_setup_roots_length(r));
 }
 
 int
@@ -1381,7 +1381,7 @@ get_region_index(struct swm_region *r)
 	int			 ridx = 0;
 
 	if (r == NULL)
-		return -1;
+		return (-1);
 
 	TAILQ_FOREACH(rr, &r->s->rl, entry) {
 		if (rr == r)
@@ -1390,9 +1390,9 @@ get_region_index(struct swm_region *r)
 	}
 
 	if (rr == NULL)
-		return -1;
+		return (-1);
 
-	return ridx;
+	return (ridx);
 }
 
 void
@@ -2392,7 +2392,7 @@ get_urgent(struct ws_win *win)
 			urgent = xcb_icccm_wm_hints_get_urgency(&hints);
 	}
 
-	return urgent;
+	return (urgent);
 }
 
 void
@@ -2757,7 +2757,7 @@ bar_extra_update(void)
 	bool		changed = false;
 
 	if (!bar_extra)
-		return changed;
+		return (changed);
 
 	while (fgets(b, sizeof(b), stdin) != NULL) {
 		if (bar_enabled) {
@@ -2790,7 +2790,7 @@ bar_extra_update(void)
 		changed = true;
 	}
 
-	return changed;
+	return (changed);
 }
 
 void
@@ -3337,9 +3337,9 @@ lower_window(struct ws_win *win)
 		DPRINTF("=== stacking order (top down) === \n");
 		TAILQ_FOREACH(target, &ws->stack, stack_entry) {
 			DPRINTF("win %#x, fs: %s, maximized: %s, above: %s, "
-			    "iconic: %s\n", target->id, YESNO(FULLSCREEN(target)),
-			    YESNO(MAXIMIZED(target)), YESNO(ABOVE(target)),
-			    YESNO(ICONIC(target)));
+			    "iconic: %s\n", target->id,
+			    YESNO(FULLSCREEN(target)), YESNO(MAXIMIZED(target)),
+			    YESNO(ABOVE(target)), YESNO(ICONIC(target)));
 		}
 	}
 #endif
@@ -3395,9 +3395,9 @@ raise_window(struct ws_win *win)
 		DPRINTF("=== stacking order (top down) === \n");
 		TAILQ_FOREACH(target, &ws->stack, stack_entry) {
 			DPRINTF("win %#x, fs: %s, maximized: %s, above: %s, "
-			    "iconic: %s\n", target->id, YESNO(FULLSCREEN(target)),
-			    YESNO(MAXIMIZED(target)), YESNO(ABOVE(target)),
-			    YESNO(ICONIC(target)));
+			    "iconic: %s\n", target->id,
+			    YESNO(FULLSCREEN(target)), YESNO(MAXIMIZED(target)),
+			    YESNO(ABOVE(target)), YESNO(ICONIC(target)));
 		}
 	}
 #endif
@@ -3568,7 +3568,7 @@ get_pointer_win(xcb_window_t root)
 		free(r);
 	}
 
-	return win;
+	return (win);
 }
 
 void
@@ -3659,9 +3659,9 @@ find_region(xcb_window_t id)
 	for (i = 0; i < num_screens; i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			if (r->id == id)
-				return r;
+				return (r);
 
-	return NULL;
+	return (NULL);
 }
 
 struct swm_bar *
@@ -3674,9 +3674,9 @@ find_bar(xcb_window_t id)
 	for (i = 0; i < num_screens; i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			if (r->bar && r->bar->id == id)
-				return r->bar;
+				return (r->bar);
 
-	return NULL;
+	return (NULL);
 }
 
 struct ws_win *
@@ -3690,9 +3690,9 @@ find_frame_window(xcb_window_t id) {
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			TAILQ_FOREACH(w, &r->ws->winlist, entry)
 				if (w->frame == id)
-					return w;
+					return (w);
 
-	return NULL;
+	return (NULL);
 }
 
 struct ws_win *
@@ -4114,7 +4114,7 @@ get_focus_magic(struct ws_win *win)
 
 	DNPRINTF(SWM_D_FOCUS, "win %#x\n", WINID(win));
 	if (win == NULL)
-		return win;
+		return (win);
 
 	if (TRANS(win)) {
 		parent = find_window(win->transient);
@@ -4136,7 +4136,7 @@ get_focus_magic(struct ws_win *win)
 			win->focus_child = NULL;
 	}
 
-	return win;
+	return (win);
 }
 
 void
@@ -4657,7 +4657,7 @@ get_focus_prev(struct ws_win *win)
 	struct workspace	*ws = NULL;
 
 	if (!(win && win->ws))
-		return NULL;
+		return (NULL);
 
 	ws = win->ws;
 	wl = &ws->winlist;
@@ -4764,7 +4764,7 @@ done:
 
 	kill_refs(win);
 
-	return get_focus_magic(winfocus);
+	return (get_focus_magic(winfocus));
 }
 
 struct ws_win *
@@ -4773,7 +4773,7 @@ get_region_focus(struct swm_region *r)
 	struct ws_win		*winfocus = NULL;
 
 	if (!(r && r->ws))
-		return NULL;
+		return (NULL);
 
 	if (r->ws->focus && !ICONIC(r->ws->focus))
 		winfocus = r->ws->focus;
@@ -4784,7 +4784,7 @@ get_region_focus(struct swm_region *r)
 			if (!ICONIC(winfocus))
 				break;
 
-	return get_focus_magic(winfocus);
+	return (get_focus_magic(winfocus));
 }
 
 void
@@ -5426,7 +5426,8 @@ vertical_config(struct workspace *ws, int id)
 			ws->l_state.vertical_mwin--;
 		break;
 	case SWM_ARG_ID_STACKBALANCE:
-		ws->l_state.vertical_msize = SWM_V_SLICE / (ws->l_state.vertical_stacks + 1);
+		ws->l_state.vertical_msize = SWM_V_SLICE /
+		    (ws->l_state.vertical_stacks + 1);
 		break;
 	case SWM_ARG_ID_STACKINC:
 		ws->l_state.vertical_stacks++;
@@ -5479,7 +5480,8 @@ horizontal_config(struct workspace *ws, int id)
 			ws->l_state.horizontal_mwin--;
 		break;
 	case SWM_ARG_ID_STACKBALANCE:
-		ws->l_state.horizontal_msize = SWM_H_SLICE / (ws->l_state.horizontal_stacks + 1);
+		ws->l_state.horizontal_msize = SWM_H_SLICE /
+		    (ws->l_state.horizontal_stacks + 1);
 		break;
 	case SWM_ARG_ID_STACKINC:
 		ws->l_state.horizontal_stacks++;
@@ -5561,7 +5563,8 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		    HEIGHT(w) != gg.h) {
 			w->g = gg;
 
-			if (disable_border && !(bar_enabled && ws->bar_enabled)) {
+			if (disable_border &&
+			    !(bar_enabled && ws->bar_enabled)) {
 				w->bordered = false;
 				WIDTH(w) += 2 * border_width;
 				HEIGHT(w) += 2 * border_width;
@@ -6549,7 +6552,7 @@ clear_maximized(struct workspace *ws)
 			++count;
 		}
 
-	return count;
+	return (count);
 }
 
 void
@@ -6860,7 +6863,7 @@ get_next_event(bool dowait)
 	else
 		evt = xcb_poll_for_event(conn);
 
-	return evt;
+	return (evt);
 }
 
 void
@@ -6888,10 +6891,10 @@ keyrepeating(xcb_key_release_event_t *kre)
 		if (XCB_EVENT_RESPONSE_TYPE(evt) == XCB_KEY_PRESS &&
 		   kre->sequence == evt->sequence &&
 		   kre->detail == ((xcb_key_press_event_t *)evt)->detail)
-			return true;
+			return (true);
 	}
 
-	return false;
+	return (false);
 }
 
 bool
@@ -6899,9 +6902,9 @@ keybindreleased(struct binding *bp, xcb_key_release_event_t *kre)
 {
 	if (bp->type == KEYBIND && !keyrepeating(kre) &&
 		bp->value == xcb_key_press_lookup_keysym(syms, kre, 0))
-		return true;
+		return (true);
 
-	return false;
+	return (false);
 }
 
 #define SWM_RESIZE_STEPS	(50)
@@ -7739,7 +7742,7 @@ argsep(char **sp) {
 	bool			single_quoted = false, double_quoted = false;
 
 	if (*sp == NULL)
-		return NULL;
+		return (NULL);
 
 	/* Eat and move characters until end of argument is found. */
 	for (arg = next = cp = *sp; *cp != '\0'; ++cp) {
@@ -7775,7 +7778,7 @@ argsep(char **sp) {
 		*sp = NULL;
 	}
 
-	return arg;
+	return (arg);
 }
 
 void
@@ -7853,9 +7856,9 @@ spawn_find(const char *name)
 
 	TAILQ_FOREACH(sp, &spawns, entry)
 		if (strcasecmp(sp->name, name) == 0)
-			return sp;
+			return (sp);
 
-	return NULL;
+	return (NULL);
 }
 
 void
@@ -9765,7 +9768,7 @@ get_swm_ws(xcb_window_t id)
 		free(prop);
 	}
 
-	return ws_idx;
+	return (ws_idx);
 }
 
 int
@@ -9775,7 +9778,7 @@ get_ws_idx(struct ws_win *win)
 	int			ws_idx = -1;
 
 	if (win == NULL)
-		return -1;
+		return (-1);
 
 	gpr = xcb_get_property_reply(conn,
 		xcb_get_property(conn, 0, win->id, ewmh[_NET_WM_DESKTOP].atom,
@@ -9795,7 +9798,7 @@ get_ws_idx(struct ws_win *win)
 
 	DNPRINTF(SWM_D_PROP, "win %#x, ws_idx: %d\n", win->id, ws_idx);
 
-	return ws_idx;
+	return (ws_idx);
 }
 
 void
@@ -10040,7 +10043,8 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	/* Set the _NET_WM_DESKTOP atom. */
 	DNPRINTF(SWM_D_PROP, "set _NET_WM_DESKTOP: %d\n", win->ws->idx);
 	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id,
-	    ewmh[_NET_WM_DESKTOP].atom, XCB_ATOM_CARDINAL, 32, 1, &win->ws->idx);
+	    ewmh[_NET_WM_DESKTOP].atom, XCB_ATOM_CARDINAL, 32, 1,
+	    &win->ws->idx);
 
 	/* Remove any _SWM_WS now that we set _NET_WM_DESKTOP. */
 	xcb_delete_property(conn, win->id, a_swm_ws);
@@ -10439,7 +10443,7 @@ get_win_input_model(struct ws_win *win)
 	else
 		inputmodel = (win->take_focus) ? "Globally Active" : "No Input";
 
-	return inputmodel;
+	return (inputmodel);
 }
 
 void
@@ -10487,7 +10491,7 @@ get_stack_mode_name(uint8_t mode)
 		name = "Unknown";
 	}
 
-	return name;
+	return (name);
 }
 #endif
 
@@ -10732,7 +10736,7 @@ get_notify_detail_label(uint8_t detail)
 		label = "Unknown";
 	}
 
-	return label;
+	return (label);
 }
 
 char *
@@ -10757,7 +10761,7 @@ get_notify_mode_label(uint8_t mode)
 		label = "Unknown";
 	}
 
-	return label;
+	return (label);
 }
 
 char *
@@ -10812,7 +10816,7 @@ get_state_mask_label(uint16_t state)
 		label = "Unknown";
 	}
 
-	return label;
+	return (label);
 }
 
 char *
@@ -10833,7 +10837,7 @@ get_wm_state_label(uint8_t state)
 		label = "Unknown";
 	}
 
-	return label;
+	return (label);
 }
 #endif
 
@@ -10908,8 +10912,8 @@ leavenotify(xcb_leave_notify_event_t *e)
 {
 	last_event_time = e->time;
 
-	DNPRINTF(SWM_D_FOCUS, "time: %#x, win (x,y): %#x (%d,%d), mode: %s(%d), "
-	    "detail: %s(%d), root (x,y): %#x (%d,%d), child: %#x, "
+	DNPRINTF(SWM_D_FOCUS, "time: %#x, win (x,y): %#x (%d,%d), mode: %s(%d),"
+	    " detail: %s(%d), root (x,y): %#x (%d,%d), child: %#x, "
 	    "same_screen_focus: %s, state: %s(%d)\n", e->time, e->event,
 	    e->event_x, e->event_y, get_notify_mode_label(e->mode), e->mode,
 	    get_notify_detail_label(e->detail), e->detail, e->root, e->root_x,
@@ -11256,7 +11260,7 @@ get_source_type_label(uint32_t type)
 		label = "Invalid";
 	}
 
-	return label;
+	return (label);
 }
 #endif
 
@@ -11458,11 +11462,11 @@ enable_wm(void)
 			DNPRINTF(SWM_D_INIT, "error_code: %u\n",
 			    error->error_code);
 			free(error);
-			return 1;
+			return (1);
 		}
 	}
 
-	return 0;
+	return (0);
 }
 
 void
