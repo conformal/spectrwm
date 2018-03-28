@@ -228,7 +228,8 @@ All character sequences may limit its output to a specific length, for
 example +64A. By default, no padding/alignment is done in case the
 length of the replaced string is less than the specified length (64 in
 the example). The padding/alignment can be enabled using a '_' character
-in the sequence. For example: +_64W, +64_W and +_64_W enable padding before
+in the sequence.
+For example: +_64W, +64_W and +_64_W enable padding before
 (right alignment), after (left alignment), and both before and after
 (center alignment) window name, respectively.
 Any characters that don't match the specification are copied as-is.
@@ -983,7 +984,8 @@ Substituted for the currently defined
 .It Cm ANYMOD
 Select all modifier combinations not handled by another binding.
 .It Cm REPLAY
-Reprocess binding press/release events for other programs to handle.  Unavailable for
+Reprocess binding press/release events for other programs to handle.
+Unavailable for
 .Ic move ,
 .Ic resize
 and
