@@ -17,7 +17,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: February 15 2012 $
+.Dd $Mdocdate: March 29 2018 $
 .Dt SPECTRWM 1
 .Os
 .Sh NAME
@@ -100,8 +100,7 @@ Note that workspace mapping is handled via
 .Pa libswmhack.so .
 When
 .Ic autorun
-spawns windows via a daemon, ensure the daemon is started
-with the correct
+spawns windows via a daemon, ensure the daemon is started with the correct
 .Pa LD_PRELOAD
 in its environment.
 .Pp
@@ -225,13 +224,13 @@ It may contain the following character sequences:
 .El
 .Pp
 All character sequences may limit its output to a specific length, for
-example +64A. By default, no padding/alignment is done in case the
-length of the replaced string is less than the specified length (64 in
-the example). The padding/alignment can be enabled using a '_' character
-in the sequence.
-For example: +_64W, +64_W and +_64_W enable padding before
-(right alignment), after (left alignment), and both before and after
-(center alignment) window name, respectively.
+example +64A.
+By default, no padding/alignment is done in case the length of the replaced
+string is less than the specified length (64 in the example).
+The padding/alignment can be enabled using a '_' character in the sequence.
+For example: +_64W, +64_W and +_64_W enable padding before (right alignment),
+after (left alignment), and both before and after (center alignment) window
+name, respectively.
 Any characters that don't match the specification are copied as-is.
 .It Ic bar_justify
 Justify the status bar text.
@@ -241,9 +240,8 @@ Possible values are
 and
 .Ar right .
 .Pp
-Note that if the output is not left justified, it may not be properly
-aligned in some circumstances, due to the white-spaces in the default
-static format.
+Note that if the output is not left justified, it may not be properly aligned
+in some circumstances, due to the white-spaces in the default static format.
 See the
 .Ic bar_format
 option for more details.
@@ -258,8 +256,8 @@ Set window border thickness in pixels.
 Disable all borders by setting to 0.
 .It Ic boundary_width
 Set region containment boundary width in pixels.
-This is how far a window must be dragged/resized (with the pointer)
-beyond the region edge before it is allowed outside the region.
+This is how far a window must be dragged/resized (with the pointer) beyond the
+region edge before it is allowed outside the region.
 Disable the window containment effect by setting to 0.
 .It Ic clock_enabled
 Enable or disable displaying the clock in the status bar.
@@ -288,8 +286,7 @@ Some applications have dialogue windows that are too small to be useful.
 This ratio is the screen size to what they will be resized.
 For example, 0.6 is 60% of the physical screen size.
 .It Ic disable_border
-Remove border when bar is disabled and there is only one window on the
-region.
+Remove border when bar is disabled and there is only one window on the region.
 .It Ic focus_close
 Window to put focus when the focused window is closed.
 Possible values are
@@ -343,10 +340,11 @@ for several keyboard layouts.
 .It Ic layout
 Select layout to use at start-of-day.
 Defined in the format
-.Li ws Ns Bo Ar idx Bc : Ns Ar master_grow : Ns Ar master_add : Ns Ar stack_inc : Ns Ar always_raise : Ns Ar stack_mode ,
-e.g. ws[2]:-4:0:1:0:horizontal sets worskspace 2 to the horizontal stack
-mode, shrinks the master area by 4 ticks and adds one window to the
-stack, while maintaining default floating window behavior.
+.Li ws Ns Bo Ar idx Bc : Ns Ar master_grow : Ns Ar master_add : Ns Ar \
+stack_inc : Ns Ar always_raise : Ns Ar stack_mode ,
+e.g. ws[2]:-4:0:1:0:horizontal sets worskspace 2 to the horizontal stack mode,
+shrinks the master area by 4 ticks and adds one window to the stack, while
+maintaining default floating window behavior.
 Possible
 .Ar stack_mode
 values are
@@ -369,8 +367,8 @@ and
 .Ic always_raise
 for more information.
 Note that the stacking options are complicated and have side-effects.
-One should familiarize oneself with these commands before experimenting
-with the
+One should familiarize oneself with these commands before experimenting with
+the
 .Ic layout
 option.
 .Pp
@@ -390,13 +388,14 @@ Define new action to spawn a program
 See the
 .Sx PROGRAMS
 section below.
-.It Ic quirk Ns Bq Ar c Ns Li : Ns Ar i Ns Li : Ns Ar n
+.It Ic quirk Ns Bq Ar c Ns Bq : Ns Ar i Ns Bq : Ns Ar n
 Add "quirk" for windows with class
 .Ar c ,
 instance
 .Ar i
-and name
-.Ar n .
+(optional) and name
+.Ar n
+(optional).
 See the
 .Sx QUIRKS
 section below.
@@ -404,7 +403,8 @@ section below.
 Allocates a custom region, removing any autodetected regions which occupy the
 same space on the screen.
 Defined in the format
-.Li screen Ns Bo Ar idx Ns Bc : Ns Ar width Ns x Ns Ar height Ns + Ns Ar x Ns + Ns Ar y ,
+.Li screen Ns Bo Ar idx Ns Bc : Ns Ar width Ns x Ns Ar height Ns + Ns Ar x Ns \
++ Ns Ar y ,
 e.g. screen[1]:800x1200+0+0.
 .Pp
 To make a region span multiple monitors, create a region big enough to cover
@@ -427,8 +427,7 @@ and
 .Ar previous
 are relative to the focused window.
 .It Ic stack_enabled
-Enable or disable displaying the current stacking algorithm in the status
-bar.
+Enable or disable displaying the current stacking algorithm in the status bar.
 .It Ic term_width
 Set a preferred minimum width for the terminal.
 If this value is greater than 0,
@@ -470,8 +469,8 @@ for example, one needs to add the following line to
 xterm.bellIsUrgent: true
 .Ed
 .It Ic verbose_layout
-Enable or disable displaying the current master window count and stack column/row
-count in the status bar.
+Enable or disable displaying the current master window count and stack
+column/row count in the status bar.
 Enable by setting to 1.
 See
 .Ar master_add ,
@@ -498,8 +497,8 @@ Enable or disable displaying the window instance name (from WM_CLASS) in the
 status bar.
 Enable by setting to 1.
 .It Ic window_name_enabled
-Enable or disable displaying the window display name (from _NET_WM_NAME/WM_NAME)
-in the status bar.
+Enable or disable displaying the window display name
+(from _NET_WM_NAME/WM_NAME) in the status bar.
 Enable by setting to 1.
 .Pp
 To prevent excessively large window names from pushing the remaining text off
@@ -515,8 +514,8 @@ region and
 is enabled, focus on the region with the target workspace.
 Enable by setting to 1.
 .It Ic warp_pointer
-Centers the pointer on the focused window when using bindings to
-change focus, switch workspaces, change regions, etc.
+Centers the pointer on the focused window when using bindings to change focus,
+switch workspaces, change regions, etc.
 Enable by setting to 1.
 .It Ic workspace_limit
 Set the total number of workspaces available.
@@ -524,8 +523,8 @@ Minimum is 1, maximum is 22, default is 10.
 .El
 .Sh PROGRAMS
 .Nm
-allows you to define custom actions to launch programs of your choice and
-then bind them the same as with built-in actions.
+allows you to define custom actions to launch programs of your choice and then
+bind them the same as with built-in actions.
 See the
 .Sx BINDINGS
 section below.
@@ -545,8 +544,8 @@ Remember that when using
 .Ql #
 in your program call, it must be escaped with a backslash, i.e. \e#
 .Pp
-The following argument variables will be substituted for values at the time the program
-is spawned:
+The following argument variables will be substituted for values at the time the
+program is spawned:
 .Pp
 .Bl -tag -width "$bar_font_color" -offset indent -compact
 .It Cm $bar_border
@@ -583,11 +582,11 @@ xterm
 .It Cm lock
 xlock
 .It Cm menu
-dmenu_run $dmenu_bottom \-fn $bar_font \-nb $bar_color \-nf $bar_font_color \-sb
-$bar_color_selected \-sf $bar_font_color_selected
+dmenu_run $dmenu_bottom \-fn $bar_font \-nb $bar_color \-nf $bar_font_color
+\-sb $bar_color_selected \-sf $bar_font_color_selected
 .It Cm search
-dmenu $dmenu_bottom \-i \-fn $bar_font \-nb $bar_color \-nf $bar_font_color \-sb
-$bar_color_selected \-sf $bar_font_color_selected
+dmenu $dmenu_bottom \-i \-fn $bar_font \-nb $bar_color \-nf $bar_font_color
+\-sb $bar_color_selected \-sf $bar_font_color_selected
 .It Cm name_workspace
 dmenu $dmenu_bottom \-p Workspace \-fn $bar_font \-nb $bar_color \-nf
 $bar_font_color \-sb $bar_color_selected \-sf $bar_font_color_selected
@@ -600,9 +599,9 @@ screenshot.sh window # optional
 .El
 .Pp
 Note that optional default programs will not be validated unless overridden.
-If a default program fails validation, you can resolve the exception
-by installing the program, modifying the program call or disabling the program
-by freeing the respective binding.
+If a default program fails validation, you can resolve the exception by
+installing the program, modifying the program call or disabling the program by
+freeing the respective binding.
 .Pp
 For example, to override
 .Ic lock :
@@ -787,13 +786,11 @@ Same as
 .Ic resize
 but keep window centered.
 .It Cm term
-Spawn a new terminal
-(see
+Spawn a new terminal (see
 .Sx PROGRAMS
 above).
 .It Cm menu
-Menu
-(see
+Menu (see
 .Sx PROGRAMS
 above).
 .It Cm quit
@@ -900,13 +897,11 @@ Switch region to next screen.
 .It Cm rg_move_prev
 Switch region to previous screen.
 .It Cm screenshot_all
-Take screenshot of entire screen (if enabled)
-(see
+Take screenshot of entire screen (if enabled) (see
 .Sx PROGRAMS
 above).
 .It Cm screenshot_wind
-Take screenshot of selected window (if enabled)
-(see
+Take screenshot of selected window (if enabled) (see
 .Sx PROGRAMS
 above).
 .It Cm version
@@ -914,13 +909,11 @@ Toggle version in status bar.
 .It Cm float_toggle
 Toggle focused window between tiled and floating.
 .It Cm lock
-Lock screen
-(see
+Lock screen (see
 .Sx PROGRAMS
 above).
 .It Cm initscr
-Reinitialize physical screens
-(see
+Reinitialize physical screens (see
 .Sx PROGRAMS
 above).
 .It Cm iconify
@@ -971,7 +964,7 @@ Custom bindings in the configuration file are specified as follows:
 is one of the actions listed above (or empty to unbind) and
 .Ar combo
 is in the form of zero or more modifier keys and/or special arguments
-(Mod1, Shift, MOD, etc.) and a normal key (b, Space, etc.)
+(Mod1, Shift, MOD, etc.) and a normal key (b, Space, etc)
 or a button (Button1 .. Button255), separated by
 .Ql + .
 Multiple key/button combinations may be bound to the same action.
@@ -1014,8 +1007,8 @@ initiates
 .Ic move
 and
 .Aq Cm Button3
-pressed with any other combination of modifiers
-sets focus to the window/region under the pointer.
+pressed with any other combination of modifiers sets focus to the window/region
+under the pointer.
 .Pp
 .Cm REPLAY
 example:
@@ -1052,12 +1045,10 @@ add:
 bind[program] = MOD+aring
 .Ed
 .Sh KEYBOARD MAPPING FILES
-Keyboard mapping files for several keyboard layouts are listed
-below.
+Keyboard mapping files for several keyboard layouts are listed below.
 These files can be used with the
 .Ic keyboard_mapping
-setting to load pre-defined key bindings for the specified
-keyboard layout.
+setting to load pre-defined key bindings for the specified keyboard layout.
 .Pp
 .Bl -tag -width "spectrwm_XX.confXXX" -offset indent -compact
 .It Cm spectrwm_cz.conf
@@ -1075,8 +1066,8 @@ United States keyboard layout
 .El
 .Sh QUIRKS
 .Nm
-provides "quirks" which handle windows that must be treated specially
-in a tiling window manager, such as some dialogs and fullscreen apps.
+provides "quirks" which handle windows that must be treated specially in a
+tiling window manager, such as some dialogs and fullscreen apps.
 .Pp
 The default quirks are described below:
 .Pp
@@ -1118,29 +1109,29 @@ Allow window to position itself, uncentered.
 .It FLOAT
 This window should not be tiled, but allowed to float freely.
 .It FOCUSONMAP_SINGLE
-When the window first appears on the screen, change focus to the window
-if there are no other windows on the workspace with the same WM_CLASS
+When the window first appears on the screen, change focus to the window if
+there are no other windows on the workspace with the same WM_CLASS
 class/instance value.
 Has no effect when
 .Ic focus_mode
 is set to
 .Ar follow .
 .It FOCUSPREV
-On exit force focus on previously focused application not previous
-application in the stack.
+On exit force focus on previously focused application not previous application
+in the stack.
 .It FULLSCREEN
 Remove border to allow window to use full region size.
 .It IGNOREPID
 Ignore the PID when determining the initial workspace for a new window.
 Especially useful for terminal windows that share a process.
 .It IGNORESPAWNWS
-Ignore the spawn workspace when determining the initial workspace for a
-new window.
+Ignore the spawn workspace when determining the initial workspace for a new
+window.
 .It MINIMALBORDER
 Remove border when window is unfocused and floating.
 .It NOFOCUSCYCLE
-Remove from normal focus cycle (focus_prev or focus_next). The window can
-still be focused using search_win.
+Remove from normal focus cycle (focus_prev or focus_next). The window can still
+be focused using search_win.
 .It NOFOCUSONMAP
 Don't change focus to the window when it first appears on the screen.
 Has no effect when
@@ -1168,7 +1159,8 @@ fonts when resizing.
 .Pp
 Custom quirks in the configuration file are specified as follows:
 .Pp
-.Dl quirk Ns Bo Ar class Ns Bo : Ns Ar instance Ns Bo : Ns Ar name Bc Bc Bc = Ar quirk Op + Ar quirk ...
+.Dl quirk Ns Bo Ar class Ns Bo : Ns Ar instance Ns Bo : Ns Ar name Bc Bc Bc \
+= Ar quirk Op + Ar quirk ...
 .Pp
 .Ar class ,
 .Ar instance
@@ -1194,9 +1186,10 @@ quirk[.*:.*:.*] = FLOAT # Same as above.
 quirk[Firefox:Navigator] = FLOAT # Float all Firefox browser windows.
 quirk[::Console] = FLOAT # Float windows with WM_CLASS not set and a \
 window name of 'Console'.
-quirk[\\[0-9\\].*:.*:\\[\\[\\:alnum\\:\\]\\]*] = FLOAT # Float windows with WM_CLASS \
-class beginning with a number, any WM_CLASS instance and a \
-_NET_WM_NAME/WM_NAME either blank or containing alphanumeric characters without spaces.
+quirk[\\[0-9\\].*:.*:\\[\\[\\:alnum\\:\\]\\]*] = FLOAT # Float windows with \
+WM_CLASS class beginning with a number, any WM_CLASS instance and a \
+_NET_WM_NAME/WM_NAME either blank or containing alphanumeric characters \
+without spaces.
 quirk[pcb:pcb] = NONE # remove existing quirk
 .Ed
 .Pp
@@ -1229,8 +1222,8 @@ quirk[Firefox:Navigator] = FLOAT
 .Ed
 .Pp
 .Nm
-also automatically assigns quirks to windows based on the value
-of the window's _NET_WM_WINDOW_TYPE property as follows:
+also automatically assigns quirks to windows based on the value of the window's
+_NET_WM_WINDOW_TYPE property as follows:
 .Pp
 .Bl -tag -width "_NET_WM_WINDOW_TYPE_TOOLBAR<TAB>XXX" -offset indent -compact
 .It _NET_WM_WINDOW_TYPE_DOCK
@@ -1256,18 +1249,17 @@ itself from external scripts and programs.
 This is achieved by
 .Nm
 responding to certain ClientMessage events.
-From the terminal these events
-can be conveniently sent using tools such as
+From the terminal these events can be conveniently sent using tools such as
 .Xr wmctrl 1
 and
 .Xr xdotool 1 .
-For the
-actual format of these ClientMessage events, see the EWMH specification.
+For the actual format of these ClientMessage events, see the EWMH
+specification.
 .Pp
 The id of the currently focused window is stored in the _NET_ACTIVE_WINDOW
 property of the root window.
-This can be used for example to retrieve the
-title of the currently active window with
+This can be used for example to retrieve the title of the currently active
+window with
 .Xr xprop 1
 and
 .Xr grep 1 :
@@ -1276,8 +1268,8 @@ $ WINDOWID=`xprop \-root _NET_ACTIVE_WINDOW | grep \-o "0x.*"`
 $ xprop \-id $WINDOWID _NET_WM_NAME | grep \-o "\\".*\\""
 .Ed
 .Pp
-A window can be focused by sending a _NET_ACTIVE_WINDOW client message
-to the root window.
+A window can be focused by sending a _NET_ACTIVE_WINDOW client message to the
+root window.
 For example, using
 .Xr wmctrl 1
 to send the message
@@ -1286,8 +1278,8 @@ to send the message
 $ wmctrl \-i \-a 0x4a0000b
 .Ed
 .Pp
-Windows can be closed by sending a _NET_CLOSE_WINDOW client message
-to the root window.
+Windows can be closed by sending a _NET_CLOSE_WINDOW client message to the root
+window.
 For example, using
 .Xr wmctrl 1
 to send the message
@@ -1298,13 +1290,12 @@ $ wmctrl \-i \-c 0x4a0000b
 .Pp
 Windows can be floated and un-floated by adding or removing the
 _NET_WM_STATE_ABOVE atom from the _NET_WM_STATE property of the window.
-This can be achieved by sending a _NET_WM_STATE client message to the
-root window.
-For example, the following toggles the floating state of
-a window using
+This can be achieved by sending a _NET_WM_STATE client message to the root
+window.
+For example, the following toggles the floating state of a window using
 .Xr wmctrl 1
-to send the message (assuming 0x4a0000b is the id of the window to be
-floated or un-floated):
+to send the message (assuming 0x4a0000b is the id of the window to be floated
+or un-floated):
 .Bd -literal -offset indent
 $ wmctrl \-i \-r 0x4a0000b \-b toggle,_NET_WM_STATE_ABOVE
 .Ed
@@ -1317,11 +1308,10 @@ $ wmctrl \-i \-r 0x4a0000b \-b toggle,_NET_WM_STATE_HIDDEN
 .Pp
 Floating windows can also be resized and moved by sending a
 _NET_MOVERESIZE_WINDOW client message to the root window.
-For example,
-using
+For example, using
 .Xr wmctrl 1
-to send the message (assuming 0x4a0000b is the id of
-the window to be resize/moved):
+to send the message (assuming 0x4a0000b is the id of the window to be
+resize/moved):
 .Bd -literal -offset indent
 $ wmctrl \-i \-r 0x4a0000b \-e 0,100,50,640,480
 .Ed
@@ -1352,14 +1342,14 @@ was written by:
 .Pp
 .Bl -tag -width "Ryan Thomas McBride Aq mcbride@countersiege.com " -offset \
 indent -compact
-.It Cm Marco Peereboom Aq marco@peereboom.us
-.It Cm Ryan Thomas McBride Aq mcbride@countersiege.com
-.It Cm Darrin Chandler Aq dwchandler@stilyagin.com
-.It Cm Pierre-Yves Ritschard Aq pyr@spootnik.org
-.It Cm Tuukka Kataja Aq stuge@xor.fi
-.It Cm Jason L. Wright Aq jason@thought.net
-.It Cm Reginald Kennedy Aq rk@rejii.com
-.It Cm Lawrence Teo Aq lteo@lteo.net
-.It Cm Tiago Cunha Aq tcunha@gmx.com
-.It Cm David Hill Aq dhill@mindcry.org
+.It An Marco Peereboom Aq Mt marco@peereboom.us
+.It An Ryan Thomas McBride Aq Mt mcbride@countersiege.com
+.It An Darrin Chandler Aq Mt dwchandler@stilyagin.com
+.It An Pierre-Yves Ritschard Aq Mt pyr@spootnik.org
+.It An Tuukka Kataja Aq Mt stuge@xor.fi
+.It An Jason L. Wright Aq Mt jason@thought.net
+.It An Reginald Kennedy Aq Mt rk@rejii.com
+.It An Lawrence Teo Aq Mt lteo@lteo.net
+.It An Tiago Cunha Aq Mt tcunha@gmx.com
+.It An David Hill Aq Mt dhill@mindcry.org
 .El
