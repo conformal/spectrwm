@@ -5,7 +5,7 @@
  * Copyright (c) 2009 Pierre-Yves Ritschard <pyr@spootnik.org>
  * Copyright (c) 2010 Tuukka Kataja <stuge@xor.fi>
  * Copyright (c) 2011 Jason L. Wright <jason@thought.net>
- * Copyright (c) 2011-2017 Reginald Kennedy <rk@rejii.com>
+ * Copyright (c) 2011-2018 Reginald Kennedy <rk@rejii.com>
  * Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
  * Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
  * Copyright (c) 2012-2015 David Hill <dhill@mindcry.org>
@@ -452,6 +452,7 @@ struct ws_win {
 	xcb_window_t		id;
 	xcb_window_t		frame;
 	xcb_window_t		transient;
+	xcb_visualid_t		visual;
 	struct ws_win		*focus_child;	/* focus on child transient */
 	struct swm_geometry	g;		/* current geometry */
 	struct swm_geometry	g_prev;		/* prev configured geometry */
@@ -578,6 +579,8 @@ enum {
 #define SWM_WS_MAX		(22)	/* hard limit */
 int		workspace_limit = 10;	/* soft limit */
 
+#define SWM_RATE_DEFAULT	(60)	/* Default for swm_screen. */
+
 struct swm_screen {
 	int			idx;	/* screen index */
 	struct swm_region_list	rl;	/* list of regions on this screen */
@@ -593,8 +596,12 @@ struct swm_screen {
 		int		manual;
 	} c[SWM_S_COLOR_MAX];
 
-	xcb_gcontext_t		bar_gc;
-	GC			bar_gc_legacy;
+	uint8_t			depth;
+	xcb_timestamp_t		rate; /* Max updates/sec for move and resize */
+	xcb_visualid_t		visual;
+	Visual			*xvisual; /* Needed for Xft. */
+	xcb_colormap_t		colormap;
+	xcb_gcontext_t		gc;
 };
 struct swm_screen	*screens;
 
@@ -1121,7 +1128,7 @@ void	 maximize_toggle(struct binding *, struct swm_region *, union arg *);
 void	 motionnotify(xcb_motion_notify_event_t *);
 void	 move(struct binding *, struct swm_region *, union arg *);
 void	 move_win(struct ws_win *, struct binding *, int);
-uint32_t name_to_pixel(int, const char *);
+uint32_t name_to_pixel(struct swm_screen *, const char *);
 void	 name_workspace(struct binding *, struct swm_region *, union arg *);
 void	 new_region(struct swm_screen *, int, int, int, int);
 int	 parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
@@ -1885,11 +1892,11 @@ debug_refresh(struct ws_win *win)
 			win->debug = xcb_generate_id(conn);
 			wc[0] = win->s->c[SWM_S_COLOR_BAR].pixel;
 			wc[1] = win->s->c[SWM_S_COLOR_BAR_BORDER].pixel;
-			wc[2] = screen->default_colormap;
+			wc[2] = win->s->colormap;
 
-			xcb_create_window(conn, screen->root_depth, win->debug,
+			xcb_create_window(conn, win->s->depth, win->debug,
 			    win->frame, 0, 0, 10, 10, 1,
-			    XCB_WINDOW_CLASS_INPUT_OUTPUT, screen->root_visual,
+			    XCB_WINDOW_CLASS_INPUT_OUTPUT, win->s->visual,
 			    XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL |
 			    XCB_CW_COLORMAP, wc);
 
@@ -1912,8 +1919,10 @@ debug_refresh(struct ws_win *win)
 				break;
 		}
 
-		if (asprintf(&s, "%#x f:%#x wl:%d s:%d im:%s", win->id,
-		    win->frame, widx, sidx, get_win_input_model(win)) == -1)
+		if (asprintf(&s, "%#x f:%#x wl:%d s:%d visual: %#x "
+		    "colormap: %#x im: %s", win->id, win->frame, widx, sidx,
+		    win->s->visual, win->s->colormap,
+		    get_win_input_model(win)) == -1)
 			return;
 
 		len = strlen(s);
@@ -1949,9 +1958,8 @@ debug_refresh(struct ws_win *win)
 		rect.height = height;
 
 		gcv[0] = win->s->c[SWM_S_COLOR_BAR].pixel;
-		xcb_change_gc(conn, win->s->bar_gc, XCB_GC_FOREGROUND, gcv);
-		xcb_poly_fill_rectangle(conn, win->debug, win->s->bar_gc, 1,
-		    &rect);
+		xcb_change_gc(conn, win->s->gc, XCB_GC_FOREGROUND, gcv);
+		xcb_poly_fill_rectangle(conn, win->debug, win->s->gc, 1, &rect);
 
 		/* Draw text. */
 		if (bar_font_legacy) {
@@ -1968,8 +1976,7 @@ debug_refresh(struct ws_win *win)
 			XFreeGC(display, l_draw);
 		} else {
 			draw = XftDrawCreate(display, win->debug,
-			    DefaultVisual(display, win->s->idx),
-			    DefaultColormap(display, win->s->idx));
+			    win->s->xvisual, win->s->colormap);
 
 			XftDrawStringUtf8(draw, &bar_font_color, bar_font, 2,
 			    (bar_height + bar_font->height) / 2 -
@@ -2069,18 +2076,13 @@ find_pid(pid_t pid)
 }
 
 uint32_t
-name_to_pixel(int sidx, const char *colorname)
+name_to_pixel(struct swm_screen *s, const char *colorname)
 {
 	uint32_t			result = 0;
 	char				cname[32] = "#";
-	xcb_screen_t			*screen;
-	xcb_colormap_t			cmap;
 	xcb_alloc_color_reply_t		*cr;
 	xcb_alloc_named_color_reply_t	*nr;
 	uint16_t			rr, gg, bb;
-
-	screen = get_screen(sidx);
-	cmap = screen->default_colormap;
 
 	/* color is in format rgb://rr/gg/bb */
 	if (strncmp(colorname, "rgb:", 4) == 0) {
@@ -2088,7 +2090,7 @@ name_to_pixel(int sidx, const char *colorname)
 			warnx("could not parse rgb %s", colorname);
 		else {
 			cr = xcb_alloc_color_reply(conn,
-			    xcb_alloc_color(conn, cmap, rr, gg, bb),
+			    xcb_alloc_color(conn, s->colormap, rr, gg, bb),
 			    NULL);
 			if (cr) {
 				result = cr->pixel;
@@ -2098,13 +2100,13 @@ name_to_pixel(int sidx, const char *colorname)
 		}
 	} else {
 		nr = xcb_alloc_named_color_reply(conn,
-			xcb_alloc_named_color(conn, cmap, strlen(colorname),
-			    colorname), NULL);
+		    xcb_alloc_named_color(conn, s->colormap, strlen(colorname),
+		    colorname), NULL);
 		if (nr == NULL) {
 			strlcat(cname, colorname + 2, sizeof cname - 1);
 			nr = xcb_alloc_named_color_reply(conn,
-			    xcb_alloc_named_color(conn, cmap, strlen(cname),
-			    cname), NULL);
+			    xcb_alloc_named_color(conn, s->colormap,
+			    strlen(cname), cname), NULL);
 		}
 		if (nr) {
 			result = nr->pixel;
@@ -2122,7 +2124,7 @@ setscreencolor(const char *val, int i, int c)
 	if (i < 0 || i >= get_screen_count())
 		return;
 
-	screens[i].c[c].pixel = name_to_pixel(i, val);
+	screens[i].c[c].pixel = name_to_pixel(&screens[i], val);
 	free(screens[i].c[c].name);
 	if ((screens[i].c[c].name = strdup(val)) == NULL)
 		err(1, "strdup");
@@ -2232,15 +2234,15 @@ bar_print_legacy(struct swm_region *r, const char *s)
 	if (x < SWM_BAR_OFFSET)
 		x = SWM_BAR_OFFSET;
 
+	/* clear back buffer */
 	rect.x = 0;
 	rect.y = 0;
 	rect.width = WIDTH(r->bar);
 	rect.height = HEIGHT(r->bar);
 
-	/* clear back buffer */
 	gcv[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
-	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
-	xcb_poly_fill_rectangle(conn, r->bar->buffer, r->s->bar_gc, 1, &rect);
+	xcb_change_gc(conn, r->s->gc, XCB_GC_FOREGROUND, gcv);
+	xcb_poly_fill_rectangle(conn, r->bar->buffer, r->s->gc, 1, &rect);
 
 	/* draw back buffer */
 	gcvd.graphics_exposures = 0;
@@ -2252,7 +2254,7 @@ bar_print_legacy(struct swm_region *r, const char *s)
 	XFreeGC(display, draw);
 
 	/* blt */
-	xcb_copy_area(conn, r->bar->buffer, r->bar->id, r->s->bar_gc, 0, 0,
+	xcb_copy_area(conn, r->bar->buffer, r->bar->id, r->s->gc, 0, 0,
 	    0, 0, WIDTH(r->bar), HEIGHT(r->bar));
 }
 
@@ -2285,20 +2287,19 @@ bar_print(struct swm_region *r, const char *s)
 	if (x < SWM_BAR_OFFSET)
 		x = SWM_BAR_OFFSET;
 
+	/* clear back buffer */
 	rect.x = 0;
 	rect.y = 0;
 	rect.width = WIDTH(r->bar);
 	rect.height = HEIGHT(r->bar);
 
-	/* clear back buffer */
 	gcv[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
-	xcb_change_gc(conn, r->s->bar_gc, XCB_GC_FOREGROUND, gcv);
-	xcb_poly_fill_rectangle(conn, r->bar->buffer, r->s->bar_gc, 1, &rect);
+	xcb_change_gc(conn, r->s->gc, XCB_GC_FOREGROUND, gcv);
+	xcb_poly_fill_rectangle(conn, r->bar->buffer, r->s->gc, 1, &rect);
 
 	/* draw back buffer */
-	draw = XftDrawCreate(display, r->bar->buffer,
-	    DefaultVisual(display, r->s->idx),
-	    DefaultColormap(display, r->s->idx));
+	draw = XftDrawCreate(display, r->bar->buffer, r->s->xvisual,
+	    r->s->colormap);
 
 	XftDrawStringUtf8(draw, &bar_font_color, bar_font, x,
 	    (HEIGHT(r->bar) + bar_font->height) / 2 - bar_font->descent,
@@ -2307,7 +2308,7 @@ bar_print(struct swm_region *r, const char *s)
 	XftDrawDestroy(draw);
 
 	/* blt */
-	xcb_copy_area(conn, r->bar->buffer, r->bar->id, r->s->bar_gc, 0, 0,
+	xcb_copy_area(conn, r->bar->buffer, r->bar->id, r->s->gc, 0, 0,
 	    0, 0, WIDTH(r->bar), HEIGHT(r->bar));
 }
 
@@ -2991,14 +2992,14 @@ xft_init(struct swm_region *r)
 
 	PIXEL_TO_XRENDERCOLOR(r->s->c[SWM_S_COLOR_BAR_FONT].pixel, color);
 
-	if (!XftColorAllocValue(display, DefaultVisual(display, r->s->idx),
-	    DefaultColormap(display, r->s->idx), &color, &bar_font_color))
+	if (!XftColorAllocValue(display, r->s->xvisual, r->s->colormap,
+	    &color, &bar_font_color))
 		warn("Xft error: unable to allocate color.");
 
 	PIXEL_TO_XRENDERCOLOR(r->s->c[SWM_S_COLOR_BAR].pixel, color);
 
-	if (!XftColorAllocValue(display, DefaultVisual(display, r->s->idx),
-	    DefaultColormap(display, r->s->idx), &color, &search_font_color))
+	if (!XftColorAllocValue(display, r->s->xvisual, r->s->colormap, &color,
+	    &search_font_color))
 		warn("Xft error: unable to allocate color.");
 
 	bar_height = bar_font->height + 2 * bar_border_width;
@@ -3011,7 +3012,7 @@ void
 bar_setup(struct swm_region *r)
 {
 	xcb_screen_t	*screen;
-	uint32_t	 wa[3];
+	uint32_t	 wa[4];
 
 	DNPRINTF(SWM_D_BAR, "screen %d.\n", r->s->idx);
 
@@ -3041,12 +3042,13 @@ bar_setup(struct swm_region *r)
 	wa[1] = r->s->c[SWM_S_COLOR_BAR_BORDER_UNFOCUS].pixel;
 	wa[2] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_POINTER_MOTION |
 	    XCB_EVENT_MASK_POINTER_MOTION_HINT;
+	wa[3] = r->s->colormap;
 
-	xcb_create_window(conn, XCB_COPY_FROM_PARENT, r->bar->id, r->s->root,
+	xcb_create_window(conn, r->s->depth, r->bar->id, r->s->root,
 	    X(r->bar), Y(r->bar), WIDTH(r->bar), HEIGHT(r->bar),
 	    bar_border_width, XCB_WINDOW_CLASS_INPUT_OUTPUT,
-	    XCB_COPY_FROM_PARENT, XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL
-	    | XCB_CW_EVENT_MASK, wa);
+	    r->s->visual, XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL
+	    | XCB_CW_EVENT_MASK | XCB_CW_COLORMAP, wa);
 
 	/* Stack bar window above region window to start. */
 	wa[0] = r->id;
@@ -3056,7 +3058,7 @@ bar_setup(struct swm_region *r)
 	    XCB_CONFIG_WINDOW_STACK_MODE, wa);
 
 	r->bar->buffer = xcb_generate_id(conn);
-	xcb_create_pixmap(conn, screen->root_depth, r->bar->buffer, r->bar->id,
+	xcb_create_pixmap(conn, r->s->depth, r->bar->buffer, r->bar->id,
 	    WIDTH(r->bar), HEIGHT(r->bar));
 
 	if (randr_support)
@@ -3717,13 +3719,17 @@ find_window(xcb_window_t id)
 		if (qtr->parent != XCB_WINDOW_NONE && qtr->parent != qtr->root)
 			win = find_window(qtr->parent);
 
+#ifdef SWM_DEBUG
+		if (win)
+			DNPRINTF(SWM_D_MISC, "%#x is decendent of %#x.\n",
+			    id, qtr->parent);
+#endif
 		free(qtr);
 	}
+
 #ifdef SWM_DEBUG
-	if (win)
-		DNPRINTF(SWM_D_MISC, "found win %#x\n", win->id);
-	else
-		DNPRINTF(SWM_D_MISC, "window not found\n");
+	if (win == NULL)
+		DNPRINTF(SWM_D_MISC, "unmanaged.\n");
 #endif
 	return (win);
 }
@@ -6117,7 +6123,7 @@ search_win(struct binding *bp, struct swm_region *r, union arg *args)
 		w = xcb_generate_id(conn);
 		wa[0] = r->s->c[SWM_S_COLOR_FOCUS].pixel;
 		wa[1] = r->s->c[SWM_S_COLOR_UNFOCUS].pixel;
-		wa[2] = screen->default_colormap;
+		wa[2] = r->s->colormap;
 
 		if (bar_font_legacy) {
 			XmbTextExtents(bar_fs, s, len, &l_ibox, &l_lbox);
@@ -6130,10 +6136,10 @@ search_win(struct binding *bp, struct swm_region *r, union arg *args)
 			height = bar_font->height + 4;
 		}
 
-		xcb_create_window(conn, screen->root_depth, w, win->frame, 0, 0,
+		xcb_create_window(conn, win->s->depth, w, win->frame, 0, 0,
 		    width, height, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
-		    screen->root_visual, XCB_CW_BACK_PIXEL |
-		    XCB_CW_BORDER_PIXEL | XCB_CW_COLORMAP, wa);
+		    win->s->visual, XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL |
+		    XCB_CW_COLORMAP, wa);
 
 		xcb_map_window(conn, w);
 
@@ -6154,9 +6160,8 @@ search_win(struct binding *bp, struct swm_region *r, union arg *args)
 			XFreeGC(display, l_draw);
 		} else {
 
-			draw = XftDrawCreate(display, w,
-			    DefaultVisual(display, r->s->idx),
-			    DefaultColormap(display, r->s->idx));
+			draw = XftDrawCreate(display, w, r->s->xvisual,
+			    r->s->colormap);
 
 			XftDrawStringUtf8(draw, &search_font_color, bar_font, 2,
 			    (HEIGHT(r->bar) + bar_font->height) / 2 -
@@ -6779,8 +6784,8 @@ draw_frame(struct ws_win *win)
 	rect[n].width = WIDTH(win) + 2 * border_width;
 	rect[n].height = border_width;
 
-	xcb_change_gc(conn, win->s->bar_gc, XCB_GC_FOREGROUND, pixel);
-	xcb_poly_fill_rectangle(conn, win->frame, win->s->bar_gc, 4, rect);
+	xcb_change_gc(conn, win->s->gc, XCB_GC_FOREGROUND, pixel);
+	xcb_poly_fill_rectangle(conn, win->frame, win->s->gc, 4, rect);
 }
 
 void
@@ -6912,7 +6917,7 @@ keybindreleased(struct binding *bp, xcb_key_release_event_t *kre)
 void
 resize_win(struct ws_win *win, struct binding *bp, int opt)
 {
-	xcb_timestamp_t		timestamp = 0;
+	xcb_timestamp_t		timestamp = 0, mintime;
 	struct swm_region	*r = NULL;
 	struct swm_geometry	g;
 	int			top = 0, left = 0;
@@ -6993,6 +6998,8 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 	    NULL);
 	if (xpr == NULL)
 		return;
+
+	mintime = 1000 / r->s->rate;
 
 	g = win->g;
 
@@ -7082,8 +7089,8 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 				WIDTH(win) = g.w + dx;
 			}
 
-			/* not free, don't sync more than 120 times / second */
-			if ((mne->time - timestamp) > (1000 / 120) ) {
+			/* Don't sync faster than the current rate limit. */
+			if ((mne->time - timestamp) > mintime) {
 				timestamp = mne->time;
 				regionize(win, mne->root_x, mne->root_y);
 				region_containment(win, r, SWM_CW_ALLSIDES |
@@ -7200,7 +7207,7 @@ void
 move_win(struct ws_win *win, struct binding *bp, int opt)
 {
 	struct swm_region		*r;
-	xcb_timestamp_t			timestamp = 0;
+	xcb_timestamp_t			timestamp = 0, mintime;
 	xcb_query_pointer_reply_t	*qpr = NULL;
 	xcb_generic_event_t		*evt;
 	xcb_motion_notify_event_t	*mne;
@@ -7287,6 +7294,8 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 		xcb_allow_events(conn, XCB_ALLOW_ASYNC_KEYBOARD,
 		     XCB_CURRENT_TIME);
 
+	mintime = 1000 / r->s->rate;
+
 	regionize(win, qpr->root_x, qpr->root_y);
 	region_containment(win, win->ws->r, SWM_CW_ALLSIDES |
 	    SWM_CW_SOFTBOUNDARY);
@@ -7314,13 +7323,13 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 			break;
 		case XCB_MOTION_NOTIFY:
 			mne = (xcb_motion_notify_event_t *)evt;
-			DNPRINTF(SWM_D_EVENT, "MOTION_NOTIFY: root: %#x\n",
-			    mne->root);
+			DNPRINTF(SWM_D_EVENT, "MOTION_NOTIFY: root: %#x time: "
+			    "%#x\n", mne->root, mne->time);
 			X(win) = mne->root_x - qpr->win_x;
 			Y(win) = mne->root_y - qpr->win_y;
 
-			/* not free, don't sync more than 120 times / second */
-			if ((mne->time - timestamp) > (1000 / 120) ) {
+			/* Don't sync faster than the current rate limit. */
+			if ((mne->time - timestamp) > mintime) {
 				timestamp = mne->time;
 				regionize(win, mne->root_x, mne->root_y);
 				region_containment(win, win->ws->r,
@@ -9806,26 +9815,31 @@ reparent_window(struct ws_win *win)
 {
 	xcb_void_cookie_t	c;
 	xcb_generic_error_t	*error;
-	uint32_t		wa[2];
+	uint32_t		wa[3];
 
 	win->frame = xcb_generate_id(conn);
 
 	DNPRINTF(SWM_D_MISC, "win %#x, frame: %#x\n", win->id, win->frame);
 
-	wa[0] =
+	struct xcb_screen_t *s;
+	if ((s = get_screen(win->s->idx)) == NULL)
+		errx(1, "ERROR: can't get screen %d.", win->s->idx);
+	wa[0] = s->black_pixel;
+	wa[1] =
 	    XCB_EVENT_MASK_ENTER_WINDOW |
 	    XCB_EVENT_MASK_STRUCTURE_NOTIFY |
 	    XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
 	    XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY |
 	    XCB_EVENT_MASK_EXPOSURE;
 #ifdef SWM_DEBUG
-	wa[0] |= XCB_EVENT_MASK_LEAVE_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE;
+	wa[1] |= XCB_EVENT_MASK_LEAVE_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE;
 #endif
+	wa[2] = win->s->colormap;
 
-	xcb_create_window(conn, XCB_COPY_FROM_PARENT, win->frame, win->s->root,
-	    X(win), Y(win), WIDTH(win), HEIGHT(win), 0,
-	    XCB_WINDOW_CLASS_INPUT_OUTPUT, XCB_COPY_FROM_PARENT,
-	    XCB_CW_EVENT_MASK, wa);
+	xcb_create_window(conn, win->s->depth, win->frame, win->s->root, X(win),
+	    Y(win), WIDTH(win), HEIGHT(win), 0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+	    win->s->visual, XCB_CW_BORDER_PIXEL | XCB_CW_EVENT_MASK |
+	    XCB_CW_COLORMAP, wa);
 
 	win->state = SWM_WIN_STATE_REPARENTING;
 	c = xcb_reparent_window_checked(conn, win->id, win->frame, 0, 0);
@@ -10339,7 +10353,7 @@ buttonpress(xcb_button_press_event_t *e)
 				/* Clear bar since empty. */
 				bar_draw(r->bar);
 
-				/* No need to replay event. */
+				/* Don't replay root window events. */
 				replay = false;
 			}
 		}
@@ -11552,9 +11566,10 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 	wa[0] = XCB_EVENT_MASK_POINTER_MOTION |
 	    XCB_EVENT_MASK_POINTER_MOTION_HINT;
 
-	xcb_create_window(conn, XCB_COPY_FROM_PARENT, r->id, r->s->root,
-	    X(r), Y(r), WIDTH(r), HEIGHT(r), 0, XCB_WINDOW_CLASS_INPUT_ONLY,
-	    XCB_COPY_FROM_PARENT, XCB_CW_EVENT_MASK, wa);
+	/* Depth of InputOnly always 0. */
+	xcb_create_window(conn, 0, r->id, r->s->root, X(r), Y(r), WIDTH(r),
+	    HEIGHT(r), 0, XCB_WINDOW_CLASS_INPUT_ONLY, r->s->visual,
+	    XCB_CW_EVENT_MASK, wa);
 
 	/* Make sure region input is at the bottom. */
 	wa[0] = XCB_STACK_MODE_BELOW;
@@ -11567,8 +11582,8 @@ void
 scan_randr(int idx)
 {
 #ifdef SWM_XRR_HAS_CRTC
-	int						c;
-	int						ncrtc = 0;
+	int						i, j;
+	int						ncrtc = 0, nmodes = 0;
 #endif /* SWM_XRR_HAS_CRTC */
 	struct swm_region				*r;
 	int						num_screens;
@@ -11577,7 +11592,9 @@ scan_randr(int idx)
 	xcb_randr_get_crtc_info_cookie_t		cic;
 	xcb_randr_get_crtc_info_reply_t			*cir = NULL;
 	xcb_randr_crtc_t				*crtc;
+	xcb_randr_mode_info_t				*mode;
 	xcb_screen_t					*screen;
+	int						minrate, currate;
 
 	DNPRINTF(SWM_D_MISC, "screen: %d\n", idx);
 
@@ -11611,12 +11628,17 @@ scan_randr(int idx)
 			    screen->width_in_pixels,
 			    screen->height_in_pixels);
 			goto out;
-		} else
+		} else {
 			ncrtc = srr->num_crtcs;
+			nmodes = srr->num_modes;
+		}
 
+		minrate = -1;
+		mode = xcb_randr_get_screen_resources_current_modes(srr);
 		crtc = xcb_randr_get_screen_resources_current_crtcs(srr);
-		for (c = 0; c < ncrtc; c++) {
-			cic = xcb_randr_get_crtc_info(conn, crtc[c],
+		for (i = 0; i < ncrtc; i++) {
+			currate = SWM_RATE_DEFAULT;
+			cic = xcb_randr_get_crtc_info(conn, crtc[i],
 			    XCB_CURRENT_TIME);
 			cir = xcb_randr_get_crtc_info_reply(conn, cic, NULL);
 			if (cir == NULL)
@@ -11626,16 +11648,37 @@ scan_randr(int idx)
 				continue;
 			}
 
-			if (cir->mode == 0)
+			if (cir->mode == 0) {
 				new_region(&screens[idx], 0, 0,
 				    screen->width_in_pixels,
 				    screen->height_in_pixels);
-			else
+			} else {
 				new_region(&screens[idx],
 				    cir->x, cir->y, cir->width, cir->height);
+
+				/* Determine the crtc refresh rate. */
+				for (j = 0; j < nmodes; j++) {
+					if (mode[j].id == cir->mode) {
+						if (mode[j].htotal &&
+						    mode[j].vtotal)
+							currate =
+							    mode[j].dot_clock /
+							    (mode[j].htotal *
+							     mode[j].vtotal);
+						break;
+					}
+				}
+
+				if (minrate == -1 || currate < minrate)
+					minrate = currate;
+			}
 			free(cir);
 		}
 		free(srr);
+
+		screens[idx].rate = (minrate > 0) ? minrate : SWM_RATE_DEFAULT;
+		DNPRINTF(SWM_D_MISC, "Screen %d update rate: %d\n",
+		    idx, screens[idx].rate);
 	}
 #endif /* SWM_XRR_HAS_CRTC */
 
@@ -11802,11 +11845,18 @@ setup_screens(void)
 {
 	int			i, j, k, num_screens;
 	struct workspace	*ws;
-	uint32_t		gcv[1], wa[1];
-	const xcb_query_extension_reply_t *qep;
+	uint32_t		wa[1];
+	xcb_pixmap_t		pxmap;
+	xcb_depth_iterator_t			diter;
+	xcb_visualtype_iterator_t		viter;
+	const xcb_query_extension_reply_t	*qep;
 	xcb_screen_t				*screen;
 	xcb_randr_query_version_cookie_t	c;
 	xcb_randr_query_version_reply_t		*r;
+	xcb_void_cookie_t	cmc;
+	xcb_generic_error_t	*error;
+	XVisualInfo		vtmpl, *vlist;
+	int			vcount;
 
 	num_screens = get_screen_count();
 	if ((screens = calloc(num_screens, sizeof(struct swm_screen))) == NULL)
@@ -11840,7 +11890,56 @@ setup_screens(void)
 		TAILQ_INIT(&screens[i].orl);
 		if ((screen = get_screen(i)) == NULL)
 			errx(1, "ERROR: can't get screen %d.", i);
+		screens[i].rate = SWM_RATE_DEFAULT;
 		screens[i].root = screen->root;
+		screens[i].depth = screen->root_depth;
+		screens[i].visual = screen->root_visual;
+		screens[i].colormap = screen->default_colormap;
+		screens[i].xvisual = DefaultVisual(display, i);
+
+		DNPRINTF(SWM_D_INIT, "root_depth: %d, screen_depth: %d\n",
+		    screen->root_depth, xcb_aux_get_depth(conn, screen));
+
+		/* Use the maximum supported screen depth. */
+		for (diter = xcb_screen_allowed_depths_iterator(screen);
+		    diter.rem; xcb_depth_next(&diter)) {
+			if (diter.data->depth > screens[i].depth) {
+				viter = xcb_depth_visuals_iterator(diter.data);
+				if (viter.rem) {
+					screens[i].depth = diter.data->depth;
+					screens[i].visual =
+					    viter.data->visual_id;
+					DNPRINTF(SWM_D_INIT, "Found visual %#x,"
+					    " depth: %d.\n", screens[i].visual,
+					    screens[i].depth);
+				}
+			}
+		}
+
+		/* Create a new colormap if not using the root visual */
+		if (screens[i].visual != screen->root_visual) {
+			/* Find the corresponding Xlib visual struct for Xft. */
+			vtmpl.visualid = screens[i].visual;
+			vlist = XGetVisualInfo(display, VisualIDMask, &vtmpl,
+			    &vcount);
+			if (vcount > 0)
+				screens[i].xvisual = vlist[0].visual;
+
+			DNPRINTF(SWM_D_INIT, "Creating new colormap.\n");
+			screens[i].colormap = xcb_generate_id(conn);
+			cmc = xcb_create_colormap_checked(conn,
+			    XCB_COLORMAP_ALLOC_NONE, screens[i].colormap,
+			    screens[i].root, screens[i].visual);
+			if ((error = xcb_request_check(conn, cmc))) {
+				DNPRINTF(SWM_D_MISC, "error:\n");
+				event_error(error);
+				free(error);
+			}
+		}
+
+		DNPRINTF(SWM_D_INIT, "Using visual %#x, depth: %d.\n",
+		    screens[i].visual, xcb_aux_get_depth_of_visual(screen,
+		    screens[i].visual));
 
 		/* set default colors */
 		setscreencolor("red", i, SWM_S_COLOR_FOCUS);
@@ -11856,15 +11955,22 @@ setup_screens(void)
 		setscreencolor("rgb:a0/a0/a0", i, SWM_S_COLOR_BAR_FONT);
 		setscreencolor("black", i, SWM_S_COLOR_BAR_FONT_SELECTED);
 
-		/* create graphics context on screen */
-		screens[i].bar_gc = xcb_generate_id(conn);
-		gcv[0] = 0;
-		xcb_create_gc(conn, screens[i].bar_gc, screens[i].root,
-		    XCB_GC_GRAPHICS_EXPOSURES, gcv);
-
 		/* set default cursor */
 		xcb_change_window_attributes(conn, screens[i].root,
 		    XCB_CW_CURSOR, wa);
+
+		/* Create graphics context. */
+
+		/* xcb_create_gc determines root/depth from a drawable. */
+		pxmap = xcb_generate_id(conn);
+		xcb_create_pixmap(conn, screens[i].depth, pxmap,
+		    screens[i].root, 10, 10);
+
+		screens[i].gc = xcb_generate_id(conn);
+		wa[0] = 0;
+		xcb_create_gc(conn, screens[i].gc, pxmap,
+		    XCB_GC_GRAPHICS_EXPOSURES, wa);
+		xcb_free_pixmap(conn, pxmap);
 
 		/* init all workspaces */
 		/* XXX these should be dynamically allocated too */
@@ -11956,13 +12062,13 @@ shutdown_cleanup(void)
 		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
 		    screens[i].root, XCB_CURRENT_TIME);
 
-		if (screens[i].bar_gc != XCB_NONE)
-			xcb_free_gc(conn, screens[i].bar_gc);
+		if (screens[i].gc != XCB_NONE)
+			xcb_free_gc(conn, screens[i].gc);
 		if (!bar_font_legacy) {
-			XftColorFree(display, DefaultVisual(display, i),
-			    DefaultColormap(display, i), &bar_font_color);
-			XftColorFree(display, DefaultVisual(display, i),
-			    DefaultColormap(display, i), &search_font_color);
+			XftColorFree(display, screens[i].xvisual,
+			    screens[i].colormap, &bar_font_color);
+			XftColorFree(display, screens[i].xvisual,
+			    screens[i].colormap, &search_font_color);
 		}
 
 		for (j = 0; j < SWM_S_COLOR_MAX; ++j) {
