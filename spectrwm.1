@@ -211,6 +211,7 @@ It may contain the following character sequences:
 .It Li "+D" Ta "Workspace name"
 .It Li "+F" Ta "Floating indicator"
 .It Li "+I" Ta "Workspace index"
+.It Li "+L" Ta "Workspace list indicator"
 .It Li "+M" Ta "Number of iconic (minimized) windows in workspace"
 .It Li "+N" Ta "Screen number"
 .It Li "+P" Ta "Window class and instance separated by a colon"
@@ -517,6 +518,36 @@ Enable by setting to 1.
 Centers the pointer on the focused window when using bindings to change focus,
 switch workspaces, change regions, etc.
 Enable by setting to 1.
+.It Ic workspace_indicator
+Configure the status bar workspace indicator.
+One or more of the following options may be specified in a comma-separated
+list:
+.Pp
+.Bl -tag -width "markcurrentXXX" -offset indent -compact
+.It Ar listcurrent
+Include the current workspace.
+.It Ar listactive
+Include workspaces with windows.
+.It Ar listempty
+Include empty workspaces.
+.It Ar listnamed
+Include named workspaces.
+.It Ar listurgent
+Include workspaces with urgent window(s).
+.It Ar listall
+Include all workspaces.
+.It Ar hidecurrent
+Always exclude the current workspace from the list.
+.It Ar markcurrent
+Indicate the current workspace if it is in the list.
+.It Ar markurgent
+Indicate workspaces in the list that contain urgent window(s).
+.It Ar printnames
+Display the names of named workspaces in the list.
+.El
+.Pp
+The default is
+.Ar listcurrent , Ns Ar listactive , Ns Ar markcurrent , Ns Ar printnames
 .It Ic workspace_limit
 Set the total number of workspaces available.
 Minimum is 1, maximum is 22, default is 10.

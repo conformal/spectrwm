@@ -271,6 +271,19 @@ uint32_t		swm_debug = 0
 #define SWM_CK_FALLBACK		(0x4)
 #define SWM_CK_REGION		(0x8)
 
+#define SWM_WSI_LISTCURRENT	(0x001)
+#define SWM_WSI_LISTACTIVE	(0x002)
+#define SWM_WSI_LISTEMPTY	(0x004)
+#define SWM_WSI_LISTNAMED	(0x008)
+#define SWM_WSI_LISTURGENT	(0x010)
+#define SWM_WSI_LISTALL		(0x0ff)
+#define SWM_WSI_HIDECURRENT	(0x100)
+#define SWM_WSI_MARKCURRENT	(0x200)
+#define SWM_WSI_MARKURGENT	(0x400)
+#define SWM_WSI_PRINTNAMES	(0x800)
+#define SWM_WSI_DEFAULT		(SWM_WSI_LISTCURRENT | SWM_WSI_LISTACTIVE |	\
+    SWM_WSI_MARKCURRENT | SWM_WSI_PRINTNAMES)
+
 #define SWM_CONF_DEFAULT	(0)
 #define SWM_CONF_KEYMAPPING	(1)
 
@@ -386,6 +399,7 @@ char		*clock_format = NULL;
 bool		 window_class_enabled = false;
 bool		 window_instance_enabled = false;
 bool		 window_name_enabled = false;
+uint32_t	 workspace_indicator = SWM_WSI_DEFAULT;
 int		 focus_mode = SWM_FOCUS_DEFAULT;
 int		 focus_close = SWM_STACK_BELOW;
 bool		 focus_close_wrap = true;
@@ -1007,6 +1021,7 @@ void	 bar_window_float(char *, size_t, struct swm_region *);
 void	 bar_window_instance(char *, size_t, struct swm_region *);
 void	 bar_window_name(char *, size_t, struct swm_region *);
 void	 bar_window_state(char *, size_t, struct swm_region *);
+void	 bar_workspace_indicator(char *, size_t, struct swm_region *);
 void	 bar_workspace_name(char *, size_t, struct swm_region *);
 int	 binding_cmp(struct binding *, struct binding *);
 void	 binding_insert(uint16_t, enum binding_type, uint32_t, enum actionid,
@@ -1146,6 +1161,7 @@ int	 parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
 int	 parsebinding(const char *, uint16_t *, enum binding_type *, uint32_t *,
 	     uint32_t *);
 int	 parsequirks(const char *, uint32_t *, int *);
+int	 parse_workspace_indicator(const char *, uint32_t *);
 void	 pressbutton(struct binding *, struct swm_region *, union arg *);
 void	 priorws(struct binding *, struct swm_region *, union arg *);
 #ifdef SWM_DEBUG
@@ -2438,6 +2454,69 @@ bar_urgent(char *s, size_t sz)
 }
 
 void
+bar_workspace_indicator(char *s, size_t sz, struct swm_region *r)
+{
+	struct ws_win		*w;
+	struct workspace	*ws;
+	int		 	 i, count = 0;
+	char			 tmp[SWM_BAR_MAX], *mark;
+	bool			 current, active, named, urgent, collapse;
+
+	if (r == NULL)
+		return;
+
+	for (i = 0; i < workspace_limit; i++) {
+		ws = &r->s->ws[i];
+
+		current = (ws == r->ws);
+		named = (ws->name != NULL);
+		urgent = false;
+		active = false;
+		TAILQ_FOREACH(w, &ws->winlist, entry) {
+			active = true;
+			/* Only get urgent if needed. */
+			if (!(workspace_indicator & SWM_WSI_LISTURGENT ||
+			    workspace_indicator & SWM_WSI_MARKURGENT) ||
+			    (urgent = get_urgent(w)))
+				break;
+		}
+
+		collapse = !(workspace_indicator & SWM_WSI_MARKCURRENT ||
+		    workspace_indicator & SWM_WSI_MARKURGENT);
+
+		if (!(current && workspace_indicator & SWM_WSI_HIDECURRENT) &&
+		    ((current && workspace_indicator & SWM_WSI_LISTCURRENT) ||
+		    (active && workspace_indicator & SWM_WSI_LISTACTIVE) ||
+		    (!active && workspace_indicator & SWM_WSI_LISTEMPTY) ||
+		    (urgent && workspace_indicator & SWM_WSI_LISTURGENT) ||
+		    (named && workspace_indicator & SWM_WSI_LISTNAMED))) {
+			if (count > 0)
+				strlcat(s, " ", sz);
+
+			if (current &&
+			    workspace_indicator & SWM_WSI_MARKCURRENT)
+				mark = "*";
+			else if (urgent && workspace_indicator &
+			    SWM_WSI_MARKURGENT)
+				mark = "!";
+			else if (!collapse)
+				mark = " ";
+			else
+				mark = "";
+			strlcat(s, mark, sz);
+
+			if (named && workspace_indicator & SWM_WSI_PRINTNAMES)
+				snprintf(tmp, sizeof tmp, "%d:%s", ws->idx + 1,
+				    ws->name);
+			else
+				snprintf(tmp, sizeof tmp, "%d", ws->idx + 1);
+			strlcat(s, tmp, sz);
+			count++;
+		}
+	}
+}
+
+void
 bar_workspace_name(char *s, size_t sz, struct swm_region *r)
 {
 	if (r == NULL || r->ws == NULL)
@@ -2580,6 +2659,9 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		break;
 	case 'I':
 		snprintf(tmp, sizeof tmp, "%d", r->ws->idx + 1);
+		break;
+	case 'L':
+		bar_workspace_indicator(tmp, sizeof tmp, r);
 		break;
 	case 'M':
 		count = 0;
@@ -8650,6 +8732,62 @@ grabbuttons(void)
 	DNPRINTF(SWM_D_MOUSE, "done\n");
 }
 
+struct wsi_flag {
+	char *name;
+	uint32_t mask;
+} wsiflags[] = {
+	{"listcurrent", SWM_WSI_LISTCURRENT},
+	{"listactive", SWM_WSI_LISTACTIVE},
+	{"listempty", SWM_WSI_LISTEMPTY},
+	{"listnamed", SWM_WSI_LISTNAMED},
+	{"listurgent", SWM_WSI_LISTURGENT},
+	{"listall", SWM_WSI_LISTALL},
+	{"hidecurrent", SWM_WSI_HIDECURRENT},
+	{"markcurrent", SWM_WSI_MARKCURRENT},
+	{"markurgent", SWM_WSI_MARKURGENT},
+	{"printnames", SWM_WSI_PRINTNAMES},
+};
+
+#define SWM_FLAGS_DELIM		","
+#define SWM_FLAGS_WHITESPACE	" \t\n"
+int
+parse_workspace_indicator(const char *str, uint32_t *mode)
+{
+	char			*tmp, *cp, *name;
+	size_t			len;
+	int			i;
+
+	if (str == NULL || mode == NULL)
+		return (1);
+
+	if ((cp = tmp = strdup(str)) == NULL)
+		err(1, "parse_workspace_indicator: strdup");
+
+	*mode = 0;
+	while ((name = strsep(&cp, SWM_FLAGS_DELIM)) != NULL) {
+		if (cp)
+			cp += (long)strspn(cp, SWM_FLAGS_WHITESPACE);
+		name += strspn(name, SWM_FLAGS_WHITESPACE);
+		len = strcspn(name, SWM_FLAGS_WHITESPACE);
+
+		for (i = 0; i < LENGTH(wsiflags); i++) {
+			if (strncasecmp(name, wsiflags[i].name, len) == 0) {
+				DNPRINTF(SWM_D_CONF, "flag: [%s]\n", name);
+				*mode |= wsiflags[i].mask;
+				break;
+			}
+		}
+		if (i >= LENGTH(wsiflags)) {
+			DNPRINTF(SWM_D_CONF, "invalid flag: [%s]\n", name);
+			free(tmp);
+			return (1);
+		}
+	}
+
+	free(tmp);
+	return (0);
+}
+
 const char *quirkname[] = {
 	"NONE",		/* config string for "no value" */
 	"FLOAT",
@@ -9001,6 +9139,7 @@ enum {
 	SWM_S_WINDOW_NAME_ENABLED,
 	SWM_S_WORKSPACE_CLAMP,
 	SWM_S_WORKSPACE_LIMIT,
+	SWM_S_WORKSPACE_INDICATOR,
 	SWM_S_WORKSPACE_NAME,
 };
 
@@ -9228,6 +9367,10 @@ setconfvalue(const char *selector, const char *value, int flags)
 			workspace_limit = 1;
 
 		ewmh_update_desktops();
+		break;
+	case SWM_S_WORKSPACE_INDICATOR:
+		if (parse_workspace_indicator(value, &workspace_indicator))
+			errx(1, "invalid workspace_indicator");
 		break;
 	case SWM_S_WORKSPACE_NAME:
 		if (getenv("SWM_STARTED") != NULL)
@@ -9576,6 +9719,7 @@ struct config_option configopt[] = {
 	{ "window_name_enabled",	setconfvalue,	SWM_S_WINDOW_NAME_ENABLED },
 	{ "workspace_clamp",		setconfvalue,	SWM_S_WORKSPACE_CLAMP },
 	{ "workspace_limit",		setconfvalue,	SWM_S_WORKSPACE_LIMIT },
+	{ "workspace_indicator",	setconfvalue,	SWM_S_WORKSPACE_INDICATOR },
 	{ "name",			setconfvalue,	SWM_S_WORKSPACE_NAME },
 };
 
