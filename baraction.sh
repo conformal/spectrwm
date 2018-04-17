@@ -66,7 +66,7 @@ print_apm() {
 				BAT_STRING="(battery unknown)"
 				;;
 			esac;
-		
+
 			FULL="${AC_STRING}${BAT_STRING}"
 			if [ "$FULL" != "" ]; then
 				echo -n "$FULL"
