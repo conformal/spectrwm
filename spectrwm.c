@@ -11729,10 +11729,16 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 	TAILQ_FOREACH(r, &screens[i].rl, entry)
 		stack(r);
 
-	/* Make sure a region has focus. */
-	if (screens[i].r_focus == NULL) {
+	/* Focus region. */
+	if (screens[i].r_focus) {
+		/* Update bar colors for existing focus. */
+		r = screens[i].r_focus;
+		screens[i].r_focus = NULL;
+		set_region(r);
+	} else {
+		/* Focus on the first region. */
 		r = TAILQ_FIRST(&screens[i].rl);
-		if (r != NULL)
+		if (r)
 			focus_region(r);
 	}
 
