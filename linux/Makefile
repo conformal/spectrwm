@@ -19,8 +19,8 @@ endif
 
 BIN_CFLAGS   = -fPIE
 BIN_LDFLAGS  = -fPIE -pie
-BIN_CPPFLAGS = $(shell pkg-config --cflags x11 x11-xcb xcb-icccm xcb-keysyms xcb-randr xcb-util xcb-xtest xcursor xft)
-BIN_LDLIBS   = $(shell pkg-config --libs   x11 x11-xcb xcb-icccm xcb-keysyms xcb-randr xcb-util xcb-xtest xcursor xft)
+BIN_CPPFLAGS = $(shell pkg-config --cflags x11 x11-xcb xcb-icccm xcb-keysyms xcb-randr xcb-util xcb-xinput xcb-xtest xcursor xft)
+BIN_LDLIBS   = $(shell pkg-config --libs   x11 x11-xcb xcb-icccm xcb-keysyms xcb-randr xcb-util xcb-xinput xcb-xtest xcursor xft)
 LIB_CFLAGS   = -fPIC
 LIB_LDFLAGS  = -fPIC -shared
 LIB_CPPFLAGS = $(shell pkg-config --cflags x11)

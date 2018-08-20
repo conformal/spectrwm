@@ -75,6 +75,7 @@
 #include <xcb/xcb_event.h>
 #include <xcb/xcb_icccm.h>
 #include <xcb/xcb_keysyms.h>
+#include <xcb/xinput.h>
 #include <xcb/xtest.h>
 #include <xcb/randr.h>
 
@@ -291,9 +292,10 @@ volatile sig_atomic_t   running = 1;
 volatile sig_atomic_t   restart_wm = 0;
 xcb_timestamp_t		last_event_time = 0;
 int			outputs = 0;
-bool			randr_support;
+bool			randr_support = false;
 int			randr_eventbase;
 unsigned int		numlockmask = 0;
+bool			xinput2_support = false;
 
 Display			*display;
 xcb_connection_t	*conn;
@@ -1191,6 +1193,7 @@ void	 setscreencolor(const char *, int, int);
 void	 setspawn(const char *, const char *, int);
 void	 setup_btnbindings(void);
 void	 setup_ewmh(void);
+void	 setup_extensions(void);
 void	 setup_globals(void);
 void	 setup_keybindings(void);
 void	 setup_quirks(void);
@@ -3577,6 +3580,9 @@ void
 center_pointer(struct swm_region *r)
 {
 	struct ws_win			*win;
+	xcb_window_t			dwinid;
+	int				dx, dy;
+	xcb_input_xi_get_client_pointer_reply_t		*gcpr;
 
 	if (!warp_pointer || r == NULL)
 		return;
@@ -3585,12 +3591,26 @@ center_pointer(struct swm_region *r)
 
 	DNPRINTF(SWM_D_EVENT, "win %#x\n", WINID(win));
 
-	if (win && win->mapped)
-		xcb_warp_pointer(conn, XCB_NONE, win->frame, 0, 0, 0, 0,
-		    WIDTH(win) / 2, HEIGHT(win) / 2);
-	else
-		xcb_warp_pointer(conn, XCB_NONE, r->id, 0, 0, 0, 0,
-		    WIDTH(r) / 2, HEIGHT(r) / 2);
+	if (win && win->mapped) {
+		dwinid = win->frame;
+		dx = WIDTH(win) / 2;
+		dy = HEIGHT(win) / 2;
+	} else {
+		dwinid = r->id;
+		dx = WIDTH(r) / 2;
+		dy = HEIGHT(r) / 2;
+	}
+
+	if (xinput2_support) {
+		gcpr = xcb_input_xi_get_client_pointer_reply(conn,
+		    xcb_input_xi_get_client_pointer(conn, XCB_NONE), NULL);
+		if (gcpr)
+			/* XIWarpPointer takes FP1616. */
+			xcb_input_xi_warp_pointer(conn, XCB_NONE, dwinid, 0, 0,
+			    0, 0, dx << 16, dy << 16, gcpr->deviceid);
+	} else {
+		xcb_warp_pointer(conn, XCB_NONE, dwinid, 0, 0, 0, 0, dx, dy);
+	}
 }
 
 struct swm_region *
@@ -11849,40 +11869,21 @@ grab_windows(void)
 void
 setup_screens(void)
 {
-	int			i, j, k, num_screens;
-	struct workspace	*ws;
-	uint32_t		wa[1];
-	xcb_pixmap_t		pxmap;
-	xcb_depth_iterator_t			diter;
-	xcb_visualtype_iterator_t		viter;
-	const xcb_query_extension_reply_t	*qep;
-	xcb_screen_t				*screen;
-	xcb_randr_query_version_cookie_t	c;
-	xcb_randr_query_version_reply_t		*r;
-	xcb_void_cookie_t	cmc;
-	xcb_generic_error_t	*error;
-	XVisualInfo		vtmpl, *vlist;
-	int			vcount;
+	struct workspace		*ws;
+	xcb_pixmap_t			pxmap;
+	xcb_depth_iterator_t		diter;
+	xcb_visualtype_iterator_t	viter;
+	xcb_void_cookie_t		cmc;
+	xcb_generic_error_t		*error;
+	XVisualInfo			vtmpl, *vlist;
+	int				i, j, k, num_screens, vcount;
+	uint32_t			wa[1];
+	xcb_screen_t			*screen;
 
 	num_screens = get_screen_count();
 	if ((screens = calloc(num_screens, sizeof(struct swm_screen))) == NULL)
 		err(1, "setup_screens: calloc: failed to allocate memory for "
 		    "screens");
-
-	/* Initial RandR setup. */
-	randr_support = false;
-	qep = xcb_get_extension_data(conn, &xcb_randr_id);
-	if (qep->present) {
-		c = xcb_randr_query_version(conn, 1, 1);
-		r = xcb_randr_query_version_reply(conn, c, NULL);
-		if (r) {
-			if (r->major_version >= 1) {
-				randr_support = true;
-				randr_eventbase = qep->first_event;
-			}
-			free(r);
-		}
-	}
 
 	wa[0] = cursors[XC_LEFT_PTR].cid;
 
@@ -12010,6 +12011,41 @@ setup_screens(void)
 			xcb_randr_select_input(conn, screens[i].root,
 			    XCB_RANDR_NOTIFY_MASK_SCREEN_CHANGE);
 	}
+}
+
+void
+setup_extensions(void)
+{
+	const xcb_query_extension_reply_t	*qep;
+	xcb_randr_query_version_reply_t		*rqvr;
+	xcb_input_xi_query_version_reply_t	*xiqvr;
+
+	randr_support = false;
+	qep = xcb_get_extension_data(conn, &xcb_randr_id);
+	if (qep->present) {
+		rqvr = xcb_randr_query_version_reply(conn,
+		    xcb_randr_query_version(conn, 1, 1), NULL);
+		if (rqvr) {
+			if (rqvr->major_version >= 1) {
+				randr_support = true;
+				randr_eventbase = qep->first_event;
+			}
+			free(rqvr);
+		}
+	}
+
+	xinput2_support = false;
+	qep = xcb_get_extension_data(conn, &xcb_input_id);
+	if (qep->present) {
+		xiqvr = xcb_input_xi_query_version_reply(conn,
+		    xcb_input_xi_query_version(conn, 2, 0), NULL);
+		if (xiqvr) {
+			if (xiqvr->major_version >= 2)
+				xinput2_support = true;
+			free(xiqvr);
+		}
+	}
+
 }
 
 void
@@ -12191,7 +12227,8 @@ event_handle(xcb_generic_event_t *evt)
 	/*EVENT(XCB_VISIBILITY_NOTIFY, );*/
 #undef EVENT
 	}
-	if (type - randr_eventbase == XCB_RANDR_SCREEN_CHANGE_NOTIFY)
+	if (randr_support &&
+	    (type - randr_eventbase) == XCB_RANDR_SCREEN_CHANGE_NOTIFY)
 		screenchange((void *)evt);
 }
 
@@ -12283,6 +12320,7 @@ main(int argc, char *argv[])
 	xcb_aux_sync(conn);
 
 	setup_globals();
+	setup_extensions();
 	setup_screens();
 	setup_ewmh();
 	setup_keybindings();

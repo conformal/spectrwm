@@ -19,7 +19,7 @@ CFLAGS+= -std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Wno-uninitialized
 CFLAGS+= -I. -I${LOCALBASE}/include -I${LOCALBASE}/include/freetype2
 CFLAGS+= -DSWM_LIB=\"$(SWM_LIBDIR)/libswmhack.so.$(LVERS)\"
 LDADD+= -lutil -L${LOCALBASE}/lib -lX11 -lX11-xcb -lxcb \
-	-lxcb-icccm -lxcb-keysyms -lxcb-randr -lxcb-util -lxcb-xtest -lXft -lXcursor
+	-lxcb-icccm -lxcb-keysyms -lxcb-randr -lxcb-util -lxcb-xinput -lxcb-xtest -lXft -lXcursor
 
 
 all: spectrwm libswmhack.so.$(LVERS)

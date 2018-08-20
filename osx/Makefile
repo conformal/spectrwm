@@ -18,7 +18,7 @@ LDADD+=  -L/opt/X11/lib -lX11 -lXcursor -lXft
 #INCFLAGS+= -I/opt/local/include/freetype2 -I/opt/local/include
 #LDADD+=  -L/opt/local/lib -lX11 -lXcursor -lXft
 
-LDADD+=  -lxcb-keysyms -lxcb-util -lxcb-randr -lX11-xcb -lxcb-xtest -lxcb -lxcb-icccm
+LDADD+=  -lxcb-keysyms -lxcb-util -lxcb-randr -lX11-xcb -lxcb-xtest -lxcb -lxcb-icccm -lxcb-xinput
 
 LVERS= $(shell . ../lib/shlib_version; echo $$major.$$minor)
 
