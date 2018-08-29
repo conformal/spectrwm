@@ -1,6 +1,6 @@
 .\" Copyright (c) 2009-2012 Marco Peereboom <marco@peereboom.us>
 .\" Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
-.\" Copyright (c) 2011-2015 Reginald Kennedy <rk@rejii.com>
+.\" Copyright (c) 2011-2018 Reginald Kennedy <rk@rejii.com>
 .\" Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
 .\" Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
 .\" Copyright (c) 2012 David Hill <dhill@mindcry.org>
@@ -17,7 +17,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: March 29 2018 $
+.Dd $Mdocdate: August 29 2018 $
 .Dt SPECTRWM 1
 .Os
 .Sh NAME
@@ -353,7 +353,7 @@ values are
 .Ar horizontal ,
 .Ar horizontal_flip
 and
-.Ar fullscreen .
+.Ar max .
 .Pp
 See
 .Ic master_grow ,
@@ -642,6 +642,12 @@ restart
 cycle_layout
 .It Cm M-S-\e
 flip_layout
+.It Aq Ar unbound
+layout_vertical
+.It Aq Ar unbound
+layout_horizontal
+.It Aq Ar unbound
+layout_max
 .It Cm M-S- Ns Aq Cm Space
 stack_reset
 .It Aq Ar unbound
@@ -776,7 +782,7 @@ search_win
 .Pp
 The action names and descriptions are listed below:
 .Pp
-.Bl -tag -width "M-j, M-<TAB>XXXX" -offset indent -compact
+.Bl -tag -width "layout_horizontalX" -offset indent -compact
 .It Cm focus
 Focus window/region under pointer.
 .It Cm move
@@ -805,6 +811,12 @@ Restart
 Cycle layout.
 .It Cm flip_layout
 Swap the master and stacking areas.
+.It Cm layout_vertical
+Switch to vertical layout.
+.It Cm layout_horizontal
+Switch to horizontal layout.
+.It Cm layout_max
+Switch to max layout.
 .It Cm stack_reset
 Reset layout.
 .It Cm stack_balance

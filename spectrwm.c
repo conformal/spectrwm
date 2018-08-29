@@ -636,6 +636,10 @@ union arg {
 #define SWM_ARG_ID_CYCLEWS_MOVE_DOWN	(47)
 #define SWM_ARG_ID_STACKINC	(50)
 #define SWM_ARG_ID_STACKDEC	(51)
+#define SWM_ARG_ID_CYCLE_LAYOUT	(60)
+#define SWM_ARG_ID_LAYOUT_VERTICAL	(61)
+#define SWM_ARG_ID_LAYOUT_HORIZONTAL	(62)
+#define SWM_ARG_ID_LAYOUT_MAX	(63)
 #define SWM_ARG_ID_DONTCENTER	(70)
 #define SWM_ARG_ID_CENTER	(71)
 #define SWM_ARG_ID_KILLWINDOW	(80)
@@ -838,6 +842,9 @@ enum actionid {
 	FN_HEIGHT_GROW,
 	FN_HEIGHT_SHRINK,
 	FN_ICONIFY,
+	FN_LAYOUT_VERTICAL,
+	FN_LAYOUT_HORIZONTAL,
+	FN_LAYOUT_MAX,
 	FN_MASTER_SHRINK,
 	FN_MASTER_GROW,
 	FN_MASTER_ADD,
@@ -1026,7 +1033,6 @@ int	 count_win(struct workspace *, bool);
 void	 cursors_cleanup(void);
 void	 cursors_load(void);
 void	 custom_region(const char *);
-void	 cycle_layout(struct binding *, struct swm_region *, union arg *);
 void	 cyclerg(struct binding *, struct swm_region *, union arg *);
 void	 cyclews(struct binding *, struct swm_region *, union arg *);
 #ifdef SWM_DEBUG
@@ -1221,6 +1227,7 @@ void	 stack_master(struct workspace *, struct swm_geometry *, int, bool);
 void	 store_float_geom(struct ws_win *);
 char	*strdupsafe(const char *);
 void	 swapwin(struct binding *, struct swm_region *, union arg *);
+void	 switchlayout(struct binding *, struct swm_region *, union arg *);
 void	 switchws(struct binding *, struct swm_region *, union arg *);
 void	 teardown_ewmh(void);
 void	 unescape_selector(char *);
@@ -4973,19 +4980,33 @@ focus_pointer(struct binding *bp, struct swm_region *r, union arg *args)
 }
 
 void
-cycle_layout(struct binding *bp, struct swm_region *r, union arg *args)
+switchlayout(struct binding *bp, struct swm_region *r, union arg *args)
 {
 	struct workspace	*ws = r->ws;
 
 	/* suppress unused warning since var is needed */
 	(void)bp;
-	(void)args;
 
 	DNPRINTF(SWM_D_EVENT, "workspace: %d\n", ws->idx);
 
-	ws->cur_layout++;
-	if (ws->cur_layout->l_stack == NULL)
-		ws->cur_layout = &layouts[0];
+	switch (args->id) {
+	case SWM_ARG_ID_CYCLE_LAYOUT:
+		ws->cur_layout++;
+		if (ws->cur_layout->l_stack == NULL)
+			ws->cur_layout = &layouts[0];
+		break;
+	case SWM_ARG_ID_LAYOUT_VERTICAL:
+		ws->cur_layout = &layouts[SWM_V_STACK];
+		break;
+	case SWM_ARG_ID_LAYOUT_HORIZONTAL:
+		ws->cur_layout = &layouts[SWM_H_STACK];
+		break;
+	case SWM_ARG_ID_LAYOUT_MAX:
+		ws->cur_layout = &layouts[SWM_MAX_STACK];
+		break;
+	default:
+		goto out;
+	}
 
 	clear_maximized(ws);
 
@@ -4996,6 +5017,8 @@ cycle_layout(struct binding *bp, struct swm_region *r, union arg *args)
 
 	center_pointer(r);
 	focus_flush();
+out:
+	DNPRINTF(SWM_D_FOCUS, "done\n");
 }
 
 void
@@ -5559,7 +5582,6 @@ horizontal_stack(struct workspace *ws, struct swm_geometry *g)
 	stack_master(ws, g, 1, ws->l_state.horizontal_flip);
 }
 
-/* fullscreen view */
 void
 max_stack(struct workspace *ws, struct swm_geometry *g)
 {
@@ -7417,7 +7439,7 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 	}
 	store_float_geom(win);
 
-	/* New region set to fullscreen layout. */
+	/* New region set to max layout. */
 	if (win->ws->r && win->ws->cur_layout == &layouts[SWM_MAX_STACK]) {
 		stack(win->ws->r);
 		focus_flush();
@@ -7477,7 +7499,7 @@ struct action {
 	{ "bar_toggle",		bar_toggle,	0, {.id = SWM_ARG_ID_BAR_TOGGLE} },
 	{ "bar_toggle_ws",	bar_toggle,	0, {.id = SWM_ARG_ID_BAR_TOGGLE_WS} },
 	{ "button2",		pressbutton,	0, {.id = 2} },
-	{ "cycle_layout",	cycle_layout,	0, {0} },
+	{ "cycle_layout",	switchlayout,	0, {.id = SWM_ARG_ID_CYCLE_LAYOUT} },
 	{ "flip_layout",	stack_config,	0, {.id = SWM_ARG_ID_FLIPLAYOUT} },
 	{ "float_toggle",	floating_toggle,0, {0} },
 	{ "focus",		focus_pointer,	0, {0} },
@@ -7490,6 +7512,9 @@ struct action {
 	{ "height_grow",	resize,		0, {.id = SWM_ARG_ID_HEIGHTGROW} },
 	{ "height_shrink",	resize,		0, {.id = SWM_ARG_ID_HEIGHTSHRINK} },
 	{ "iconify",		iconify,	0, {0} },
+	{ "layout_vertical",	switchlayout,	0, {.id = SWM_ARG_ID_LAYOUT_VERTICAL} },
+	{ "layout_horizontal",	switchlayout,	0, {.id = SWM_ARG_ID_LAYOUT_HORIZONTAL} },
+	{ "layout_max"	,	switchlayout,	0, {.id = SWM_ARG_ID_LAYOUT_MAX} },
 	{ "master_shrink",	stack_config,	0, {.id = SWM_ARG_ID_MASTERSHRINK} },
 	{ "master_grow",	stack_config,	0, {.id = SWM_ARG_ID_MASTERGROW} },
 	{ "master_add",		stack_config,	0, {.id = SWM_ARG_ID_MASTERADD} },
@@ -9436,7 +9461,9 @@ setlayout(const char *selector, const char *value, int flags)
 	else if (strcasecmp(value, "horizontal_flip") == 0) {
 		st = SWM_H_STACK;
 		f = true;
-	} else if (strcasecmp(value, "fullscreen") == 0)
+	} else if (strcasecmp(value, "max") == 0 ||
+	    strcasecmp(value, "fullscreen") == 0)
+		/* Keep "fullscreen" for backwards compatibility. */
 		st = SWM_MAX_STACK;
 	else
 		errx(1, "invalid layout entry, should be 'ws[<idx>]:"
