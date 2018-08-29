@@ -25,6 +25,9 @@ brand new window manager was whooped up to serve no other purpose than to obey
 its masters. It is released under the ISC license. Patches can be accepted
 provided they are ISC licensed as well.
 
+## Building and installation
+[Click here for current installation guide](https://github.com/conformal/spectrwm/wiki/Installation)
+
 ## Feedback and questions
 You can and come chat with us on IRC. We use [OFTC](https://www.oftc.net)
 channel #spectrwm.
