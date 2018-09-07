@@ -75,7 +75,10 @@
 #include <xcb/xcb_event.h>
 #include <xcb/xcb_icccm.h>
 #include <xcb/xcb_keysyms.h>
+#if defined(__linux__) || defined(__FreeBSD__)
 #include <xcb/xinput.h>
+#define SWM_XCB_HAS_XINPUT
+#endif
 #include <xcb/xtest.h>
 #include <xcb/randr.h>
 
@@ -3674,7 +3677,9 @@ center_pointer(struct swm_region *r)
 	struct ws_win			*win;
 	xcb_window_t			dwinid;
 	int				dx, dy;
+#ifdef SWM_XCB_HAS_XINPUT
 	xcb_input_xi_get_client_pointer_reply_t		*gcpr;
+#endif
 
 	if (!warp_pointer || r == NULL)
 		return;
@@ -3693,6 +3698,7 @@ center_pointer(struct swm_region *r)
 		dy = HEIGHT(r) / 2;
 	}
 
+#ifdef SWM_XCB_HAS_XINPUT
 	if (xinput2_support) {
 		gcpr = xcb_input_xi_get_client_pointer_reply(conn,
 		    xcb_input_xi_get_client_pointer(conn, XCB_NONE), NULL);
@@ -3701,8 +3707,11 @@ center_pointer(struct swm_region *r)
 			xcb_input_xi_warp_pointer(conn, XCB_NONE, dwinid, 0, 0,
 			    0, 0, dx << 16, dy << 16, gcpr->deviceid);
 	} else {
+#endif
 		xcb_warp_pointer(conn, XCB_NONE, dwinid, 0, 0, 0, 0, dx, dy);
+#ifdef SWM_XCB_HAS_XINPUT
 	}
+#endif
 }
 
 struct swm_region *
@@ -12217,7 +12226,9 @@ setup_extensions(void)
 {
 	const xcb_query_extension_reply_t	*qep;
 	xcb_randr_query_version_reply_t		*rqvr;
+#ifdef SWM_XCB_HAS_XINPUT
 	xcb_input_xi_query_version_reply_t	*xiqvr;
+#endif
 
 	randr_support = false;
 	qep = xcb_get_extension_data(conn, &xcb_randr_id);
@@ -12233,6 +12244,7 @@ setup_extensions(void)
 		}
 	}
 
+#ifdef SWM_XCB_HAS_XINPUT
 	xinput2_support = false;
 	qep = xcb_get_extension_data(conn, &xcb_input_id);
 	if (qep->present) {
@@ -12244,7 +12256,7 @@ setup_extensions(void)
 			free(xiqvr);
 		}
 	}
-
+#endif
 }
 
 void
