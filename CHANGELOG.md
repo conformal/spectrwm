@@ -3,21 +3,27 @@ spectrwm 3.2.0
 
 Released on Sep 7, 2018
 
-* Add new '+L' bar_format sequence to add a workspace list indicator to the bar.
+* Add new '+L' bar_format sequence to add a workspace list indicator to the
+  bar.
 * Add new 'workspace_indicator' option to configure the workspace indicator.
-* Add new 'layout_vertical','layout_horizontal' and 'layout_max' actions. (Unbound by default.)
+* Add new 'layout_vertical','layout_horizontal' and 'layout_max' actions.
+  (Unbound by default.)
 * Add new 'ws_empty_move' action. (Unbound by default.)
-* Add support for high screen depth when creating frame/bar windows. (Compositing manager alpha transparency now works!)
-* Add check to adapt move/resize update rate to the refresh rate of the active display(s).
+* Add support for high screen depth when creating frame/bar windows.
+  (Compositing manager alpha transparency now works!)
+* Add check to adapt move/resize update rate to the refresh rate of the active
+  display(s).
 * Add 'max' alias for the layout option value 'fullscreen' for consistency.
 * Add CHANGELOG.md
-* Fix warp_pointer issue when Coordinate Transformation Matrix is used. (Currently available on Linux and FreeBSD only.)
+* Fix warp_pointer issue when Coordinate Transformation Matrix is used.
+  (Currently available on Linux and FreeBSD only.)
 * Fix focus bar color on (re)start/screenchange.
 * Fix libswmhack causing issues such as deadlocks with some programs.
 * Fix config file parsing on musl libc.
 * Fix slight pointer jump on move action.
 * Fix segfault with missing FontSet charsets.
 * Fix mdoc compliance.
+
 
 spectrwm 3.1.0
 ==============
@@ -65,7 +71,7 @@ Released on May 5, 2016
 spectrwm 3.0.0
 ==============
 
-Released on May 3, 2016
+Released on May 2, 2016
 
 We are proud to release spectrwm 3.0.0. Only one major new feature was added
 this release that should make spectrwm less quirky when using poorly written,
