@@ -54,6 +54,9 @@
 #include <fcntl.h>
 #include <locale.h>
 #include <paths.h>
+#if !defined(__OpenBSD__)
+#include "pledge.h"
+#endif
 #include <pwd.h>
 #include <regex.h>
 #include <signal.h>
@@ -3879,6 +3882,9 @@ spawn(int ws_idx, union arg *args, bool close_fd)
 
 	if (args == NULL || args->argv[0] == NULL)
 		return;
+
+	if (pledge("stdio proc exec", NULL) == -1)
+		err(1, "pledge");
 
 	DNPRINTF(SWM_D_MISC, "%s\n", args->argv[0]);
 
@@ -12469,6 +12475,9 @@ main(int argc, char *argv[])
 	if (setlocale(LC_CTYPE, "") == NULL || setlocale(LC_TIME, "") == NULL)
 		warnx("no locale support");
 
+	if (pledge("stdio rpath proc exec getpw dns unix", NULL) == -1)
+		err(1, "pledge");
+
 	/* handle some signals */
 	bzero(&sact, sizeof(sact));
 	sigemptyset(&sact.sa_mask);
@@ -12494,6 +12503,9 @@ main(int argc, char *argv[])
 
 	xcb_prefetch_extension_data(conn, &xcb_randr_id);
 	xfd = xcb_get_file_descriptor(conn);
+
+	if (pledge("stdio rpath proc exec getpw", NULL) == -1)
+		err(1, "pledge");
 
 	/* look for local and global conf file */
 	pwd = getpwuid(getuid());
