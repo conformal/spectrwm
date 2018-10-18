@@ -5504,7 +5504,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 		/* Window coordinates exclude frame. */
 
 		if (winno > 1 || !disable_border ||
-		    (bar_enabled && ws->bar_enabled)) {
+		    (bar_enabled && ws->bar_enabled && winno > 1)) {
 			bordered = true;
 		} else {
 			bordered = false;
