@@ -1360,6 +1360,9 @@ expand_tilde(const char *s)
 	ppwd = strlen(user) == 0 ? getpwuid(getuid()) : getpwnam(user);
 	free(user);
 
+	if (pledge("stdio proc exec cpath rpath wpath fattr", NULL) == -1)
+		err(1, "pledge");
+
 	if (ppwd == NULL)
 		result = strdup(sc);
 	else
@@ -3116,6 +3119,9 @@ xft_init(struct swm_region *r)
 		}
 		free(str);
 	}
+
+	if (pledge("stdio proc exec", NULL) == -1)
+		err(1, "pledge");
 
 	if (bar_font == NULL)
 		errx(1, "unable to open a font");
@@ -12606,9 +12612,6 @@ noconfig:
 	if (cfile)
 		conf_load(cfile, SWM_CONF_DEFAULT);
 
-	if (pledge("stdio proc exec cpath rpath wpath fattr", NULL) == -1)
-		err(1, "pledge");
-
 	validate_spawns();
 
 	if (getenv("SWM_STARTED") == NULL)
@@ -12619,9 +12622,6 @@ noconfig:
 	for (i = 0; i < num_screens; i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			bar_setup(r);
-
-	if (pledge("stdio proc exec", NULL) == -1)
-		err(1, "pledge");
 
 	/* Manage existing windows. */
 	grab_windows();
