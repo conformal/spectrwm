@@ -409,6 +409,7 @@ bool		 focus_close_wrap = true;
 int		 focus_default = SWM_STACK_TOP;
 int		 spawn_position = SWM_STACK_TOP;
 bool		 disable_border = false;
+bool		 disable_border_always = false;
 int		 border_width = 1;
 int		 region_padding = 0;
 int		 tile_gap = 0;
@@ -5504,7 +5505,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 		/* Window coordinates exclude frame. */
 
 		if (winno > 1 || !disable_border ||
-		    (bar_enabled && ws->bar_enabled)) {
+		    (bar_enabled && ws->bar_enabled &&
+		    !disable_border_always)) {
 			bordered = true;
 		} else {
 			bordered = false;
@@ -9261,7 +9263,8 @@ setconfvalue(const char *selector, const char *value, int flags)
 			dialog_ratio = .6;
 		break;
 	case SWM_S_DISABLE_BORDER:
-		disable_border = (atoi(value) != 0);
+		disable_border_always = (strcmp(value, "always") == 0);
+		disable_border = (atoi(value) != 0) || disable_border_always;
 		break;
 	case SWM_S_FOCUS_CLOSE:
 		if (strcmp(value, "first") == 0)
