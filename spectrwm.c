@@ -1080,7 +1080,6 @@ char	*expand_tilde(const char *);
 void	 expose(xcb_expose_event_t *);
 void	 fake_keypress(struct ws_win *, xcb_keysym_t, uint16_t);
 struct swm_bar	*find_bar(xcb_window_t);
-struct ws_win	*find_frame_window(xcb_window_t);
 struct pid_e	*find_pid(pid_t);
 struct swm_region	*find_region(xcb_window_t);
 struct ws_win	*find_unmanaged_window(xcb_window_t);
@@ -3798,22 +3797,6 @@ find_bar(xcb_window_t id)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			if (r->bar && r->bar->id == id)
 				return (r->bar);
-
-	return (NULL);
-}
-
-struct ws_win *
-find_frame_window(xcb_window_t id) {
-	struct swm_region	*r;
-	struct ws_win		*w;
-	int			i, num_screens;
-
-	num_screens = get_screen_count();
-	for (i = 0; i < num_screens; i++)
-		TAILQ_FOREACH(r, &screens[i].rl, entry)
-			TAILQ_FOREACH(w, &r->ws->winlist, entry)
-				if (w->frame == id)
-					return (w);
 
 	return (NULL);
 }
