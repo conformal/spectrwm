@@ -6228,7 +6228,7 @@ search_win(struct binding *bp, struct swm_region *r, union arg *args)
 	XGlyphInfo		info;
 	GC			l_draw;
 	XGCValues		l_gcv;
-	XRectangle		l_ibox, l_lbox;
+	XRectangle		l_ibox, l_lbox = {0, 0, 0, 0};
 
 	(void)bp;
 
