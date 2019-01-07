@@ -37,6 +37,7 @@ spectrwm.c:
 	ln -sf ../linux/tree.h
 	ln -sf ../spectrwm.c
 	ln -sf ../version.h
+	ln -sf ../linux/pledge.h
 
 swm_hack.c:
 	ln -sf ../lib/swm_hack.c
@@ -64,6 +65,6 @@ install: all
 	ln -sf libswmhack.so.0.0 $(DESTDIR)$(LIBDIR)/libswmhack.so
 
 clean:
-	rm -f spectrwm *.o *.so libswmhack.so.* spectrwm.c swm_hack.c tree.h version.h
+	rm -f spectrwm *.o *.so libswmhack.so.* spectrwm.c swm_hack.c tree.h version.h pledge.h
 
 .PHONY: all install clean
