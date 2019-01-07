@@ -25,6 +25,7 @@ all: spectrwm libswmhack.so.$(LVERS)
 spectrwm.c:
 	ln -sf ../spectrwm.c
 	ln -sf ../version.h
+	ln -sf ../linux/pledge.h
 
 swm_hack.c:
 	ln -sf ../lib/swm_hack.c
