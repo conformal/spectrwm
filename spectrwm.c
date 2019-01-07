@@ -42,6 +42,8 @@
 #include <sys/tree.h>
 #elif defined(__FreeBSD__)
 #include <sys/tree.h>
+#elif defined(__NetBSD__)
+#include <sys/tree.h>
 #else
 #include "tree.h"
 #endif
