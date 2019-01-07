@@ -3868,9 +3868,6 @@ spawn(int ws_idx, union arg *args, bool close_fd)
 	if (args == NULL || args->argv[0] == NULL)
 		return;
 
-	if (pledge("stdio proc exec", NULL) == -1)
-		err(1, "pledge");
-
 	DNPRINTF(SWM_D_MISC, "%s\n", args->argv[0]);
 
 	close(xcb_get_file_descriptor(conn));
@@ -12460,7 +12457,8 @@ main(int argc, char *argv[])
 	if (setlocale(LC_CTYPE, "") == NULL || setlocale(LC_TIME, "") == NULL)
 		warnx("no locale support");
 
-	if (pledge("stdio rpath proc exec getpw dns unix", NULL) == -1)
+	if (pledge("stdio proc exec cpath rpath wpath fattr getpw dns inet "
+	    "unix", NULL) == -1)
 		err(1, "pledge");
 
 	/* handle some signals */
@@ -12480,6 +12478,10 @@ main(int argc, char *argv[])
 	if ((display = XOpenDisplay(0)) == NULL)
 		errx(1, "can not open display");
 
+	if (pledge("stdio proc exec cpath rpath wpath fattr getpw",
+	    NULL) == -1)
+		err(1, "pledge");
+
 	conn = XGetXCBConnection(display);
 	if (xcb_connection_has_error(conn))
 		errx(1, "can not get XCB connection");
@@ -12488,9 +12490,6 @@ main(int argc, char *argv[])
 
 	xcb_prefetch_extension_data(conn, &xcb_randr_id);
 	xfd = xcb_get_file_descriptor(conn);
-
-	if (pledge("stdio rpath proc exec getpw", NULL) == -1)
-		err(1, "pledge");
 
 	/* look for local and global conf file */
 	pwd = getpwuid(getuid());
@@ -12576,6 +12575,9 @@ noconfig:
 	if (cfile)
 		conf_load(cfile, SWM_CONF_DEFAULT);
 
+	if (pledge("stdio proc exec cpath rpath wpath fattr", NULL) == -1)
+		err(1, "pledge");
+
 	validate_spawns();
 
 	if (getenv("SWM_STARTED") == NULL)
@@ -12586,6 +12588,9 @@ noconfig:
 	for (i = 0; i < num_screens; i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			bar_setup(r);
+
+	if (pledge("stdio proc exec", NULL) == -1)
+		err(1, "pledge");
 
 	/* Manage existing windows. */
 	grab_windows();
@@ -12670,6 +12675,9 @@ noconfig:
 		xcb_flush(conn);
 	}
 done:
+	if (pledge("stdio proc", NULL) == -1)
+		err(1, "pledge");
+
 	shutdown_cleanup();
 
 	return (0);
