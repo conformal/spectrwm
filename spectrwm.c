@@ -4372,10 +4372,9 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 		return;
 
 	other_r = new_ws->r;
-	if (other_r && workspace_clamp &&
-	    bp->action != FN_RG_MOVE_NEXT && bp->action != FN_RG_MOVE_PREV) {
+	if (other_r && workspace_clamp && (bp == NULL ||
+	    (bp->action != FN_RG_MOVE_NEXT && bp->action != FN_RG_MOVE_PREV))) {
 		DNPRINTF(SWM_D_WS, "ws clamped.\n");
-
 		if (warp_focus) {
 			DNPRINTF(SWM_D_WS, "warping focus to region "
 			    "with ws %d\n", wsid);
@@ -5162,12 +5161,14 @@ stack(struct swm_region *r) {
 		    XCB_CONFIG_WINDOW_SIBLING |
 		    XCB_CONFIG_WINDOW_STACK_MODE, val);
 
-		val[0] = r_prev->bar->id;
-		DNPRINTF(SWM_D_STACK, "region bar %#x relative to %#x.\n",
-		    r->bar->id, val[0]);
-		xcb_configure_window(conn, r->bar->id,
-		    XCB_CONFIG_WINDOW_SIBLING |
-		    XCB_CONFIG_WINDOW_STACK_MODE, val);
+		if (r->bar) {
+			val[0] = r_prev->bar->id;
+			DNPRINTF(SWM_D_STACK, "region bar %#x relative to "
+			    "%#x.\n", r->bar->id, val[0]);
+			xcb_configure_window(conn, r->bar->id,
+			    XCB_CONFIG_WINDOW_SIBLING |
+			    XCB_CONFIG_WINDOW_STACK_MODE, val);
+		}
 	}
 
 	r->ws->cur_layout->l_stack(r->ws, &g);
@@ -8969,6 +8970,7 @@ setquirk(const char *class, const char *instance, const char *name,
 	DNPRINTF(SWM_D_QUIRK, "enter %s:%s:%s [%u], ws: %d\n", class, instance,
 	    name, quirk, ws);
 
+#ifndef __clang_analyzer__ /* Suppress false warnings. */
 	/* Remove/replace existing quirk. */
 	TAILQ_FOREACH(qp, &quirks, entry) {
 		if (strcmp(qp->class, class) == 0 &&
@@ -8982,6 +8984,7 @@ setquirk(const char *class, const char *instance, const char *name,
 			goto out;
 		}
 	}
+#endif
 
 	/* Only insert if quirk is not NONE or forced ws is set. */
 	if (quirk || ws != -1)
