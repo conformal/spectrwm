@@ -5504,13 +5504,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 
 		/* Window coordinates exclude frame. */
 
-		if (winno > 1 || !disable_border ||
-		    (bar_enabled && ws->bar_enabled &&
-		    !disable_border_always)) {
-			bordered = true;
-		} else {
-			bordered = false;
-		}
+		bordered = winno > 1 || !disable_border || (bar_enabled &&
+		    ws->bar_enabled && !disable_border_always);
 
 		if (rot) {
 			if (X(win) != cell.y || Y(win) != cell.x ||
