@@ -8638,10 +8638,17 @@ get_binding_keycode(struct binding *bp)
 
 	/* Search for keycode by keysym column. */
 	for (col = 0; col < kmr->keysyms_per_keycode; col++) {
-		for (i = min; i <= max; i++) {
+		for (i = min; ; i++) {
 			if (xcb_key_symbols_get_keysym(syms, i, col) ==
 			    bp->value)
 				return (i);
+			/*
+			 * Always check before incrementing i in order to avoid
+			 * an infinite loop due to an unsigned integer overlow
+			 * of i.
+			 */
+			if (i >= max)
+				break;
 		}
 	}
 
