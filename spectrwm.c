@@ -8625,7 +8625,7 @@ get_binding_keycode(struct binding *bp)
 	const xcb_setup_t			*s;
 	xcb_get_keyboard_mapping_reply_t	*kmr;
 	int					col;
-	xcb_keycode_t				i, min, max;
+	xcb_keycode_t				kc, min, max;
 
 	s = get_setup();
 	min = s->min_keycode;
@@ -8638,17 +8638,11 @@ get_binding_keycode(struct binding *bp)
 
 	/* Search for keycode by keysym column. */
 	for (col = 0; col < kmr->keysyms_per_keycode; col++) {
-		for (i = min; ; i++) {
-			if (xcb_key_symbols_get_keysym(syms, i, col) ==
+		/* Keycodes are unsigned, bail if kc++ is reduced to 0. */
+		for (kc = min; kc > 0 && kc <= max; kc++) {
+			if (xcb_key_symbols_get_keysym(syms, kc, col) ==
 			    bp->value)
-				return (i);
-			/*
-			 * Always check before incrementing i in order to avoid
-			 * an infinite loop due to an unsigned integer overlow
-			 * of i.
-			 */
-			if (i >= max)
-				break;
+				return (kc);
 		}
 	}
 
