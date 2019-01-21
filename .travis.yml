@@ -1,14 +1,26 @@
 language: c
+
 matrix:
   include:
     - os: linux
       dist: xenial
     - os: osx
+
+addons:
+  apt:
+    update: true
+
 before_install:
-  -  if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-       sudo apt-get update;
-       sudo apt-get install -y xorg libxft2-dev libxcursor-dev libxrandr-dev libxcb-icccm4-dev;
-     fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      sudo apt-get install -y libx11-dev libx11-xcb-dev libxcursor-dev libxrandr-dev libxt-dev libxtst-dev libxcb1-dev libxcb-icccm4-dev libxcb-keysyms1-dev libxcb-randr0-dev libxcb-util0-dev libxcb-xtest0-dev libxft-dev libxcb-xfixes0-dev libfreetype6-dev;
+    fi
+
 script:
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cd linux && make; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      # xenial doesn't include libxcb-xinput-dev, disable for now.
+      sed -i 's/#if defined(__linux__) || defined(__FreeBSD__)/#if 0/' spectrwm.c;
+      sed -i 's/xcb-xinput //g' linux/Makefile;
+      cd linux;
+      make;
+    fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then cd osx && make; fi
