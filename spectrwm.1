@@ -118,6 +118,10 @@ set when executed.
 .It Ic bar_action
 External script that populates additional information in the status bar,
 such as battery life.
+.It Ic bar_action_expand
+Process bar_format character sequences in
+.Ic bar_action
+output; default is 0.
 .It Ic bar_at_bottom
 Place the statusbar at the bottom of each region instead of the top.
 .It Ic bar_border Ns Bq Ar x
@@ -132,6 +136,13 @@ Disable border by setting to 0.
 .It Ic bar_color Ns Bq Ar x
 Background color of the status bar(s) in screen
 .Ar x .
+.Pp
+A comma separated list of up to 10 colors can be specified.
+The first value is used as the default background color.
+Any of these colors can then be selected as a background color in the status
+bar through the use of the markup sequence
+.Ic +@bg=n;
+where n is between 0 and 9.
 .It Ic bar_color_selected Ns Bq Ar x
 Background color for selections on the status bar(s) in screen
 .Ar x .
@@ -148,14 +159,21 @@ state on workspace
 .Ar x ;
 default is 1.
 .It Ic bar_font
-Font used in the status bar.
+Fonts used in the status bar.
 Either Xft or X Logical Font Description (XLFD) may be used to specify fonts.
 Fallback fonts may be specified by separating each font with a comma.
 If all entries are in XLFD syntax, font set will be used.
 If at least one entry is Xft, Xft will be used.
-Note that if Xft is in use, only the first font that successfully loads will
-be used regardless of missing glyphs.
+.Pp
 The default is to use font set.
+.Pp
+If Xft is used, a comma-separated list of up to 10 fonts can be specified.
+The first entry is the default font.
+Any font defined here can then be selected in the status bar through the use of
+the markup sequence
+.Ic +@fn=n;
+where n is between 0 and 9.
+
 Also note that
 .Xr dmenu 1
 does not support Xft fonts.
@@ -188,11 +206,22 @@ application can help with the XLFD setting.
 .It Ic bar_font_color Ns Bq Ar x
 Foreground color of the status bar(s) in screen
 .Ar x .
+.Pp
+A comma separated list of up to 10 colors can be specified.
+The first value is used as the default foreground color.
+Any of these colors can then be selected as a foreground color in the status
+bar through the use of the markup sequence
+.Ic +@fg=n;
+where n is between 0 and 9.
 .It Ic bar_font_color_selected Ns Bq Ar x
 Foreground color for selections on the status bar(s) in screen
 .Ar x .
 Defaults to the value of
 .Ic bar_color .
+.It Ic bar_font_pua
+Specify a font which uses the Unicode Private Use Area (U+E000 -> U+F8FF).
+Some fonts use these code points to provide special icon glyphs.
+Available only with Xft fonts.
 .It Ic bar_format
 Set the bar format string, overriding
 .Ic clock_format
@@ -221,8 +250,39 @@ It may contain the following character sequences:
 .It Li "+U" Ta "Urgency hint"
 .It Li "+V" Ta "Program version"
 .It Li "+W" Ta "Window name (from _NET_WM_NAME/WM_NAME)"
+.It Li "+|[weight][justify]" Ta "Marks the start of a new bar section"
+.Pp
+.Ic weight
+is a positive integer used to allocate horizontal space between 'L', 'C'
+and 'R' sections (see justify).
+The default weight is 1.
+.Pp
+.Ic justify
+can have the value L, C, R or T. L, C, R are for left, center and right
+justified sections respectively.
+A 'T' section will limit its space usage to fit to the text.
+If no value is specified for a given section, the setting from
+.Ic bar_justify
+is used.
 .It Li "++" Ta "A literal" Ql +
+.It Li "+@" Ta "Prefix for text markup sequences"
 .El
+.Pp
+The currently recognized text markup sequences are:
+.Bl -column "Character sequence" "Action" -offset indent
+.It Sy "Character sequence" Ta Sy "Action"
+.It Li "+@fn=n;" Ta Selects font n (from 0 to 9) from
+.Ic bar_font .
+.It Li "+@fg=n;" Ta Selects foreground color n (from 0 to 9) from
+.Ic bar_font_color .
+.It Li "+@bg=n;" Ta Selects background color n (from 0 to 9) from
+.Ic bar_color .
+.It Li "+@stp;" Ta Stops the interpretation of markup sequences.
+Any markup sequence found after +@stp will appear as normal characters in the
+status bar.
+.El
+.Pp
+Note: the effect of a markup sequence will not cross a section boundary.
 .Pp
 All character sequences may limit its output to a specific length, for
 example +64A.
