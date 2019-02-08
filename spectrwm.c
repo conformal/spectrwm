@@ -384,7 +384,7 @@ double			dialog_ratio = 0.6;
 #define DRAWSTRING(x...)	XmbDrawString(x)
 #endif
 
-char		*bar_argv[] = { NULL, NULL };
+char		*bar_argv[] = { "sh", "-c", NULL, NULL };
 int		 bar_pipe[2];
 char		 bar_ext[SWM_BAR_MAX];
 char		 bar_ext_buf[SWM_BAR_MAX];
@@ -2975,7 +2975,7 @@ void
 bar_extra_setup(void)
 {
 	/* do this here because the conf file is in memory */
-	if (!bar_extra && bar_argv[0]) {
+	if (!bar_extra && bar_argv[2]) {
 		/* launch external status app */
 		bar_extra = true;
 		if (pipe(bar_pipe) == -1)
@@ -2999,8 +2999,9 @@ bar_extra_setup(void)
 			break;
 		case 0: /* child */
 			close(bar_pipe[0]);
+
 			execvp(bar_argv[0], bar_argv);
-			err(1, "%s external app failed", bar_argv[0]);
+			err(1, "%s external app failed", bar_argv[2]);
 			break;
 		default: /* parent */
 			close(bar_pipe[1]);
@@ -9209,8 +9210,8 @@ setconfvalue(const char *selector, const char *value, int flags)
 
 	switch (flags) {
 	case SWM_S_BAR_ACTION:
-		free(bar_argv[0]);
-		if ((bar_argv[0] = expand_tilde(value)) == NULL)
+		free(bar_argv[2]);
+		if ((bar_argv[2] = expand_tilde(value)) == NULL)
 			err(1, "setconfvalue: bar_action");
 		break;
 	case SWM_S_BAR_AT_BOTTOM:
