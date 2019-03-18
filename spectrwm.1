@@ -238,6 +238,7 @@ Justify the status bar text.
 Possible values are
 .Ar left ,
 .Ar center ,
+.Ar both ,
 and
 .Ar right .
 .Pp
@@ -246,6 +247,10 @@ in some circumstances, due to the white-spaces in the default static format.
 See the
 .Ic bar_format
 option for more details.
+.Pp
+When using
+.Ar both
+option, it aligns the first half of the bar text to the left, and the second half to the right, delimited by the first TAB character.
 .It Ic bind Ns Bq Ar x
 Bind key or button combo to action
 .Ar x .
