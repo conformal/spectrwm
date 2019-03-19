@@ -2271,7 +2271,7 @@ socket_setnonblock(int fd)
 void
 bar_print_legacy(struct swm_region *r, const char *s)
 {
-xcb_rectangle_t		rect;
+	xcb_rectangle_t		rect;
 	uint32_t		gcv[1];
 	XGCValues		gcvd;
 	int			x = 0;
