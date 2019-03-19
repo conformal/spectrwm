@@ -42,6 +42,8 @@
 #include <sys/tree.h>
 #elif defined(__FreeBSD__)
 #include <sys/tree.h>
+#elif defined(__NetBSD__)
+#include <sys/tree.h>
 #else
 #include "tree.h"
 #endif
@@ -54,6 +56,9 @@
 #include <fcntl.h>
 #include <locale.h>
 #include <paths.h>
+#if !defined(__OpenBSD__)
+#include "pledge.h"
+#endif
 #include <pwd.h>
 #include <regex.h>
 #include <signal.h>
@@ -411,6 +416,7 @@ bool		 focus_close_wrap = true;
 int		 focus_default = SWM_STACK_TOP;
 int		 spawn_position = SWM_STACK_TOP;
 bool		 disable_border = false;
+bool		 disable_border_always = false;
 int		 border_width = 1;
 int		 region_padding = 0;
 int		 tile_gap = 0;
@@ -1036,7 +1042,7 @@ void	 binding_remove(struct binding *);
 void	 buttonpress(xcb_button_press_event_t *);
 void	 buttonrelease(xcb_button_release_event_t *);
 void	 center_pointer(struct swm_region *);
-void	 check_conn(void);
+const struct xcb_setup_t	*get_setup(void);
 void	 clear_bindings(void);
 void	 clear_keybindings(void);
 int	 clear_maximized(struct workspace *);
@@ -1104,6 +1110,7 @@ xcb_atom_t get_atom_from_string(const char *);
 #ifdef SWM_DEBUG
 char	*get_atom_name(xcb_atom_t);
 #endif
+xcb_keycode_t	 get_binding_keycode(struct binding *);
 struct ws_win   *get_focus_magic(struct ws_win *);
 struct ws_win   *get_focus_prev(struct ws_win *);
 xcb_generic_event_t	*get_next_event(bool);
@@ -1382,17 +1389,47 @@ parse_rgb(const char *rgb, uint16_t *rr, uint16_t *gg, uint16_t *bb)
 	return (0);
 }
 
+const struct xcb_setup_t *
+get_setup(void)
+{
+	int	 errcode = xcb_connection_has_error(conn);
+#ifdef XCB_CONN_ERROR
+	char	*s;
+	switch (errcode) {
+	case XCB_CONN_ERROR:
+		s = "Socket error, pipe error or other stream error.";
+		break;
+	case XCB_CONN_CLOSED_EXT_NOTSUPPORTED:
+		s = "Extension not supported.";
+		break;
+	case XCB_CONN_CLOSED_MEM_INSUFFICIENT:
+		s = "Insufficient memory.";
+		break;
+	case XCB_CONN_CLOSED_REQ_LEN_EXCEED:
+		s = "Request length was exceeded.";
+		break;
+	case XCB_CONN_CLOSED_PARSE_ERR:
+		s = "Error parsing display string.";
+		break;
+	default:
+		s = "Unknown error.";
+	}
+	if (errcode)
+		errx(errcode, "X CONNECTION ERROR: %s", s);
+#else
+	if (errcode)
+		errx(errcode, "X CONNECTION ERROR");
+#endif
+	return (xcb_get_setup(conn));
+}
+
 xcb_screen_t *
 get_screen(int screen)
 {
 	const xcb_setup_t	*r;
 	xcb_screen_iterator_t	iter;
 
-	if ((r = xcb_get_setup(conn)) == NULL) {
-		DNPRINTF(SWM_D_MISC, "xcb_get_setup\n");
-		check_conn();
-	}
-
+	r = get_setup();
 	iter = xcb_setup_roots_iterator(r);
 	for (; iter.rem; --screen, xcb_screen_next(&iter))
 		if (screen == 0)
@@ -1404,14 +1441,7 @@ get_screen(int screen)
 int
 get_screen_count(void)
 {
-	const xcb_setup_t	*r;
-
-	if ((r = xcb_get_setup(conn)) == NULL) {
-		DNPRINTF(SWM_D_MISC, "xcb_get_setup\n");
-		check_conn();
-	}
-
-	return (xcb_setup_roots_length(r));
+	return (xcb_setup_roots_length(get_setup()));
 }
 
 int
@@ -2013,7 +2043,7 @@ debug_refresh(struct ws_win *win)
 
 			XftDrawStringUtf8(draw, &bar_font_color, bar_font, 2,
 			    (bar_height + bar_font->height) / 2 -
-			    bar_font->descent, (FcChar8 *)"eeeee", 5);
+			    bar_font->descent, (FcChar8 *)s, len);
 
 			XftDrawDestroy(draw);
 		}
@@ -2241,7 +2271,7 @@ socket_setnonblock(int fd)
 void
 bar_print_legacy(struct swm_region *r, const char *s)
 {
-	xcb_rectangle_t		rect;
+xcb_rectangle_t		rect;
 	uint32_t		gcv[1];
 	XGCValues		gcvd;
 	int			x = 0;
@@ -4483,10 +4513,9 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 		return;
 
 	other_r = new_ws->r;
-	if (other_r && workspace_clamp &&
-	    bp->action != FN_RG_MOVE_NEXT && bp->action != FN_RG_MOVE_PREV) {
+	if (other_r && workspace_clamp && (bp == NULL ||
+	    (bp->action != FN_RG_MOVE_NEXT && bp->action != FN_RG_MOVE_PREV))) {
 		DNPRINTF(SWM_D_WS, "ws clamped.\n");
-
 		if (warp_focus) {
 			DNPRINTF(SWM_D_WS, "warping focus to region "
 			    "with ws %d\n", wsid);
@@ -5273,12 +5302,14 @@ stack(struct swm_region *r) {
 		    XCB_CONFIG_WINDOW_SIBLING |
 		    XCB_CONFIG_WINDOW_STACK_MODE, val);
 
-		val[0] = r_prev->bar->id;
-		DNPRINTF(SWM_D_STACK, "region bar %#x relative to %#x.\n",
-		    r->bar->id, val[0]);
-		xcb_configure_window(conn, r->bar->id,
-		    XCB_CONFIG_WINDOW_SIBLING |
-		    XCB_CONFIG_WINDOW_STACK_MODE, val);
+		if (r->bar) {
+			val[0] = r_prev->bar->id;
+			DNPRINTF(SWM_D_STACK, "region bar %#x relative to "
+			    "%#x.\n", r->bar->id, val[0]);
+			xcb_configure_window(conn, r->bar->id,
+			    XCB_CONFIG_WINDOW_SIBLING |
+			    XCB_CONFIG_WINDOW_STACK_MODE, val);
+		}
 	}
 
 	r->ws->cur_layout->l_stack(r->ws, &g);
@@ -5603,7 +5634,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 		/* Window coordinates exclude frame. */
 
 		if (winno > 1 || !disable_border ||
-		    (bar_enabled && ws->bar_enabled)) {
+		    (bar_enabled && ws->bar_enabled &&
+		    !disable_border_always)) {
 			bordered = true;
 		} else {
 			bordered = false;
@@ -6344,7 +6376,7 @@ search_win(struct binding *bp, struct swm_region *r, union arg *args)
 	XGlyphInfo		info;
 	GC			l_draw;
 	XGCValues		l_gcv;
-	XRectangle		l_ibox, l_lbox;
+	XRectangle		l_ibox, l_lbox = {0, 0, 0, 0};
 
 	(void)bp;
 
@@ -8143,9 +8175,11 @@ setspawn(const char *name, const char *args, int flags)
 	if (name == NULL)
 		return;
 
+#ifndef __clang_analyzer__ /* Suppress false warnings. */
 	/* Remove any old spawn under the same name. */
 	if ((sp = spawn_find(name)) != NULL)
 		spawn_remove(sp);
+#endif
 
 	if (*args != '\0')
 		spawn_insert(name, args, flags);
@@ -8701,13 +8735,43 @@ updatenumlockmask(void)
 	DNPRINTF(SWM_D_MISC, "numlockmask: %#x\n", numlockmask);
 }
 
+xcb_keycode_t
+get_binding_keycode(struct binding *bp)
+{
+	const xcb_setup_t			*s;
+	xcb_get_keyboard_mapping_reply_t	*kmr;
+	int					col;
+	xcb_keycode_t				kc, min, max;
+
+	s = get_setup();
+	min = s->min_keycode;
+	max = s->max_keycode;
+
+	kmr = xcb_get_keyboard_mapping_reply(conn,
+	    xcb_get_keyboard_mapping(conn, min, max - min + 1), NULL);
+	if (kmr == NULL)
+		return (XCB_NO_SYMBOL);
+
+	/* Search for keycode by keysym column. */
+	for (col = 0; col < kmr->keysyms_per_keycode; col++) {
+		/* Keycodes are unsigned, bail if kc++ is reduced to 0. */
+		for (kc = min; kc > 0 && kc <= max; kc++) {
+			if (xcb_key_symbols_get_keysym(syms, kc, col) ==
+			    bp->value)
+				return (kc);
+		}
+	}
+
+	return (XCB_NO_SYMBOL);
+}
+
 void
 grabkeys(void)
 {
 	struct binding		*bp;
-	int			num_screens, k, j;
+	int			num_screens, i, j;
 	uint16_t		modifiers[4];
-	xcb_keycode_t		*code;
+	xcb_keycode_t		keycode;
 
 	DNPRINTF(SWM_D_MISC, "begin\n");
 	updatenumlockmask();
@@ -8718,10 +8782,10 @@ grabkeys(void)
 	modifiers[3] = numlockmask | XCB_MOD_MASK_LOCK;
 
 	num_screens = get_screen_count();
-	for (k = 0; k < num_screens; k++) {
-		if (TAILQ_EMPTY(&screens[k].rl))
+	for (i = 0; i < num_screens; i++) {
+		if (TAILQ_EMPTY(&screens[i].rl))
 			continue;
-		xcb_ungrab_key(conn, XCB_GRAB_ANY, screens[k].root,
+		xcb_ungrab_key(conn, XCB_GRAB_ANY, screens[i].root,
 			XCB_MOD_MASK_ANY);
 		RB_FOREACH(bp, binding_tree, &bindings) {
 			if (bp->type != KEYBIND)
@@ -8742,31 +8806,30 @@ grabkeys(void)
 			    bp->action <= FN_MVWS_22)
 				continue;
 
-			if ((code = xcb_key_symbols_get_keycode(syms,
-			    bp->value)) == NULL)
+			/* Try to get keycode for the grab. */
+			keycode = get_binding_keycode(bp);
+			if (keycode == XCB_NO_SYMBOL)
 				continue;
 
 			if (bp->mod == XCB_MOD_MASK_ANY) {
 				/* All modifiers are grabbed in one pass. */
-				DNPRINTF(SWM_D_MOUSE, "grab key: %u, "
-				    "modmask: %d\n", bp->value, bp->mod);
-				xcb_grab_key(conn, 1, screens[k].root,
-				    bp->mod, *code, XCB_GRAB_MODE_ASYNC,
+				DNPRINTF(SWM_D_KEY, "key: %u, modmask: %d\n",
+				    bp->value, bp->mod);
+				xcb_grab_key(conn, 1, screens[i].root, bp->mod,
+				    keycode, XCB_GRAB_MODE_ASYNC,
 				    XCB_GRAB_MODE_SYNC);
 			} else {
 				/* Need to grab each modifier permutation. */
 				for (j = 0; j < LENGTH(modifiers); j++) {
-					DNPRINTF(SWM_D_MOUSE, "grab key: %u, "
-					    "modmask: %d\n",
-					    bp->value, bp->mod | modifiers[j]);
-					xcb_grab_key(conn, 1,
-					    screens[k].root,
-					    bp->mod | modifiers[j],
-					    *code, XCB_GRAB_MODE_ASYNC,
+					DNPRINTF(SWM_D_KEY, "key: %u, "
+					    "modmask: %d\n", bp->value,
+					    bp->mod | modifiers[j]);
+					xcb_grab_key(conn, 1, screens[i].root,
+					    bp->mod | modifiers[j], keycode,
+					    XCB_GRAB_MODE_ASYNC,
 					    XCB_GRAB_MODE_SYNC);
 				}
 			}
-			free(code);
 		}
 	}
 	DNPRINTF(SWM_D_MISC, "done\n");
@@ -9080,6 +9143,7 @@ setquirk(const char *class, const char *instance, const char *name,
 	DNPRINTF(SWM_D_QUIRK, "enter %s:%s:%s [%u], ws: %d\n", class, instance,
 	    name, quirk, ws);
 
+#ifndef __clang_analyzer__ /* Suppress false warnings. */
 	/* Remove/replace existing quirk. */
 	TAILQ_FOREACH(qp, &quirks, entry) {
 		if (strcmp(qp->class, class) == 0 &&
@@ -9093,6 +9157,7 @@ setquirk(const char *class, const char *instance, const char *name,
 			goto out;
 		}
 	}
+#endif
 
 	/* Only insert if quirk is not NONE or forced ws is set. */
 	if (quirk || ws != -1)
@@ -9362,7 +9427,8 @@ setconfvalue(const char *selector, const char *value, int flags)
 			dialog_ratio = .6;
 		break;
 	case SWM_S_DISABLE_BORDER:
-		disable_border = (atoi(value) != 0);
+		disable_border_always = (strcmp(value, "always") == 0);
+		disable_border = (atoi(value) != 0) || disable_border_always;
 		break;
 	case SWM_S_FOCUS_CLOSE:
 		if (strcmp(value, "first") == 0)
@@ -11741,39 +11807,6 @@ clientmessage(xcb_client_message_event_t *e)
 	focus_flush();
 }
 
-void
-check_conn(void)
-{
-	int	 errcode = xcb_connection_has_error(conn);
-#ifdef XCB_CONN_ERROR
-	char	*s;
-	switch (errcode) {
-	case XCB_CONN_ERROR:
-		s = "Socket error, pipe error or other stream error.";
-		break;
-	case XCB_CONN_CLOSED_EXT_NOTSUPPORTED:
-		s = "Extension not supported.";
-		break;
-	case XCB_CONN_CLOSED_MEM_INSUFFICIENT:
-		s = "Insufficient memory.";
-		break;
-	case XCB_CONN_CLOSED_REQ_LEN_EXCEED:
-		s = "Request length was exceeded.";
-		break;
-	case XCB_CONN_CLOSED_PARSE_ERR:
-		s = "Error parsing display string.";
-		break;
-	default:
-		s = "Unknown error.";
-	}
-	if (errcode)
-		errx(errcode, "X CONNECTION ERROR: %s", s);
-#else
-	if (errcode)
-		errx(errcode, "X CONNECTION ERROR");
-#endif
-}
-
 int
 enable_wm(void)
 {
@@ -12570,6 +12603,10 @@ main(int argc, char *argv[])
 	if (setlocale(LC_CTYPE, "") == NULL || setlocale(LC_TIME, "") == NULL)
 		warnx("no locale support");
 
+	if (pledge("stdio proc exec cpath rpath wpath fattr getpw dns inet "
+	    "unix", NULL) == -1)
+		err(1, "pledge");
+
 	/* handle some signals */
 	bzero(&sact, sizeof(sact));
 	sigemptyset(&sact.sa_mask);
@@ -12586,6 +12623,10 @@ main(int argc, char *argv[])
 
 	if ((display = XOpenDisplay(0)) == NULL)
 		errx(1, "can not open display");
+
+	if (pledge("stdio proc exec cpath rpath wpath fattr getpw",
+	    NULL) == -1)
+		err(1, "pledge");
 
 	conn = XGetXCBConnection(display);
 	if (xcb_connection_has_error(conn))
@@ -12680,6 +12721,9 @@ noconfig:
 	if (cfile)
 		conf_load(cfile, SWM_CONF_DEFAULT);
 
+	if (pledge("stdio proc exec cpath rpath wpath fattr", NULL) == -1)
+		err(1, "pledge");
+
 	validate_spawns();
 
 	if (getenv("SWM_STARTED") == NULL)
@@ -12690,6 +12734,9 @@ noconfig:
 	for (i = 0; i < num_screens; i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			bar_setup(r);
+
+	if (pledge("stdio proc exec", NULL) == -1)
+		err(1, "pledge");
 
 	/* Manage existing windows. */
 	grab_windows();
@@ -12774,6 +12821,9 @@ noconfig:
 		xcb_flush(conn);
 	}
 done:
+	if (pledge("stdio proc", NULL) == -1)
+		err(1, "pledge");
+
 	shutdown_cleanup();
 
 	return (0);
