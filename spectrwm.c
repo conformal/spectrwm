@@ -2283,35 +2283,32 @@ bar_print_legacy(struct swm_region *r, const char *s)
 	char		draw_two = 0;
 	/* Flag indicating both draw calls are allowed */
 	char		allow_two = 1;
-	/* Copy of s that will be modified (if necessary) */
-	char		*cpy;
+	/* Length of first piece of the string (if necessary)*/
+	int first_len = 0;
 	/* The x value of the 2nd draw call (if necessary) */
 	int 		x1 = 0;
 	/* The XRectangle info for the 2nd draw call (if necessary) */
 	XRectangle	ibox2, lbox2;
 	/* Pointer that will eventualy point to the 2nd half of the bar string (if necessary) */
-	char		*cur;
+	const char		*cur;
 
 
 	len = strlen(s);
-	/* Only copy and manipulate s if required */
+	/* Only locate 2nd half if necessary */
 	if(bar_justify == SWM_BAR_JUSTIFY_BOTH){
-		cpy = (char *)malloc((len + 1) * sizeof(char));
-		strcpy(cpy, s);
-		cur = cpy;
+		cur = s;
 		while(*cur != SWM_BAR_DELIMITER && *cur){
 			cur++;
 		}
+		first_len = cur - s;
 		if(*cur){
-			*cur = '\0';
 			cur++;
 		} else{
 			allow_two = 0;
 		}
 	}
-
 	if(bar_justify == SWM_BAR_JUSTIFY_BOTH && allow_two){
-		XmbTextExtents(bar_fs, cpy, strlen(cpy), &ibox, &lbox);
+		XmbTextExtents(bar_fs, s, first_len, &ibox, &lbox);
 		XmbTextExtents(bar_fs, cur, strlen(cur), &ibox2, &lbox2);
 		draw_two = 1;
 	} else {
@@ -2358,7 +2355,7 @@ bar_print_legacy(struct swm_region *r, const char *s)
 		/* Draw both halves of bar text when necessary */
 		DRAWSTRING(display, r->bar->buffer, bar_fs, draw,
 			x, (bar_fs_extents->max_logical_extent.height - lbox.height) / 2 -
-			lbox.y, cpy, strlen(cpy));
+			lbox.y, s, first_len);
 		DRAWSTRING(display, r->bar->buffer, bar_fs, draw,
 			x1, (bar_fs_extents->max_logical_extent.height - lbox2.height) / 2 -
 			lbox2.y, cur, strlen(cur));
@@ -2369,10 +2366,6 @@ bar_print_legacy(struct swm_region *r, const char *s)
 	}
 	XFreeGC(display, draw);
 
-	/* Only free if malloc'd */
-	if(bar_justify == SWM_BAR_JUSTIFY_BOTH){
-		free(cpy);
-	}
 	/* blt */
 	xcb_copy_area(conn, r->bar->buffer, r->bar->id, r->s->gc, 0, 0,
 	    0, 0, WIDTH(r->bar), HEIGHT(r->bar));
@@ -2392,27 +2385,25 @@ bar_print(struct swm_region *r, const char *s)
 	char				draw_two = 0;
 	/* Flag indicating both draw calls are allowed */
 	char				allow_two = 1;
-	/* copy of s that will be modified (if necessary) */
-	char 				*cpy;
+	/* Length of first piece of the string (if necessary)*/
+	int first_len = 0;
 	/* Pointer that will eventually point to the start of the 2nd half of the text (if necessary) */
-	char 				*cur;
+	const char 				*cur;
 	/* the x value for the 2nd draw call (if necessary) */
 	int32_t				x1 = 0;
 	/* Glyph Info for the 2nd draw call (if necessary) */
 	XGlyphInfo			info2;
 
 	len = strlen(s);
-	/* Only copy and manipulate s if required */
+	/* Only locate 2nd half if necessary */
 	if(bar_justify == SWM_BAR_JUSTIFY_BOTH){
-		cpy = (char *)malloc((len + 1) * sizeof(char));
-		strcpy(cpy, s);
-		cur = cpy;
+		cur = s;
 
 		while(*cur != SWM_BAR_DELIMITER && *cur){
 			cur++;
 		}
+		first_len = cur - s;
 		if(*cur){
-			*cur = '\0';
 			cur++;
 		} else{
 			allow_two = 0;
@@ -2420,7 +2411,7 @@ bar_print(struct swm_region *r, const char *s)
 	}
 
 	if(bar_justify == SWM_BAR_JUSTIFY_BOTH && allow_two){
-		XftTextExtentsUtf8(display, bar_font, (FcChar8 *)cpy, strlen(cpy), &info);
+		XftTextExtentsUtf8(display, bar_font, (FcChar8 *)s, first_len, &info);
 		XftTextExtentsUtf8(display, bar_font, (FcChar8 *)cur, strlen(cur), &info2);
 	} else {
 		XftTextExtentsUtf8(display, bar_font, (FcChar8 *)s, len, &info);
@@ -2465,7 +2456,7 @@ bar_print(struct swm_region *r, const char *s)
 		/* Draw both halves of bar text when necessary */
 		XftDrawStringUtf8(draw, &bar_font_color, bar_font, x,
 	    	(HEIGHT(r->bar) + bar_font->height) / 2 - bar_font->descent,
-	    	(FcChar8 *)cpy, strlen(cpy));
+	    	(FcChar8 *)s, first_len);
 
 		XftDrawStringUtf8(draw, &bar_font_color, bar_font, x1,
 	    	(HEIGHT(r->bar) + bar_font->height) / 2 - bar_font->descent,
@@ -2478,11 +2469,6 @@ bar_print(struct swm_region *r, const char *s)
 	}
 
 	XftDrawDestroy(draw);
-
-	/* Only free if malloc'd */
-	if(bar_justify == SWM_BAR_JUSTIFY_BOTH){
-		free(cpy);
-	}
 
 	/* blt */
 	xcb_copy_area(conn, r->bar->buffer, r->bar->id, r->s->gc, 0, 0,
