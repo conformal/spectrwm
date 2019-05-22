@@ -22,6 +22,9 @@ MANDIR= ${PREFIX}/man/man
 
 obj: _xenocara_obj
 
+beforeinstall:
+	ln -sf ${PROG} ${BINDIR}/scrotwm
+
 spectrwm.html: spectrwm.1
 	mandoc -Thtml ${.CURDIR}/spectrwm.1 > spectrwm.html
 
