@@ -12,7 +12,7 @@ CC?= cc
 DEBUGLIBS= no
 NOPROFILE= yes
 
-CFLAGS+= -std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Wno-uninitialized
+CFLAGS+= -std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Wno-uninitialized -g
 CFLAGS+= -fPIC
 CFLAGS+= -I${X11BASE}/include
 
