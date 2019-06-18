@@ -1,4 +1,5 @@
 #!/bin/sh
+# Example Bar Action Script for OpenBSD-current.
 #
 
 print_date() {
