@@ -2674,6 +2674,9 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 
 	/* character sequence */
 	switch (*cur) {
+	case '+':
+		strlcpy(tmp, "+", sizeof tmp);
+		break;
 	case '<':
 		bar_replace_pad(tmp, &limit, sizeof tmp);
 		break;
