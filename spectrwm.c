@@ -1433,7 +1433,7 @@ expand_tilde(const char *s)
 	ppwd = strlen(user) == 0 ? getpwuid(getuid()) : getpwnam(user);
 	free(user);
 
-	if (pledge("stdio proc exec cpath rpath wpath fattr", NULL) == -1)
+	if (pledge("stdio proc exec rpath", NULL) == -1)
 		err(1, "pledge");
 
 	if (ppwd == NULL)
@@ -13258,8 +13258,7 @@ main(int argc, char *argv[])
 	if (setlocale(LC_CTYPE, "") == NULL || setlocale(LC_TIME, "") == NULL)
 		warnx("no locale support");
 
-	if (pledge("stdio proc exec cpath rpath wpath fattr getpw dns inet "
-	    "unix", NULL) == -1)
+	if (pledge("stdio proc exec rpath getpw dns inet unix", NULL) == -1)
 		err(1, "pledge");
 
 	/* handle some signals */
@@ -13279,8 +13278,7 @@ main(int argc, char *argv[])
 	if ((display = XOpenDisplay(0)) == NULL)
 		errx(1, "can not open display");
 
-	if (pledge("stdio proc exec cpath rpath wpath fattr getpw",
-	    NULL) == -1)
+	if (pledge("stdio proc exec rpath getpw", NULL) == -1)
 		err(1, "pledge");
 
 	conn = XGetXCBConnection(display);
