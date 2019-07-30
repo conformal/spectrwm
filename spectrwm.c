@@ -9214,7 +9214,7 @@ setconfvalue(const char *selector, const char *value, int flags)
 {
 	struct workspace	*ws;
 	int			i, ws_id, num_screens, n;
-	char			*b, *str, *sp;
+	char			*b, *sp;
 
 	switch (flags) {
 	case SWM_S_BAR_ACTION:
@@ -9246,20 +9246,14 @@ setconfvalue(const char *selector, const char *value, int flags)
 		}
 		break;
 	case SWM_S_BAR_FONT:
-		b = bar_fonts;
-		if (asprintf(&bar_fonts, "%s,%s", value, bar_fonts) == -1)
-			err(1, "setconfvalue: asprintf: failed to allocate "
-				"memory for bar_fonts.");
-		free(b);
-
-		/* If already in xft mode, then we are done. */
-		if (!bar_font_legacy)
-			break;
-
-		if ((sp = str = strdup(value)) == NULL)
+		free(bar_fonts);
+		if ((bar_fonts = strdup(value)) == NULL)
 			err(1, "setconfvalue: strdup");
 
 		/* If there are any non-XLFD entries, switch to Xft mode. */
+		sp = bar_fonts;
+		bar_font_legacy = true;
+
 		while ((b = strsep(&sp, ",")) != NULL) {
 			if (*b == '\0')
 				continue;
@@ -9269,7 +9263,6 @@ setconfvalue(const char *selector, const char *value, int flags)
 			}
 		}
 
-		free(str);
 		break;
 	case SWM_S_BAR_FORMAT:
 		free(bar_format);
