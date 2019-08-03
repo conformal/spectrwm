@@ -61,11 +61,37 @@ See the
 section below for defaults and customizations.
 .Sh CONFIGURATION FILES
 .Nm
-first tries to open the user specific file,
+looks for the user-configuration file in the following order:
+.Pp
+.Bl -enum -offset indent -compact
+.It
+.Pa $XDG_CONFIG_HOME/spectrwm/spectrwm.conf
+.It
+.Pa ~/.config/spectrwm/spectrwm.conf
+(if
+.Pa $XDG_CONFIG_HOME
+is either not set or empty)
+.It
 .Pa ~/.spectrwm.conf .
-If that file is unavailable,
-it then tries to open the global configuration file
-.Pa /etc/spectrwm.conf .
+.El
+.Pp
+If the user-configuration file is not found,
+.Nm
+then looks for the global configuration file in the following order:
+.Pp
+.Bl -enum -offset indent -compact
+.It
+.Pa $XDG_CONFIG_DIRS/spectrwm/spectrwm.conf
+(each colon-separated directory in
+.Pa $XDG_CONFIG_DIRS )
+.It
+.Pa /etc/xdg/spectrwm/spectrwm.conf
+(if
+.Pa $XDG_CONFIG_DIRS
+is either not set or empty)
+.It
+.Pa /etc/spectrwm.conf
+.El
 .Pp
 The format of the file is
 .Pp

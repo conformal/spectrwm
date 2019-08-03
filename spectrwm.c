@@ -1268,6 +1268,7 @@ void	 resize_win(struct ws_win *, struct binding *, int);
 void	 restart(struct binding *, struct swm_region *, union arg *);
 struct swm_region	*root_to_region(xcb_window_t, int);
 void	 screenchange(xcb_randr_screen_change_notify_event_t *);
+void	 scan_config(void);
 void	 scan_randr(int);
 void	 search_do_resp(void);
 void	 search_resp_name_workspace(const char *, size_t);
@@ -10486,7 +10487,8 @@ conf_load(const char *filename, int keymapping)
 	int			wordlen, i, optidx, count;
 	struct config_option	*opt = NULL;
 
-	DNPRINTF(SWM_D_CONF, "begin\n");
+	DNPRINTF(SWM_D_CONF, "filename: %s, keymapping: %d\n", filename,
+	    keymapping);
 
 	if (filename == NULL) {
 		warnx("conf_load: no filename");
@@ -12970,6 +12972,101 @@ setup_globals(void)
 }
 
 void
+scan_config(void)
+{
+	struct stat		sb;
+	struct passwd		*pwd;
+	char			conf[PATH_MAX];
+	char			*cfile = NULL, *str = NULL, *ret, *s;
+	int			i;
+
+	/* To get $HOME */
+	pwd = getpwuid(getuid());
+	if (pwd == NULL)
+		errx(1, "invalid user: %d", getuid());
+
+	/* XDG search with backwards compatibility. */
+	for (i = 0; ; i++) {
+		conf[0] = '\0';
+		switch (i) {
+		case 0:
+			/* 1) $XDG_CONFIG_HOME/spectrwm/spectrwm.conf */
+			ret = getenv("XDG_CONFIG_HOME");
+			if (ret && ret[0])
+				snprintf(conf, sizeof conf, "%s/spectrwm/%s",
+				    ret, SWM_CONF_FILE);
+			else
+				/* 2) Default is $HOME/.config */
+				snprintf(conf, sizeof conf,
+				    "%s/.config/spectrwm/%s", pwd->pw_dir,
+				    SWM_CONF_FILE);
+			break;
+		case 1:
+			/* 3) $HOME/.spectrwm.conf */
+			snprintf(conf, sizeof conf, "%s/.%s", pwd->pw_dir,
+			    SWM_CONF_FILE);
+			break;
+		case 2:
+			/* 4) $XDG_CONFIG_DIRS (colon-separated set of dirs) */
+			ret = getenv("XDG_CONFIG_DIRS");
+			if (ret && ret[0]) {
+				if ((str = strdup(ret)) == NULL)
+					err(1, "xdg strdup");
+			} else {
+				/* 5) Fallback to default: /etc/xdg */
+				if (asprintf(&str, "/etc/xdg") == -1)
+					err(1, "xdg asprintf");
+			}
+
+			/* Try ./spectrwm/spectrwm.conf under each dir. */
+			while ((s = strsep(&str, ":")) != NULL) {
+				if (*s == '\0')
+					continue;
+				snprintf(conf, sizeof conf, "%s/spectrwm/%s", s,
+				    SWM_CONF_FILE);
+				if (stat(conf, &sb) != -1 &&
+				    S_ISREG(sb.st_mode)) {
+					/* Found a file. */
+					cfile = conf;
+					break;
+				}
+				conf[0] = '\0';
+			}
+			free(str);
+			break;
+		case 3:
+			/* 6) /etc/spectrwm.conf */
+			snprintf(conf, sizeof conf, "/etc/%s", SWM_CONF_FILE);
+			break;
+		case 4:
+			/* 7) $HOME/.scrotwm.conf */
+			snprintf(conf, sizeof conf, "%s/.%s", pwd->pw_dir,
+			    SWM_CONF_FILE_OLD);
+			break;
+		case 5:
+			/* 8) /etc/scrotwm.conf */
+			snprintf(conf, sizeof conf, "/etc/%s",
+			    SWM_CONF_FILE_OLD);
+			break;
+		default:
+			goto done;
+		}
+
+		if (cfile == NULL && conf[0] && stat(conf, &sb) != -1 &&
+		    S_ISREG(sb.st_mode))
+			cfile = conf;
+
+		if (cfile) {
+			conf_load(cfile, SWM_CONF_DEFAULT);
+			break;
+		}
+	}
+
+done:
+	DNPRINTF(SWM_D_INIT, "done\n");
+}
+
+void
 shutdown_cleanup(void)
 {
 	struct swm_region	*r;
@@ -13141,13 +13238,10 @@ main(int argc, char *argv[])
 {
 	struct pollfd		pfd[2];
 	struct sigaction	sact;
-	struct stat		sb;
-	struct passwd		*pwd;
 	struct swm_region	*r;
 	xcb_generic_event_t	*evt;
 	xcb_mapping_notify_event_t *mne;
 	int			xfd, i, num_screens, num_readable;
-	char			conf[PATH_MAX], *cfile = NULL;
 	bool			stdin_ready = false, startup = true;
 
 	/* suppress unused warning since var is needed */
@@ -13196,11 +13290,6 @@ main(int argc, char *argv[])
 	xcb_prefetch_extension_data(conn, &xcb_randr_id);
 	xfd = xcb_get_file_descriptor(conn);
 
-	/* look for local and global conf file */
-	pwd = getpwuid(getuid());
-	if (pwd == NULL)
-		errx(1, "invalid user: %d", getuid());
-
 	xcb_grab_server(conn);
 	xcb_aux_sync(conn);
 
@@ -13226,7 +13315,6 @@ main(int argc, char *argv[])
 	if (enable_wm())
 		errx(1, "another window manager is currently running");
 
-	/* Load Xcursors and/or cursorfont glyph cursors. */
 	cursors_load();
 
 	xcb_aux_sync(conn);
@@ -13240,45 +13328,7 @@ main(int argc, char *argv[])
 	setup_quirks();
 	setup_spawn();
 
-	/* load config */
-	for (i = 0; ; i++) {
-		conf[0] = '\0';
-		switch (i) {
-		case 0:
-			/* ~ */
-			snprintf(conf, sizeof conf, "%s/.%s",
-			    pwd->pw_dir, SWM_CONF_FILE);
-			break;
-		case 1:
-			/* global */
-			snprintf(conf, sizeof conf, "/etc/%s",
-			    SWM_CONF_FILE);
-			break;
-		case 2:
-			/* ~ compat */
-			snprintf(conf, sizeof conf, "%s/.%s",
-			    pwd->pw_dir, SWM_CONF_FILE_OLD);
-			break;
-		case 3:
-			/* global compat */
-			snprintf(conf, sizeof conf, "/etc/%s",
-			    SWM_CONF_FILE_OLD);
-			break;
-		default:
-			goto noconfig;
-		}
-
-		if (strlen(conf) && stat(conf, &sb) != -1)
-			if (S_ISREG(sb.st_mode)) {
-				cfile = conf;
-				break;
-			}
-	}
-noconfig:
-
-	/* load conf (if any) */
-	if (cfile)
-		conf_load(cfile, SWM_CONF_DEFAULT);
+	scan_config();
 
 	validate_spawns();
 
