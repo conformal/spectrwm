@@ -1782,7 +1782,7 @@ ewmh_apply_flags(struct ws_win *win, uint32_t pending)
 	if (changed == 0)
 		return;
 
-	DNPRINTF(SWM_D_PROP, "pending: %d\n", pending);
+	DNPRINTF(SWM_D_PROP, "pending: %u\n", pending);
 
 	win->ewmh_flags = pending;
 	ws = win->ws;
@@ -2455,8 +2455,8 @@ bar_print_layout(struct swm_region *r)
 {
 	struct text_fragment	*frag;
 	xcb_rectangle_t		rect;
-	XftDraw			*xft_draw;
-	GC			draw;
+	XftDraw			*xft_draw = NULL;
+	GC			draw = 0;
 	XGCValues		gcvd;
 	uint32_t		gcv[1];
 	int			xpos, i, j;
@@ -2482,7 +2482,7 @@ bar_print_layout(struct swm_region *r)
 	/* Calculate width for each text justified section  */
 	space -= usage;
 	for (i = 0; i < numsect; i++)
-		if (!bsect[i].fit_to_text)
+		if (!bsect[i].fit_to_text && weight > 0)
 			bsect[i].width = bsect[i].weight * space / weight;
 
 	/* Calculate starting position of each section and text */
@@ -3466,7 +3466,7 @@ bar_draw(struct swm_bar *bar)
 
 	if (startup_exception) {
 		snprintf(fmtexp, sizeof fmtexp,
-		    "total exceptions: %d, first exception: %s",
+		    "total exceptions: %u, first exception: %s",
 		    nr_exceptions, startup_exception);
 		if (bar_font_legacy)
 			bar_print_legacy(r, fmtexp);
@@ -3727,7 +3727,8 @@ xft_init(struct swm_region *r)
 			warn("Xft error: unable to allocate color.");
 	}
 
-	bar_height = bar_xftfonts[0]->height + 2 * bar_border_width;
+	if (bar_xftfonts[0] != NULL)
+		bar_height = bar_xftfonts[0]->height + 2 * bar_border_width;
 
 	if (bar_height < 1)
 		bar_height = 1;
@@ -6062,7 +6063,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 			if (s <= (winno - mwin) % stacks)
 				colno++;
 			split += colno;
-			hrh = r_g.h / colno;
+			if (colno > 0)
+				hrh = r_g.h / colno;
 			extra = r_g.h - (colno * hrh);
 
 			if (!flip)
@@ -9369,7 +9371,7 @@ grabbuttons(void)
 			} else {
 				/* Need to grab each modifier permutation. */
 				for (i = 0; i < LENGTH(modifiers); ++i) {
-					DNPRINTF(SWM_D_MOUSE, "grab btn: %u, "
+					DNPRINTF(SWM_D_MOUSE, "grab btn: %d, "
 					    "modmask: %u\n", bp->value,
 					    bp->mod | modifiers[i]);
 					xcb_grab_button(conn, 0,
@@ -12432,13 +12434,13 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 
 	/* size + location match */
 	TAILQ_FOREACH(r, &s->orl, entry)
-		if (X(r) == x && Y(r) == y &&
+		if (r != NULL && X(r) == x && Y(r) == y &&
 		    HEIGHT(r) == h && WIDTH(r) == w)
 			break;
 
 	/* size match */
 	TAILQ_FOREACH(r, &s->orl, entry)
-		if (HEIGHT(r) == h && WIDTH(r) == w)
+		if (r != NULL && HEIGHT(r) == h && WIDTH(r) == w)
 			break;
 
 	if (r != NULL) {
