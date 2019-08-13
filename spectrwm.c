@@ -3058,8 +3058,8 @@ bar_strlcat_esc(char *dst, char *src, size_t sz)
 	}
 
 	/* Concat string and escape every '+' */
-	while (*src != '\0' && sz != 0) {
-		if ((*src == '+') && (sz > 1)) {
+	while (*src != '\0' && sz > 1) {
+		if ((*src == '+') && (sz > 2)) {
 			*dst++ = '+';
 			sz--;
 		}
