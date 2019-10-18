@@ -63,7 +63,7 @@ static Atom		swmws = None, swmpid = None;
 void	set_property(Display *, Window, Atom, char *);
 Atom	get_atom_from_string(Display *, char *);
 
-#ifdef _GNU_SOURCE
+#if defined(_GNU_SOURCE) && !defined(__CYGWIN__)
 #define DLOPEN(s)	RTLD_NEXT
 #else
 #define DLOPEN(s)	dlopen((s), RTLD_GLOBAL | RTLD_LAZY)

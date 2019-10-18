@@ -12503,17 +12503,17 @@ scan_randr(int idx)
 #ifdef SWM_XRR_HAS_CRTC
 	int						i, j;
 	int						ncrtc = 0, nmodes = 0;
-#endif /* SWM_XRR_HAS_CRTC */
-	struct swm_region				*r;
-	int						num_screens;
 	xcb_randr_get_screen_resources_current_cookie_t	src;
 	xcb_randr_get_screen_resources_current_reply_t	*srr;
 	xcb_randr_get_crtc_info_cookie_t		cic;
 	xcb_randr_get_crtc_info_reply_t			*cir = NULL;
 	xcb_randr_crtc_t				*crtc;
 	xcb_randr_mode_info_t				*mode;
-	xcb_screen_t					*screen;
 	int						minrate, currate;
+#endif /* SWM_XRR_HAS_CRTC */
+	struct swm_region				*r;
+	int						num_screens;
+	xcb_screen_t					*screen;
 
 	DNPRINTF(SWM_D_MISC, "screen: %d\n", idx);
 
@@ -12606,7 +12606,9 @@ scan_randr(int idx)
 		new_region(&screens[idx], 0, 0, screen->width_in_pixels,
 		    screen->height_in_pixels);
 
+#ifdef SWM_XRR_HAS_CRTC
 out:
+#endif
 	/* The screen shouldn't focus on unused regions. */
 	TAILQ_FOREACH(r, &screens[idx].orl, entry) {
 		if (screens[idx].r_focus == r)
