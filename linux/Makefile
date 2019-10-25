@@ -57,7 +57,7 @@ install: all
 	install -m 755 -d $(DESTDIR)$(XSESSIONSDIR)
 	install -m 755 spectrwm                    $(DESTDIR)$(BINDIR)
 	ln -sf spectrwm                            $(DESTDIR)$(BINDIR)/scrotwm
-	install -m 644 libswmhack.so.$(LIBVERSION) $(DESTDIR)$(LIBDIR)
+	install -m 755 libswmhack.so.$(LIBVERSION) $(DESTDIR)$(LIBDIR)
 	ln -sf libswmhack.so.$(LIBVERSION)         $(DESTDIR)$(LIBDIR)/libswmhack.so.$(LIBMAJORVERSION)
 	ln -sf libswmhack.so.$(LIBVERSION)         $(DESTDIR)$(LIBDIR)/libswmhack.so
 	install -m 644 ../spectrwm.conf            $(DESTDIR)$(SYSCONFDIR)
