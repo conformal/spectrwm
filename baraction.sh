@@ -36,6 +36,11 @@ print_cpu() {
 	_print_cpu $OUT
 }
 
+print_cpuspeed() {
+	CPU_SPEED=`/sbin/sysctl hw.cpuspeed | cut -d "=" -f2`
+	printf "CPU speed: %4d MHz  " $CPU_SPEED
+}
+
 print_bat() {
 	BAT_STATUS=$1
 	BAT_LEVEL=$2
@@ -74,11 +79,6 @@ print_bat() {
 			fi
 		fi
 	fi
-}
-
-print_cpuspeed() {
-	CPU_SPEED=`/sbin/sysctl hw.cpuspeed | cut -d "=" -f2`
-	printf "CPU speed: %4d MHz  " $CPU_SPEED
 }
 
 while :; do
