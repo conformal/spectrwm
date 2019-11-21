@@ -78,7 +78,7 @@ print_apm() {
 
 print_cpuspeed() {
 	CPU_SPEED=`/sbin/sysctl hw.cpuspeed | cut -d "=" -f2`
-	echo -n "CPU speed: $CPU_SPEED MHz  "
+	printf "CPU speed: %4d MHz  " $CPU_SPEED
 }
 
 while :; do
