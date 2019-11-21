@@ -36,7 +36,7 @@ print_cpu() {
 	_print_cpu $OUT
 }
 
-print_apm() {
+print_bat() {
 	BAT_STATUS=$1
 	BAT_LEVEL=$2
 	AC_STATUS=$3
@@ -98,7 +98,7 @@ while :; do
 			print_mem
 			print_cpu $REPLY
 			print_cpuspeed
-			print_apm $APM_DATA
+			print_bat $APM_DATA
 			echo ""
 		fi
 		I=$(( ( ${I} + 1 ) % 22 ));
