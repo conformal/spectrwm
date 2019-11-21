@@ -17,8 +17,7 @@ print_mem() {
 }
 
 _print_cpu() {
-	typeset -R4 _1=${1} _2=${2} _3=${3} _4=${4} _5=${5} _6=${6}
-	echo -n "CPU:${_1}% User${_2}% Nice${_3}% Sys${_4}% Spin${_5}% Int${_6}% Idle  "
+	printf "CPU: %3d%% User %3d%% Nice %3d%% Sys %3d%% Spin %3d%% Int %3d%% Idle  " $1 $2 $3 $4 $5 $6
 }
 
 print_cpu() {
@@ -89,14 +88,14 @@ while :; do
 	APM_DATA=""
 	I=0
 	trap "kill $PID; exit" TERM
-	while read -p; do
+	while read IOSTAT_DATA; do
 		if [ $(( ${I} % 11 )) -eq 0 ]; then
 			APM_DATA=`/usr/sbin/apm -alb`
 		fi
 		if [ $I -ge 2 ]; then
 			# print_date
 			print_mem
-			print_cpu $REPLY
+			print_cpu $IOSTAT_DATA
 			print_cpuspeed
 			print_bat $APM_DATA
 			echo ""
