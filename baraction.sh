@@ -95,7 +95,7 @@ while :; do
 		fi
 		if [ $I -ge 2 ]; then
 			# print_date
-			print_mem $MEM
+			print_mem
 			print_cpu $REPLY
 			print_cpuspeed
 			print_apm $APM_DATA
