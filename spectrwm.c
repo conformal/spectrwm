@@ -1694,22 +1694,22 @@ ewmh_autoquirk(struct ws_win *win)
 void
 ewmh_update_actions(struct ws_win *win)
 {
-	xcb_atom_t		actions[SWM_EWMH_ACTION_COUNT_MAX];
+	xcb_atom_t		action[SWM_EWMH_ACTION_COUNT_MAX];
 	int			n = 0;
 
 	if (win == NULL)
 		return;
 
-	actions[n++] = ewmh[_NET_WM_ACTION_CLOSE].atom;
+	action[n++] = ewmh[_NET_WM_ACTION_CLOSE].atom;
 
 	if (ABOVE(win)) {
-		actions[n++] = ewmh[_NET_WM_ACTION_MOVE].atom;
-		actions[n++] = ewmh[_NET_WM_ACTION_RESIZE].atom;
-		actions[n++] = ewmh[_NET_WM_ACTION_ABOVE].atom;
+		action[n++] = ewmh[_NET_WM_ACTION_MOVE].atom;
+		action[n++] = ewmh[_NET_WM_ACTION_RESIZE].atom;
+		action[n++] = ewmh[_NET_WM_ACTION_ABOVE].atom;
 	}
 
 	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id,
-	    ewmh[_NET_WM_ALLOWED_ACTIONS].atom, XCB_ATOM_ATOM, 32, 1, actions);
+	    ewmh[_NET_WM_ALLOWED_ACTIONS].atom, XCB_ATOM_ATOM, 32, 1, action);
 }
 
 #define _NET_WM_STATE_REMOVE	0    /* remove/unset property */
@@ -2011,18 +2011,17 @@ debug_refresh(struct ws_win *win)
 	XGlyphInfo		info;
 	GC			l_draw;
 	XGCValues		l_gcv;
-	XRectangle		l_ibox, l_lbox;
+	XRectangle		l_ibox, l_lbox = {0, 0, 0, 0};
 	xcb_rectangle_t		rect;
 	size_t			len;
 	uint32_t		wc[4], mask, width, height, gcv[1];
 	int			widx, sidx;
 	char			*s;
-	xcb_screen_t		*screen;
 
 	if (debug_enabled) {
 		/* Create debug window if it doesn't exist. */
 		if (win->debug == XCB_WINDOW_NONE) {
-			if ((screen = get_screen(win->s->idx)) == NULL)
+			if (get_screen(win->s->idx) == NULL)
 				errx(1, "ERROR: can't get screen %d.",
 				    win->s->idx);
 
@@ -2339,7 +2338,7 @@ socket_setnonblock(int fd)
 	if ((flags = fcntl(fd, F_GETFL, 0)) == -1)
 		err(1, "fcntl F_GETFL");
 	flags |= O_NONBLOCK;
-	if ((flags = fcntl(fd, F_SETFL, flags)) == -1)
+	if (fcntl(fd, F_SETFL, flags) == -1)
 		err(1, "fcntl F_SETFL");
 }
 
@@ -3246,7 +3245,7 @@ bar_parse_markup(struct bar_section *sect)
 	XRectangle		ibox, lbox;
 	XGlyphInfo		info;
 	int 			i = 0, len = 0, stop = 0;
-	int			index, prevfont;
+	int			idx, prevfont;
 	char			*fmt;
 	unsigned char		*u1, *u2;
 	struct text_fragment	*frag;
@@ -3342,13 +3341,13 @@ bar_parse_markup(struct bar_section *sect)
 				frag[i].bg = frag[i-1].bg;
 				len = 0;
 			}
-			index = *(fmt+5) - '0';
+			idx = *(fmt+5) - '0';
 			if ((*(fmt+2) == 'f') && (*(fmt+3) == 'n'))
-				frag[i].font = index;
+				frag[i].font = idx;
 			else if ((*(fmt+2) == 'f') && (*(fmt+3) == 'g'))
-				frag[i].fg = index;
+				frag[i].fg = idx;
 			else if ((*(fmt+2) == 'b') && (*(fmt+3) == 'g'))
-				frag[i].bg = index;
+				frag[i].bg = idx;
 			else if ((*(fmt+2) == 's') && (*(fmt+3) == 't')
 			    && (*(fmt+4) == 'p'))
 				stop = 1;
@@ -3737,12 +3736,11 @@ xft_init(struct swm_region *r)
 void
 bar_setup(struct swm_region *r)
 {
-	xcb_screen_t	*screen;
 	uint32_t	 wa[4];
 
 	DNPRINTF(SWM_D_BAR, "screen %d.\n", r->s->idx);
 
-	if ((screen = get_screen(r->s->idx)) == NULL)
+	if (get_screen(r->s->idx) == NULL)
 		errx(1, "ERROR: can't get screen %d.", r->s->idx);
 
 	if (r->bar != NULL)
@@ -7441,10 +7439,10 @@ region_containment(struct ws_win *win, struct swm_region *r, int opts)
 	 * side of the region boundary.  Positive values indicate the side of
 	 * the window has passed beyond the region boundary.
 	 */
-	rt = opts & SWM_CW_RIGHT ? MAX_X(win) - MAX_X(r) : bw;
-	lt = opts & SWM_CW_LEFT ? X(r) - X(win) : bw;
-	bm = opts & SWM_CW_BOTTOM ? MAX_Y(win) - MAX_Y(r) : bw;
-	tp = opts & SWM_CW_TOP ? Y(r) - Y(win) : bw;
+	rt = (opts & SWM_CW_RIGHT) ? MAX_X(win) - MAX_X(r) : bw;
+	lt = (opts & SWM_CW_LEFT) ? X(r) - X(win) : bw;
+	bm = (opts & SWM_CW_BOTTOM) ? MAX_Y(win) - MAX_Y(r) : bw;
+	tp = (opts & SWM_CW_TOP) ? Y(r) - Y(win) : bw;
 
 	DNPRINTF(SWM_D_MISC, "win %#x, rt: %d, lt: %d, bm: %d, tp: %d, "
 	    "SOFTBOUNDARY: %s, HARDBOUNDARY: %s\n", win->id, rt, lt, bm, tp,
@@ -8605,7 +8603,12 @@ spawn_insert(const char *name, const char *args, int flags)
 
 	sp->flags = flags;
 
-	DNPRINTF(SWM_D_SPAWN, "arg %d: [%s]\n", sp->argc, sp->argv[sp->argc-1]);
+#ifdef SWM_DEBUG
+	if (sp->argv != NULL) {
+		DNPRINTF(SWM_D_SPAWN, "arg %d: [%s]\n", sp->argc,
+		    sp->argv[sp->argc-1]);
+	}
+#endif
 	TAILQ_INSERT_TAIL(&spawns, sp, entry);
 	DNPRINTF(SWM_D_SPAWN, "leave\n");
 }
@@ -8932,7 +8935,12 @@ setbinding(uint16_t mod, enum binding_type type, uint32_t val,
 {
 	struct binding		*bp;
 
-	DNPRINTF(SWM_D_KEY, "enter %s [%s]\n", actions[aid].name, spawn_name);
+#ifdef SWM_DEBUG
+	if (spawn_name != NULL) {
+		DNPRINTF(SWM_D_KEY, "enter %s [%s]\n", actions[aid].name,
+		    spawn_name);
+	}
+#endif
 
 	/* Unbind any existing. Loop is to handle MOD_MASK_ANY. */
 	while ((bp = binding_lookup(mod, type, val)))

@@ -182,7 +182,7 @@ XCreateWindow(Display *dpy, Window parent, int x, int y, unsigned int width,
 			set_property(dpy, id, swmws, env);
 		if ((env = getenv("_SWM_PID")) != NULL)
 			set_property(dpy, id, swmpid, env);
-		if ((env = getenv("_SWM_XTERM_FONTADJ")) != NULL) {
+		if (getenv("_SWM_XTERM_FONTADJ") != NULL) {
 			unsetenv("_SWM_XTERM_FONTADJ");
 			xterm = true;
 		}
@@ -221,7 +221,7 @@ XCreateSimpleWindow(Display *dpy, Window parent, int x, int y,
 			set_property(dpy, id, swmws, env);
 		if ((env = getenv("_SWM_PID")) != NULL)
 			set_property(dpy, id, swmpid, env);
-		if ((env = getenv("_SWM_XTERM_FONTADJ")) != NULL) {
+		if (getenv("_SWM_XTERM_FONTADJ") != NULL) {
 			unsetenv("_SWM_XTERM_FONTADJ");
 			xterm = true;
 		}
