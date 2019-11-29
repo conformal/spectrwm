@@ -5,7 +5,7 @@
  * Copyright (c) 2009 Pierre-Yves Ritschard <pyr@spootnik.org>
  * Copyright (c) 2010 Tuukka Kataja <stuge@xor.fi>
  * Copyright (c) 2011 Jason L. Wright <jason@thought.net>
- * Copyright (c) 2011-2018 Reginald Kennedy <rk@rejii.com>
+ * Copyright (c) 2011-2019 Reginald Kennedy <rk@rejii.com>
  * Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
  * Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
  * Copyright (c) 2012-2015 David Hill <dhill@mindcry.org>
@@ -860,7 +860,6 @@ struct cursors {
 	{"top_left_corner", XC_top_left_corner, XCB_CURSOR_NONE},
 	{"top_right_corner", XC_top_right_corner, XCB_CURSOR_NONE},
 };
-
 
 #define SWM_TEXTFRAGS_MAX		(SWM_BAR_MAX/4)
 struct text_fragment {
@@ -2021,10 +2020,6 @@ debug_refresh(struct ws_win *win)
 	if (debug_enabled) {
 		/* Create debug window if it doesn't exist. */
 		if (win->debug == XCB_WINDOW_NONE) {
-			if (get_screen(win->s->idx) == NULL)
-				errx(1, "ERROR: can't get screen %d.",
-				    win->s->idx);
-
 			win->debug = xcb_generate_id(conn);
 			wc[0] = win->s->c[SWM_S_COLOR_BAR].pixel;
 			wc[1] = win->s->c[SWM_S_COLOR_BAR_BORDER].pixel;
@@ -3739,9 +3734,6 @@ bar_setup(struct swm_region *r)
 	uint32_t	 wa[4];
 
 	DNPRINTF(SWM_D_BAR, "screen %d.\n", r->s->idx);
-
-	if (get_screen(r->s->idx) == NULL)
-		errx(1, "ERROR: can't get screen %d.", r->s->idx);
 
 	if (r->bar != NULL)
 		return;
@@ -6849,7 +6841,6 @@ search_win(struct binding *bp, struct swm_region *r, union arg *args)
 	struct search_window	*sw = NULL;
 	xcb_window_t		w;
 	uint32_t		wa[3];
-	xcb_screen_t		*screen;
 	int			i, width, height;
 	char			s[11];
 	FILE			*lfile;
@@ -6871,9 +6862,6 @@ search_win(struct binding *bp, struct swm_region *r, union arg *args)
 
 	if ((lfile = fdopen(select_list_pipe[1], "w")) == NULL)
 		return;
-
-	if ((screen = get_screen(r->s->idx)) == NULL)
-		errx(1, "ERROR: can't get screen %d.", r->s->idx);
 
 	i = 1;
 	TAILQ_FOREACH(win, &r->ws->winlist, entry) {
@@ -6932,7 +6920,6 @@ search_win(struct binding *bp, struct swm_region *r, union arg *args)
 
 			XFreeGC(display, l_draw);
 		} else {
-
 			draw = XftDrawCreate(display, w, r->s->xvisual,
 			    r->s->colormap);
 
@@ -10773,6 +10760,7 @@ get_ws_idx(struct ws_win *win)
 void
 reparent_window(struct ws_win *win)
 {
+	xcb_screen_t		*s;
 	xcb_void_cookie_t	c;
 	xcb_generic_error_t	*error;
 	uint32_t		wa[3];
@@ -10781,7 +10769,6 @@ reparent_window(struct ws_win *win)
 
 	DNPRINTF(SWM_D_MISC, "win %#x, frame: %#x\n", win->id, win->frame);
 
-	struct xcb_screen_t *s;
 	if ((s = get_screen(win->s->idx)) == NULL)
 		errx(1, "ERROR: can't get screen %d.", win->s->idx);
 	wa[0] = s->black_pixel;
