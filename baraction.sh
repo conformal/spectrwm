@@ -80,26 +80,20 @@ print_bat() {
 	fi
 }
 
+# cache the output of apm(8), no need to call that every second.
+APM_DATA=""
+I=0
 while :; do
-	# instead of sleeping, use iostat as the update timer.
-	# cache the output of apm(8), no need to call that every second.
-	/usr/sbin/iostat -C -c 3600 |&	# wish infinity was an option
-	PID="$!"
-	APM_DATA=""
-	I=0
-	trap "kill $PID; exit" TERM
-	while read IOSTAT_DATA; do
-		if [ $(( ${I} % 11 )) -eq 0 ]; then
-			APM_DATA=`/usr/sbin/apm -alb`
-		fi
-		if [ $I -ge 2 ]; then
-			# print_date
-			print_mem
-			print_cpu $IOSTAT_DATA
-			print_cpuspeed
-			print_bat $APM_DATA
-			echo ""
-		fi
-		I=$(( ( ${I} + 1 ) % 22 ));
-	done
+	IOSTAT_DATA=`/usr/sbin/iostat -C | grep '[0-9]$'`
+	if [ $I -eq 0 ]; then
+		APM_DATA=`/usr/sbin/apm -alb`
+	fi
+	# print_date
+	print_mem
+	print_cpu $IOSTAT_DATA
+	print_cpuspeed
+	print_bat $APM_DATA
+	echo ""
+	I=$(( ( ${I} + 1 ) % 11 ))
+	sleep 1
 done
