@@ -1,3 +1,21 @@
+spectrwm 3.3.0
+==============
+
+Released on Dec 17, 2019
+
+* Fix cygwin compile issues.
+* Fix buffer overflow in `bar_strlcat_esc`.
+* Add support for XDG Base Directory Specification.
+* Enable xinput2 on OpenBSD.
+* Enable travis.
+* Fix infinite loop due to unsigned integer overflow.
+* Fix binding keysyms.
+* Extend `disable_border` option with `always.
+* Fix NetBSD Makefile.
+* Add pledge(2) support.
+* Bunch of statical analyzer fixes.
+* Bunch of minor fixes.
+
 spectrwm 3.2.0
 ==============
 
