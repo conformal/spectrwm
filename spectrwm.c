@@ -1432,9 +1432,6 @@ expand_tilde(const char *s)
 	ppwd = strlen(user) == 0 ? getpwuid(getuid()) : getpwnam(user);
 	free(user);
 
-	if (pledge("stdio proc exec rpath", NULL) == -1)
-		err(1, "pledge");
-
 	if (ppwd == NULL)
 		result = strdup(sc);
 	else
@@ -13326,6 +13323,9 @@ main(int argc, char *argv[])
 	setup_spawn();
 
 	scan_config();
+
+	if (pledge("stdio proc exec rpath", NULL) == -1)
+		err(1, "pledge");
 
 	validate_spawns();
 
