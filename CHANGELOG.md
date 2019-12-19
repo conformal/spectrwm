@@ -1,18 +1,21 @@
 spectrwm 3.3.0
 ==============
 
-Released on Dec 17, 2019
+Released on Dec 19, 2019
 
-* Fix cygwin compile issues.
-* Fix buffer overflow in `bar_strlcat_esc`.
+* Add new bar text markup sequences for multiple colors/fonts/sections.
+* Add new `bar_font_pua` option to assign a font (such as an icon font)
+  to the Unicode Private Use Area (U+E000 -> U+F8FF).
+* Extend `disable_border` option with `always`.
 * Add support for XDG Base Directory Specification.
+* Add OpenBSD pledge(2) support.
 * Enable xinput2 on OpenBSD.
 * Enable travis.
+* Fix keysym binding issue with multiple keyboard layouts.
+* Fix buffer overflow in `bar_strlcat_esc`.
 * Fix infinite loop due to unsigned integer overflow.
-* Fix binding keysyms.
-* Extend `disable_border` option with `always.
+* Fix cygwin compile issues.
 * Fix NetBSD Makefile.
-* Add pledge(2) support.
 * Bunch of statical analyzer fixes.
 * Bunch of minor fixes.
 
