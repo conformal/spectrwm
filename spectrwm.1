@@ -141,6 +141,17 @@ LD_PRELOAD=/usr/lib/libswmhack.so.0.0 urxvtd -q -o -f
 Spawned programs automatically have
 .Pa LD_PRELOAD
 set when executed.
+.Pp
+It is advised to check the man page of
+.Pa ld.so
+as
+.Pa LD_PRELOAD
+is sometimes ignored by some operating systems.
+A workaround is available, e.g. launch an xterm(1) in workspace 2:
+.Bd -literal -offset indent
+autorun = ws[2]:xterm -name ws2
+quirk[XTerm:ws2] = WS[2]
+.Ed
 .It Ic bar_action
 External script that populates additional information in the status bar,
 such as battery life.
