@@ -12398,8 +12398,8 @@ void
 new_region(struct swm_screen *s, int x, int y, int w, int h)
 {
 	struct swm_region	*r = NULL, *n;
-	struct workspace	*ws = NULL;
-	int			i;
+	struct workspace	*ws = NULL, *ws_prior = NULL;
+	int			i, ws_idx;
 	uint32_t		wa[1];
 
 	DNPRINTF(SWM_D_MISC, "screen[%d]:%dx%d+%d+%d\n", s->idx, w, h, x, y);
@@ -12450,6 +12450,7 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 		for (i = 0; i < workspace_limit; i++)
 			if (s->ws[i].r == NULL) {
 				ws = &s->ws[i];
+				ws_idx = i++;
 				break;
 			}
 	}
@@ -12460,6 +12461,15 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 	if (ws->state == SWM_WS_STATE_HIDDEN)
 		ws->state = SWM_WS_STATE_MAPPING;
 
+	/* try to assign prior workspace to the next free workspace */
+	if (ws_prior == NULL && ws_idx < workspace_limit) {
+		for (i = ws_idx; i < workspace_limit; i++)
+			if (s->ws[i].r == NULL) {
+				ws_prior = &s->ws[i];
+				break;
+			}
+	}
+
 	X(r) = x;
 	Y(r) = y;
 	WIDTH(r) = w;
@@ -12467,7 +12477,7 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 	r->bar = NULL;
 	r->s = s;
 	r->ws = ws;
-	r->ws_prior = NULL;
+	r->ws_prior = ws_prior;
 	ws->r = r;
 	outputs++;
 	TAILQ_INSERT_TAIL(&s->rl, r, entry);
