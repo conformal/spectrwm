@@ -2709,7 +2709,7 @@ bar_workspace_indicator(char *s, size_t sz, struct swm_region *r)
 {
 	struct ws_win		*w;
 	struct workspace	*ws;
-	int		 	 i, count = 0;
+	int		 	 i;
 	char			 tmp[SWM_BAR_MAX], *mark;
 	bool			 current, active, named, urgent, collapse;
 
@@ -2741,8 +2741,7 @@ bar_workspace_indicator(char *s, size_t sz, struct swm_region *r)
 		    (!active && workspace_indicator & SWM_WSI_LISTEMPTY) ||
 		    (urgent && workspace_indicator & SWM_WSI_LISTURGENT) ||
 		    (named && workspace_indicator & SWM_WSI_LISTNAMED))) {
-			if (count > 0)
-				strlcat(s, " ", sz);
+			strlcat(s, " ", sz);
 
 			if (current &&
 			    workspace_indicator & SWM_WSI_MARKCURRENT)
@@ -2762,7 +2761,6 @@ bar_workspace_indicator(char *s, size_t sz, struct swm_region *r)
 			else
 				snprintf(tmp, sizeof tmp, "%d", ws->idx + 1);
 			strlcat(s, tmp, sz);
-			count++;
 		}
 	}
 }
