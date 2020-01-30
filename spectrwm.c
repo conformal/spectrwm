@@ -12450,7 +12450,7 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 		for (i = 0; i < workspace_limit; i++)
 			if (s->ws[i].r == NULL) {
 				ws = &s->ws[i];
-				ws_idx = i++;
+				ws_idx = i + 1;
 				break;
 			}
 	}
