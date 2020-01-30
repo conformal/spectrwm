@@ -5,7 +5,7 @@
  * Copyright (c) 2009 Pierre-Yves Ritschard <pyr@spootnik.org>
  * Copyright (c) 2010 Tuukka Kataja <stuge@xor.fi>
  * Copyright (c) 2011 Jason L. Wright <jason@thought.net>
- * Copyright (c) 2011-2019 Reginald Kennedy <rk@rejii.com>
+ * Copyright (c) 2011-2020 Reginald Kennedy <rk@rejii.com>
  * Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
  * Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
  * Copyright (c) 2012-2015 David Hill <dhill@mindcry.org>
@@ -1155,6 +1155,7 @@ char	*expand_tilde(const char *);
 void	 expose(xcb_expose_event_t *);
 void	 fake_keypress(struct ws_win *, xcb_keysym_t, uint16_t);
 struct swm_bar	*find_bar(xcb_window_t);
+struct ws_win	*find_main_window(struct ws_win *);
 struct pid_e	*find_pid(pid_t);
 struct swm_region	*find_region(xcb_window_t);
 struct ws_win	*find_unmanaged_window(xcb_window_t);
@@ -1179,7 +1180,7 @@ char	*get_atom_name(xcb_atom_t);
 #endif
 xcb_keycode_t	 get_binding_keycode(struct binding *);
 struct ws_win   *get_focus_magic(struct ws_win *);
-struct ws_win   *get_focus_prev(struct ws_win *);
+struct ws_win   *get_focus_other(struct ws_win *);
 xcb_generic_event_t	*get_next_event(bool);
 #ifdef SWM_DEBUG
 char	*get_notify_detail_label(uint8_t);
@@ -1786,7 +1787,8 @@ ewmh_apply_flags(struct ws_win *win, uint32_t pending)
 	if (changed & EWMH_F_HIDDEN) {
 		if (ICONIC(win)) {
 			if (focus_mode != SWM_FOCUS_FOLLOW)
-				ws->focus_pending = get_focus_prev(win);
+				ws->focus_pending =
+				    get_focus_magic(get_focus_other(win));
 
 			unfocus_win(win);
 			unmap_window(win);
@@ -3983,7 +3985,6 @@ count_win(struct workspace *ws, bool count_transient)
 			continue;
 		count++;
 	}
-	DNPRINTF(SWM_D_MISC, "count: %d\n", count);
 
 	return (count);
 }
@@ -4759,13 +4760,14 @@ focus_win(struct ws_win *win)
 	if (ws->r) {
 		/* Set input focus if no input hint, or indicated by hint. */
 		if (ACCEPTS_FOCUS(win)) {
-			DNPRINTF(SWM_D_FOCUS, "set_input_focus: %#x, revert-to:"
-			    " parent, time: %#x\n", win->id, last_event_time);
+			DNPRINTF(SWM_D_FOCUS, "SetInputFocus: %#x, revert-to:"
+			    " PointerRoot, time: %#x\n", win->id,
+			    last_event_time);
 			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
 			    win->id, last_event_time);
 		} else if (!win->take_focus) {
-			DNPRINTF(SWM_D_FOCUS, "set_input_focus: %#x,"
-			    " revert-to: parent, time: 0\n", ws->r->id);
+			DNPRINTF(SWM_D_FOCUS, "SetInputFocus: %#x, revert-to: "
+			    "PointerRoot, time: CurrentTime\n", ws->r->id);
 			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
 			    ws->r->id, XCB_CURRENT_TIME);
 		}
@@ -5397,123 +5399,117 @@ out:
 	DNPRINTF(SWM_D_MOVE, "done\n");
 }
 
+/* Determine focus other than specified window, but on the same workspace. */
 struct ws_win *
-get_focus_prev(struct ws_win *win)
+get_focus_other(struct ws_win *win)
 {
-	struct ws_win		*winfocus = NULL;
-	struct ws_win		*cur_focus = NULL;
+	struct ws_win		*w, *winfocus = NULL;
 	struct ws_win_list	*wl = NULL;
 	struct workspace	*ws = NULL;
 
 	if (!(win && win->ws))
-		return (NULL);
+		goto done;
 
 	ws = win->ws;
 	wl = &ws->winlist;
-	cur_focus = ws->focus;
 
-	DNPRINTF(SWM_D_FOCUS, "win %#x, cur_focus: %#x, focus_prev: %#x\n",
-	    WINID(win), WINID(cur_focus), WINID(ws->focus_prev));
+	DNPRINTF(SWM_D_FOCUS, "win %#x, focus: %#x, focus_prev: %#x, "
+	    "focus_close: %d, focus_close_wrap: %d, focus_default: %d\n",
+	    WINID(win), WINID(ws->focus), WINID(ws->focus_prev), focus_close,
+	    focus_close_wrap, focus_default);
 
-	/* pickle, just focus on whatever */
-	if (cur_focus == NULL) {
-		/* use prev_focus if valid */
-		if (ws->focus_prev && find_window(ws->focus_prev->id))
-			winfocus = ws->focus_prev;
-		goto done;
-	}
-
-	/* if transient focus on parent */
-	if (TRANS(cur_focus)) {
-		winfocus = find_window(cur_focus->transient);
-		goto done;
-	}
-
-	/* if in max_stack try harder */
-	if ((win->quirks & SWM_Q_FOCUSPREV) ||
-	    (ws->cur_layout->flags & SWM_L_FOCUSPREV)) {
-		if (cur_focus != ws->focus_prev)
-			winfocus = ws->focus_prev;
-		else
-			winfocus = TAILQ_PREV(win, ws_win_list, entry);
-		if (winfocus)
-			goto done;
-	}
-
-	DNPRINTF(SWM_D_FOCUS, "focus_close: %d\n", focus_close);
-
-	if (winfocus == NULL || winfocus == win) {
-		switch (focus_close) {
-		case SWM_STACK_BOTTOM:
-			TAILQ_FOREACH(winfocus, wl, entry)
-				if (!ICONIC(winfocus) && winfocus != cur_focus)
-					break;
-			break;
-		case SWM_STACK_TOP:
-			TAILQ_FOREACH_REVERSE(winfocus, wl, ws_win_list, entry)
-				if (!ICONIC(winfocus) && winfocus != cur_focus)
-					break;
-			break;
-		case SWM_STACK_ABOVE:
-			winfocus = TAILQ_NEXT(cur_focus, entry);
-			while (winfocus && ICONIC(winfocus))
-				winfocus = TAILQ_NEXT(winfocus, entry);
-
-			if (winfocus == NULL) {
-				if (focus_close_wrap) {
-					TAILQ_FOREACH(winfocus, wl, entry)
-						if (!ICONIC(winfocus) &&
-						    winfocus != cur_focus)
-							break;
-				} else {
-					TAILQ_FOREACH_REVERSE(winfocus, wl,
-					    ws_win_list, entry)
-						if (!ICONIC(winfocus) &&
-						    winfocus != cur_focus)
-							break;
-				}
-			}
-			break;
-		case SWM_STACK_BELOW:
-			winfocus = TAILQ_PREV(cur_focus, ws_win_list, entry);
-			while (winfocus && ICONIC(winfocus))
-				winfocus = TAILQ_PREV(winfocus, ws_win_list,
-				    entry);
-
-			if (winfocus == NULL) {
-				if (focus_close_wrap) {
-					TAILQ_FOREACH_REVERSE(winfocus, wl,
-					    ws_win_list, entry)
-						if (!ICONIC(winfocus) &&
-						    winfocus != cur_focus)
-							break;
-				} else {
-					TAILQ_FOREACH(winfocus, wl, entry)
-						if (!ICONIC(winfocus) &&
-						    winfocus != cur_focus)
-							break;
-				}
-			}
-			break;
-		}
-	}
-done:
-	if (winfocus == NULL ||
-	    (winfocus && (ICONIC(winfocus) || winfocus == cur_focus))) {
+	if (ws->focus == NULL) {
+		/* Fallback to default. */
 		if (focus_default == SWM_STACK_TOP) {
 			TAILQ_FOREACH_REVERSE(winfocus, wl, ws_win_list, entry)
-				if (!ICONIC(winfocus) && winfocus != cur_focus)
+				if (!ICONIC(winfocus) && winfocus != win)
 					break;
 		} else {
 			TAILQ_FOREACH(winfocus, wl, entry)
-				if (!ICONIC(winfocus) && winfocus != cur_focus)
+				if (!ICONIC(winfocus) && winfocus != win)
 					break;
+		}
+
+		goto done;
+	}
+
+	if (ws->focus != win && !ICONIC(ws->focus)) {
+		winfocus = ws->focus;
+		goto done;
+	}
+
+	/* FOCUSPREV quirk: try previously focused window. */
+	if (((win->quirks & SWM_Q_FOCUSPREV) ||
+	    (ws->cur_layout->flags & SWM_L_FOCUSPREV)) &&
+	    ws->focus_prev && ws->focus_prev != win &&
+	    !ICONIC(ws->focus_prev)) {
+		winfocus = ws->focus_prev;
+		goto done;
+	}
+
+	if (ws->focus == win && TRANS(win)) {
+		w = find_window(win->transient);
+		if (w && w->ws == ws && !ICONIC(w)) {
+			winfocus = w;
+			goto done;
 		}
 	}
 
-	kill_refs(win);
+	switch (focus_close) {
+	case SWM_STACK_BOTTOM:
+		TAILQ_FOREACH(winfocus, wl, entry)
+			if (!ICONIC(winfocus) && winfocus != win)
+				break;
+		break;
+	case SWM_STACK_TOP:
+		TAILQ_FOREACH_REVERSE(winfocus, wl, ws_win_list, entry)
+			if (!ICONIC(winfocus) && winfocus != win)
+				break;
+		break;
+	case SWM_STACK_ABOVE:
+		winfocus = TAILQ_NEXT(win, entry);
+		while (winfocus && ICONIC(winfocus))
+			winfocus = TAILQ_NEXT(winfocus, entry);
 
-	return (get_focus_magic(winfocus));
+		if (winfocus == NULL) {
+			if (focus_close_wrap) {
+				TAILQ_FOREACH(winfocus, wl, entry)
+					if (!ICONIC(winfocus) &&
+					    winfocus != win)
+						break;
+			} else {
+				TAILQ_FOREACH_REVERSE(winfocus, wl, ws_win_list,
+				    entry)
+					if (!ICONIC(winfocus) &&
+					    winfocus != win)
+						break;
+			}
+		}
+		break;
+	case SWM_STACK_BELOW:
+		winfocus = TAILQ_PREV(win, ws_win_list, entry);
+		while (winfocus && ICONIC(winfocus))
+			winfocus = TAILQ_PREV(winfocus, ws_win_list, entry);
+
+		if (winfocus == NULL) {
+			if (focus_close_wrap) {
+				TAILQ_FOREACH_REVERSE(winfocus, wl, ws_win_list,
+				    entry)
+					if (!ICONIC(winfocus) &&
+					    winfocus != win)
+						break;
+			} else {
+				TAILQ_FOREACH(winfocus, wl, entry)
+					if (!ICONIC(winfocus) &&
+					    winfocus != win)
+						break;
+			}
+		}
+		break;
+	}
+done:
+	DNPRINTF(SWM_D_FOCUS, "winfocus: %#x\n", WINID(winfocus));
+	return (winfocus);
 }
 
 struct ws_win *
@@ -6467,7 +6463,10 @@ send_to_ws(struct binding *bp, struct swm_region *r, union arg *args)
 
 	/* Set new focus on current ws. */
 	if (focus_mode != SWM_FOCUS_FOLLOW) {
-		if (r->ws->focus != NULL) {
+		if (r->ws->focus == NULL)
+			r->ws->focus = r->ws->focus_pending;
+
+		if (r->ws->focus) {
 			focus_win(r->ws->focus);
 		} else {
 			DNPRINTF(SWM_D_FOCUS, "set_input_focus: %#x, "
@@ -6506,11 +6505,38 @@ send_to_rg_relative(struct binding *bp, struct swm_region *r, union arg *args)
 	send_to_ws(bp, r, &args_abs);
 }
 
+/* Determine a window to consider 'main' for specified window. */
+struct ws_win *
+find_main_window(struct ws_win *win)
+{
+	struct ws_win	*w;
+	int		i, wincount;
+
+	if (!TRANS(win) || win == NULL)
+		return (win);
+
+	/* Limit search to prevent infinite loop. */
+	wincount = 0;
+	for (i = 0; i < workspace_limit; i++)
+		wincount += count_win(&win->s->ws[i], true);
+
+	/* Resolve TRANSIENT_FOR as far as possible. */
+	w = win;
+	for (i = 0; TRANS(w) && i < wincount; i++) {
+		w = find_window(w->transient);
+		if (w == win)
+			/* Transient loop shouldn't occur. */
+			break;
+	}
+
+	return (w);
+}
+
 void
 win_to_ws(struct ws_win *win, int wsid, bool unfocus)
 {
-	struct ws_win		*parent;
-	struct workspace	*ws, *nws, *pws;
+	struct ws_win		*mainw, *w, *tmpw;
+	struct workspace	*ws, *nws;
 
 	if (wsid < 0 || wsid >= workspace_limit)
 		return;
@@ -6523,75 +6549,48 @@ win_to_ws(struct ws_win *win, int wsid, bool unfocus)
 
 	DNPRINTF(SWM_D_MOVE, "win %#x, ws %d -> %d\n", win->id, ws->idx, wsid);
 
-	/* Cleanup focus on source ws. */
-	if (focus_mode != SWM_FOCUS_FOLLOW &&
-	    (ws->focus == win || ws->focus_pending == win))
-		ws->focus_pending = get_focus_prev(win);
+	mainw = find_main_window(win);
 
-	/* Move the parent if this is a transient window. */
-	if (TRANS(win)) {
-		parent = find_window(win->transient);
-		if (parent) {
-			pws = parent->ws;
-			/* Set new focus in parent's ws if needed. */
-			if (pws->focus == parent) {
-				if (focus_mode != SWM_FOCUS_FOLLOW)
-					pws->focus_pending =
-					    get_focus_prev(parent);
+	DNPRINTF(SWM_D_MOVE, "focus %#x, mainw: %#x\n", WINID(ws->focus), WINID(mainw));
 
-				unfocus_win(parent);
+	/* Transfer main window and any related transients. */
+	TAILQ_FOREACH_SAFE(w, &ws->winlist, entry, tmpw) {
+		if (find_main_window(w) == mainw) {
+			if (ws->focus == w) {
+				ws->focus_pending = get_focus_other(w);
 
-				if (focus_mode != SWM_FOCUS_FOLLOW) {
-					pws->focus = pws->focus_pending;
-					pws->focus_pending = NULL;
-				}
+				if (unfocus)
+					unfocus_win(w);
 			}
 
-			/* Don't unmap parent if new ws is visible */
+			/* Don't unmap if new ws is visible */
 			if (nws->r == NULL)
-				unmap_window(parent);
+				unmap_window(w);
 
 			/* Transfer */
-			TAILQ_REMOVE(&ws->winlist, parent, entry);
-			TAILQ_REMOVE(&ws->stack, parent, stack_entry);
-			TAILQ_INSERT_TAIL(&nws->winlist, parent, entry);
-			TAILQ_INSERT_TAIL(&nws->stack, parent, stack_entry);
-			parent->ws = nws;
+			TAILQ_REMOVE(&ws->winlist, w, entry);
+			TAILQ_REMOVE(&ws->stack, w, stack_entry);
+			TAILQ_INSERT_TAIL(&nws->winlist, w, entry);
+			TAILQ_INSERT_TAIL(&nws->stack, w, stack_entry);
+			w->ws = nws;
 
-			DNPRINTF(SWM_D_PROP, "set property: "
-			    "_NET_WM_DESKTOP: %d\n", wsid);
+			/* Cleanup references. */
+			if (ws->focus == w)
+				ws->focus = NULL;
+			if (ws->focus_prev == w)
+				ws->focus_prev = NULL;
+			if (ws->focus_pending == w)
+				ws->focus_pending = NULL;
+			if (ws->focus_raise == w)
+				ws->focus_raise = NULL;
+
+			DNPRINTF(SWM_D_PROP, "win %#x, set property: "
+			    "_NET_WM_DESKTOP: %d\n", w->id, wsid);
 			xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
-			    parent->id, ewmh[_NET_WM_DESKTOP].atom,
+			    w->id, ewmh[_NET_WM_DESKTOP].atom,
 			    XCB_ATOM_CARDINAL, 32, 1, &wsid);
 		}
 	}
-
-	if (unfocus)
-		unfocus_win(win);
-
-	if (ws->focus_prev == win)
-		ws->focus_prev = NULL;
-
-	if (focus_mode != SWM_FOCUS_FOLLOW && ws->focus_pending != NULL) {
-		ws->focus = ws->focus_pending;
-		ws->focus_pending = NULL;
-	}
-
-	/* Don't unmap if new ws is visible */
-	if (nws->r == NULL)
-		unmap_window(win);
-
-	/* Transfer */
-	TAILQ_REMOVE(&ws->winlist, win, entry);
-	TAILQ_REMOVE(&ws->stack, win, stack_entry);
-	TAILQ_INSERT_TAIL(&nws->winlist, win, entry);
-	TAILQ_INSERT_TAIL(&nws->stack, win, stack_entry);
-	win->ws = nws;
-
-	/* Update the window's workspace property: _NET_WM_DESKTOP */
-	DNPRINTF(SWM_D_PROP, "set property: _NET_WM_DESKTOP: %d\n", wsid);
-	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id,
-	    ewmh[_NET_WM_DESKTOP].atom, XCB_ATOM_CARDINAL, 32, 1, &wsid);
 
 	ewmh_update_client_list();
 
@@ -7934,21 +7933,26 @@ resize(struct binding *bp, struct swm_region *r, union arg *args)
 void
 regionize(struct ws_win *win, int x, int y)
 {
-	struct swm_region *r = NULL;
+	struct swm_region *r, *r_orig;
+
+	if (win == NULL)
+		return;
+
+	r_orig = win->ws->r;
 
 	r = region_under(win->s, x, y);
 	if (r == NULL)
 		r = region_under(win->s, X(win) + WIDTH(win) / 2,
 		    Y(win) + HEIGHT(win) / 2);
 
-	if (r && r != win->ws->r) {
+	if (r && r != r_orig) {
 		clear_maximized(r->ws);
 
 		win_to_ws(win, r->ws->idx, false);
 
-		/* Stack old and new region. */
+		/* Need to restack both regions. */
+		stack(r_orig);
 		stack(r);
-		stack(win->ws->r);
 
 		/* Set focus on new ws. */
 		unfocus_win(r->ws->focus);
@@ -11627,14 +11631,8 @@ destroynotify(xcb_destroy_notify_event_t *e)
 		goto out;
 	}
 
-	if (focus_mode != SWM_FOCUS_FOLLOW) {
-		/* If we were focused, make sure we focus on something else. */
-		if (win == ws->focus) {
-			ws->focus_pending = get_focus_prev(win);
-			if (ws->focus_pending == win)
-				ws->focus_pending = NULL;
-		}
-	}
+	if (focus_mode != SWM_FOCUS_FOLLOW && win == ws->focus)
+		ws->focus_pending = get_focus_other(win);
 
 	unmanage_window(win);
 	TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
@@ -12156,11 +12154,9 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 
 	/* If win was focused, make sure to focus on something else. */
 	if (win == ws->focus) {
-		if (focus_mode != SWM_FOCUS_FOLLOW) {
-			ws->focus_pending = get_focus_prev(win);
-			DNPRINTF(SWM_D_EVENT, "focus_pending: %#x\n",
-			    WINID(ws->focus_pending));
-		}
+		if (focus_mode != SWM_FOCUS_FOLLOW)
+			ws->focus_pending =
+			    get_focus_magic(get_focus_other(win));
 
 		unfocus_win(win);
 	}
