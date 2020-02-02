@@ -2063,7 +2063,7 @@ debug_refresh(struct ws_win *win)
 		} else {
 			XftTextExtentsUtf8(display, bar_xftfonts[0],
 			    (FcChar8 *)s, len, &info);
-			width = info.width + 4;
+			width = info.xOff + 4;
 			height = bar_xftfonts[0]->height + 4;
 		}
 
@@ -2406,10 +2406,10 @@ bar_print(struct swm_region *r, const char *s)
 		x = SWM_BAR_OFFSET;
 		break;
 	case SWM_BAR_JUSTIFY_CENTER:
-		x = (WIDTH(r) - info.width) / 2;
+		x = (WIDTH(r) - info.xOff) / 2;
 		break;
 	case SWM_BAR_JUSTIFY_RIGHT:
-		x = WIDTH(r) - info.width - SWM_BAR_OFFSET;
+		x = WIDTH(r) - info.xOff - SWM_BAR_OFFSET;
 		break;
 	}
 
@@ -3274,7 +3274,7 @@ bar_parse_markup(struct bar_section *sect)
 				    (FcChar8 *)frag[i].text, len, &info);
 
 				frag[i].length = len;
-				frag[i].width = info.width;
+				frag[i].width = info.xOff;
 				sect->text_width += frag[i].width;
 				i++;
 				if (i == SWM_TEXTFRAGS_MAX)
@@ -3293,7 +3293,7 @@ bar_parse_markup(struct bar_section *sect)
 			XftTextExtentsUtf8(display, bar_xftfonts[frag[i].font],
 			    (FcChar8 *)frag[i].text, frag[i].length, &info);
 
-			frag[i].width = info.width;
+			frag[i].width = info.xOff;
 			sect->text_width += frag[i].width;
 
 			fmt += frag[i].length;
@@ -3321,7 +3321,7 @@ bar_parse_markup(struct bar_section *sect)
 					    bar_xftfonts[frag[i].font],
 					    (FcChar8 *)frag[i].text, len,
 					    &info);
-					frag[i].width = info.width;
+					frag[i].width = info.xOff;
 				}
 				frag[i].length = len;
 				sect->text_width += frag[i].width;
@@ -3363,7 +3363,7 @@ bar_parse_markup(struct bar_section *sect)
 				    bar_xftfonts[frag[i].font],
 				    (FcChar8 *)frag[i].text, len,
 				    &info);
-				frag[i].width = info.width;
+				frag[i].width = info.xOff;
 			}
 			frag[i].length = len;
 			sect->text_width += frag[i].width;
@@ -3389,7 +3389,7 @@ bar_parse_markup(struct bar_section *sect)
 		} else {
 			XftTextExtentsUtf8(display, bar_xftfonts[frag[i].font],
 			    (FcChar8 *)frag[i].text, len, &info);
-			frag[i].width = info.width;
+			frag[i].width = info.xOff;
 		}
 		sect->text_width += frag[i].width;
 		frag[i].length = len;
@@ -6890,7 +6890,7 @@ search_win(struct binding *bp, struct swm_region *r, union arg *args)
 		} else {
 			XftTextExtentsUtf8(display, bar_xftfonts[0],
 			    (FcChar8 *)s, len, &info);
-			width = info.width + 4;
+			width = info.xOff + 4;
 			height = bar_xftfonts[0]->height + 4;
 		}
 
