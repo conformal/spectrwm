@@ -1383,7 +1383,6 @@ cursors_load(void)
 			xcb_create_glyph_cursor(conn, cursors[i].cid, cf, cf,
 			    cursors[i].cf_char, cursors[i].cf_char + 1, 0, 0, 0,
 			    0xffff, 0xffff, 0xffff);
-
 		}
 	}
 
@@ -1616,7 +1615,6 @@ setup_ewmh(void)
 			xcb_change_property(conn, XCB_PROP_MODE_APPEND, root,
 			    a_net_supported, XCB_ATOM_ATOM, 32, 1,
 			    &ewmh[j].atom);
-
 	}
 
 	ewmh_update_desktops();
@@ -4952,7 +4950,6 @@ focus_region(struct swm_region *r)
 		    "time: 0\n", r->id);
 		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT, r->id,
 		    XCB_CURRENT_TIME);
-
 	}
 }
 
@@ -11325,7 +11322,6 @@ buttonpress(xcb_button_press_event_t *e)
 		/* Look for catch-all. */
 		if ((bp = binding_lookup(ANYMOD, BTNBIND, e->detail)) == NULL)
 			goto out;
-
 	}
 
 	replay = bp->flags & BINDING_F_REPLAY;
@@ -12282,10 +12278,25 @@ clientmessage(xcb_client_message_event_t *e)
 		 */
 		if (e->data.data32[0] != EWMH_SOURCE_TYPE_NORMAL ||
 		    win->quirks & SWM_Q_OBEYAPPFOCUSREQ) {
-			if (WS_FOCUSED(win->ws))
-				focus_win(win);
-			else
-				win->ws->focus_pending = win;
+			if (WS_FOCUSED(win->ws)) {
+				if (win->mapped) {
+					focus_win(win);
+					win->ws->focus_pending = NULL;
+				} else
+					win->ws->focus_pending = win;
+			} else {
+				win->ws->focus_prev = win->ws->focus;
+				win->ws->focus = win;
+				win->ws->focus_pending = NULL;
+			}
+
+			if (ICONIC(win)) {
+				/* Uniconify */
+				ewmh_apply_flags(win,
+				    win->ewmh_flags & ~EWMH_F_HIDDEN);
+				ewmh_update_wm_state(win);
+				stack(win->ws->r);
+			}
 		}
 	} else if (e->type == ewmh[_NET_CLOSE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_CLOSE_WINDOW\n");
