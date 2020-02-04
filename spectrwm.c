@@ -4747,15 +4747,7 @@ focus_win(struct ws_win *win)
 			parent->focus_child = win;
 	}
 
-	/* Update window border even if workspace is hidden. */
-	draw_frame(win);
-
-	if (cfw == win) {
-		DNPRINTF(SWM_D_FOCUS, "already focused\n");
-		goto out;
-	}
-
-	if (ws->r) {
+	if (cfw != win && ws->r) {
 		/* Set input focus if no input hint, or indicated by hint. */
 		if (ACCEPTS_FOCUS(win)) {
 			DNPRINTF(SWM_D_FOCUS, "SetInputFocus: %#x, revert-to:"
@@ -4825,6 +4817,8 @@ focus_win(struct ws_win *win)
 		bar_draw(ws->r->bar);
 	}
 
+	/* Update window border even if workspace is hidden. */
+	draw_frame(win);
 out:
 	free(gifr);
 	free(war);
