@@ -711,6 +711,7 @@ union arg {
 #define SWM_ARG_ID_CYCLERG_MOVE_DOWN	(113)
 #define SWM_ARG_ID_WS_EMPTY	(120)
 #define SWM_ARG_ID_WS_EMPTY_MOVE	(121)
+#define SWM_ARG_ID_RESTARTOFDAY	(130)
 	char			**argv;
 };
 
@@ -981,6 +982,7 @@ enum actionid {
 	FN_RESIZE,
 	FN_RESIZE_CENTERED,
 	FN_RESTART,
+	FN_RESTART_OF_DAY,
 	FN_RG_1,
 	FN_RG_2,
 	FN_RG_3,
@@ -4257,6 +4259,9 @@ restart(struct binding *bp, struct swm_region *r, union arg *args)
 	DNPRINTF(SWM_D_MISC, "%s\n", start_argv[0]);
 
 	shutdown_cleanup();
+
+	if (args->id == SWM_ARG_ID_RESTARTOFDAY)
+		unsetenv("SWM_STARTED");
 
 	execvp(start_argv[0], start_argv);
 	warn("execvp failed");
@@ -8248,6 +8253,7 @@ struct action {
 	{ "resize",		resize, FN_F_NOREPLAY, {.id = SWM_ARG_ID_DONTCENTER} },
 	{ "resize_centered",	resize, FN_F_NOREPLAY, {.id = SWM_ARG_ID_CENTER} },
 	{ "restart",		restart,	0, {0} },
+	{ "restart_of_day",	restart,	0, {SWM_ARG_ID_RESTARTOFDAY} },
 	{ "rg_1",		focusrg,	0, {.id = 0} },
 	{ "rg_2",		focusrg,	0, {.id = 1} },
 	{ "rg_3",		focusrg,	0, {.id = 2} },
