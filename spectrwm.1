@@ -772,6 +772,8 @@ menu
 quit
 .It Cm M-q
 restart
+.It Aq Ar unbound
+restart_of_day
 .It Cm M- Ns Aq Cm Space
 cycle_layout
 .It Cm M-S-\e
@@ -941,6 +943,10 @@ Quit
 .It Cm restart
 Restart
 .Nm .
+.It Cm restart_of_day
+Same as
+.Ic restart
+but configuration file is loaded in full.
 .It Cm cycle_layout
 Cycle layout.
 .It Cm flip_layout
