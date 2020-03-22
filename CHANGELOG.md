@@ -19,6 +19,7 @@ Released on Dec 19, 2019
 * Bunch of statical analyzer fixes.
 * Bunch of minor fixes.
 
+
 spectrwm 3.2.0
 ==============
 
