@@ -54,6 +54,7 @@ install: all
 	install -m 755 -d $(DESTDIR)$(SYSCONFDIR)
 	install -m 755 -d $(DESTDIR)$(MANDIR)/man1
 	install -m 755 -d $(DESTDIR)$(DOCDIR)
+	install -m 755 -d $(DESTDIR)$(DOCDIR)/examples
 	install -m 755 -d $(DESTDIR)$(XSESSIONSDIR)
 	install -m 755 spectrwm                    $(DESTDIR)$(BINDIR)
 	ln -sf spectrwm                            $(DESTDIR)$(BINDIR)/scrotwm
@@ -64,6 +65,10 @@ install: all
 	install -m 644 ../spectrwm.1               $(DESTDIR)$(MANDIR)/man1
 	install -m 644 ../CHANGELOG.md             $(DESTDIR)$(DOCDIR)
 	install -m 644 ../LICENSE.md               $(DESTDIR)$(DOCDIR)
+	install -m 644 baraction.sh                $(DESTDIR)$(DOCDIR)/examples
+	install -m 644 ../initscreen.sh            $(DESTDIR)$(DOCDIR)/examples
+	install -m 644 ../screenshot.sh            $(DESTDIR)$(DOCDIR)/examples
+	install -m 644 ../spectrwm_*.conf          $(DESTDIR)$(DOCDIR)/examples
 	install -m 644 spectrwm.desktop            $(DESTDIR)$(XSESSIONSDIR)
 
 uninstall:
@@ -76,6 +81,10 @@ uninstall:
 	rm -f $(DESTDIR)$(MANDIR)/man1/spectrwm.1
 	rm -f $(DESTDIR)$(DOCDIR)/CHANGELOG.md
 	rm -f $(DESTDIR)$(DOCDIR)/LICENSE.md
+	rm -f $(DESTDIR)$(DOCDIR)/examples/baraction.sh
+	rm -f $(DESTDIR)$(DOCDIR)/examples/initscreen.sh
+	rm -f $(DESTDIR)$(DOCDIR)/examples/screenshot.sh
+	rm -f $(DESTDIR)$(DOCDIR)/examples/spectrwm_*.conf
 	rm -f $(DESTDIR)$(XSESSIONSDIR)/spectrwm.desktop
 
 .PHONY: all clean install uninstall
