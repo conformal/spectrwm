@@ -1347,6 +1347,7 @@ void	 update_window(struct ws_win *);
 void	 draw_frame(struct ws_win *);
 void	 update_wm_state(struct  ws_win *win);
 void	 updatenumlockmask(void);
+static void	 usage(void);
 void	 validate_spawns(void);
 int	 validate_win(struct ws_win *);
 int	 validate_ws(struct workspace *);
@@ -10491,7 +10492,7 @@ conf_load(const char *filename, int keymapping)
 	DNPRINTF(SWM_D_CONF, "open %s\n", filename);
 
 	if ((config = fopen(filename, "r")) == NULL) {
-		warn("conf_load: fopen: %s", filename);
+		warn("%s", filename);
 		return (1);
 	}
 
@@ -13212,6 +13213,16 @@ event_handle(xcb_generic_event_t *evt)
 		screenchange((void *)evt);
 }
 
+static void
+usage(void)
+{
+	fprintf(stderr,
+	    "usage: spectrwm [-c file] [-v]\n"
+	    "        -c FILE        load configuration file\n"
+	    "        -v             display version information and exit\n");
+	exit(1);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -13220,11 +13231,24 @@ main(int argc, char *argv[])
 	struct swm_region	*r;
 	xcb_generic_event_t	*evt;
 	xcb_mapping_notify_event_t *mne;
-	int			xfd, i, num_screens, num_readable;
+	char			*cfile = NULL;
+	int			ch, xfd, i, num_screens, num_readable;
 	bool			stdin_ready = false, startup = true;
 
-	/* suppress unused warning since var is needed */
-	(void)argc;
+	while ((ch = getopt(argc, argv, "c:hv")) != -1) {
+		switch (ch) {
+		case 'c':
+			cfile = optarg;
+			break;
+		case 'v':
+			fprintf(stderr, "spectrwm %s Build: %s\n",
+			    SPECTRWM_VERSION, buildstr);
+			exit(1);
+			break;
+		default:
+			usage();
+		}
+	}
 
 #ifdef SWM_DEBUG
 	time_started = time(NULL);
@@ -13305,7 +13329,10 @@ main(int argc, char *argv[])
 	setup_quirks();
 	setup_spawn();
 
-	scan_config();
+	if (cfile)
+		conf_load(cfile, SWM_CONF_DEFAULT);
+	else
+		scan_config();
 
 	if (pledge("stdio proc exec rpath", NULL) == -1)
 		err(1, "pledge");
