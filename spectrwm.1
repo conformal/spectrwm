@@ -287,7 +287,8 @@ It may contain the following character sequences:
 .It Li "+U" Ta "Urgency hint"
 .It Li "+V" Ta "Program version"
 .It Li "+W" Ta "Window name (from _NET_WM_NAME/WM_NAME)"
-.It Li "+|[weight][justify]" Ta "Marks the start of a new bar section"
+.It Li "+|[weight][justify]" Ta Begin new section and reset markup
+sequence effects.
 .Pp
 .Ic weight
 is a positive integer used to allocate horizontal space between 'L', 'C'
@@ -319,7 +320,11 @@ Any markup sequence found after +@stp will appear as normal characters in the
 status bar.
 .El
 .Pp
-Note: the effect of a markup sequence will not cross a section boundary.
+Note that markup sequences in
+.Ic bar_action
+script output will only be processed if
+.Ic bar_action_expand
+is enabled.
 .Pp
 All character sequences may limit its output to a specific length, for
 example +64A.
