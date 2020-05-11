@@ -193,6 +193,11 @@ uint32_t		swm_debug = 0
 #define DNPRINTF(n,x...)
 #endif
 
+#define ALLOCSTR(s, x...) do {							\
+	if (s && asprintf(s, x) == -1)						\
+		err(1, "asprintf");						\
+} while (0)
+
 #define SWM_EWMH_ACTION_COUNT_MAX	(8)
 #define EWMH_F_FULLSCREEN		(0x001)
 #define EWMH_F_ABOVE			(0x002)
@@ -1127,7 +1132,6 @@ void	 constrain_window(struct ws_win *, struct swm_geometry *, int *);
 int	 count_win(struct workspace *, bool);
 void	 cursors_cleanup(void);
 void	 cursors_load(void);
-void	 custom_region(const char *);
 void	 cyclerg(struct binding *, struct swm_region *, union arg *);
 void	 cyclews(struct binding *, struct swm_region *, union arg *);
 #ifdef SWM_DEBUG
@@ -1241,9 +1245,9 @@ void	 name_workspace(struct binding *, struct swm_region *, union arg *);
 void	 new_region(struct swm_screen *, int, int, int, int);
 int	 parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
 int	 parsebinding(const char *, uint16_t *, enum binding_type *, uint32_t *,
-	     uint32_t *);
-int	 parsequirks(const char *, uint32_t *, int *);
-int	 parse_workspace_indicator(const char *, uint32_t *);
+	     uint32_t *, char **);
+int	 parsequirks(const char *, uint32_t *, int *, char **);
+int	 parse_workspace_indicator(const char *, uint32_t *, char **);
 void	 pressbutton(struct binding *, struct swm_region *, union arg *);
 void	 priorws(struct binding *, struct swm_region *, union arg *);
 #ifdef SWM_DEBUG
@@ -1284,19 +1288,19 @@ void	 send_to_rg(struct binding *, struct swm_region *, union arg *);
 void	 send_to_rg_relative(struct binding *, struct swm_region *, union arg *);
 void	 send_to_ws(struct binding *, struct swm_region *, union arg *);
 void	 set_region(struct swm_region *);
-int	 setautorun(const char *, const char *, int);
+int	 setautorun(const char *, const char *, int, char **);
 void	 setbinding(uint16_t, enum binding_type, uint32_t, enum actionid,
 	     uint32_t, const char *);
-int	 setconfbinding(const char *, const char *, int);
-int	 setconfcolor(const char *, const char *, int);
-int	 setconfcolorlist(const char *, const char *, int);
-int	 setconfmodkey(const char *, const char *, int);
-int	 setconfquirk(const char *, const char *, int);
-int	 setconfregion(const char *, const char *, int);
-int	 setconfspawn(const char *, const char *, int);
-int	 setconfvalue(const char *, const char *, int);
-int	 setkeymapping(const char *, const char *, int);
-int	 setlayout(const char *, const char *, int);
+int	 setconfbinding(const char *, const char *, int, char **);
+int	 setconfcolor(const char *, const char *, int, char **);
+int	 setconfcolorlist(const char *, const char *, int, char **);
+int	 setconfmodkey(const char *, const char *, int, char **);
+int	 setconfquirk(const char *, const char *, int, char **);
+int	 setconfregion(const char *, const char *, int, char **);
+int	 setconfspawn(const char *, const char *, int, char **);
+int	 setconfvalue(const char *, const char *, int, char **);
+int	 setkeymapping(const char *, const char *, int, char **);
+int	 setlayout(const char *, const char *, int, char **);
 void	 setquirk(const char *, const char *, const char *, uint32_t, int);
 void	 setscreencolor(const char *, int, int);
 void	 setspawn(const char *, const char *, int);
@@ -2285,43 +2289,6 @@ plain_stacker(struct workspace *ws)
 	else if (ws->cur_layout->l_stack == horizontal_stack)
 		strlcpy(ws->stacker, ws->l_state.horizontal_flip ? "[v]" : "[-]",
 		    sizeof ws->stacker);
-}
-
-void
-custom_region(const char *val)
-{
-	unsigned int			x, y, w, h;
-	int				sidx, num_screens;
-	xcb_screen_t			*screen;
-
-	DNPRINTF(SWM_D_CONF, "%s\n", val);
-
-	num_screens = get_screen_count();
-	if (sscanf(val, "screen[%d]:%ux%u+%u+%u", &sidx, &w, &h, &x, &y) != 5)
-		errx(1, "invalid custom region, "
-		    "should be 'screen[<n>]:<n>x<n>+<n>+<n>");
-	if (sidx < 1 || sidx > num_screens)
-		errx(1, "invalid screen index: %d out of bounds (maximum %d)",
-		    sidx, num_screens);
-	sidx--;
-
-	if ((screen = get_screen(sidx)) == NULL)
-		errx(1, "ERROR: can't get screen %d.", sidx);
-
-	if (w < 1 || h < 1)
-		errx(1, "region %ux%u+%u+%u too small", w, h, x, y);
-
-	if (x > screen->width_in_pixels ||
-	    y > screen->height_in_pixels ||
-	    w + x > screen->width_in_pixels ||
-	    h + y > screen->height_in_pixels) {
-		warnx("ignoring region %ux%u+%u+%u - not within screen "
-		    "boundaries (%ux%u)", w, h, x, y,
-		    screen->width_in_pixels, screen->height_in_pixels);
-		return;
-	}
-
-	new_region(&screens[sidx], x, y, w, h);
 }
 
 void
@@ -8664,12 +8631,14 @@ setspawn(const char *name, const char *args, int flags)
 }
 
 int
-setconfspawn(const char *selector, const char *value, int flags)
+setconfspawn(const char *selector, const char *value, int flags, char **emsg)
 {
 	char		*args;
 
-	if (selector == NULL || strlen(selector) == 0)
+	if (selector == NULL || strlen(selector) == 0) {
+		ALLOCSTR(emsg, "missing selector");
 		return (1);
+	}
 
 	args = expand_tilde(value);
 
@@ -8716,41 +8685,29 @@ validate_spawns(void)
 void
 setup_spawn(void)
 {
-	setconfspawn("lock",		"xlock",		0);
+	setconfspawn("lock", "xlock", 0, NULL);
 
-	setconfspawn("term",		"xterm",		0);
-	setconfspawn("spawn_term",	"xterm",		0);
+	setconfspawn("term", "xterm", 0, NULL);
+	setconfspawn("spawn_term", "xterm", 0, NULL);
 
-	setconfspawn("menu",		"dmenu_run"
-					" $dmenu_bottom"
-					" -fn $bar_font"
-					" -nb $bar_color"
-					" -nf $bar_font_color"
-					" -sb $bar_color_selected"
-					" -sf $bar_font_color_selected", 0);
+	setconfspawn("menu", "dmenu_run $dmenu_bottom -fn $bar_font "
+	    "-nb $bar_color -nf $bar_font_color -sb $bar_color_selected "
+	    "-sf $bar_font_color_selected", 0, NULL);
 
-	setconfspawn("search",		"dmenu"
-					" $dmenu_bottom"
-					" -i"
-					" -fn $bar_font"
-					" -nb $bar_color"
-					" -nf $bar_font_color"
-					" -sb $bar_color_selected"
-					" -sf $bar_font_color_selected", 0);
+	setconfspawn("search", "dmenu $dmenu_bottom -i -fn $bar_font "
+	    "-nb $bar_color -nf $bar_font_color -sb $bar_color_selected "
+	    "-sf $bar_font_color_selected", 0, NULL);
 
-	setconfspawn("name_workspace",	"dmenu"
-					" $dmenu_bottom"
-					" -p Workspace"
-					" -fn $bar_font"
-					" -nb $bar_color"
-					" -nf $bar_font_color"
-					" -sb $bar_color_selected"
-					" -sf $bar_font_color_selected", 0);
+	setconfspawn("name_workspace", "dmenu $dmenu_bottom -p Workspace "
+	    "-fn $bar_font -nb $bar_color -nf $bar_font_color "
+	    "-sb $bar_color_selected -sf $bar_font_color_selected", 0, NULL);
 
 	 /* These are not verified for existence, even with a binding set. */
-	setconfspawn("screenshot_all",	"screenshot.sh full",	SWM_SPAWN_OPTIONAL);
-	setconfspawn("screenshot_wind",	"screenshot.sh window",	SWM_SPAWN_OPTIONAL);
-	setconfspawn("initscr",		"initscreen.sh",	SWM_SPAWN_OPTIONAL);
+	setconfspawn("screenshot_all", "screenshot.sh full",
+	    SWM_SPAWN_OPTIONAL, NULL);
+	setconfspawn("screenshot_wind", "screenshot.sh window",
+	    SWM_SPAWN_OPTIONAL, NULL);
+	setconfspawn("initscr", "initscreen.sh", SWM_SPAWN_OPTIONAL, NULL);
 }
 
 /* bindings */
@@ -8758,7 +8715,7 @@ setup_spawn(void)
 #define SWM_KEY_WS		"\n+ \t"
 int
 parsebinding(const char *bindstr, uint16_t *mod, enum binding_type *type,
-    uint32_t *val, uint32_t *flags)
+    uint32_t *val, uint32_t *flags, char **emsg)
 {
 	char			*str, *cp, *name;
 	KeySym			ks, lks, uks;
@@ -8809,6 +8766,7 @@ parsebinding(const char *bindstr, uint16_t *mod, enum binding_type *type,
 			*type = BTNBIND;
 			if (*val > 255 || *val == 0) {
 				DNPRINTF(SWM_D_KEY, "invalid btn %u\n", *val);
+				ALLOCSTR(emsg, "invalid button: %s", name);
 				free(str);
 				return (1);
 			}
@@ -8817,6 +8775,7 @@ parsebinding(const char *bindstr, uint16_t *mod, enum binding_type *type,
 			ks = XStringToKeysym(name);
 			if (ks == NoSymbol) {
 				DNPRINTF(SWM_D_KEY, "invalid key %s\n", name);
+				ALLOCSTR(emsg, "invalid key: %s", name);
 				free(str);
 				return (1);
 			}
@@ -8939,7 +8898,7 @@ setbinding(uint16_t mod, enum binding_type type, uint32_t val,
 }
 
 int
-setconfbinding(const char *selector, const char *value, int flags)
+setconfbinding(const char *selector, const char *value, int flags, char **emsg)
 {
 	struct spawn_prog	*sp;
 	uint32_t		keybtn, opts;
@@ -8953,7 +8912,8 @@ setconfbinding(const char *selector, const char *value, int flags)
 	DNPRINTF(SWM_D_KEY, "selector: [%s], value: [%s]\n", selector, value);
 	if (selector == NULL || strlen(selector) == 0) {
 		DNPRINTF(SWM_D_KEY, "unbind %s\n", value);
-		if (parsebinding(value, &mod, &type, &keybtn, &opts) == 0) {
+		if (parsebinding(value, &mod, &type, &keybtn, &opts,
+		    emsg) == 0) {
 			setbinding(mod, type, keybtn, FN_INVALID, opts, NULL);
 			return (0);
 		} else
@@ -8964,8 +8924,8 @@ setconfbinding(const char *selector, const char *value, int flags)
 		if (strncasecmp(selector, actions[aid].name,
 		    SWM_FUNCNAME_LEN) == 0) {
 			DNPRINTF(SWM_D_KEY, "%s: match action\n", selector);
-			if (parsebinding(value, &mod, &type, &keybtn,
-			    &opts) == 0) {
+			if (parsebinding(value, &mod, &type, &keybtn, &opts,
+			    emsg) == 0) {
 				setbinding(mod, type, keybtn, aid, opts, NULL);
 				return (0);
 			} else
@@ -8975,7 +8935,8 @@ setconfbinding(const char *selector, const char *value, int flags)
 	/* search by custom spawn name */
 	if ((sp = spawn_find(selector)) != NULL) {
 		DNPRINTF(SWM_D_KEY, "%s: match spawn\n", selector);
-		if (parsebinding(value, &mod, &type, &keybtn, &opts) == 0) {
+		if (parsebinding(value, &mod, &type, &keybtn, &opts,
+		    emsg) == 0) {
 			setbinding(mod, type, keybtn, FN_SPAWN_CUSTOM, opts,
 			    sp->name);
 			return (0);
@@ -8983,6 +8944,7 @@ setconfbinding(const char *selector, const char *value, int flags)
 			return (1);
 	}
 	DNPRINTF(SWM_D_KEY, "no match\n");
+	ALLOCSTR(emsg, "invalid action: %s", selector);
 	return (1);
 }
 
@@ -9159,7 +9121,7 @@ clear_keybindings(void)
 }
 
 int
-setkeymapping(const char *selector, const char *value, int flags)
+setkeymapping(const char *selector, const char *value, int flags, char **emsg)
 {
 	char			*keymapping_file;
 
@@ -9174,8 +9136,11 @@ setkeymapping(const char *selector, const char *value, int flags)
 	clear_keybindings();
 	/* load new key bindings; if it fails, revert to default bindings */
 	if (conf_load(keymapping_file, SWM_CONF_KEYMAPPING)) {
+		ALLOCSTR(emsg, "failed to load '%s'", keymapping_file);
+		free(keymapping_file);
 		clear_keybindings();
 		setup_keybindings();
+		return (1);
 	}
 
 	free(keymapping_file);
@@ -9403,7 +9368,7 @@ struct wsi_flag {
 #define SWM_FLAGS_DELIM		","
 #define SWM_FLAGS_WHITESPACE	" \t\n"
 int
-parse_workspace_indicator(const char *str, uint32_t *mode)
+parse_workspace_indicator(const char *str, uint32_t *mode, char **emsg)
 {
 	char			*tmp, *cp, *name;
 	size_t			len;
@@ -9430,6 +9395,7 @@ parse_workspace_indicator(const char *str, uint32_t *mode)
 			}
 		}
 		if (i >= LENGTH(wsiflags)) {
+			ALLOCSTR(emsg, "invalid flag: %s", name);
 			DNPRINTF(SWM_D_CONF, "invalid flag: [%s]\n", name);
 			free(tmp);
 			return (1);
@@ -9460,7 +9426,7 @@ const char *quirkname[] = {
 /* SWM_Q_DELIM: retain '|' for back compat for now (2009-08-11) */
 #define SWM_Q_DELIM		"\n|+ \t"
 int
-parsequirks(const char *qstr, uint32_t *quirk, int *ws)
+parsequirks(const char *qstr, uint32_t *quirk, int *ws, char **emsg)
 {
 	char			*str, *cp, *name;
 	int			i;
@@ -9497,6 +9463,7 @@ parsequirks(const char *qstr, uint32_t *quirk, int *ws)
 		}
 		if (i >= LENGTH(quirkname)) {
 			DNPRINTF(SWM_D_QUIRK, "invalid quirk [%s]\n", name);
+			ALLOCSTR(emsg, "invalid quirk: %s", name);
 			free(str);
 			return (1);
 		}
@@ -9664,7 +9631,7 @@ unescape_selector(char *str)
 }
 
 int
-setconfquirk(const char *selector, const char *value, int flags)
+setconfquirk(const char *selector, const char *value, int flags, char **emsg)
 {
 	char			*str, *cp, *class;
 	char			*instance = NULL, *name = NULL;
@@ -9712,7 +9679,7 @@ setconfquirk(const char *selector, const char *value, int flags)
 	DNPRINTF(SWM_D_CONF, "class: %s, instance: %s, name: %s\n", class,
 	    instance, name);
 
-	if ((retval = parsequirks(value, &qrks, &ws)) == 0)
+	if ((retval = parsequirks(value, &qrks, &ws, emsg)) == 0)
 		setquirk(class, instance, name, qrks, ws);
 
 	free(str);
@@ -9800,7 +9767,7 @@ enum {
 };
 
 int
-setconfvalue(const char *selector, const char *value, int flags)
+setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 {
 	struct workspace	*ws;
 	int			i, ws_id, num_screens, n;
@@ -9828,9 +9795,10 @@ setconfvalue(const char *selector, const char *value, int flags)
 		break;
 	case SWM_S_BAR_ENABLED_WS:
 		ws_id = atoi(selector) - 1;
-		if (ws_id < 0 || ws_id >= workspace_limit)
-			errx(1, "setconfvalue: bar_enabled_ws: invalid "
-			    "workspace %d.", ws_id + 1);
+		if (ws_id < 0 || ws_id >= workspace_limit) {
+			ALLOCSTR(emsg, "invalid workspace: %d", ws_id + 1);
+			return (1);
+		}
 
 		num_screens = get_screen_count();
 		for (i = 0; i < num_screens; i++) {
@@ -9896,8 +9864,11 @@ setconfvalue(const char *selector, const char *value, int flags)
 			bar_justify = SWM_BAR_JUSTIFY_CENTER;
 		else if (strcmp(value, "right") == 0)
 			bar_justify = SWM_BAR_JUSTIFY_RIGHT;
-		else
-			errx(1, "invalid bar_justify");
+		else {
+			ALLOCSTR(emsg, "invalid value: %s", value);
+			return (1);
+		}
+
 		break;
 	case SWM_S_BORDER_WIDTH:
 		border_width = atoi(value);
@@ -9943,8 +9914,10 @@ setconfvalue(const char *selector, const char *value, int flags)
 			focus_close = SWM_STACK_ABOVE;
 		else if (strcmp(value, "previous") == 0)
 			focus_close = SWM_STACK_BELOW;
-		else
-			errx(1, "focus_close");
+		else {
+			ALLOCSTR(emsg, "invalid value: %s", value);
+			return (1);
+		}
 		break;
 	case SWM_S_FOCUS_CLOSE_WRAP:
 		focus_close_wrap = (atoi(value) != 0);
@@ -9954,8 +9927,10 @@ setconfvalue(const char *selector, const char *value, int flags)
 			focus_default = SWM_STACK_TOP;
 		else if (strcmp(value, "first") == 0)
 			focus_default = SWM_STACK_BOTTOM;
-		else
-			errx(1, "focus_default");
+		else {
+			ALLOCSTR(emsg, "invalid value: %s", value);
+			return (1);
+		}
 		break;
 	case SWM_S_FOCUS_MODE:
 		if (strcmp(value, "default") == 0)
@@ -9965,8 +9940,10 @@ setconfvalue(const char *selector, const char *value, int flags)
 			focus_mode = SWM_FOCUS_FOLLOW;
 		else if (strcmp(value, "manual") == 0)
 			focus_mode = SWM_FOCUS_MANUAL;
-		else
-			errx(1, "focus_mode");
+		else {
+			ALLOCSTR(emsg, "invalid value: %s", value);
+			return (1);
+		}
 		break;
 	case SWM_S_ICONIC_ENABLED:
 		iconic_enabled = (atoi(value) != 0);
@@ -9988,12 +9965,14 @@ setconfvalue(const char *selector, const char *value, int flags)
 			spawn_position = SWM_STACK_ABOVE;
 		else if (strcmp(value, "previous") == 0)
 			spawn_position = SWM_STACK_BELOW;
-		else
-			errx(1, "spawn_position");
+		else {
+			ALLOCSTR(emsg, "invalid value: %s", value);
+			return (1);
+		}
 		break;
 	case SWM_S_SPAWN_TERM:
-		setconfspawn("term", value, 0);
-		setconfspawn("spawn_term", value, 0);
+		setconfspawn("term", value, 0, emsg);
+		setconfspawn("spawn_term", value, 0, emsg);
 		break;
 	case SWM_S_STACK_ENABLED:
 		stack_enabled = (atoi(value) != 0);
@@ -10049,8 +10028,9 @@ setconfvalue(const char *selector, const char *value, int flags)
 		ewmh_update_desktops();
 		break;
 	case SWM_S_WORKSPACE_INDICATOR:
-		if (parse_workspace_indicator(value, &workspace_indicator))
-			errx(1, "invalid workspace_indicator");
+		if (parse_workspace_indicator(value, &workspace_indicator,
+		    emsg))
+			return (1);
 		break;
 	case SWM_S_WORKSPACE_NAME:
 		if (getenv("SWM_STARTED") != NULL)
@@ -10058,13 +10038,16 @@ setconfvalue(const char *selector, const char *value, int flags)
 
 		n = 0;
 		if (sscanf(value, "ws[%d]:%n", &ws_id, &n) != 1 || n == 0 ||
-		    value[n] == '\0')
-			errx(1, "invalid entry, should be 'ws[<idx>]:name'");
+		    value[n] == '\0') {
+			ALLOCSTR(emsg, "invalid syntax: %s", value);
+			return (1);
+		}
 		value += n;
 		ws_id--;
-		if (ws_id < 0 || ws_id >= workspace_limit)
-			errx(1, "setconfvalue: workspace_name: invalid "
-			    "workspace %d.", ws_id + 1);
+		if (ws_id < 0 || ws_id >= workspace_limit) {
+			ALLOCSTR(emsg, "invalid workspace: %d", ws_id + 1);
+			return (1);
+		}
 
 		num_screens = get_screen_count();
 		for (i = 0; i < num_screens; ++i) {
@@ -10072,20 +10055,21 @@ setconfvalue(const char *selector, const char *value, int flags)
 
 			free(ws[ws_id].name);
 			if ((ws[ws_id].name = strdup(value)) == NULL)
-				err(1, "setconfvalue: workspace_name.");
+				err(1, "name: strdup");
 
 			ewmh_update_desktop_names();
 			ewmh_get_desktop_names();
 		}
 		break;
 	default:
+		ALLOCSTR(emsg, "invalid option");
 		return (1);
 	}
 	return (0);
 }
 
 int
-setconfmodkey(const char *selector, const char *value, int flags)
+setconfmodkey(const char *selector, const char *value, int flags, char **emsg)
 {
 	/* suppress unused warnings since vars are needed */
 	(void)selector;
@@ -10101,13 +10085,15 @@ setconfmodkey(const char *selector, const char *value, int flags)
 		update_modkey(XCB_MOD_MASK_4);
 	else if (strncasecmp(value, "Mod5", strlen("Mod5")) == 0)
 		update_modkey(XCB_MOD_MASK_5);
-	else
+	else {
+		ALLOCSTR(emsg, "invalid value: %s", value);
 		return (1);
+	}
 	return (0);
 }
 
 int
-setconfcolor(const char *selector, const char *value, int flags)
+setconfcolor(const char *selector, const char *value, int flags, char **emsg)
 {
 	int	first, last, i = 0, num_screens;
 
@@ -10123,8 +10109,7 @@ setconfcolor(const char *selector, const char *value, int flags)
 	}
 
 	if (last >= num_screens) {
-		add_startup_exception("invalid screen index: %d out of bounds "
-		    "(maximum %d)", last + 1, num_screens);
+		ALLOCSTR(emsg, "invalid screen index: %d", last + 1);
 		return (1);
 	}
 
@@ -10165,7 +10150,7 @@ setconfcolor(const char *selector, const char *value, int flags)
 }
 
 int
-setconfcolorlist(const char *selector, const char *value, int flags)
+setconfcolorlist(const char *selector, const char *value, int flags, char **emsg)
 {
 	char			*b, *str, *sp;
 
@@ -10181,7 +10166,7 @@ setconfcolorlist(const char *selector, const char *value, int flags)
 			if (*b == '\0')
 				continue;
 			setconfcolor(selector, b, SWM_S_COLOR_BAR +
-			    num_bg_colors);
+			    num_bg_colors, emsg);
 			num_bg_colors++;
 			if (num_bg_colors == SWM_BAR_MAX_COLORS)
 				break;
@@ -10199,7 +10184,7 @@ setconfcolorlist(const char *selector, const char *value, int flags)
 			if (*b == '\0')
 				continue;
 			setconfcolor(selector, b, SWM_S_COLOR_BAR_FONT +
-			    num_fg_colors);
+			    num_fg_colors, emsg);
 			num_fg_colors++;
 			if (num_fg_colors == SWM_BAR_MAX_COLORS)
 				break;
@@ -10211,18 +10196,54 @@ setconfcolorlist(const char *selector, const char *value, int flags)
 }
 
 int
-setconfregion(const char *selector, const char *value, int flags)
+setconfregion(const char *selector, const char *value, int flags, char **emsg)
 {
+	unsigned int			x, y, w, h;
+	int				sidx, num_screens;
+	xcb_screen_t			*screen;
+
 	/* suppress unused warnings since vars are needed */
 	(void)selector;
 	(void)flags;
 
-	custom_region(value);
+	DNPRINTF(SWM_D_CONF, "%s\n", value);
+
+	num_screens = get_screen_count();
+	if (sscanf(value, "screen[%d]:%ux%u+%u+%u",
+	    &sidx, &w, &h, &x, &y) != 5) {
+		ALLOCSTR(emsg, "invalid syntax: %s", value);
+		return (1);
+	}
+	if (sidx < 1 || sidx > num_screens) {
+		ALLOCSTR(emsg, "invalid screen index: %d", sidx);
+		return (1);
+	}
+	sidx--;
+
+	if ((screen = get_screen(sidx)) == NULL)
+		errx(1, "ERROR: unable to get screen %d.", sidx);
+
+	if (w < 1 || h < 1) {
+		ALLOCSTR(emsg, "invalid size: %ux%u", w, h);
+		return (1);
+	}
+
+	if (x > screen->width_in_pixels ||
+	    y > screen->height_in_pixels ||
+	    w + x > screen->width_in_pixels ||
+	    h + y > screen->height_in_pixels) {
+		ALLOCSTR(emsg, "geometry exceeds screen boundary: %ux%u+%u+%u",
+		    w, h, x, y);
+		return (1);
+	}
+
+	new_region(&screens[sidx], x, y, w, h);
+
 	return (0);
 }
 
 int
-setautorun(const char *selector, const char *value, int flags)
+setautorun(const char *selector, const char *value, int flags, char **emsg)
 {
 	int			ws_id;
 	char			*ap, *sp, *str;
@@ -10240,12 +10261,16 @@ setautorun(const char *selector, const char *value, int flags)
 
 	n = 0;
 	if (sscanf(value, "ws[%d]:%n", &ws_id, &n) != 1 || n == 0 ||
-	    value[n] == '\0')
-		errx(1, "invalid autorun entry, should be 'ws[<idx>]:command'");
+	    value[n] == '\0') {
+		ALLOCSTR(emsg, "invalid syntax: %s", value);
+		return (1);
+	}
 	value += n;
 	ws_id--;
-	if (ws_id < 0 || ws_id >= workspace_limit)
-		errx(1, "autorun: invalid workspace %d", ws_id + 1);
+	if (ws_id < 0 || ws_id >= workspace_limit) {
+		ALLOCSTR(emsg, "invalid workspace: %d", ws_id + 1);
+		return (1);
+	}
 
 	sp = str = expand_tilde(value);
 
@@ -10295,7 +10320,7 @@ setautorun(const char *selector, const char *value, int flags)
 }
 
 int
-setlayout(const char *selector, const char *value, int flags)
+setlayout(const char *selector, const char *value, int flags, char **emsg)
 {
 	struct workspace	*ws;
 	int			ws_id, i, x, mg, ma, si, ar, n;
@@ -10311,14 +10336,17 @@ setlayout(const char *selector, const char *value, int flags)
 
 	n = 0;
 	if (sscanf(value, "ws[%d]:%d:%d:%d:%d:%n",
-	    &ws_id, &mg, &ma, &si, &ar, &n) != 5 || n == 0 || value[n] == '\0')
-		errx(1, "invalid layout entry, should be 'ws[<idx>]:"
-		    "<master_grow>:<master_add>:<stack_inc>:<always_raise>:"
-		    "<type>'");
+	    &ws_id, &mg, &ma, &si, &ar, &n) != 5 || n == 0 ||
+	    value[n] == '\0') {
+		ALLOCSTR(emsg, "invalid syntax: %s", value);
+		return (1);
+	}
 	value += n;
 	ws_id--;
-	if (ws_id < 0 || ws_id >= workspace_limit)
-		errx(1, "layout: invalid workspace %d", ws_id + 1);
+	if (ws_id < 0 || ws_id >= workspace_limit) {
+		ALLOCSTR(emsg, "invalid workspace: %d", ws_id + 1);
+		return (1);
+	}
 
 	if (strcasecmp(value, "vertical") == 0)
 		st = SWM_V_STACK;
@@ -10334,10 +10362,10 @@ setlayout(const char *selector, const char *value, int flags)
 	    strcasecmp(value, "fullscreen") == 0)
 		/* Keep "fullscreen" for backwards compatibility. */
 		st = SWM_MAX_STACK;
-	else
-		errx(1, "invalid layout entry, should be 'ws[<idx>]:"
-		    "<master_grow>:<master_add>:<stack_inc>:<always_raise>:"
-		    "<type>'");
+	else {
+		ALLOCSTR(emsg, "invalid layout: %s", value);
+		return (1);
+	}
 
 	num_screens = get_screen_count();
 	for (i = 0; i < num_screens; i++) {
@@ -10379,7 +10407,7 @@ setlayout(const char *selector, const char *value, int flags)
 /* config options */
 struct config_option {
 	char			*name;
-	int			(*func)(const char*, const char*, int);
+	int			(*func)(const char*, const char*, int, char **);
 	int			flags;
 };
 struct config_option configopt[] = {
@@ -10481,6 +10509,7 @@ conf_load(const char *filename, int keymapping)
 {
 	FILE			*config;
 	char			*line = NULL, *cp, *ce, *optsub, *optval = NULL;
+	char			*emsg = NULL;
 	size_t			linelen, lineno = 0;
 	int			wordlen, i, optidx, count;
 	struct config_option	*opt = NULL;
@@ -10586,10 +10615,15 @@ conf_load(const char *filename, int keymapping)
 			--ce;
 		*(ce + 1) = '\0';
 		/* call function to deal with it all */
-		if (opt->func && opt->func(optsub, optval, opt->flags) != 0) {
-			add_startup_exception("%s: line %zd: invalid data for "
-			    "%s", filename, lineno, opt->name);
-			continue;
+		if (opt->func && opt->func(optsub, optval, opt->flags, &emsg)) {
+			if (emsg) {
+				add_startup_exception("%s: line %zd: %s: %s",
+				    filename, lineno, opt->name, emsg);
+				free(emsg);
+				emsg = NULL;
+			} else
+				add_startup_exception("%s: line %zd: %s",
+				    filename, lineno, opt->name);
 		}
 	}
 
@@ -10771,7 +10805,7 @@ reparent_window(struct ws_win *win)
 	DNPRINTF(SWM_D_MISC, "win %#x, frame: %#x\n", win->id, win->frame);
 
 	if ((s = get_screen(win->s->idx)) == NULL)
-		errx(1, "ERROR: can't get screen %d.", win->s->idx);
+		errx(1, "ERROR: unable to get screen %d.", win->s->idx);
 	wa[0] = s->black_pixel;
 	wa[1] =
 	    XCB_EVENT_MASK_ENTER_WINDOW |
@@ -12389,7 +12423,7 @@ enable_wm(void)
 	num_screens = get_screen_count();
 	for (i = 0; i < num_screens; i++) {
 		if ((sc = get_screen(i)) == NULL)
-			errx(1, "ERROR: can't get screen %d.", i);
+			errx(1, "ERROR: unable to get screen %d.", i);
 		DNPRINTF(SWM_D_INIT, "screen %d, root: %#x\n", i, sc->root);
 		wac = xcb_change_window_attributes_checked(conn, sc->root,
 		    XCB_CW_EVENT_MASK, &val);
@@ -12520,7 +12554,7 @@ scan_randr(int idx)
 	DNPRINTF(SWM_D_MISC, "screen: %d\n", idx);
 
 	if ((screen = get_screen(idx)) == NULL)
-		errx(1, "ERROR: can't get screen %d.", idx);
+		errx(1, "ERROR: unable to get screen %d.", idx);
 
 	num_screens = get_screen_count();
 	if (idx >= num_screens)
@@ -12636,7 +12670,7 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 		if (screens[i].root == e->root)
 			break;
 	if (i >= num_screens)
-		errx(1, "screenchange: screen not found");
+		errx(1, "screenchange: screen not found.");
 
 	/* brute force for now, just re-enumerate the regions */
 	scan_randr(i);
@@ -12799,7 +12833,7 @@ setup_screens(void)
 		TAILQ_INIT(&screens[i].rl);
 		TAILQ_INIT(&screens[i].orl);
 		if ((screen = get_screen(i)) == NULL)
-			errx(1, "ERROR: can't get screen %d.", i);
+			errx(1, "ERROR: unable to get screen %d.", i);
 		screens[i].rate = SWM_RATE_DEFAULT;
 		screens[i].root = screen->root;
 		screens[i].depth = screen->root_depth;
@@ -12958,13 +12992,13 @@ void
 setup_globals(void)
 {
 	if ((bar_fonts = strdup(SWM_BAR_FONTS)) == NULL)
-		err(1, "setup_globals: strdup: failed to allocate memory.");
+		err(1, "bar_fonts: strdup");
 
 	if ((clock_format = strdup("%a %b %d %R %Z %Y")) == NULL)
-		err(1, "setup_globals: strdup: failed to allocate memory.");
+		err(1, "clock_format: strdup");
 
 	if ((syms = xcb_key_symbols_alloc(conn)) == NULL)
-		errx(1, "unable to allocate key symbols");
+		errx(1, "unable to allocate key symbols.");
 
 	a_state = get_atom_from_string("WM_STATE");
 	a_prot = get_atom_from_string("WM_PROTOCOLS");
@@ -13280,14 +13314,14 @@ main(int argc, char *argv[])
 	sigaction(SIGCHLD, &sact, NULL);
 
 	if ((display = XOpenDisplay(0)) == NULL)
-		errx(1, "can not open display");
+		errx(1, "unable to open display");
 
 	if (pledge("stdio proc exec rpath getpw", NULL) == -1)
 		err(1, "pledge");
 
 	conn = XGetXCBConnection(display);
 	if (xcb_connection_has_error(conn))
-		errx(1, "can not get XCB connection");
+		errx(1, "unable to get XCB connection");
 
 	XSetEventQueueOwner(display, XCBOwnsEventQueue);
 
