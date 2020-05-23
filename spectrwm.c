@@ -579,7 +579,6 @@ struct workspace {
 	struct swm_region	*r;		/* may be NULL */
 	struct swm_region	*old_r;		/* may be NULL */
 	struct ws_win_list	winlist;	/* list of windows in ws */
-	struct ws_win_list	unmanagedlist;	/* list of dead windows in ws */
 	struct ws_win_stack	stack;		/* stacking order */
 	int			state;		/* mapping state */
 	char			stacker[10];	/* display stacker and layout */
@@ -1164,7 +1163,6 @@ struct swm_bar	*find_bar(xcb_window_t);
 struct ws_win	*find_main_window(struct ws_win *);
 struct pid_e	*find_pid(pid_t);
 struct swm_region	*find_region(xcb_window_t);
-struct ws_win	*find_unmanaged_window(xcb_window_t);
 struct ws_win	*find_window(xcb_window_t);
 void	 floating_toggle(struct binding *, struct swm_region *, union arg *);
 void	 focus(struct binding *, struct swm_region *, union arg *);
@@ -1962,21 +1960,6 @@ dumpwins(struct binding *bp, struct swm_region *r, union arg *args)
 		DPRINTF("win %#x (%#x), fs: %s, maximized: %s, above: %s, "
 		    "iconic: %s\n", w->frame, w->id, YESNO(FULLSCREEN(w)),
 		    YESNO(MAXIMIZED(w)), YESNO(ABOVE(w)), YESNO(ICONIC(w)));
-	}
-
-	DPRINTF("===== unmanaged window list =====\n");
-	TAILQ_FOREACH(w, &r->ws->unmanagedlist, entry) {
-		state = get_win_state(w->id);
-		c = xcb_get_window_attributes(conn, w->id);
-		wa = xcb_get_window_attributes_reply(conn, c, NULL);
-		if (wa) {
-			DPRINTF("win %#x, map_state: %d, state: %u, "
-			    "transient: %#x\n", w->id, wa->map_state,
-			    state, w->transient);
-			free(wa);
-		} else
-			DPRINTF("win %#x, failed xcb_get_window_attributes\n",
-			    w->id);
 	}
 
 	DPRINTF("=================================\n");
@@ -4423,22 +4406,6 @@ find_window(xcb_window_t id)
 		DNPRINTF(SWM_D_MISC, "unmanaged.\n");
 #endif
 	return (win);
-}
-
-struct ws_win *
-find_unmanaged_window(xcb_window_t id)
-{
-	struct ws_win		*win;
-	int			i, j, num_screens;
-
-	num_screens = get_screen_count();
-	for (i = 0; i < num_screens; i++)
-		for (j = 0; j < workspace_limit; j++)
-			TAILQ_FOREACH(win, &screens[i].ws[j].unmanagedlist,
-			    entry)
-				if (id == win->id)
-					return (win);
-	return (NULL);
 }
 
 void
@@ -10878,19 +10845,6 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 		goto out;
 	}
 
-	/* See if window is on the unmanaged list. */
-	if ((win = find_unmanaged_window(id)) != NULL) {
-		DNPRINTF(SWM_D_MISC, "win %#x is on unmanaged list\n", id);
-		TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
-
-		if (TRANS(win))
-			set_child_transient(win, &trans);
-
-		goto remanage;
-	} else {
-		DNPRINTF(SWM_D_MISC, "win %#x is new\n", id);
-	}
-
 	war = xcb_get_window_attributes_reply(conn,
 	    xcb_get_window_attributes(conn, id), NULL);
 	if (war == NULL) {
@@ -11054,7 +11008,6 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 		update_window(win);
 	}
 
-remanage:
 	/* Figure out where to insert the window in the workspace list. */
 	if (trans && (ww = find_window(trans)))
 		TAILQ_INSERT_AFTER(&win->ws->winlist, ww, win, entry);
@@ -11138,7 +11091,7 @@ unmanage_window(struct ws_win *win)
 
 	TAILQ_REMOVE(&win->ws->stack, win, stack_entry);
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
-	TAILQ_INSERT_TAIL(&win->ws->unmanagedlist, win, entry);
+	free_window(win);
 
 	ewmh_update_client_list();
 }
@@ -11500,8 +11453,7 @@ configurerequest(xcb_configure_request_event_t *e)
 	bool			new = false;
 
 	if ((win = find_window(e->window)) == NULL)
-		if ((win = find_unmanaged_window(e->window)) == NULL)
-			new = true;
+		new = true;
 
 #ifdef SWM_DEBUG
 	if (swm_debug & SWM_D_EVENT) {
@@ -11646,14 +11598,8 @@ destroynotify(xcb_destroy_notify_event_t *e)
 
 	DNPRINTF(SWM_D_EVENT, "win %#x\n", e->window);
 
-	if ((win = find_window(e->window)) == NULL) {
-		if ((win = find_unmanaged_window(e->window)) == NULL)
-			goto out;
-		/* Window is on unmanaged list. */
-		TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
-		free_window(win);
+	if ((win = find_window(e->window)) == NULL)
 		goto out;
-	}
 
 	ws = win->ws;
 
@@ -11667,8 +11613,6 @@ destroynotify(xcb_destroy_notify_event_t *e)
 		ws->focus_pending = get_focus_other(win);
 
 	unmanage_window(win);
-	TAILQ_REMOVE(&win->ws->unmanagedlist, win, entry);
-	free_window(win);
 	stack(ws->r);
 
 	if (focus_mode != SWM_FOCUS_FOLLOW && WS_FOCUSED(ws)) {
@@ -12933,7 +12877,6 @@ setup_screens(void)
 			ws->state = SWM_WS_STATE_HIDDEN;
 			TAILQ_INIT(&ws->stack);
 			TAILQ_INIT(&ws->winlist);
-			TAILQ_INIT(&ws->unmanagedlist);
 
 			for (k = 0; layouts[k].l_stack != NULL; k++)
 				if (layouts[k].l_config != NULL)
@@ -13161,11 +13104,6 @@ shutdown_cleanup(void)
 
 			while ((w = TAILQ_FIRST(&ws->winlist)) != NULL) {
 				TAILQ_REMOVE(&ws->winlist, w, entry);
-				free_window(w);
-			}
-
-			while ((w = TAILQ_FIRST(&ws->unmanagedlist)) != NULL) {
-				TAILQ_REMOVE(&ws->unmanagedlist, w, entry);
 				free_window(w);
 			}
 		}
