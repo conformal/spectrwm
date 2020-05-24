@@ -874,8 +874,8 @@ struct text_fragment {
 
 /* bar section */
 struct bar_section {
-	char			fmtrep[SWM_BAR_MAX];
-	char			fmtsplit[SWM_BAR_MAX];
+	char			fmtrep[SWM_BAR_MAX * 2];
+	char			fmtsplit[SWM_BAR_MAX * 2];
 	struct text_fragment	frag[SWM_TEXTFRAGS_MAX];
 
 	bool			fit_to_text;
@@ -3478,6 +3478,7 @@ bar_draw(struct swm_bar *bar)
 	for (i = 0;  i < numsect; i++)
 		bar_replace(bsect[i].fmtsplit, bsect[i].fmtrep, r,
 		    sizeof bsect[i].fmtrep);
+
 	bar_print_layout(r);
 }
 
