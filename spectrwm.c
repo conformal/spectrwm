@@ -433,7 +433,7 @@ pid_t		 bar_pid;
 XFontSet	 bar_fs = NULL;
 XFontSetExtents	*bar_fs_extents;
 char		*bar_fontnames[SWM_BAR_MAX_FONTS];
-XftFont		*bar_xftfonts[SWM_BAR_MAX_FONTS+1];
+XftFont		*bar_xftfonts[SWM_BAR_MAX_FONTS + 1];
 int		num_xftfonts;
 char		*bar_fontname_pua;
 int		font_pua_index;
@@ -540,8 +540,8 @@ struct layout {
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
 	void		(*l_config)(struct workspace *, int);
 	uint32_t	flags;
-#define SWM_L_FOCUSPREV		(1<<0)
-#define SWM_L_MAPONFOCUS	(1<<1)
+#define SWM_L_FOCUSPREV		(1 << 0)
+#define SWM_L_MAPONFOCUS	(1 << 1)
 	void		(*l_string)(struct workspace *);
 } layouts[] =  {
 	/* stack,		configure */
@@ -725,20 +725,20 @@ struct quirk {
 	regex_t			regex_instance;
 	regex_t			regex_name;
 	uint32_t		quirk;
-	int			ws;		/* Initial workspace. */
-#define SWM_Q_FLOAT		(1<<0)	/* Float this window. */
-#define SWM_Q_TRANSSZ		(1<<1)	/* Transient window size too small. */
-#define SWM_Q_ANYWHERE		(1<<2)	/* Don't position this window */
-#define SWM_Q_XTERM_FONTADJ	(1<<3)	/* Adjust xterm fonts when resizing. */
-#define SWM_Q_FULLSCREEN	(1<<4)	/* Remove border when fullscreen. */
-#define SWM_Q_FOCUSPREV		(1<<5)	/* Focus on caller. */
-#define SWM_Q_NOFOCUSONMAP	(1<<6)	/* Don't focus on window when mapped. */
-#define SWM_Q_FOCUSONMAP_SINGLE	(1<<7)	/* Only focus if single win of type. */
-#define SWM_Q_OBEYAPPFOCUSREQ	(1<<8)	/* Focus when applications ask. */
-#define SWM_Q_IGNOREPID		(1<<9)	/* Ignore PID when determining ws. */
-#define SWM_Q_IGNORESPAWNWS	(1<<10)	/* Ignore _SWM_WS when managing win. */
-#define SWM_Q_NOFOCUSCYCLE	(1<<11)	/* Remove from normal focus cycle. */
-#define SWM_Q_MINIMALBORDER	(1<<12)	/* No border when floating/unfocused. */
+	int			ws;	 /* Initial workspace. */
+#define SWM_Q_FLOAT		(1 << 0) /* Float this window. */
+#define SWM_Q_TRANSSZ		(1 << 1) /* Transient window size too small. */
+#define SWM_Q_ANYWHERE		(1 << 2) /* Don't position this window */
+#define SWM_Q_XTERM_FONTADJ	(1 << 3) /* Adjust xterm fonts when resizing. */
+#define SWM_Q_FULLSCREEN	(1 << 4) /* Remove border when fullscreen. */
+#define SWM_Q_FOCUSPREV		(1 << 5) /* Focus on caller. */
+#define SWM_Q_NOFOCUSONMAP	(1 << 6) /* Don't focus on window when mapped.*/
+#define SWM_Q_FOCUSONMAP_SINGLE	(1 << 7) /* Only focus if single win of type. */
+#define SWM_Q_OBEYAPPFOCUSREQ	(1 << 8) /* Focus when applications ask. */
+#define SWM_Q_IGNOREPID		(1 << 9) /* Ignore PID when determining ws. */
+#define SWM_Q_IGNORESPAWNWS	(1 << 10)/* Ignore _SWM_WS when managing win. */
+#define SWM_Q_NOFOCUSCYCLE	(1 << 11)/* Remove from normal focus cycle. */
+#define SWM_Q_MINIMALBORDER	(1 << 12)/* No border when floating/unfocused.*/
 };
 TAILQ_HEAD(quirk_list, quirk) quirks = TAILQ_HEAD_INITIALIZER(quirks);
 
@@ -3439,7 +3439,7 @@ bar_draw(struct swm_bar *bar)
 {
 	struct swm_region	*r;
 	char			fmtexp[SWM_BAR_MAX], fmtnew[SWM_BAR_MAX];
-	char			fmtact[SWM_BAR_MAX];
+	char			fmtact[SWM_BAR_MAX * 2];
 	int			i;
 
 	/* expand the format by first passing it through strftime(3) */
@@ -12307,13 +12307,13 @@ clientmessage(xcb_client_message_event_t *e)
 	} else if (e->type == ewmh[_NET_MOVERESIZE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_MOVERESIZE_WINDOW\n");
 		if (ABOVE(win)) {
-			if (e->data.data32[0] & (1<<8)) /* x */
+			if (e->data.data32[0] & (1 << 8)) /* x */
 				X(win) = e->data.data32[1];
-			if (e->data.data32[0] & (1<<9)) /* y */
+			if (e->data.data32[0] & (1 << 9)) /* y */
 				Y(win) = e->data.data32[2];
-			if (e->data.data32[0] & (1<<10)) /* width */
+			if (e->data.data32[0] & (1 << 10)) /* width */
 				WIDTH(win) = e->data.data32[3];
-			if (e->data.data32[0] & (1<<11)) /* height */
+			if (e->data.data32[0] & (1 << 11)) /* height */
 				HEIGHT(win) = e->data.data32[4];
 
 			update_window(win);
