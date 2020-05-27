@@ -336,6 +336,7 @@ uint16_t		mod_key = MODKEY;
 bool			warp_focus = false;
 bool			warp_pointer = false;
 bool			workspace_clamp = false;
+bool			workspace_pin = false;
 
 /* dmenu search */
 struct swm_region	*search_r;
@@ -571,6 +572,7 @@ struct workspace {
 	char			*name;		/* workspace name */
 	bool			always_raise;	/* raise windows on focus */
 	bool			bar_enabled;	/* bar visibility */
+	bool			do_pin;		/* workspace wether to pin */
 	struct layout		*cur_layout;	/* current layout handlers */
 	struct ws_win		*focus;		/* may be NULL */
 	struct ws_win		*focus_prev;	/* may be NULL */
@@ -578,6 +580,7 @@ struct workspace {
 	struct ws_win		*focus_raise;		/* may be NULL */
 	struct swm_region	*r;		/* may be NULL */
 	struct swm_region	*old_r;		/* may be NULL */
+	struct swm_region	*pin_r;		/* may be NULL */
 	struct ws_win_list	winlist;	/* list of windows in ws */
 	struct ws_win_stack	stack;		/* stacking order */
 	int			state;		/* mapping state */
@@ -1018,6 +1021,7 @@ enum actionid {
 	FN_WIDTH_SHRINK,
 	FN_WIND_DEL,
 	FN_WIND_KILL,
+	FN_WS_RELEASE,
 	FN_WS_1,
 	FN_WS_2,
 	FN_WS_3,
@@ -1240,6 +1244,7 @@ void	 move(struct binding *, struct swm_region *, union arg *);
 void	 move_win(struct ws_win *, struct binding *, int);
 uint32_t name_to_pixel(struct swm_screen *, const char *);
 void	 name_workspace(struct binding *, struct swm_region *, union arg *);
+struct workspace	*find_free_ws(struct swm_screen *);
 void	 new_region(struct swm_screen *, int, int, int, int);
 int	 parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
 int	 parsebinding(const char *, uint16_t *, enum binding_type *, uint32_t *,
@@ -1331,6 +1336,7 @@ char	*strdupsafe(const char *);
 void	 swapwin(struct binding *, struct swm_region *, union arg *);
 void	 switchlayout(struct binding *, struct swm_region *, union arg *);
 void	 switchws(struct binding *, struct swm_region *, union arg *);
+void	 releasews(struct binding *, struct swm_region *, union arg *);
 void	 teardown_ewmh(void);
 void	 unescape_selector(char *);
 void	 unfocus_win(struct ws_win *);
@@ -4916,8 +4922,24 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 		return;
 
 	other_r = new_ws->r;
-	if (other_r && workspace_clamp && (bp == NULL ||
-	    (bp->action != FN_RG_MOVE_NEXT && bp->action != FN_RG_MOVE_PREV))) {
+	if (workspace_pin && new_ws->pin_r && new_ws->pin_r != this_r
+		&& new_ws->winlist.tqh_first && !other_r) {
+		DNPRINTF(SWM_D_WS,
+		    "warping focus to previous region %p"
+		    "of ws %d\n",
+		    new_ws->pin_r, wsid);
+
+		if(warp_focus) {
+			focus_region(new_ws->pin_r);
+			center_pointer(new_ws->pin_r);
+		}
+
+		return switchws(NULL, new_ws->pin_r, args);
+	}
+
+	if (other_r && (workspace_clamp || (workspace_pin && new_ws->do_pin))
+	    && (bp == NULL
+	     || (bp->action != FN_RG_MOVE_NEXT && bp->action != FN_RG_MOVE_PREV))) {
 		DNPRINTF(SWM_D_WS, "ws clamped.\n");
 		if (warp_focus) {
 			DNPRINTF(SWM_D_WS, "warping focus to region "
@@ -4929,6 +4951,13 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 		return;
 	}
 
+        if (workspace_pin) {
+          if (old_ws->do_pin)
+            old_ws->pin_r = this_r;
+          else
+            old_ws->do_pin = true; // pin after relocation
+        }
+
 	if ((win = old_ws->focus) != NULL) {
 		draw_frame(win);
 
@@ -4937,8 +4966,32 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 		    &none);
 	}
 
-	if (other_r) {
-		/* the other ws is visible in another region, exchange them */
+        if (other_r && workspace_pin && old_ws->pin_r) {
+          /* the other ws is visible but pinned, we cannot exchange
+             it, so we move it and switch the old region to the prior
+             ws */
+          if(other_r->ws_prior && other_r->ws_prior->pin_r != other_r)
+            priorws(NULL, other_r, NULL);
+          else {
+            struct workspace *ws = find_free_ws(other_r->s);
+
+            if (ws == NULL) {
+              /* we are locked up and have to shift focus */
+              focus_region(other_r);
+              center_pointer(other_r);
+              focus_flush();
+              return;
+            }
+
+            union arg a = {.id = ws->idx};
+            switchws(NULL, other_r, &a);
+          }
+
+          old_ws->r = NULL;
+          unmap_old = true;
+        } else if (other_r) {
+		/* the other ws is visible in another region and the
+		   old one is not pinned, exchange them */
 		other_r->ws_prior = new_ws;
 		other_r->ws = old_ws;
 		old_ws->r = other_r;
@@ -4996,6 +5049,20 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 	new_ws->state = SWM_WS_STATE_MAPPED;
 
 	DNPRINTF(SWM_D_WS, "done\n");
+}
+
+void
+releasews(struct binding *bp, struct swm_region *r, union arg *args)
+{
+	/* suppress unused warning since var is needed */
+	(void)bp;
+	(void)args;
+
+	if(!workspace_pin || !r->ws)
+		return;
+
+	r->ws->pin_r = NULL;
+	r->ws->do_pin = false;
 }
 
 void
@@ -8220,6 +8287,7 @@ struct action {
 	{ "width_shrink",	resize,		0, {.id = SWM_ARG_ID_WIDTHSHRINK} },
 	{ "wind_del",		wkill,		0, {.id = SWM_ARG_ID_DELETEWINDOW} },
 	{ "wind_kill",		wkill,		0, {.id = SWM_ARG_ID_KILLWINDOW} },
+	{ "ws_release",		releasews,	0, {0} },
 	{ "ws_1",		switchws,	0, {.id = 0} },
 	{ "ws_2",		switchws,	0, {.id = 1} },
 	{ "ws_3",		switchws,	0, {.id = 2} },
@@ -9016,6 +9084,7 @@ setup_keybindings(void)
 	BINDKEY(MOD,		XK_minus,		FN_WIDTH_SHRINK);
 	BINDKEY(MOD,		XK_x,			FN_WIND_DEL);
 	BINDKEY(MODSHIFT,	XK_x,			FN_WIND_KILL);
+	BINDKEY(MODSHIFT,	XK_a,			FN_WS_RELEASE);
 	BINDKEY(MOD,		XK_1,			FN_WS_1);
 	BINDKEY(MOD,		XK_2,			FN_WS_2);
 	BINDKEY(MOD,		XK_3,			FN_WS_3);
@@ -9728,6 +9797,7 @@ enum {
 	SWM_S_WINDOW_INSTANCE_ENABLED,
 	SWM_S_WINDOW_NAME_ENABLED,
 	SWM_S_WORKSPACE_CLAMP,
+	SWM_S_WORKSPACE_PIN,
 	SWM_S_WORKSPACE_LIMIT,
 	SWM_S_WORKSPACE_INDICATOR,
 	SWM_S_WORKSPACE_NAME,
@@ -9984,6 +10054,9 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 		break;
 	case SWM_S_WORKSPACE_CLAMP:
 		workspace_clamp = (atoi(value) != 0);
+		break;
+	case SWM_S_WORKSPACE_PIN:
+		workspace_pin = (atoi(value) != 0);
 		break;
 	case SWM_S_WORKSPACE_LIMIT:
 		workspace_limit = atoi(value);
@@ -10441,6 +10514,7 @@ struct config_option configopt[] = {
 	{ "window_instance_enabled",	setconfvalue,	SWM_S_WINDOW_INSTANCE_ENABLED },
 	{ "window_name_enabled",	setconfvalue,	SWM_S_WINDOW_NAME_ENABLED },
 	{ "workspace_clamp",		setconfvalue,	SWM_S_WORKSPACE_CLAMP },
+	{ "workspace_pin",		setconfvalue,	SWM_S_WORKSPACE_PIN },
 	{ "workspace_limit",		setconfvalue,	SWM_S_WORKSPACE_LIMIT },
 	{ "workspace_indicator",	setconfvalue,	SWM_S_WORKSPACE_INDICATOR },
 	{ "name",			setconfvalue,	SWM_S_WORKSPACE_NAME },
@@ -12384,12 +12458,22 @@ enable_wm(void)
 	return (0);
 }
 
+struct workspace *find_free_ws(struct swm_screen *s) {
+	struct workspace *ws = NULL;
+
+	for (int i = 0; i < workspace_limit; i++)
+		if (s->ws[i].r == NULL) {
+		    ws = &s->ws[i];
+		    break;
+		}
+	return ws;
+}
+
 void
 new_region(struct swm_screen *s, int x, int y, int w, int h)
 {
 	struct swm_region	*r = NULL, *n;
 	struct workspace	*ws = NULL;
-	int			i;
 	uint32_t		wa[1];
 
 	DNPRINTF(SWM_D_MISC, "screen[%d]:%dx%d+%d+%d\n", s->idx, w, h, x, y);
@@ -12437,11 +12521,7 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 
 	/* if we don't have a workspace already, find one */
 	if (ws == NULL) {
-		for (i = 0; i < workspace_limit; i++)
-			if (s->ws[i].r == NULL) {
-				ws = &s->ws[i];
-				break;
-			}
+		ws = find_free_ws(s);
 	}
 
 	if (ws == NULL)
@@ -12869,12 +12949,14 @@ setup_screens(void)
 			ws->idx = j;
 			ws->name = NULL;
 			ws->bar_enabled = true;
+			ws->do_pin = false;
 			ws->focus = NULL;
 			ws->focus_prev = NULL;
 			ws->focus_pending = NULL;
 			ws->focus_raise = NULL;
 			ws->r = NULL;
 			ws->old_r = NULL;
+			ws->pin_r = NULL;
 			ws->state = SWM_WS_STATE_HIDDEN;
 			TAILQ_INIT(&ws->stack);
 			TAILQ_INIT(&ws->winlist);
@@ -13368,6 +13450,15 @@ main(int argc, char *argv[])
 			r->ws->state = SWM_WS_STATE_MAPPED;
 			bar_draw(r->bar);
 		}
+
+	/* Init pinning for all workspaces. */
+	if (workspace_pin) {
+		for (i = 0; i < num_screens; i++) {
+		    for (int j = 0; j < SWM_WS_MAX; j++) {
+			screens[i].ws[j].do_pin = true;
+		    }
+		}
+	}
 
 	memset(&pfd, 0, sizeof(pfd));
 	pfd[0].fd = xfd;

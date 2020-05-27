@@ -610,6 +610,13 @@ if you want to focus on the region containing the workspace and
 .Ar warp_pointer
 if you want to also send the pointer.
 Enable by setting to 1.
+.It Ic workspace_pin
+Pins every workspace to the region where it first appeared.
+The focus warping is analogous to how
+.Ar workspace_clamp
+handles that. If you want to unpin a workspace, you can release it with
+.Ar ws_release
+binding. Empty workspaces are unpinned by default.
 .It Ic window_class_enabled
 Enable or disable displaying the window class name (from WM_CLASS) in the
 status bar.
@@ -926,6 +933,8 @@ move_right
 move_up
 .It Cm M-S-]\&
 move_down
+.It Cm M-S-a
+ws_release
 .It Cm M-S-/
 name_workspace
 .It Cm M-/
@@ -1122,6 +1131,8 @@ Move a floating window a step to the right.
 Move a floating window a step upwards.
 .It Cm move_down
 Move a floating window a step downwards.
+.It Cm ws_release
+Unpin a workspace from a region.
 .It Cm name_workspace
 Name the current workspace.
 .It Cm search_workspace
