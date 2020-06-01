@@ -1274,7 +1274,7 @@ void	 resize_win(struct ws_win *, struct binding *, int);
 void	 restart(struct binding *, struct swm_region *, union arg *);
 struct swm_region	*root_to_region(xcb_window_t, int);
 void	 screenchange(xcb_randr_screen_change_notify_event_t *);
-void	 scan_config(void);
+void	 scan_config(const char *);
 void	 scan_randr(int);
 void	 search_do_resp(void);
 void	 search_resp_name_workspace(const char *, size_t);
@@ -9719,7 +9719,6 @@ setup_quirks(void)
 
 /* conf file stuff */
 #define SWM_CONF_FILE		"spectrwm.conf"
-#define SWM_CONF_FILE_OLD	"scrotwm.conf"
 
 enum {
 	SWM_S_BAR_ACTION,
@@ -13012,12 +13011,12 @@ setup_globals(void)
 }
 
 void
-scan_config(void)
+scan_config(const char *cfile)
 {
 	struct stat		sb;
 	struct passwd		*pwd;
 	char			conf[PATH_MAX];
-	char			*cfile = NULL, *str = NULL, *ret, *s;
+	char			*str = NULL, *ret, *s;
 	int			i;
 
 	/* To get $HOME */
@@ -13026,82 +13025,73 @@ scan_config(void)
 		errx(1, "invalid user: %d", getuid());
 
 	/* XDG search with backwards compatibility. */
-	for (i = 0; ; i++) {
-		conf[0] = '\0';
-		switch (i) {
-		case 0:
-			/* 1) $XDG_CONFIG_HOME/spectrwm/spectrwm.conf */
-			ret = getenv("XDG_CONFIG_HOME");
-			if (ret && ret[0])
-				snprintf(conf, sizeof conf, "%s/spectrwm/%s",
-				    ret, SWM_CONF_FILE);
-			else
-				/* 2) Default is $HOME/.config */
-				snprintf(conf, sizeof conf,
-				    "%s/.config/spectrwm/%s", pwd->pw_dir,
+	if (cfile == NULL) {
+		for (i = 0; ; i++) {
+			conf[0] = '\0';
+			switch (i) {
+			case 0:
+				/* 1) $XDG_CONFIG_HOME/spectrwm/spectrwm.conf */
+				ret = getenv("XDG_CONFIG_HOME");
+				if (ret && ret[0])
+					snprintf(conf, sizeof conf, "%s/spectrwm/%s",
+					    ret, SWM_CONF_FILE);
+				else
+					/* 2) Default is $HOME/.config */
+					snprintf(conf, sizeof conf,
+					    "%s/.config/spectrwm/%s", pwd->pw_dir,
+					    SWM_CONF_FILE);
+				break;
+			case 1:
+				/* 3) $HOME/.spectrwm.conf */
+				snprintf(conf, sizeof conf, "%s/.%s", pwd->pw_dir,
 				    SWM_CONF_FILE);
-			break;
-		case 1:
-			/* 3) $HOME/.spectrwm.conf */
-			snprintf(conf, sizeof conf, "%s/.%s", pwd->pw_dir,
-			    SWM_CONF_FILE);
-			break;
-		case 2:
-			/* 4) $XDG_CONFIG_DIRS (colon-separated set of dirs) */
-			ret = getenv("XDG_CONFIG_DIRS");
-			if (ret && ret[0]) {
-				if ((str = strdup(ret)) == NULL)
-					err(1, "xdg strdup");
-			} else {
-				/* 5) Fallback to default: /etc/xdg */
-				if (asprintf(&str, "/etc/xdg") == -1)
-					err(1, "xdg asprintf");
-			}
-
-			/* Try ./spectrwm/spectrwm.conf under each dir. */
-			while ((s = strsep(&str, ":")) != NULL) {
-				if (*s == '\0')
-					continue;
-				snprintf(conf, sizeof conf, "%s/spectrwm/%s", s,
-				    SWM_CONF_FILE);
-				if (stat(conf, &sb) != -1 &&
-				    S_ISREG(sb.st_mode)) {
-					/* Found a file. */
-					cfile = conf;
-					break;
+				break;
+			case 2:
+				/* 4) $XDG_CONFIG_DIRS (colon-separated set of dirs) */
+				ret = getenv("XDG_CONFIG_DIRS");
+				if (ret && ret[0]) {
+					if ((str = strdup(ret)) == NULL)
+						err(1, "xdg strdup");
+				} else {
+					/* 5) Fallback to default: /etc/xdg */
+					if (asprintf(&str, "/etc/xdg") == -1)
+						err(1, "xdg asprintf");
 				}
-				conf[0] = '\0';
+
+				/* Try ./spectrwm/spectrwm.conf under each dir. */
+				while ((s = strsep(&str, ":")) != NULL) {
+					if (*s == '\0')
+						continue;
+					snprintf(conf, sizeof conf, "%s/spectrwm/%s", s,
+					    SWM_CONF_FILE);
+					if (stat(conf, &sb) != -1 &&
+					    S_ISREG(sb.st_mode)) {
+						/* Found a file. */
+						cfile = conf;
+						break;
+					}
+					conf[0] = '\0';
+				}
+				free(str);
+				break;
+			case 3:
+				/* 6) /etc/spectrwm.conf */
+				snprintf(conf, sizeof conf, "/etc/%s", SWM_CONF_FILE);
+				break;
+			default:
+				goto done;
 			}
-			free(str);
-			break;
-		case 3:
-			/* 6) /etc/spectrwm.conf */
-			snprintf(conf, sizeof conf, "/etc/%s", SWM_CONF_FILE);
-			break;
-		case 4:
-			/* 7) $HOME/.scrotwm.conf */
-			snprintf(conf, sizeof conf, "%s/.%s", pwd->pw_dir,
-			    SWM_CONF_FILE_OLD);
-			break;
-		case 5:
-			/* 8) /etc/scrotwm.conf */
-			snprintf(conf, sizeof conf, "/etc/%s",
-			    SWM_CONF_FILE_OLD);
-			break;
-		default:
-			goto done;
-		}
 
-		if (cfile == NULL && conf[0] && stat(conf, &sb) != -1 &&
-		    S_ISREG(sb.st_mode))
-			cfile = conf;
+			if (cfile == NULL && conf[0] && stat(conf, &sb) != -1 &&
+			    S_ISREG(sb.st_mode))
+				cfile = conf;
 
-		if (cfile) {
-			conf_load(cfile, SWM_CONF_DEFAULT);
-			break;
+			if (cfile) {
+				conf_load(cfile, SWM_CONF_DEFAULT);
+				break;
+			}
 		}
 	}
-
 done:
 	DNPRINTF(SWM_D_INIT, "done\n");
 }
@@ -13281,11 +13271,19 @@ main(int argc, char *argv[])
 	struct swm_region	*r;
 	xcb_generic_event_t	*evt;
 	xcb_mapping_notify_event_t *mne;
-	int			xfd, i, num_screens, num_readable;
+	int			ch, xfd, i, num_screens, num_readable;
 	bool			stdin_ready = false, startup = true;
+	const char		*cfile = NULL;
 
-	/* suppress unused warning since var is needed */
-	(void)argc;
+	while ((ch = getopt(argc, argv, "c:")) != -1) {
+		switch (ch) {
+		case 'c':
+			cfile = optarg;
+			break;
+		}
+	}
+	argc -= optind;
+	argv += optind;
 
 #ifdef SWM_DEBUG
 	time_started = time(NULL);
@@ -13366,7 +13364,7 @@ main(int argc, char *argv[])
 	setup_quirks();
 	setup_spawn();
 
-	scan_config();
+	scan_config(cfile);
 
 	if (pledge("stdio proc exec rpath", NULL) == -1)
 		err(1, "pledge");
