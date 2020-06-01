@@ -4222,13 +4222,12 @@ restart(struct binding *bp, struct swm_region *r, union arg *args)
 	/* suppress unused warning since var is needed */
 	(void)bp;
 	(void)r;
-	(void)args;
 
 	DNPRINTF(SWM_D_MISC, "%s\n", start_argv[0]);
 
 	shutdown_cleanup();
 
-	if (args->id == SWM_ARG_ID_RESTARTOFDAY)
+	if (args && args->id == SWM_ARG_ID_RESTARTOFDAY)
 		unsetenv("SWM_STARTED");
 
 	execvp(start_argv[0], start_argv);
