@@ -372,7 +372,7 @@ enum {
 /* dialog windows */
 double			dialog_ratio = 0.6;
 /* status bar */
-#define SWM_BAR_MAX		(256)
+#define SWM_BAR_MAX		(1024)
 #define SWM_BAR_JUSTIFY_LEFT	(0)
 #define SWM_BAR_JUSTIFY_CENTER	(1)
 #define SWM_BAR_JUSTIFY_RIGHT	(2)
