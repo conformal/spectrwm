@@ -336,7 +336,7 @@ uint16_t		mod_key = MODKEY;
 bool			warp_focus = false;
 bool			warp_pointer = false;
 bool			workspace_clamp = false;
-bool			workspace_pin = false;
+bool			workspace_auto_pin = false;
 
 /* dmenu search */
 struct swm_region	*search_r;
@@ -4922,7 +4922,7 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 		return;
 
 	other_r = new_ws->r;
-	if (workspace_pin && new_ws->pin_r && new_ws->pin_r != this_r
+	if (workspace_auto_pin && new_ws->pin_r && new_ws->pin_r != this_r
 		&& new_ws->winlist.tqh_first && !other_r) {
 		DNPRINTF(SWM_D_WS,
 		    "warping focus to previous region %p"
@@ -4937,7 +4937,7 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 		return switchws(NULL, new_ws->pin_r, args);
 	}
 
-	if (other_r && (workspace_clamp || (workspace_pin && new_ws->do_pin))
+	if (other_r && (workspace_clamp || (workspace_auto_pin && new_ws->do_pin))
 	    && (bp == NULL
 	     || (bp->action != FN_RG_MOVE_NEXT && bp->action != FN_RG_MOVE_PREV))) {
 		DNPRINTF(SWM_D_WS, "ws clamped.\n");
@@ -4951,7 +4951,7 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 		return;
 	}
 
-        if (workspace_pin) {
+        if (workspace_auto_pin) {
           if (old_ws->do_pin)
             old_ws->pin_r = this_r;
           else
@@ -4966,7 +4966,7 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 		    &none);
 	}
 
-        if (other_r && workspace_pin && old_ws->pin_r) {
+        if (other_r && workspace_auto_pin && old_ws->pin_r) {
           /* the other ws is visible but pinned, we cannot exchange
              it, so we move it and switch the old region to the prior
              ws */
@@ -5058,7 +5058,7 @@ releasews(struct binding *bp, struct swm_region *r, union arg *args)
 	(void)bp;
 	(void)args;
 
-	if(!workspace_pin || !r->ws)
+	if(!workspace_auto_pin || !r->ws)
 		return;
 
 	r->ws->pin_r = NULL;
@@ -9797,7 +9797,7 @@ enum {
 	SWM_S_WINDOW_INSTANCE_ENABLED,
 	SWM_S_WINDOW_NAME_ENABLED,
 	SWM_S_WORKSPACE_CLAMP,
-	SWM_S_WORKSPACE_PIN,
+	SWM_S_WORKSPACE_AUTO_PIN,
 	SWM_S_WORKSPACE_LIMIT,
 	SWM_S_WORKSPACE_INDICATOR,
 	SWM_S_WORKSPACE_NAME,
@@ -10055,8 +10055,8 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 	case SWM_S_WORKSPACE_CLAMP:
 		workspace_clamp = (atoi(value) != 0);
 		break;
-	case SWM_S_WORKSPACE_PIN:
-		workspace_pin = (atoi(value) != 0);
+	case SWM_S_WORKSPACE_AUTO_PIN:
+		workspace_auto_pin = (atoi(value) != 0);
 		break;
 	case SWM_S_WORKSPACE_LIMIT:
 		workspace_limit = atoi(value);
@@ -10514,7 +10514,7 @@ struct config_option configopt[] = {
 	{ "window_instance_enabled",	setconfvalue,	SWM_S_WINDOW_INSTANCE_ENABLED },
 	{ "window_name_enabled",	setconfvalue,	SWM_S_WINDOW_NAME_ENABLED },
 	{ "workspace_clamp",		setconfvalue,	SWM_S_WORKSPACE_CLAMP },
-	{ "workspace_pin",		setconfvalue,	SWM_S_WORKSPACE_PIN },
+	{ "workspace_auto_pin",		setconfvalue,	SWM_S_WORKSPACE_AUTO_PIN },
 	{ "workspace_limit",		setconfvalue,	SWM_S_WORKSPACE_LIMIT },
 	{ "workspace_indicator",	setconfvalue,	SWM_S_WORKSPACE_INDICATOR },
 	{ "name",			setconfvalue,	SWM_S_WORKSPACE_NAME },
@@ -13452,7 +13452,7 @@ main(int argc, char *argv[])
 		}
 
 	/* Init pinning for all workspaces. */
-	if (workspace_pin) {
+	if (workspace_auto_pin) {
 		for (i = 0; i < num_screens; i++) {
 		    for (int j = 0; j < SWM_WS_MAX; j++) {
 			screens[i].ws[j].do_pin = true;
