@@ -1,6 +1,6 @@
 .\" Copyright (c) 2009-2012 Marco Peereboom <marco@peereboom.us>
 .\" Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
-.\" Copyright (c) 2011-2018 Reginald Kennedy <rk@rejii.com>
+.\" Copyright (c) 2011-2020 Reginald Kennedy <rk@rejii.com>
 .\" Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
 .\" Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
 .\" Copyright (c) 2012 David Hill <dhill@mindcry.org>
@@ -377,9 +377,6 @@ Disable by setting to 0
 so a custom clock could be used in the
 .Ic bar_action
 script.
-.It Ic iconic_enabled
-Display the number of iconic (minimized) windows in the status bar.
-Enable by setting to 1.
 .It Ic color_focus
 Border color of the currently focused window.
 Default is red.
@@ -442,11 +439,9 @@ and changes to layout.
 .It Ar manual
 Set window focus on window interaction only.
 .El
-.It Ic maximize_hide_bar
-When set to 1,
-.Ic maximize_toggle
-will also hide/restore the bar visibility of the affected workspace.
-Defaults to 0.
+.It Ic iconic_enabled
+Display the number of iconic (minimized) windows in the status bar.
+Enable by setting to 1.
 .It Ic keyboard_mapping
 Clear all key bindings (not button bindings) and load new bindings from the
 specified file.
@@ -495,6 +490,11 @@ the
 option.
 .Pp
 This setting is not retained at restart.
+.It Ic maximize_hide_bar
+When set to 1,
+.Ic maximize_toggle
+will also hide/restore the bar visibility of the affected workspace.
+Defaults to 0.
 .It Ic modkey
 Change mod key.
 Mod1 is generally the ALT key and Mod4 is the windows key on a PC.
@@ -601,14 +601,16 @@ See
 and
 .Ar stack_dec
 for more information.
-.It Ic workspace_clamp
-Prevents workspaces from being swapped when attempting to switch to a workspace
-that is mapped to another region.
-Use
-.Ar warp_focus
-if you want to focus on the region containing the workspace and
-.Ar warp_pointer
-if you want to also send the pointer.
+.It Ic warp_focus
+Focus on the target window/workspace/region when clamped.
+For example, when attempting to switch to a workspace that is mapped on another
+region and
+.Ar workspace_clamp
+is enabled, focus on the region with the target workspace.
+Enable by setting to 1.
+.It Ic warp_pointer
+Centers the pointer on the focused window when using bindings to change focus,
+switch workspaces, change regions, etc.
 Enable by setting to 1.
 .It Ic window_class_enabled
 Enable or disable displaying the window class name (from WM_CLASS) in the
@@ -628,16 +630,14 @@ the bar, it's limited to 64 characters, by default.
 See the
 .Ic bar_format
 option for more details.
-.It Ic warp_focus
-Focus on the target window/workspace/region when clamped.
-For example, when attempting to switch to a workspace that is mapped on another
-region and
-.Ar workspace_clamp
-is enabled, focus on the region with the target workspace.
-Enable by setting to 1.
-.It Ic warp_pointer
-Centers the pointer on the focused window when using bindings to change focus,
-switch workspaces, change regions, etc.
+.It Ic workspace_clamp
+Prevents workspaces from being swapped when attempting to switch to a workspace
+that is mapped to another region.
+Use
+.Ar warp_focus
+if you want to focus on the region containing the workspace and
+.Ar warp_pointer
+if you want to also send the pointer.
 Enable by setting to 1.
 .It Ic workspace_indicator
 Configure the status bar workspace indicator.
