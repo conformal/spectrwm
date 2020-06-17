@@ -1,3 +1,36 @@
+spectrwm 3.4.0
+==============
+
+Release on Jun 17, 2020
+
+* Add optional startup parameters:
+  - -c file - Specify a configuration file to load instead of scanning for one.
+  - -v - Print version and exit.
+* Add new `restart_of_day` action. (Unbound by default.)
+  (Same as restart but configuration file is loaded in full.)
+* Improve startup error handling.
+* Fix input focus issues.
+* Fix max layout 'flickering' issue when `focus_mode = follow`.
+* Fix `ws_next_move` and `ws_prev_move`.
+* Fix withdrawn window handling.
+* Fix focus issue when moving transient (and related) windows between workspaces.
+* Fix maximized windows sometimes unmaximize on workspace switch.
+* Fix `SIGHUP` restart.
+* Fix transient window crossing issue on focus/swap next/prev actions.
+* Fix border color issue when clicking to focus a window on an unfocused region.
+* Fix `keyboard_mapping` fallback issue.
+* Fix width calculation of Xft glyphs.
+  (Fixes the (dis)appearing space when switching workspaces.)
+* Increase bar hard limits to better accomodate complex markup sequences.
+* Add workaround to man page for OSs ignoring `LD_PRELOAD`.
+* Add some notes to man page and fix a warning.
+* Add missing options to example spectrwm.conf.
+* Update spectrwm_fr.conf
+* linux: Add example baraction.sh script.
+* linux: Accept user-provided pkg-config command.
+* linux: Install examples.
+
+
 spectrwm 3.3.0
 ==============
 
