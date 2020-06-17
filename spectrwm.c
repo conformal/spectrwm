@@ -6713,7 +6713,7 @@ set_focus_redirect(struct ws_win *win)
 	w = win;
 	for (i = 0; w && TRANS(w) && i < wincount; i++) {
 		tmpw = find_window(w->transient);
-		if (tmpw == win)
+		if (tmpw == NULL || tmpw == win)
 			/* Transient loop shouldn't occur. */
 			break;
 		tmpw->focus_redirect = w;
