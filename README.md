@@ -3,14 +3,14 @@ spectrwm
 
 spectrwm is a small, dynamic tiling and reparenting window manager for X11. It
 tries to stay out of the way so that valuable screen real estate can be used
-for much more important stuff. It has sane defaults and does not require one to
+for much more important stuff. It has sane defaults, and it does not require one to
 learn a language to do any configuration. spectrwm is written by hackers for hackers,
 and it strives to be small, compact, and fast.
 
 spectrwm was largely inspired by [xmonad](http://xmonad.org) and
 [dwm](http://dwm.suckless.org). Both are fine products but suffer from things
 like: crazy-unportable-language syndrome, silly defaults, asymmetrical window
-layout (how hard can it be?), and good old NIH.  Nevertheless,
+layout, 'how hard can it be?' (to code properly), and good old NIH.  Nevertheless,
 [dwm](http://dwm.suckless.org) was a phenomenal resource, and good ideas
 and code was borrowed from it. On the other hand, [xmonad](http://xmonad.org)
 has great defaults and key bindings, plus xinerama support, but it is crippled by not
@@ -20,7 +20,7 @@ spectrwm is a beautiful pearl! For it, too, was created by grinding irritation.
 Nothing is a bigger waste of time either than moving windows around until they are the
 right size-ish or having just about any relevant key combination be eaten
 by some task one never performs. The path of agony is too long to quote, and, in
-classical [OpenBSD](http://www.openbsd.org) fashion (put up, or hack up), a
+classic [OpenBSD](http://www.openbsd.org) fashion (put up, or hack up), a
 brand new window manager was whooped up to serve no other purpose than to obey
 its masters. 
 
