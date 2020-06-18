@@ -8,11 +8,11 @@ learn a language to do any configuration. spectrwm is written by hackers for hac
 and it strives to be small, compact, and fast.
 
 spectrwm was largely inspired by [xmonad](http://xmonad.org) and
-[dwm](http://dwm.suckless.org). Both are fine products but suffer from things
+[dwm](http://dwm.suckless.org). Both are fine products, but they suffer from things
 like: crazy-unportable-language syndrome, silly defaults, asymmetrical window
 layout, 'how hard can it be?' (to code properly), and good old NIH.  Nevertheless,
 [dwm](http://dwm.suckless.org) was a phenomenal resource, and good ideas
-and code was borrowed from it. On the other hand, [xmonad](http://xmonad.org)
+and code were borrowed from it. On the other hand, [xmonad](http://xmonad.org)
 has great defaults and key bindings, plus xinerama support, but it is crippled by not
 being written in C.
 
