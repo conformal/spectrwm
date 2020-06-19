@@ -11159,7 +11159,7 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	    instance, name);
 
 	/* java is retarded so treat it special */
-	if (strstr(instance, "sun-awt")) {
+	if (strstr(instance, "sun-awt") || strstr(instance, "jetbrains")) {
 		DNPRINTF(SWM_D_CLASS, "java window detected.\n");
 		win->java = true;
 	}
