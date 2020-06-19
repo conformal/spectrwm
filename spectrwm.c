@@ -12482,8 +12482,9 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 	} else {
 		/* Withdraw. */
 		DNPRINTF(SWM_D_EVENT, "withdraw\n");
-		/* EWMH: need to remove _NET_WM_DESKTOP on withdraw. */
+		/* EWMH advises removal of _NET_WM_DESKTOP and _NET_WM_STATE. */
 		xcb_delete_property(conn, win->id, ewmh[_NET_WM_DESKTOP].atom);
+		xcb_delete_property(conn, win->id, ewmh[_NET_WM_STATE].atom);
 		set_win_state(win, XCB_ICCCM_WM_STATE_WITHDRAWN);
 		unmanage_window(win);
 	}
