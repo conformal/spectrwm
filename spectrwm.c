@@ -303,6 +303,7 @@ uint32_t		swm_debug = 0
 #define SWM_WSI_MARKCURRENT	(0x200)
 #define SWM_WSI_MARKURGENT	(0x400)
 #define SWM_WSI_PRINTNAMES	(0x800)
+#define SWM_WSI_PRINTONLYNAMES	(0x1000)
 #define SWM_WSI_DEFAULT		(SWM_WSI_LISTCURRENT | SWM_WSI_LISTACTIVE |	\
     SWM_WSI_MARKCURRENT | SWM_WSI_PRINTNAMES)
 
@@ -2764,6 +2765,8 @@ bar_workspace_indicator(char *s, size_t sz, struct swm_region *r)
 			if (named && workspace_indicator & SWM_WSI_PRINTNAMES)
 				snprintf(tmp, sizeof tmp, "%d:%s", ws->idx + 1,
 				    ws->name);
+      else if (named && workspace_indicator & SWM_WSI_PRINTONLYNAMES)
+				snprintf(tmp, sizeof tmp, "%s", ws->name);
 			else
 				snprintf(tmp, sizeof tmp, "%d", ws->idx + 1);
 			strlcat(s, tmp, sz);
@@ -9587,6 +9590,7 @@ struct wsi_flag {
 	{"markcurrent", SWM_WSI_MARKCURRENT},
 	{"markurgent", SWM_WSI_MARKURGENT},
 	{"printnames", SWM_WSI_PRINTNAMES},
+	{"printonlynames", SWM_WSI_PRINTONLYNAMES},
 };
 
 #define SWM_FLAGS_DELIM		","
