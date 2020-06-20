@@ -460,6 +460,8 @@ int		num_bg_colors = 1;
 XftColor	search_font_color;
 char		*startup_exception = NULL;
 unsigned int	 nr_exceptions = 0;
+char *current_mark = NULL;
+char *urgent_mark = NULL;
 
 /* layout manager data */
 struct swm_geometry {
@@ -2752,10 +2754,10 @@ bar_workspace_indicator(char *s, size_t sz, struct swm_region *r)
 
 			if (current &&
 			    workspace_indicator & SWM_WSI_MARKCURRENT)
-				mark = "*";
+				mark = current_mark;
 			else if (urgent && workspace_indicator &
 			    SWM_WSI_MARKURGENT)
-				mark = "!";
+				mark = urgent_mark;
 			else if (!collapse)
 				mark = " ";
 			else
@@ -9992,6 +9994,8 @@ enum {
 	SWM_S_WORKSPACE_LIMIT,
 	SWM_S_WORKSPACE_INDICATOR,
 	SWM_S_WORKSPACE_NAME,
+  SWM_S_CURRENT_MARK,
+  SWM_S_URGENT_MARK,
 };
 
 int
@@ -10288,6 +10292,16 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 			ewmh_update_desktop_names();
 			ewmh_get_desktop_names();
 		}
+		break;
+  case SWM_S_CURRENT_MARK:
+		free(current_mark);
+		if ((current_mark = strdup(value)) == NULL)
+			err(1, "setconfvalue: current_mark");
+		break;
+  case SWM_S_URGENT_MARK:
+		free(urgent_mark);
+		if ((urgent_mark = strdup(value)) == NULL)
+			err(1, "setconfvalue: urgent_mark");
 		break;
 	default:
 		ALLOCSTR(emsg, "invalid option");
@@ -10705,6 +10719,8 @@ struct config_option configopt[] = {
 	{ "workspace_limit",		setconfvalue,	SWM_S_WORKSPACE_LIMIT },
 	{ "workspace_indicator",	setconfvalue,	SWM_S_WORKSPACE_INDICATOR },
 	{ "name",			setconfvalue,	SWM_S_WORKSPACE_NAME },
+	{ "current_mark",			setconfvalue,	SWM_S_CURRENT_MARK },
+	{ "urgent_mark",			setconfvalue,	SWM_S_URGENT_MARK },
 };
 
 void
@@ -13284,6 +13300,10 @@ setup_globals(void)
 
 	if ((syms = xcb_key_symbols_alloc(conn)) == NULL)
 		errx(1, "unable to allocate key symbols.");
+  if ((current_mark = strdup ("*")) == NULL)
+      err(1, "current_mark: strdup");
+  if ((urgent_mark = strdup ("!")) == NULL)
+      err(1, "urgent_mark: strdup");
 
 	a_state = get_atom_from_string("WM_STATE");
 	a_prot = get_atom_from_string("WM_PROTOCOLS");
