@@ -508,6 +508,26 @@ the
 option.
 .Pp
 This setting is not retained at restart.
+.It Ic stack_mark_max
+change the mark for the
+.Ic stack_mod
+layout stacking algorithm indecator, default is [ ].
+.It Ic stack_mark_vertical
+change the mark for the
+.Ic vertical
+layout stacking algorithm indecator, default is [|].
+.It Ic stack_mark_vertical_flip
+change the mark for the
+.IC vertical_flip
+layout stacking algorithm indecator, default is [>].
+.It Ic stack_mark_horizontal
+change the mark for the
+.Ic horizontal
+layout stacking algorithm indecator, default is [-].
+.It Ic stack_mark_horizontal_flip
+change the mark for
+.Ic the horizontal_flip
+layout stacking algorithm indecator, default is [v].
 .It Ic maximize_hide_bar
 When set to 1,
 .Ic maximize_toggle
@@ -681,12 +701,26 @@ Always exclude the current workspace from the list.
 Indicate the current workspace if it is in the list.
 .It Ar markurgent
 Indicate workspaces in the list that contain urgent window(s).
+.It Ar markactive
+Indicate workspaces in the list that are active.
+.It Ar markempty
+Indicate workspaces in the list that are empty.
 .It Ar printnames
 Display the names of named workspaces in the list.
+.It Ar noindexes
+hide the index of the workspaces.
 .El
 .Pp
 The default is
 .Ar listcurrent , Ns Ar listactive , Ns Ar markcurrent , Ns Ar printnames
+.It Ic workspace_mark_current
+set the mark symbol for marking current workspace, default is *
+.It Ic workspace_mark_urgent
+set the mark symbol for marking urgent workspaces, default is !
+.It Ic workspace_mark_active
+set the mark symbol for marking active workspaces, default is ^
+.It Ic workspace_mark_empty
+set the mark symbol for marking empty workspaces, default is -
 .It Ic workspace_limit
 Set the total number of workspaces available.
 Minimum is 1, maximum is 22, default is 10.

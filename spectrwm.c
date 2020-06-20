@@ -302,7 +302,10 @@ uint32_t		swm_debug = 0
 #define SWM_WSI_HIDECURRENT	(0x100)
 #define SWM_WSI_MARKCURRENT	(0x200)
 #define SWM_WSI_MARKURGENT	(0x400)
-#define SWM_WSI_PRINTNAMES	(0x800)
+#define SWM_WSI_MARKACTIVE	(0x800)
+#define SWM_WSI_MARKEMPTY	(0x1000)
+#define SWM_WSI_PRINTNAMES	(0x2000)
+#define SWM_WSI_NOINDEXES	(0x4000)
 #define SWM_WSI_DEFAULT		(SWM_WSI_LISTCURRENT | SWM_WSI_LISTACTIVE |	\
     SWM_WSI_MARKCURRENT | SWM_WSI_PRINTNAMES)
 
@@ -462,6 +465,15 @@ int		num_bg_colors = 1;
 XftColor	search_font_color;
 char		*startup_exception = NULL;
 unsigned int	 nr_exceptions = 0;
+char    *workspace_mark_current = NULL;
+char    *workspace_mark_urgent = NULL;
+char    *workspace_mark_active = NULL;
+char    *workspace_mark_empty = NULL;
+char    *stack_mark_max = NULL;
+char    *stack_mark_vertical = NULL;
+char    *stack_mark_vertical_flip = NULL;
+char    *stack_mark_horizontal = NULL;
+char    *stack_mark_horizontal_flip = NULL;
 
 /* layout manager data */
 struct swm_geometry {
@@ -2321,12 +2333,12 @@ fancy_stacker(struct workspace *ws)
 void
 plain_stacker(struct workspace *ws)
 {
-	strlcpy(ws->stacker, "[ ]", sizeof ws->stacker);
+	strlcpy(ws->stacker, stack_mark_max, sizeof ws->stacker);
 	if (ws->cur_layout->l_stack == vertical_stack)
-		strlcpy(ws->stacker, ws->l_state.vertical_flip ? "[>]" : "[|]",
+		strlcpy(ws->stacker, ws->l_state.vertical_flip ? stack_mark_vertical_flip : stack_mark_vertical,
 		    sizeof ws->stacker);
 	else if (ws->cur_layout->l_stack == horizontal_stack)
-		strlcpy(ws->stacker, ws->l_state.horizontal_flip ? "[v]" : "[-]",
+		strlcpy(ws->stacker, ws->l_state.horizontal_flip ? stack_mark_horizontal_flip : stack_mark_horizontal,
 		    sizeof ws->stacker);
 }
 
@@ -2752,21 +2764,29 @@ bar_workspace_indicator(char *s, size_t sz, struct swm_region *r)
 			if (count > 0)
 				strlcat(s, " ", sz);
 
-			if (current &&
-			    workspace_indicator & SWM_WSI_MARKCURRENT)
-				mark = "*";
-			else if (urgent && workspace_indicator &
-			    SWM_WSI_MARKURGENT)
-				mark = "!";
+			if (current && workspace_indicator & SWM_WSI_MARKCURRENT)
+				mark = workspace_mark_current;
+			else if (urgent && workspace_indicator & SWM_WSI_MARKURGENT)
+				mark = workspace_mark_urgent;
+			else if (active && workspace_indicator & SWM_WSI_MARKACTIVE)
+				mark = workspace_mark_active;
+			else if (!active && workspace_indicator & SWM_WSI_MARKEMPTY)
+				mark = workspace_mark_empty;
 			else if (!collapse)
 				mark = " ";
 			else
 				mark = "";
 			strlcat(s, mark, sz);
 
-			if (named && workspace_indicator & SWM_WSI_PRINTNAMES)
+			if (named && workspace_indicator & SWM_WSI_PRINTNAMES){
 				snprintf(tmp, sizeof tmp, "%d:%s", ws->idx + 1,
 				    ws->name);
+			if (named && workspace_indicator &
+							SWM_WSI_NOINDEXES)
+				snprintf(tmp, sizeof tmp, "%s", ws->name);
+			}
+      else if (workspace_indicator & SWM_WSI_NOINDEXES)
+				snprintf(tmp, sizeof tmp, "%s", " ");
 			else
 				snprintf(tmp, sizeof tmp, "%d", ws->idx + 1);
 			strlcat(s, tmp, sz);
@@ -9614,7 +9634,10 @@ struct wsi_flag {
 	{"hidecurrent", SWM_WSI_HIDECURRENT},
 	{"markcurrent", SWM_WSI_MARKCURRENT},
 	{"markurgent", SWM_WSI_MARKURGENT},
+	{"markactive", SWM_WSI_MARKACTIVE},
+	{"markempty", SWM_WSI_MARKEMPTY},
 	{"printnames", SWM_WSI_PRINTNAMES},
+	{"noindexes", SWM_WSI_NOINDEXES},
 };
 
 #define SWM_FLAGS_DELIM		","
@@ -10016,6 +10039,15 @@ enum {
 	SWM_S_WORKSPACE_LIMIT,
 	SWM_S_WORKSPACE_INDICATOR,
 	SWM_S_WORKSPACE_NAME,
+	SWM_S_WORKSPACE_MARK_CURRENT,
+	SWM_S_WORKSPACE_MARK_URGENT,
+	SWM_S_WORKSPACE_MARK_ACTIVE,
+	SWM_S_WORKSPACE_MARK_EMPTY,
+	SWM_S_STACK_MARK_MAX,
+	SWM_S_STACK_MARK_VERTICAL,
+	SWM_S_STACK_MARK_VERTICAL_FLIP,
+	SWM_S_STACK_MARK_HORIZONTAL,
+	SWM_S_STACK_MARK_HORIZONTAL_FLIP,
 };
 
 int
@@ -10312,6 +10344,51 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 			ewmh_update_desktop_names();
 			ewmh_get_desktop_names();
 		}
+		break;
+  case SWM_S_WORKSPACE_MARK_CURRENT:
+		free(workspace_mark_current);
+		if ((workspace_mark_current = strdup(value)) == NULL)
+			err(1, "setconfvalue: workspace_mark_current");
+		break;
+  case SWM_S_WORKSPACE_MARK_URGENT:
+		free(workspace_mark_urgent);
+		if ((workspace_mark_urgent = strdup(value)) == NULL)
+			err(1, "setconfvalue: workspace_mark_urgent");
+    break;
+  case SWM_S_WORKSPACE_MARK_ACTIVE:
+		free(workspace_mark_active);
+		if ((workspace_mark_active = strdup(value)) == NULL)
+			err(1, "setconfvalue: workspace_mark_active");
+    break;
+  case SWM_S_WORKSPACE_MARK_EMPTY:
+		free(workspace_mark_empty);
+		if ((workspace_mark_empty = strdup(value)) == NULL)
+			err(1, "setconfvalue: workspace_mark_empty");
+    break;
+  case SWM_S_STACK_MARK_MAX:
+		free(stack_mark_max);
+		if ((stack_mark_max = strdup(value)) == NULL)
+			err(1, "setconfvalue: stack_mark_max");
+		break;
+  case SWM_S_STACK_MARK_VERTICAL:
+		free(stack_mark_vertical);
+		if ((stack_mark_vertical = strdup(value)) == NULL)
+			err(1, "setconfvalue: stack_mark_vertical");
+		break;
+  case SWM_S_STACK_MARK_VERTICAL_FLIP:
+		free(stack_mark_vertical_flip);
+		if ((stack_mark_vertical_flip = strdup(value)) == NULL)
+			err(1, "setconfvalue: stack_mark_vertical_flip");
+		break;
+  case SWM_S_STACK_MARK_HORIZONTAL:
+		free(stack_mark_horizontal);
+		if ((stack_mark_horizontal = strdup(value)) == NULL)
+			err(1, "setconfvalue: stack_mark_horizontal");
+		break;
+  case SWM_S_STACK_MARK_HORIZONTAL_FLIP:
+		free(stack_mark_horizontal_flip);
+		if ((stack_mark_horizontal_flip = strdup(value)) == NULL)
+			err(1, "setconfvalue: stack_mark_horizontal_flip");
 		break;
 	default:
 		ALLOCSTR(emsg, "invalid option");
@@ -10729,6 +10806,15 @@ struct config_option configopt[] = {
 	{ "workspace_limit",		setconfvalue,	SWM_S_WORKSPACE_LIMIT },
 	{ "workspace_indicator",	setconfvalue,	SWM_S_WORKSPACE_INDICATOR },
 	{ "name",			setconfvalue,	SWM_S_WORKSPACE_NAME },
+	{ "workspace_mark_current",			setconfvalue,	SWM_S_WORKSPACE_MARK_CURRENT },
+	{ "workspace_mark_urgent",			setconfvalue,	SWM_S_WORKSPACE_MARK_URGENT },
+	{ "workspace_mark_active",			setconfvalue,	SWM_S_WORKSPACE_MARK_ACTIVE },
+	{ "workspace_mark_empty",			setconfvalue,	SWM_S_WORKSPACE_MARK_EMPTY },
+	{ "stack_mark_max",			setconfvalue,	SWM_S_STACK_MARK_MAX },
+	{ "stack_mark_vertical",			setconfvalue,	SWM_S_STACK_MARK_VERTICAL },
+	{ "stack_mark_vertical_flip",			setconfvalue,	SWM_S_STACK_MARK_VERTICAL_FLIP },
+	{ "stack_mark_horizontal",			setconfvalue,	SWM_S_STACK_MARK_HORIZONTAL },
+	{ "stack_mark_horizontal_flip",			setconfvalue,	SWM_S_STACK_MARK_HORIZONTAL_FLIP },
 };
 
 void
@@ -13319,8 +13405,31 @@ setup_globals(void)
 	if ((clock_format = strdup("%a %b %d %R %Z %Y")) == NULL)
 		err(1, "clock_format: strdup");
 
+	if ((stack_mark_max = strdup("[ ]")) == NULL)
+		err(1, "stack_mark_max: strdup");
+
+	if ((stack_mark_vertical = strdup("[|]")) == NULL)
+		err(1, "stack_mark_vertical: strdup");
+
+	if ((stack_mark_vertical_flip = strdup("[>]")) == NULL)
+		err(1, "stack_mark_vertical_flip: strdup");
+
+	if ((stack_mark_horizontal = strdup("[-]")) == NULL)
+		err(1, "stack_mark_horizontal: strdup");
+
+	if ((stack_mark_horizontal_flip = strdup("[v]")) == NULL)
+		err(1, "stack_mark_horizontal_flip: strdup");
+
 	if ((syms = xcb_key_symbols_alloc(conn)) == NULL)
 		errx(1, "unable to allocate key symbols.");
+  if ((workspace_mark_current = strdup ("*")) == NULL)
+      err(1, "workspace_mark_current: strdup");
+  if ((workspace_mark_urgent = strdup ("!")) == NULL)
+      err(1, "workspace_mark_urgent: strdup");
+  if ((workspace_mark_active = strdup ("^")) == NULL)
+      err(1, "workspace_mark_active: strdup");
+  if ((workspace_mark_empty = strdup ("-")) == NULL)
+      err(1, "workspace_mark_empty: strdup");
 
 	a_state = get_atom_from_string("WM_STATE");
 	a_prot = get_atom_from_string("WM_PROTOCOLS");
@@ -13505,6 +13614,15 @@ shutdown_cleanup(void)
 	free(bar_fonts);
 	free(clock_format);
 	free(startup_exception);
+	free(stack_mark_max);
+	free(stack_mark_vertical);
+	free(stack_mark_vertical_flip);
+	free(stack_mark_horizontal);
+	free(stack_mark_horizontal_flip);
+	free(workspace_mark_current);
+	free(workspace_mark_urgent);
+	free(workspace_mark_active);
+	free(workspace_mark_empty);
 
 	if (bar_fs)
 		XFreeFontSet(display, bar_fs);
