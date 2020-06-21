@@ -4888,7 +4888,7 @@ get_focus_magic(struct ws_win *win)
 		if (winfocus->focus_redirect == NULL)
 			break;
 
-		if (!winfocus->focus_redirect->mapped)
+		if (ICONIC(winfocus->focus_redirect))
 			break;
 
 		if (validate_win(winfocus->focus_redirect))
@@ -12262,8 +12262,7 @@ maprequest(xcb_map_request_event_t *e)
 
 	dofocus = !(pointer_follow(win->s));
 	/* The new window should get focus; prepare. */
-	if ((dofocus  && !(win->quirks & SWM_Q_NOFOCUSONMAP) &&
-	    ACCEPTS_FOCUS(win)) ||
+	if ((dofocus && !(win->quirks & SWM_Q_NOFOCUSONMAP)) ||
 	    (win->ws->cur_layout == &layouts[SWM_MAX_STACK])) {
 		if (win->quirks & SWM_Q_FOCUSONMAP_SINGLE) {
 			/* See if other wins of same type are already mapped. */
@@ -12593,8 +12592,9 @@ clientmessage(xcb_client_message_event_t *e)
 
 	if (e->type == ewmh[_NET_ACTIVE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_ACTIVE_WINDOW, source_type: "
-		    "%s(%d)\n", get_source_type_label(e->data.data32[0]),
-		    e->data.data32[0]);
+		    "%s(%d), timestamp: %#x, active_window: %#x\n",
+		    get_source_type_label(e->data.data32[0]), e->data.data32[0],
+		    e->data.data32[1], e->data.data32[2]);
 
 		/*
 		 * Allow focus changes that are a result of direct user
