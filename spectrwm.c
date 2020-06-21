@@ -5205,6 +5205,8 @@ cyclews(struct binding *bp, struct swm_region *r, union arg *args)
 
 			clear_maximized(nws);
 			stack(r);
+
+			ewmh_update_current_desktop();
 			center_pointer(nws->r);
 			focus_flush();
 			nws->state = SWM_WS_STATE_MAPPED;
@@ -6726,11 +6728,14 @@ win_to_ws(struct ws_win *win, int wsid, uint32_t flags)
 	struct ws_win		*mainw, *w, *tmpw;
 	struct workspace	*ws, *nws;
 
-	if (wsid < 0 || wsid >= workspace_limit)
+	if (win == NULL || wsid < 0 || wsid >= workspace_limit)
 		return;
 
-	if (win->ws->idx == wsid)
+	if (win->ws->idx == wsid) {
+		DNPRINTF(SWM_D_MOVE, "win %#x already on ws %d\n",
+		    win->id, wsid);
 		return;
+	}
 
 	ws = win->ws;
 	nws = &win->s->ws[wsid];
@@ -12486,8 +12491,9 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 	} else {
 		/* Withdraw. */
 		DNPRINTF(SWM_D_EVENT, "withdraw\n");
-		/* EWMH: need to remove _NET_WM_DESKTOP on withdraw. */
+		/* EWMH advises removal of _NET_WM_DESKTOP and _NET_WM_STATE. */
 		xcb_delete_property(conn, win->id, ewmh[_NET_WM_DESKTOP].atom);
+		xcb_delete_property(conn, win->id, ewmh[_NET_WM_STATE].atom);
 		set_win_state(win, XCB_ICCCM_WM_STATE_WITHDRAWN);
 		unmanage_window(win);
 	}
@@ -12590,7 +12596,7 @@ clientmessage(xcb_client_message_event_t *e)
 	}
 
 	if (e->type == ewmh[_NET_ACTIVE_WINDOW].atom) {
-		DNPRINTF(SWM_D_EVENT, "_NET_ACTIVE_WINDOW, " "source_type: "
+		DNPRINTF(SWM_D_EVENT, "_NET_ACTIVE_WINDOW, source_type: "
 		    "%s(%d)\n", get_source_type_label(e->data.data32[0]),
 		    e->data.data32[0]);
 
@@ -12663,6 +12669,10 @@ clientmessage(xcb_client_message_event_t *e)
 		ewmh_update_wm_state(win);
 		stack(win->ws->r);
 	} else if (e->type == ewmh[_NET_WM_DESKTOP].atom) {
+		DNPRINTF(SWM_D_EVENT, "_NET_WM_DESKTOP, new_desktop: %d, "
+		    "source_type: %s(%d)\n", e->data.data32[0],
+		    get_source_type_label(e->data.data32[1]),
+		    e->data.data32[1]);
 		DNPRINTF(SWM_D_EVENT, "_NET_WM_DESKTOP\n");
 		r = win->ws->r;
 
