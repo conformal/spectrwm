@@ -12053,8 +12053,7 @@ enternotify(xcb_enter_notify_event_t *e)
 		return;
 	}
 
-	if (focus_mode == SWM_FOCUS_MANUAL &&
-	    e->mode == XCB_NOTIFY_MODE_NORMAL) {
+	if (focus_mode == SWM_FOCUS_MANUAL) {
 		DNPRINTF(SWM_D_EVENT, "ignore; manual focus\n");
 		return;
 	}
