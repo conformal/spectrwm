@@ -1,3 +1,17 @@
+spectrwm 3.4.1
+==============
+
+Release on Jun 25, 2020
+
+* Fix always_raise mapping issue.
+* Fix _NET_CURRENT_DESKTOP should be updated on ws_next_move/ws_prev_move.
+* Fix focus redirect for transient windows that are about to map.
+* Fix manual focus should not be affected by pointer on (un)grab.
+* Add java detection for JetBrains windows.
+* Remove _NET_WM_STATE on withdrawn windows as advised by EWMH spec.
+* Add information to man page about program call execution.
+
+
 spectrwm 3.4.0
 ==============
 
