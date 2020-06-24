@@ -165,7 +165,9 @@ quirk[XTerm:ws2] = WS[2]
 External script that populates additional information in the status bar,
 such as battery life.
 .It Ic bar_action_expand
-Process bar_format character sequences in
+Process
+.Ic bar_format
+character sequences in
 .Ic bar_action
 output; default is 0.
 .It Ic bar_at_bottom
@@ -373,8 +375,7 @@ region edge before it is allowed outside the region.
 Disable the window containment effect by setting to 0.
 .It Ic clock_enabled
 Enable or disable displaying the clock in the status bar.
-Disable by setting to 0
-so a custom clock could be used in the
+Disable by setting to 0 so a custom clock could be used in the
 .Ic bar_action
 script.
 .It Ic color_focus
@@ -691,6 +692,11 @@ is any identifier that does not conflict with a built-in action or keyword,
 is the desired program, and
 .Ar arg
 is zero or more arguments to the program.
+.Pp
+With the exception of '~' expansion, program calls are executed as-is without
+any interpretation.
+A shell can be called to execute shell commands.
+(e.g. sh -c 'command string').
 .Pp
 Remember that when using
 .Ql #
