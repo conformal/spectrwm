@@ -306,6 +306,9 @@ uint32_t		swm_debug = 0
 #define SWM_WSI_DEFAULT		(SWM_WSI_LISTCURRENT | SWM_WSI_LISTACTIVE |	\
     SWM_WSI_MARKCURRENT | SWM_WSI_PRINTNAMES)
 
+#define SWM_WM_CLASS_INSTANCE	"spectrwm"
+#define SWM_WM_CLASS_BAR	"panel"
+
 #define SWM_CONF_DEFAULT	(0)
 #define SWM_CONF_KEYMAPPING	(1)
 
@@ -3735,6 +3738,8 @@ void
 bar_setup(struct swm_region *r)
 {
 	uint32_t	 wa[4];
+	size_t		len;
+	char		*name;
 
 	DNPRINTF(SWM_D_BAR, "screen %d.\n", r->s->idx);
 
@@ -3772,6 +3777,21 @@ bar_setup(struct swm_region *r)
 	    bar_border_width, XCB_WINDOW_CLASS_INPUT_OUTPUT,
 	    r->s->visual, XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL
 	    | XCB_CW_EVENT_MASK | XCB_CW_COLORMAP, wa);
+
+	/* Set class and title to make the bar window identifiable. */
+	xcb_icccm_set_wm_class(conn, r->bar->id,
+	    strlen(SWM_WM_CLASS_BAR) + strlen(SWM_WM_CLASS_INSTANCE) + 2,
+	    SWM_WM_CLASS_BAR "\0" SWM_WM_CLASS_INSTANCE "\0");
+
+	if (asprintf(&name, "Status Bar - Region %d - " SWM_WM_CLASS_INSTANCE,
+	    get_region_index(r) + 1) == -1)
+		err(1, "asprintf");
+	len = strlen(name);
+	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, r->bar->id,
+	    XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8, len, name);
+	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, r->bar->id,
+	    ewmh[_NET_WM_NAME].atom, a_utf8_string, 8, len, name);
+	free(name);
 
 	/* Stack bar window above region window to start. */
 	wa[0] = r->id;
