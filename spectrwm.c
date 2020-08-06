@@ -4126,7 +4126,8 @@ raise_window(struct ws_win *win)
 	TAILQ_FOREACH(target, &ws->stack, stack_entry) {
 		if (target == win || ICONIC(target))
 			continue;
-		if (ws->cur_layout == &layouts[SWM_MAX_STACK])
+		if (ws->cur_layout == &layouts[SWM_MAX_STACK] ||
+		    win == ws->focus_raise)
 			break;
 		if (TRANS(win) && (mainw == find_main_window(target)))
 			break;
@@ -4139,7 +4140,7 @@ raise_window(struct ws_win *win)
 		if (MAXIMIZED(target))
 			continue;
 		if (ABOVE(win) || TRANS(win) ||
-		    (win->ws->focus == win && ws->always_raise))
+		    (ws->focus == win && ws->always_raise))
 			break;
 		if (!ABOVE(target) && !TRANS(target))
 			break;
@@ -4174,6 +4175,7 @@ update_win_stacking(struct ws_win *win)
 #endif
 	struct swm_region	*r;
 	uint32_t		val[2];
+	bool			raised;
 
 	if (win == NULL || (r = win->ws->r) == NULL)
 		return;
@@ -4183,16 +4185,17 @@ update_win_stacking(struct ws_win *win)
 		return;
 	}
 
+	raised = (win->ws->focus == win && (win->ws->always_raise ||
+	    win == win->ws->focus_raise));
+
 	sibling = win;
 	while ((sibling = TAILQ_NEXT(sibling, stack_entry)))
 		if (!ICONIC(sibling))
 			break;
 
-	if (sibling && (FLOATING(win) == FLOATING(sibling) ||
-	    (win->ws->always_raise && win->ws->focus == win)))
+	if (sibling && (FLOATING(win) == FLOATING(sibling) || raised))
 		val[0] = sibling->frame;
-	else if (FLOATING(win) || (win->ws->always_raise &&
-	    win->ws->focus == win))
+	else if (FLOATING(win) || raised)
 		val[0] = r->bar->id;
 	else
 		val[0] = r->id;
@@ -4711,8 +4714,11 @@ unfocus_win(struct ws_win *win)
 	if (win->ws->focus == win) {
 		win->ws->focus = NULL;
 		win->ws->focus_prev = win;
-		if (win->ws->focus_raise == win && !FLOATING(win))
+		if (win->ws->focus_raise == win && !FLOATING(win)) {
+			win->ws->focus_raise = NULL;
+			raise_window(win);
 			update_win_stacking(win);
+		}
 	}
 
 	if (validate_win(win->ws->focus)) {
@@ -6824,7 +6830,6 @@ void
 raise_focus(struct binding *bp, struct swm_region *r, union arg *args)
 {
 	struct ws_win	*win;
-	uint32_t	val;
 
 	/* Suppress warning. */
 	(void)bp;
@@ -6837,13 +6842,6 @@ raise_focus(struct binding *bp, struct swm_region *r, union arg *args)
 	r->ws->focus_raise = win;
 	raise_window(win);
 	update_win_stacking(win);
-
-	/* Temporarily override stacking order also in the stack */
-	if (!FLOATING(win)) {
-		val = XCB_STACK_MODE_ABOVE;
-		xcb_configure_window(conn, win->frame,
-		    XCB_CONFIG_WINDOW_STACK_MODE, &val);
-	}
 
 	focus_flush();
 }
