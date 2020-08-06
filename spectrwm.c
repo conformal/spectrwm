@@ -6836,6 +6836,7 @@ raise_focus(struct binding *bp, struct swm_region *r, union arg *args)
 	win = r->ws->focus;
 	r->ws->focus_raise = win;
 	raise_window(win);
+	update_win_stacking(win);
 
 	/* Temporarily override stacking order also in the stack */
 	if (!FLOATING(win)) {
@@ -6843,6 +6844,8 @@ raise_focus(struct binding *bp, struct swm_region *r, union arg *args)
 		xcb_configure_window(conn, win->frame,
 		    XCB_CONFIG_WINDOW_STACK_MODE, &val);
 	}
+
+	focus_flush();
 }
 
 void
