@@ -35,13 +35,7 @@
 #endif
 #include <sys/param.h>
 #include <sys/select.h>
-#if defined(__linux__)
-#include "tree.h"
-#elif defined(__OpenBSD__)
-#include <sys/tree.h>
-#elif defined(__FreeBSD__)
-#include <sys/tree.h>
-#elif defined(__NetBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/tree.h>
 #else
 #include "tree.h"
@@ -1285,7 +1279,6 @@ void	 load_float_geom(struct ws_win *);
 void	 lower_window(struct ws_win *);
 struct ws_win	*manage_window(xcb_window_t, int, bool);
 void	 map_window(struct ws_win *);
-void	 map_workspace(struct workspace *);
 void	 mapnotify(xcb_map_notify_event_t *);
 void	 mappingnotify(xcb_mapping_notify_event_t *);
 void	 maprequest(xcb_map_request_event_t *);
@@ -5299,19 +5292,6 @@ unmap_workspace(struct workspace *ws)
 	TAILQ_FOREACH(w, &ws->winlist, entry)
 		unmap_window(w);
 	ws->state = SWM_WS_STATE_HIDDEN;
-}
-
-void
-map_workspace(struct workspace *ws)
-{
-	struct ws_win	*w;
-
-	if (ws == NULL || ws->state != SWM_WS_STATE_HIDDEN)
-		return;
-
-	TAILQ_FOREACH(w, &ws->winlist, entry)
-		map_window(w);
-	ws->state = SWM_WS_STATE_MAPPING;
 }
 
 void
