@@ -1,6 +1,6 @@
 .\" Copyright (c) 2009-2012 Marco Peereboom <marco@peereboom.us>
 .\" Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
-.\" Copyright (c) 2011-2018 Reginald Kennedy <rk@rejii.com>
+.\" Copyright (c) 2011-2020 Reginald Kennedy <rk@rejii.com>
 .\" Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
 .\" Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
 .\" Copyright (c) 2012 David Hill <dhill@mindcry.org>
@@ -25,6 +25,15 @@
 .Nd window manager for X11
 .Sh SYNOPSIS
 .Nm spectrwm
+.Op Fl c Ar file
+.Op Fl v
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl c Ar file
+Specify a configuration file to load instead of scanning for one.
+.It Fl v
+Print version and exit.
+.El
 .Sh DESCRIPTION
 .Nm
 is a minimalistic window manager that tries to stay out of the way so that
@@ -156,7 +165,9 @@ quirk[XTerm:ws2] = WS[2]
 External script that populates additional information in the status bar,
 such as battery life.
 .It Ic bar_action_expand
-Process bar_format character sequences in
+Process
+.Ic bar_format
+character sequences in
 .Ic bar_action
 output; default is 0.
 .It Ic bar_at_bottom
@@ -287,7 +298,8 @@ It may contain the following character sequences:
 .It Li "+U" Ta "Urgency hint"
 .It Li "+V" Ta "Program version"
 .It Li "+W" Ta "Window name (from _NET_WM_NAME/WM_NAME)"
-.It Li "+|[weight][justify]" Ta "Marks the start of a new bar section"
+.It Li "+|[weight][justify]" Ta Begin new section and reset markup
+sequence effects.
 .Pp
 .Ic weight
 is a positive integer used to allocate horizontal space between 'L', 'C'
@@ -319,7 +331,11 @@ Any markup sequence found after +@stp will appear as normal characters in the
 status bar.
 .El
 .Pp
-Note: the effect of a markup sequence will not cross a section boundary.
+Note that markup sequences in
+.Ic bar_action
+script output will only be processed if
+.Ic bar_action_expand
+is enabled.
 .Pp
 All character sequences may limit its output to a specific length, for
 example +64A.
@@ -359,13 +375,9 @@ region edge before it is allowed outside the region.
 Disable the window containment effect by setting to 0.
 .It Ic clock_enabled
 Enable or disable displaying the clock in the status bar.
-Disable by setting to 0
-so a custom clock could be used in the
+Disable by setting to 0 so a custom clock could be used in the
 .Ic bar_action
 script.
-.It Ic iconic_enabled
-Display the number of iconic (minimized) windows in the status bar.
-Enable by setting to 1.
 .It Ic color_focus
 Border color of the currently focused window.
 Default is red.
@@ -428,11 +440,9 @@ and changes to layout.
 .It Ar manual
 Set window focus on window interaction only.
 .El
-.It Ic maximize_hide_bar
-When set to 1,
-.Ic maximize_toggle
-will also hide/restore the bar visibility of the affected workspace.
-Defaults to 0.
+.It Ic iconic_enabled
+Display the number of iconic (minimized) windows in the status bar.
+Enable by setting to 1.
 .It Ic keyboard_mapping
 Clear all key bindings (not button bindings) and load new bindings from the
 specified file.
@@ -481,6 +491,11 @@ the
 option.
 .Pp
 This setting is not retained at restart.
+.It Ic maximize_hide_bar
+When set to 1,
+.Ic maximize_toggle
+will also hide/restore the bar visibility of the affected workspace.
+Defaults to 0.
 .It Ic modkey
 Change mod key.
 Mod1 is generally the ALT key and Mod4 is the windows key on a PC.
@@ -587,14 +602,16 @@ See
 and
 .Ar stack_dec
 for more information.
-.It Ic workspace_clamp
-Prevents workspaces from being swapped when attempting to switch to a workspace
-that is mapped to another region.
-Use
-.Ar warp_focus
-if you want to focus on the region containing the workspace and
-.Ar warp_pointer
-if you want to also send the pointer.
+.It Ic warp_focus
+Focus on the target window/workspace/region when clamped.
+For example, when attempting to switch to a workspace that is mapped on another
+region and
+.Ar workspace_clamp
+is enabled, focus on the region with the target workspace.
+Enable by setting to 1.
+.It Ic warp_pointer
+Centers the pointer on the focused window when using bindings to change focus,
+switch workspaces, change regions, etc.
 Enable by setting to 1.
 .It Ic window_class_enabled
 Enable or disable displaying the window class name (from WM_CLASS) in the
@@ -614,16 +631,14 @@ the bar, it's limited to 64 characters, by default.
 See the
 .Ic bar_format
 option for more details.
-.It Ic warp_focus
-Focus on the target window/workspace/region when clamped.
-For example, when attempting to switch to a workspace that is mapped on another
-region and
-.Ar workspace_clamp
-is enabled, focus on the region with the target workspace.
-Enable by setting to 1.
-.It Ic warp_pointer
-Centers the pointer on the focused window when using bindings to change focus,
-switch workspaces, change regions, etc.
+.It Ic workspace_clamp
+Prevents workspaces from being swapped when attempting to switch to a workspace
+that is mapped to another region.
+Use
+.Ar warp_focus
+if you want to focus on the region containing the workspace and
+.Ar warp_pointer
+if you want to also send the pointer.
 Enable by setting to 1.
 .It Ic workspace_indicator
 Configure the status bar workspace indicator.
@@ -677,6 +692,11 @@ is any identifier that does not conflict with a built-in action or keyword,
 is the desired program, and
 .Ar arg
 is zero or more arguments to the program.
+.Pp
+With the exception of '~' expansion, program calls are executed as-is without
+any interpretation.
+A shell can be called to execute shell commands.
+(e.g. sh -c 'command string').
 .Pp
 Remember that when using
 .Ql #
