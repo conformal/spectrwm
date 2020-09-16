@@ -5068,12 +5068,14 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 	this_r->ws = new_ws;
 	new_ws->r = this_r;
 
-	/* Set focus_pending before stacking, if needed. */
+	/* Prepare focus. */
 	if (dofocus && (new_ws->focus_pending == NULL ||
 	    validate_win(new_ws->focus_pending))) {
 		new_ws->focus_pending = get_region_focus(new_ws->r);
-		new_ws->focus = new_ws->focus_prev;
-		new_ws->focus_prev = NULL;
+		if (new_ws->focus_prev && !ICONIC(new_ws->focus_prev)) {
+			new_ws->focus = new_ws->focus_prev;
+			new_ws->focus_prev = NULL;
+		}
 	}
 
 	new_ws->state = SWM_WS_STATE_MAPPING;
