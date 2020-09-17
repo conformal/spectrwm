@@ -116,6 +116,11 @@ Colors need to be specified per the
 .Xr XQueryColor 3
 specification.
 .Pp
+Mark option values may be wrapped in single/double quotes to prevent
+whitespace trimming, specify empty strings, etc.
+Literal quote/backslash characters can be escaped with backslash '\e',
+when needed.
+.Pp
 Comments begin with a #.
 When a literal
 .Ql #
@@ -508,26 +513,6 @@ the
 option.
 .Pp
 This setting is not retained at restart.
-.It Ic stack_mark_max
-change the mark for the
-.Ic stack_mod
-layout stacking algorithm indecator, default is [ ].
-.It Ic stack_mark_vertical
-change the mark for the
-.Ic vertical
-layout stacking algorithm indecator, default is [|].
-.It Ic stack_mark_vertical_flip
-change the mark for the
-.IC vertical_flip
-layout stacking algorithm indecator, default is [>].
-.It Ic stack_mark_horizontal
-change the mark for the
-.Ic horizontal
-layout stacking algorithm indecator, default is [-].
-.It Ic stack_mark_horizontal_flip
-change the mark for
-.Ic the horizontal_flip
-layout stacking algorithm indecator, default is [v].
 .It Ic maximize_hide_bar
 When set to 1,
 .Ic maximize_toggle
@@ -588,6 +573,41 @@ and
 are relative to the focused window.
 .It Ic stack_enabled
 Enable or disable displaying the current stacking algorithm in the status bar.
+.It Ic stack_mark_horizontal
+Set the
+.Ar horizontal
+layout mark for the
+.Ic bar_format
+stacking indicator (+S).
+Default is '[-]'.
+.It Ic stack_mark_horizontal_flip
+Set the
+.Ar horizontal_flip
+layout mark for the
+.Ic bar_format
+stacking indicator (+S).
+Default is '[v]'.
+.It Ic stack_mark_max
+Set the
+.Ar max
+layout mark for the
+.Ic bar_format
+stacking indicator (+S).
+Default is '[ ]'.
+.It Ic stack_mark_vertical
+Set the
+.Ar vertical
+layout mark for the
+.Ic bar_format
+stacking indicator (+S).
+Default is '[|]'.
+.It Ic stack_mark_vertical_flip
+Set the
+.Ar vertical_flip
+layout mark for the
+.Ic bar_format
+stacking indicator (+S).
+Default is '[>]'.
 .It Ic term_width
 Set a preferred minimum width for the terminal.
 If this value is greater than 0,
@@ -699,28 +719,36 @@ Include all workspaces.
 Always exclude the current workspace from the list.
 .It Ar markcurrent
 Indicate the current workspace if it is in the list.
-.It Ar markurgent
-Indicate workspaces in the list that contain urgent window(s).
 .It Ar markactive
 Indicate workspaces in the list that are active.
 .It Ar markempty
 Indicate workspaces in the list that are empty.
+.It Ar markurgent
+Indicate workspaces in the list that contain urgent window(s).
 .It Ar printnames
 Display the names of named workspaces in the list.
 .It Ar noindexes
-hide the index of the workspaces.
+Hide the index of the workspaces.
 .El
 .Pp
 The default is
 .Ar listcurrent , Ns Ar listactive , Ns Ar markcurrent , Ns Ar printnames
-.It Ic workspace_mark_current
-set the mark symbol for marking current workspace, default is *
-.It Ic workspace_mark_urgent
-set the mark symbol for marking urgent workspaces, default is !
 .It Ic workspace_mark_active
-set the mark symbol for marking active workspaces, default is ^
+Set the 'active workspace' mark used in the
+.Ic workspace_indicator .
+Default is '^'.
+.It Ic workspace_mark_current
+Set the 'current workspace' mark used in the
+.Ic workspace_indicator .
+Default is '*'.
 .It Ic workspace_mark_empty
-set the mark symbol for marking empty workspaces, default is -
+Set the 'empty workspace' mark used in the
+.Ic workspace_indicator .
+Default is '-'.
+.It Ic workspace_mark_urgent
+Set the 'urgent workspace' mark used in the
+.Ic workspace_indicator .
+Default is '!'.
 .It Ic workspace_limit
 Set the total number of workspaces available.
 Minimum is 1, maximum is 22, default is 10.
