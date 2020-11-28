@@ -391,6 +391,23 @@ Border color of unfocused windows, default is rgb:88/88/88.
 Border color of unfocused, maximized windows.
 Defaults to the value of
 .Ic color_unfocus .
+.It Ic cycle_visible
+Include workspaces that are mapped when switching with
+.Ic ws_next ,
+.Ic ws_prev ,
+.Ic ws_next_all ,
+.Ic ws_prev_all ,
+.Ic ws_next_move ,
+or
+.Ic ws_prev_move .
+Enable by setting to 1.
+.Pp
+Note that mapped workspaces will be swapped unless
+.Ic workspace_clamp
+is enabled.
+If
+.Ic warp_focus
+is also enabled, focus will go to the region where the workspace is mapped.
 .It Ic dialog_ratio
 Some applications have dialogue windows that are too small to be useful.
 This ratio is the screen size to what they will be resized.

@@ -5128,7 +5128,7 @@ cyclews(struct binding *bp, struct swm_region *r, union arg *args)
 	struct workspace	*ws, *nws = NULL;
 	struct ws_win		*winfocus;
 	int			i;
-	bool			cycle_all = false, mv = false;
+	bool			allowempty = false, mv = false;
 
 	if (r == NULL || r->ws == NULL)
 		return;
@@ -5145,7 +5145,7 @@ cyclews(struct binding *bp, struct swm_region *r, union arg *args)
 			mv = true;
 			/* FALLTHROUGH */
 		case SWM_ARG_ID_CYCLEWS_UP_ALL:
-			cycle_all = true;
+			allowempty = true;
 			/* FALLTHROUGH */
 		case SWM_ARG_ID_CYCLEWS_UP:
 			nws = &s->ws[(ws->idx + i + 1) % workspace_limit];
@@ -5154,7 +5154,7 @@ cyclews(struct binding *bp, struct swm_region *r, union arg *args)
 			mv = true;
 			/* FALLTHROUGH */
 		case SWM_ARG_ID_CYCLEWS_DOWN_ALL:
-			cycle_all = true;
+			allowempty = true;
 			/* FALLTHROUGH */
 		case SWM_ARG_ID_CYCLEWS_DOWN:
 			nws = &s->ws[(workspace_limit + ws->idx - i - 1) %
@@ -5164,16 +5164,16 @@ cyclews(struct binding *bp, struct swm_region *r, union arg *args)
 			return;
 		};
 
-		DNPRINTF(SWM_D_WS, "curws: %d, nws: %d, cycle_all: %d, mv: %d, "
+		DNPRINTF(SWM_D_WS, "curws: %d, nws: %d, allowempty: %d, mv: %d, "
 		    "cycle_visible: %d, cycle_empty: %d\n", ws->idx, nws->idx,
-		    cycle_all, mv, cycle_visible, cycle_empty);
+		    allowempty, mv, cycle_visible, cycle_empty);
 
-		if (cycle_all)
-			break;
+		if (!allowempty && !cycle_empty && TAILQ_EMPTY(&nws->winlist))
+			continue;
 		if (!cycle_visible && nws->r)
 			continue;
-		if (cycle_empty || !TAILQ_EMPTY(&nws->winlist))
-			break;
+		/* New workspace found. */
+		break;
 	}
 
 	if (nws && nws != ws) {
