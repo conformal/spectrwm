@@ -442,6 +442,7 @@ int		 border_width = 1;
 int		 region_padding = 0;
 int		 tile_gap = 0;
 bool		 verbose_layout = false;
+bool		 ld_preload_enabled = true;
 #ifdef SWM_DEBUG
 bool		 debug_enabled;
 time_t		 time_started;
@@ -4549,15 +4550,17 @@ spawn(int ws_idx, union arg *args, bool close_fd)
 
 	close(xcb_get_file_descriptor(conn));
 
-	if ((ret = getenv("LD_PRELOAD"))) {
-		if (asprintf(&ret, "%s:%s", SWM_LIB, ret) == -1) {
-			warn("spawn: asprintf LD_PRELOAD");
-			_exit(1);
+	if (ld_preload_enabled) {
+		if ((ret = getenv("LD_PRELOAD"))) {
+			if (asprintf(&ret, "%s:%s", SWM_LIB, ret) == -1) {
+				warn("spawn: asprintf LD_PRELOAD");
+				_exit(1);
+			}
+			setenv("LD_PRELOAD", ret, 1);
+			free(ret);
+		} else {
+			setenv("LD_PRELOAD", SWM_LIB, 1);
 		}
-		setenv("LD_PRELOAD", ret, 1);
-		free(ret);
-	} else {
-		setenv("LD_PRELOAD", SWM_LIB, 1);
 	}
 
 	if (asprintf(&ret, "%d", ws_idx) == -1) {
@@ -10016,6 +10019,7 @@ enum {
 	SWM_S_WORKSPACE_LIMIT,
 	SWM_S_WORKSPACE_INDICATOR,
 	SWM_S_WORKSPACE_NAME,
+	SWM_S_LD_PRELOAD_ENABLED,
 };
 
 int
@@ -10312,6 +10316,9 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 			ewmh_update_desktop_names();
 			ewmh_get_desktop_names();
 		}
+		break;
+	case SWM_S_LD_PRELOAD_ENABLED:
+		ld_preload_enabled = (atoi(value) != 0);
 		break;
 	default:
 		ALLOCSTR(emsg, "invalid option");
@@ -10729,6 +10736,7 @@ struct config_option configopt[] = {
 	{ "workspace_limit",		setconfvalue,	SWM_S_WORKSPACE_LIMIT },
 	{ "workspace_indicator",	setconfvalue,	SWM_S_WORKSPACE_INDICATOR },
 	{ "name",			setconfvalue,	SWM_S_WORKSPACE_NAME },
+	{ "ld_preload_enabled",		setconfvalue,   SWM_S_LD_PRELOAD_ENABLED },
 };
 
 void
