@@ -1286,7 +1286,7 @@ void	 raise_window_related(struct ws_win *);
 void	 region_containment(struct ws_win *, struct swm_region *, int);
 struct swm_region	*region_under(struct swm_screen *, int, int);
 void	 regionize(struct ws_win *, int, int);
-void	 reparent_window(struct ws_win *);
+int	 reparent_window(struct ws_win *);
 void	 reparentnotify(xcb_reparent_notify_event_t *);
 void	 resize(struct binding *, struct swm_region *, union arg *);
 void	 resize_win(struct ws_win *, struct binding *, int);
@@ -11005,7 +11005,7 @@ get_ws_idx(struct ws_win *win)
 	return (ws_idx);
 }
 
-void
+int
 reparent_window(struct ws_win *win)
 {
 	xcb_screen_t		*s;
@@ -11046,10 +11046,13 @@ reparent_window(struct ws_win *win)
 		/* Abort. */
 		xcb_destroy_window(conn, win->frame);
 		win->frame = XCB_WINDOW_NONE;
-	} else {
+		win->state = SWM_WIN_STATE_UNPARENTED;
+		unmanage_window(win);
+		return (1);
+	} else
 		xcb_change_save_set(conn, XCB_SET_MODE_INSERT, win->id);
-	}
-	DNPRINTF(SWM_D_MISC, "done\n");
+
+	return (0);
 }
 
 void
@@ -11297,12 +11300,15 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	/* Set initial _NET_WM_ALLOWED_ACTIONS */
 	ewmh_update_actions(win);
 
-	reparent_window(win);
+	if (reparent_window(win))
+		win = NULL;
 
-	DNPRINTF(SWM_D_MISC, "done. win %#x, (x,y) w x h: (%d,%d) %d x %d, "
-	    "ws: %d, iconic: %s, transient: %#x\n", win->id, X(win), Y(win),
-	    WIDTH(win), HEIGHT(win), win->ws->idx, YESNO(ICONIC(win)),
-	    win->transient);
+	if (win) {
+		DNPRINTF(SWM_D_MISC, "done. win %#x, (x,y) w x h: (%d,%d) %d x %d, "
+		    "ws: %d, iconic: %s, transient: %#x\n", win->id, X(win), Y(win),
+		    WIDTH(win), HEIGHT(win), win->ws->idx, YESNO(ICONIC(win)),
+		    win->transient);
+	}
 out:
 	free(war);
 	return (win);
@@ -11334,7 +11340,10 @@ unmanage_window(struct ws_win *win)
 		return;
 
 	kill_refs(win);
-	unparent_window(win);
+
+	if (win->state != SWM_WIN_STATE_UNPARENTED &&
+	    win->state != SWM_WIN_STATE_UNPARENTING)
+		unparent_window(win);
 
 	TAILQ_REMOVE(&win->ws->stack, win, stack_entry);
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
