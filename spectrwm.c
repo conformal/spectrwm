@@ -13628,7 +13628,7 @@ main(int argc, char *argv[])
 	if (setlocale(LC_CTYPE, "") == NULL || setlocale(LC_TIME, "") == NULL)
 		warnx("no locale support");
 
-	if (pledge("stdio proc exec rpath getpw dns inet unix", NULL) == -1)
+	if (pledge("stdio proc exec rpath getpw dns inet unix wpath", NULL) == -1)
 		err(1, "pledge");
 
 	/* handle some signals */
@@ -13648,7 +13648,7 @@ main(int argc, char *argv[])
 	if ((display = XOpenDisplay(0)) == NULL)
 		errx(1, "unable to open display");
 
-	if (pledge("stdio proc exec rpath getpw", NULL) == -1)
+	if (pledge("stdio proc exec rpath getpw wpath", NULL) == -1)
 		err(1, "pledge");
 
 	conn = XGetXCBConnection(display);
@@ -13703,7 +13703,7 @@ main(int argc, char *argv[])
 	else
 		scan_config();
 
-	if (pledge("stdio proc exec rpath", NULL) == -1)
+	if (pledge("stdio proc exec rpath wpath", NULL) == -1)
 		err(1, "pledge");
 
 	validate_spawns();
