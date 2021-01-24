@@ -84,7 +84,7 @@ print_bat() {
 APM_DATA=""
 I=0
 while :; do
-	IOSTAT_DATA=`/usr/sbin/iostat -C | grep '[0-9]$'`
+	IOSTAT_DATA=`/usr/sbin/iostat -C -c 2 | tail -n 1 | grep '[0-9]$'`
 	if [ $I -eq 0 ]; then
 		APM_DATA=`/usr/sbin/apm -alb`
 	fi
