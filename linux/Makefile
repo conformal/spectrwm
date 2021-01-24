@@ -34,10 +34,10 @@ all: spectrwm libswmhack.so.$(LIBVERSION)
 spectrwm: spectrwm.o linux.o
 	$(CC) $(MAINT_LDFLAGS) $(BIN_LDFLAGS) $(LDFLAGS) -o $@ $+ $(BIN_LDLIBS) $(LDLIBS)
 
-spectrwm.o: ../spectrwm.c ../version.h tree.h util.h
+spectrwm.o: ../spectrwm.c ../version.h tree.h util.h queue_compat.h
 	$(CC) $(MAINT_CFLAGS) $(BIN_CFLAGS) $(CFLAGS) $(MAINT_CPPFLAGS) $(BIN_CPPFLAGS) $(CPPFLAGS) -c -o $@ $<
 
-linux.o: linux.c util.h
+linux.o: linux.c util.h queue_compat.h
 	$(CC) $(MAINT_CFLAGS) $(BIN_CFLAGS) $(CFLAGS) $(MAINT_CPPFLAGS) $(BIN_CPPFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 libswmhack.so.$(LIBVERSION): swm_hack.so

@@ -29,10 +29,9 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#ifdef __OSX__
-#include "queue.h"
-#else
 #include <sys/queue.h>
+#if !defined(__OpenBSD__)
+#include "queue_compat.h"
 #endif
 #include <sys/param.h>
 #include <sys/select.h>
@@ -68,7 +67,11 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#if defined(__FreeBSD__)
+#include <libutil.h>
+#else
 #include <util.h>
+#endif
 #include <X11/cursorfont.h>
 #include <X11/extensions/Xrandr.h>
 #include <X11/Xcursor/Xcursor.h>
@@ -91,6 +94,28 @@
 #include "version.h"
 #ifdef __OSX__
 #include <osx.h>
+#endif
+
+/* singly-linked tail queue macros appeared in OpenBSD 6.9 */
+#ifndef STAILQ_HEAD
+#define STAILQ_HEAD			SIMPLEQ_HEAD
+#define STAILQ_HEAD_INITIALIZER		SIMPLEQ_HEAD_INITIALIZER
+#define STAILQ_ENTRY			SIMPLEQ_ENTRY
+#define STAILQ_FIRST			SIMPLEQ_FIRST
+#define STAILQ_END			SIMPLEQ_END
+#define STAILQ_EMPTY			SIMPLEQ_EMPTY
+#define STAILQ_NEXT			SIMPLEQ_NEXT
+#define STAILQ_FOREACH			SIMPLEQ_FOREACH
+#define STAILQ_FOREACH_SAFE		SIMPLEQ_FOREACH_SAFE
+#define STAILQ_INIT			SIMPLEQ_INIT
+#define STAILQ_INSERT_HEAD		SIMPLEQ_INSERT_HEAD
+#define STAILQ_INSERT_TAIL		SIMPLEQ_INSERT_TAIL
+#define STAILQ_INSERT_AFTER		SIMPLEQ_INSERT_AFTER
+#define STAILQ_REMOVE_HEAD		SIMPLEQ_REMOVE_HEAD
+#define STAILQ_REMOVE_AFTER		SIMPLEQ_REMOVE_AFTER
+/*#define STAILQ_REMOVE*/
+#define STAILQ_CONCAT			SIMPLEQ_CONCAT
+/*#define STAILQ_LAST*/
 #endif
 
 #ifdef SPECTRWM_BUILDSTR
@@ -7851,10 +7876,10 @@ update_window(struct ws_win *win)
 }
 
 struct event {
-	SIMPLEQ_ENTRY(event)	entry;
+	STAILQ_ENTRY(event)	entry;
 	xcb_generic_event_t	*ev;
 };
-SIMPLEQ_HEAD(event_queue, event) events = SIMPLEQ_HEAD_INITIALIZER(events);
+STAILQ_HEAD(event_queue, event) events = STAILQ_HEAD_INITIALIZER(events);
 
 xcb_generic_event_t *
 get_next_event(bool dowait)
@@ -7863,9 +7888,9 @@ get_next_event(bool dowait)
 	xcb_generic_event_t	*evt;
 
 	/* Try queue first. */
-	if ((ep = SIMPLEQ_FIRST(&events))) {
+	if ((ep = STAILQ_FIRST(&events))) {
 		evt = ep->ev;
-		SIMPLEQ_REMOVE_HEAD(&events, entry);
+		STAILQ_REMOVE_HEAD(&events, entry);
 		free(ep);
 	} else if (dowait)
 		evt = xcb_wait_for_event(conn);
@@ -7882,7 +7907,7 @@ put_back_event(xcb_generic_event_t *evt)
 	if ((ep = malloc(sizeof (struct event))) == NULL)
 		err(1, "put_back_event: failed to allocate memory.");
 	ep->ev = evt;
-	SIMPLEQ_INSERT_HEAD(&events, ep, entry);
+	STAILQ_INSERT_HEAD(&events, ep, entry);
 }
 
 /* Peeks at next event to detect auto-repeat. */
