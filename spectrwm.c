@@ -5,7 +5,7 @@
  * Copyright (c) 2009 Pierre-Yves Ritschard <pyr@spootnik.org>
  * Copyright (c) 2010 Tuukka Kataja <stuge@xor.fi>
  * Copyright (c) 2011 Jason L. Wright <jason@thought.net>
- * Copyright (c) 2011-2020 Reginald Kennedy <rk@rejii.com>
+ * Copyright (c) 2011-2021 Reginald Kennedy <rk@rejii.com>
  * Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
  * Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
  * Copyright (c) 2012-2015 David Hill <dhill@mindcry.org>
@@ -533,7 +533,6 @@ struct ws_win {
 	int			last_inc;
 	bool			can_delete;
 	bool			take_focus;
-	bool			java;
 	uint32_t		quirks;
 	struct workspace	*ws;	/* always valid */
 	struct swm_screen	*s;	/* always valid, never changes */
@@ -4784,8 +4783,6 @@ unfocus_win(struct ws_win *win)
 void
 focus_win_input(struct ws_win *win, bool force_input)
 {
-	struct ws_win			*parent = NULL;
-
 	/* Set input focus if no input hint, or indicated by hint. */
 	if (ACCEPTS_FOCUS(win)) {
 		DNPRINTF(SWM_D_FOCUS, "SetInputFocus: %#x, revert-to: "
@@ -4807,14 +4804,8 @@ focus_win_input(struct ws_win *win, bool force_input)
 	}
 
 	/* Tell app it can adjust focus to a specific window. */
-	if (win->take_focus) {
-		/* java is special; always tell parent */
-		if (TRANS(win) && win->java &&
-		    (parent = find_window(win->transient)))
-			client_msg(parent, a_takefocus, last_event_time);
-		else
-			client_msg(win, a_takefocus, last_event_time);
-	}
+	if (win->take_focus)
+		client_msg(win, a_takefocus, last_event_time);
 }
 
 void
@@ -7844,13 +7835,12 @@ update_window(struct ws_win *win)
 	    YESNO(win->bordered));
 	xcb_configure_window(conn, win->id, mask, wc);
 
-	/* ICCCM 4.2.3 Synthetic ConfigureNotify when moved and not resized. */
-	if ((X(win) != win->g_prev.x || Y(win) != win->g_prev.y) &&
-	    (win->java || (WIDTH(win) == win->g_prev.w &&
-	    HEIGHT(win) == win->g_prev.h))) {
-		/* Java has special needs when moved together with a resize. */
-		config_win(win, NULL);
-	}
+	/*
+	 * ICCCM 4.2.3 send a synthetic ConfigureNotify to the window with its
+	 * geometry in root coordinates. It's redundant when a window is
+	 * resized, but Java has special needs...
+	 */
+	config_win(win, NULL);
 
 	win->g_prev = win->g;
 }
@@ -11305,12 +11295,6 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 
 	DNPRINTF(SWM_D_CLASS, "class: %s, instance: %s, name: %s\n", class,
 	    instance, name);
-
-	/* java is retarded so treat it special */
-	if (strstr(instance, "sun-awt") || strstr(instance, "jetbrains")) {
-		DNPRINTF(SWM_D_CLASS, "java window detected.\n");
-		win->java = true;
-	}
 
 	TAILQ_FOREACH(qp, &quirks, entry) {
 		if (regexec(&qp->regex_class, class, 0, NULL, 0) == 0 &&
