@@ -1226,6 +1226,7 @@ char	*get_atom_name(xcb_atom_t);
 xcb_keycode_t	 get_binding_keycode(struct binding *);
 struct ws_win   *get_focus_magic(struct ws_win *);
 struct ws_win   *get_focus_other(struct ws_win *);
+struct ws_win	*get_main_window(struct workspace *);
 #ifdef SWM_DEBUG
 char	*get_mapping_notify_label(uint8_t);
 #endif
@@ -5713,6 +5714,35 @@ get_region_focus(struct swm_region *r)
 	return (get_focus_magic(winfocus));
 }
 
+/* Return the 'main' window in specified workspace. */
+struct ws_win *
+get_main_window(struct workspace *ws)
+{
+	struct ws_win		*mwin = NULL;
+
+	if (ws == NULL)
+		return (NULL);
+
+	/* Use the first tiled window, unless layout is max. */
+	if (ws->cur_layout != &layouts[SWM_MAX_STACK]) {
+		TAILQ_FOREACH(mwin, &ws->winlist, entry) {
+			if (ICONIC(mwin))
+				continue;
+
+			if (!FLOATING(mwin))
+				break;
+		}
+	}
+
+	/* Fallback to the first window. */
+	if (mwin == NULL)
+		TAILQ_FOREACH(mwin, &ws->winlist, entry)
+			if (!ICONIC(mwin))
+				break;
+
+	return (mwin);
+}
+
 void
 focus(struct binding *bp, struct swm_region *r, union arg *args)
 {
@@ -5797,7 +5827,7 @@ focus(struct binding *bp, struct swm_region *r, union arg *args)
 		if (cur_focus == NULL)
 			goto out;
 
-		winfocus = TAILQ_FIRST(wl);
+		winfocus = get_main_window(ws);
 		if (winfocus == cur_focus)
 			winfocus = cur_focus->ws->focus_prev;
 		break;
@@ -6495,7 +6525,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 	else if (ws->focus_prev)
 		win = ws->focus_prev;
 	else
-		win = TAILQ_FIRST(&ws->winlist);
+		win = get_main_window(ws);
 
 	mainw = find_main_window(win);
 
