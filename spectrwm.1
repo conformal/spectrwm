@@ -1,6 +1,6 @@
 .\" Copyright (c) 2009-2012 Marco Peereboom <marco@peereboom.us>
 .\" Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
-.\" Copyright (c) 2011-2020 Reginald Kennedy <rk@rejii.com>
+.\" Copyright (c) 2011-2021 Reginald Kennedy <rk@rejii.com>
 .\" Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
 .\" Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
 .\" Copyright (c) 2012 David Hill <dhill@mindcry.org>
@@ -272,7 +272,8 @@ Foreground color for selections on the status bar(s) in screen
 Defaults to the value of
 .Ic bar_color .
 .It Ic bar_font_pua
-Specify a font which uses the Unicode Private Use Area (U+E000 -> U+F8FF).
+Specify a font to override the Unicode Private Use Area code points
+(U+E000 -> U+F8FF, U+F0000 -> U+FFFFD, U+100000 -> U+10FFFD).
 Some fonts use these code points to provide special icon glyphs.
 Available only with Xft fonts.
 .It Ic bar_format

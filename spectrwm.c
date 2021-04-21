@@ -3312,11 +3312,17 @@ bar_parse_markup(struct bar_section *sect)
 
 	fmt = sect->fmtrep;
 	while (*fmt != '\0') {
-		/* Use special font for Unicode code points U+E000 - U+F8FF */
+		/*
+		 * Use special font for Unicode Private Use Area code points
+		 * U+E000 -> U+F8FF, U+F0000 -> U+FFFFD, U+100000 -> U+10FFFD
+		 */
+
 		u1 = (unsigned char *)fmt;
 		u2 = (unsigned char *)(fmt+1);
-		if ((font_pua_index) && ((*u1 == 0xEE) || ((*u1 == 0xEF) &&
-		    (*u2 < 0xA4)))) {
+		if ((font_pua_index) && ((*u1 == 0xee) ||
+		    (*u1 == 0xef && *u2 <= 0xa3) ||
+		    (*u1 == 0xf3 && *u2 >= 0xb0) ||
+		    (*u1 == 0xf4 && *u2 <= 0x8f))) {
 			if (len) {
 				/* Finish processing preceding fragment */
 				XftTextExtentsUtf8(display,
@@ -3337,7 +3343,7 @@ bar_parse_markup(struct bar_section *sect)
 
 			prevfont = frag[i].font;
 			frag[i].font = font_pua_index;
-			frag[i].length = 3;
+			frag[i].length = strnlen(fmt, (*u1 >= 0xf0) ? 4 : 3);
 			frag[i].text = fmt;
 
 			XftTextExtentsUtf8(display, bar_xftfonts[frag[i].font],
