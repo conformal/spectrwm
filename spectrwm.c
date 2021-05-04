@@ -6061,6 +6061,10 @@ update_floater(struct ws_win *win)
 			win->bordered = false;
 		}
 
+		if (disable_border_always) {
+			win->bordered = false;
+		}
+
 		if (win->bordered) {
 			/* Window geometry excludes frame. */
 			X(win) += border_width;
@@ -6531,8 +6535,9 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		    HEIGHT(w) != gg.h) {
 			w->g = gg;
 
-			if (disable_border &&
-			    !(bar_enabled && ws->bar_enabled)) {
+			if (disable_border_always ||
+			    (disable_border &&
+			    !(bar_enabled && ws->bar_enabled))) {
 				w->bordered = false;
 				WIDTH(w) += 2 * border_width;
 				HEIGHT(w) += 2 * border_width;
