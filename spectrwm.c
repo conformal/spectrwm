@@ -7244,6 +7244,8 @@ void
 search_resp_name_workspace(const char *resp, size_t len)
 {
 	struct workspace	*ws;
+	struct swm_region	*r;
+	int			num_screens, i;
 
 	DNPRINTF(SWM_D_MISC, "resp: %s\n", resp);
 
@@ -7256,16 +7258,21 @@ search_resp_name_workspace(const char *resp, size_t len)
 		search_r->ws->name = NULL;
 	}
 
-	if (len > 1) {
+	if (len) {
 		ws->name = strdup(resp);
 		if (ws->name == NULL) {
 			DNPRINTF(SWM_D_MISC, "strdup: %s", strerror(errno));
 			return;
 		}
-
-		ewmh_update_desktop_names();
-		ewmh_get_desktop_names();
 	}
+
+	ewmh_update_desktop_names();
+	ewmh_get_desktop_names();
+
+	num_screens = get_screen_count();
+	for (i = 0; i < num_screens; i++)
+		TAILQ_FOREACH(r, &screens[i].rl, entry)
+			bar_draw(r->bar);
 }
 
 void
@@ -9297,8 +9304,6 @@ setup_keybindings(void)
 {
 #define BINDKEY(m, k, a)	setbinding(m, KEYBIND, k, a, 0, NULL)
 #define BINDKEYSPAWN(m, k, s)	setbinding(m, KEYBIND, k, FN_SPAWN_CUSTOM, 0, s)
-	BINDKEY(MOD,		XK_b,			FN_BAR_TOGGLE);
-	BINDKEY(MODSHIFT,	XK_b,			FN_BAR_TOGGLE_WS);
 	BINDKEY(MOD,		XK_b,			FN_BAR_TOGGLE);
 	BINDKEY(MODSHIFT,	XK_b,			FN_BAR_TOGGLE_WS);
 	BINDKEY(MOD,		XK_v,			FN_BUTTON2);
