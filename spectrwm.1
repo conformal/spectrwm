@@ -1560,13 +1560,13 @@ For example, the following toggles the floating state of a window using
 to send the message (assuming 0x4a0000b is the id of the window to be floated
 or un-floated):
 .Bd -literal -offset indent
-$ wmctrl \-i \-r 0x4a0000b \-b toggle,_NET_WM_STATE_ABOVE
+$ wmctrl \-i \-r 0x4a0000b \-b toggle,above
 .Ed
 .Pp
 Windows can also be iconified and un-iconified by substituting
 _NET_WM_STATE_HIDDEN for _NET_WM_STATE_ABOVE in the previous example:
 .Bd -literal -offset indent
-$ wmctrl \-i \-r 0x4a0000b \-b toggle,_NET_WM_STATE_HIDDEN
+$ wmctrl \-i \-r 0x4a0000b \-b toggle,hidden
 .Ed
 .Pp
 Floating windows can also be resized and moved by sending a
