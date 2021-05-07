@@ -27,7 +27,6 @@ all: spectrwm libswmhack.so.$(LVERS)
 spectrwm.c:
 	ln -sf ../spectrwm.c
 	ln -sf ../version.h
-	ln -sf ../linux/pledge.h
 	ln -sf ../linux/queue_compat.h
 
 swm_hack.c:
@@ -52,7 +51,7 @@ install: all
 	ln -sf spectrwm $(SWM_BINDIR)/scrotwm
 
 clean:
-	rm -f spectrwm *.o *.so libswmhack.so.* spectrwm.c swm_hack.c version.h pledge.h queue_compat.h
+	rm -f spectrwm *.o *.so libswmhack.so.* spectrwm.c swm_hack.c version.h queue_compat.h
 
 .PHONY:	all install clean
 
