@@ -221,15 +221,17 @@ uint32_t		swm_debug = 0
 		err(1, "asprintf");						\
 } while (0)
 
-#define SWM_EWMH_ACTION_COUNT_MAX	(8)
-#define EWMH_F_FULLSCREEN		(0x001)
-#define EWMH_F_ABOVE			(0x002)
-#define EWMH_F_HIDDEN			(0x004)
-#define EWMH_F_MAXIMIZED_VERT		(0x008)
-#define EWMH_F_MAXIMIZED_HORZ		(0x010)
-#define EWMH_F_SKIP_PAGER		(0x020)
-#define EWMH_F_SKIP_TASKBAR		(0x040)
-#define SWM_F_MANUAL			(0x080)
+/* _NET_WM_STATE flags */
+#define EWMH_F_MAXIMIZED_VERT		(1 << 0)
+#define EWMH_F_MAXIMIZED_HORZ		(1 << 1)
+#define EWMH_F_SKIP_TASKBAR		(1 << 2)
+#define EWMH_F_SKIP_PAGER		(1 << 3)
+#define EWMH_F_HIDDEN			(1 << 4)
+#define EWMH_F_FULLSCREEN		(1 << 5)
+#define EWMH_F_ABOVE			(1 << 6)
+#define EWMH_F_DEMANDS_ATTENTION	(1 << 7)
+#define SWM_F_MANUAL			(1 << 8)
+#define SWM_EWMH_ACTION_COUNT_MAX	(9)
 
 #define EWMH_F_MAXIMIZED	(EWMH_F_MAXIMIZED_VERT | EWMH_F_MAXIMIZED_HORZ)
 #define EWMH_F_UNTILED		(EWMH_F_ABOVE | EWMH_F_FULLSCREEN |	       \
@@ -278,14 +280,16 @@ uint32_t		swm_debug = 0
 #define SH_INC(w)		((w)->sh.flags & XCB_ICCCM_SIZE_HINT_P_RESIZE_INC)
 #define SH_INC_W(w)		((w)->sh.width_inc)
 #define SH_INC_H(w)		((w)->sh.height_inc)
-#define HIDDEN(w)		((w)->ewmh_flags & EWMH_F_HIDDEN)
-#define ABOVE(w)		((w)->ewmh_flags & EWMH_F_ABOVE)
-#define FULLSCREEN(w)		((w)->ewmh_flags & EWMH_F_FULLSCREEN)
 #define MAXIMIZED_VERT(w)	((w)->ewmh_flags & EWMH_F_MAXIMIZED_VERT)
 #define MAXIMIZED_HORZ(w)	((w)->ewmh_flags & EWMH_F_MAXIMIZED_HORZ)
-#define MAXIMIZED(w)		((w)->ewmh_flags & EWMH_F_MAXIMIZED)
+#define SKIP_TASKBAR(w)		((w)->ewmh_flags & EWMH_F_SKIP_TASKBAR)
+#define SKIP_PAGER(w)		((w)->ewmh_flags & EWMH_F_SKIP_PAGER)
+#define HIDDEN(w)		((w)->ewmh_flags & EWMH_F_HIDDEN)
+#define FULLSCREEN(w)		((w)->ewmh_flags & EWMH_F_FULLSCREEN)
+#define ABOVE(w)		((w)->ewmh_flags & EWMH_F_ABOVE)
+#define DEMANDS_ATTENTION(w)	((w)->ewmh_flags & EWMH_F_DEMANDS_ATTENTION)
 #define MANUAL(w)		((w)->ewmh_flags & SWM_F_MANUAL)
-
+#define MAXIMIZED(w)		((w)->ewmh_flags & EWMH_F_MAXIMIZED)
 /* Constrain Window flags */
 #define SWM_CW_RESIZABLE	(0x01)
 #define SWM_CW_SOFTBOUNDARY	(0x02)
@@ -865,13 +869,14 @@ enum {
 	_NET_WM_FULL_PLACEMENT,
 	_NET_WM_NAME,
 	_NET_WM_STATE,
-	_NET_WM_STATE_ABOVE,
-	_NET_WM_STATE_FULLSCREEN,
-	_NET_WM_STATE_HIDDEN,
 	_NET_WM_STATE_MAXIMIZED_VERT,
 	_NET_WM_STATE_MAXIMIZED_HORZ,
-	_NET_WM_STATE_SKIP_PAGER,
 	_NET_WM_STATE_SKIP_TASKBAR,
+	_NET_WM_STATE_SKIP_PAGER,
+	_NET_WM_STATE_HIDDEN,
+	_NET_WM_STATE_FULLSCREEN,
+	_NET_WM_STATE_ABOVE,
+	_NET_WM_STATE_DEMANDS_ATTENTION,
 	_NET_WM_WINDOW_TYPE,
 	_NET_WM_WINDOW_TYPE_DIALOG,
 	_NET_WM_WINDOW_TYPE_DOCK,
@@ -909,13 +914,14 @@ struct ewmh_hint {
     {"_NET_WM_FULL_PLACEMENT", XCB_ATOM_NONE},
     {"_NET_WM_NAME", XCB_ATOM_NONE},
     {"_NET_WM_STATE", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_ABOVE", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_FULLSCREEN", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_HIDDEN", XCB_ATOM_NONE},
     {"_NET_WM_STATE_MAXIMIZED_VERT", XCB_ATOM_NONE},
     {"_NET_WM_STATE_MAXIMIZED_HORZ", XCB_ATOM_NONE},
-    {"_NET_WM_STATE_SKIP_PAGER", XCB_ATOM_NONE},
     {"_NET_WM_STATE_SKIP_TASKBAR", XCB_ATOM_NONE},
+    {"_NET_WM_STATE_SKIP_PAGER", XCB_ATOM_NONE},
+    {"_NET_WM_STATE_HIDDEN", XCB_ATOM_NONE},
+    {"_NET_WM_STATE_FULLSCREEN", XCB_ATOM_NONE},
+    {"_NET_WM_STATE_ABOVE", XCB_ATOM_NONE},
+    {"_NET_WM_STATE_DEMANDS_ATTENTION", XCB_ATOM_NONE},
     {"_NET_WM_WINDOW_TYPE", XCB_ATOM_NONE},
     {"_NET_WM_WINDOW_TYPE_DIALOG", XCB_ATOM_NONE},
     {"_NET_WM_WINDOW_TYPE_DOCK", XCB_ATOM_NONE},
@@ -1224,6 +1230,7 @@ void	 buttonrelease(xcb_button_release_event_t *);
 void	 center_pointer(struct swm_region *);
 const struct xcb_setup_t	*get_setup(void);
 void	 clear_atom_names(void);
+static void	 clear_attention(struct ws_win *);
 void	 clear_bindings(void);
 void	 clear_keybindings(void);
 void	 clear_quirks(void);
@@ -1404,6 +1411,7 @@ void	 search_workspace(struct binding *, struct swm_region *, union arg *);
 void	 send_to_rg(struct binding *, struct swm_region *, union arg *);
 void	 send_to_rg_relative(struct binding *, struct swm_region *, union arg *);
 void	 send_to_ws(struct binding *, struct swm_region *, union arg *);
+static void	 set_attention(struct ws_win *);
 void	 set_focus_prev(struct ws_win *);
 void	 set_focus_redirect(struct ws_win *);
 void	 set_focus_win(struct ws_win *);
@@ -1468,6 +1476,7 @@ void	 unmap_window(struct ws_win *);
 void	 unmap_workspace(struct workspace *);
 void	 unmapnotify(xcb_unmap_notify_event_t *);
 void	 unparent_window(struct ws_win *);
+static void	 update_bars(struct swm_screen *);
 void	 update_debug(struct swm_screen *);
 void	 update_floater(struct ws_win *);
 void	 update_focus(struct swm_screen *);
@@ -2069,21 +2078,23 @@ ewmh_change_wm_state(struct ws_win *win, xcb_atom_t state, long action)
 	if (win == NULL)
 		goto out;
 
-	if (state == ewmh[_NET_WM_STATE_FULLSCREEN].atom)
+	if (state == ewmh[_NET_WM_STATE_MAXIMIZED_VERT].atom ||
+	    state == ewmh[_NET_WM_STATE_MAXIMIZED_HORZ].atom)
+		flag = EWMH_F_MAXIMIZED;
+	else if (state == ewmh[_NET_WM_STATE_SKIP_TASKBAR].atom)
+		flag = EWMH_F_SKIP_TASKBAR;
+	else if (state == ewmh[_NET_WM_STATE_SKIP_PAGER].atom)
+		flag = EWMH_F_SKIP_PAGER;
+	else if (state == ewmh[_NET_WM_STATE_HIDDEN].atom)
+		flag = EWMH_F_HIDDEN;
+	else if (state == ewmh[_NET_WM_STATE_FULLSCREEN].atom)
 		flag = EWMH_F_FULLSCREEN;
 	else if (state == ewmh[_NET_WM_STATE_ABOVE].atom)
 		flag = EWMH_F_ABOVE;
-	else if (state == ewmh[_NET_WM_STATE_HIDDEN].atom)
-		flag = EWMH_F_HIDDEN;
-	else if (state == ewmh[_NET_WM_STATE_MAXIMIZED_VERT].atom ||
-	    state == ewmh[_NET_WM_STATE_MAXIMIZED_HORZ].atom)
-		flag = EWMH_F_MAXIMIZED;
+	else if (state == ewmh[_NET_WM_STATE_DEMANDS_ATTENTION].atom)
+		flag = EWMH_F_DEMANDS_ATTENTION;
 	else if (state == ewmh[_SWM_WM_STATE_MANUAL].atom)
 		flag = SWM_F_MANUAL;
-	else if (state == ewmh[_NET_WM_STATE_SKIP_PAGER].atom)
-		flag = EWMH_F_SKIP_PAGER;
-	else if (state == ewmh[_NET_WM_STATE_SKIP_TASKBAR].atom)
-		flag = EWMH_F_SKIP_TASKBAR;
 
 	/* Disallow unfloating transients. */
 	if (win_transient(win) && flag == EWMH_F_ABOVE)
@@ -2167,21 +2178,23 @@ ewmh_update_wm_state(struct  ws_win *win) {
 	xcb_atom_t		vals[SWM_EWMH_ACTION_COUNT_MAX];
 	int			n = 0;
 
-	if (HIDDEN(win))
-		vals[n++] = ewmh[_NET_WM_STATE_HIDDEN].atom;
-	if (FULLSCREEN(win))
-		vals[n++] = ewmh[_NET_WM_STATE_FULLSCREEN].atom;
 	if (MAXIMIZED_VERT(win))
 		vals[n++] = ewmh[_NET_WM_STATE_MAXIMIZED_VERT].atom;
 	if (MAXIMIZED_HORZ(win))
 		vals[n++] = ewmh[_NET_WM_STATE_MAXIMIZED_HORZ].atom;
-	if (win->ewmh_flags & EWMH_F_SKIP_PAGER)
-		vals[n++] = ewmh[_NET_WM_STATE_SKIP_PAGER].atom;
-	if (win->ewmh_flags & EWMH_F_SKIP_TASKBAR)
+	if (SKIP_TASKBAR(win))
 		vals[n++] = ewmh[_NET_WM_STATE_SKIP_TASKBAR].atom;
-	if (win->ewmh_flags & EWMH_F_ABOVE)
+	if (SKIP_PAGER(win))
+		vals[n++] = ewmh[_NET_WM_STATE_SKIP_PAGER].atom;
+	if (HIDDEN(win))
+		vals[n++] = ewmh[_NET_WM_STATE_HIDDEN].atom;
+	if (FULLSCREEN(win))
+		vals[n++] = ewmh[_NET_WM_STATE_FULLSCREEN].atom;
+	if (ABOVE(win))
 		vals[n++] = ewmh[_NET_WM_STATE_ABOVE].atom;
-	if (win->ewmh_flags & SWM_F_MANUAL)
+	if (DEMANDS_ATTENTION(win))
+		vals[n++] = ewmh[_NET_WM_STATE_DEMANDS_ATTENTION].atom;
+	if (MANUAL(win))
 		vals[n++] = ewmh[_SWM_WM_STATE_MANUAL].atom;
 
 	if (n > 0)
@@ -3051,10 +3064,31 @@ get_wm_transient_for(struct ws_win *win)
 	return (false);
 }
 
+static void
+clear_attention(struct ws_win *win)
+{
+	if (!DEMANDS_ATTENTION(win))
+		return;
+
+	win->ewmh_flags &= ~EWMH_F_DEMANDS_ATTENTION;
+	ewmh_update_wm_state(win);
+}
+
+static void
+set_attention(struct ws_win *win)
+{
+	if (DEMANDS_ATTENTION(win))
+		return;
+
+	win->ewmh_flags |= EWMH_F_DEMANDS_ATTENTION;
+	ewmh_update_wm_state(win);
+}
+
 static bool
 win_urgent(struct ws_win *win)
 {
-	return (xcb_icccm_wm_hints_get_urgency(&win->hints) != 0);
+	return (xcb_icccm_wm_hints_get_urgency(&win->hints) != 0 ||
+	    DEMANDS_ATTENTION(win));
 }
 
 void
@@ -3822,6 +3856,15 @@ bar_fmt_expand(char *fmtexp, size_t sz)
 #endif
 }
 
+static void
+update_bars(struct swm_screen *s)
+{
+	struct swm_region	*r;
+
+	TAILQ_FOREACH(r, &s->rl, entry)
+		bar_draw(r->bar);
+}
+
 void
 bar_draw(struct swm_bar *bar)
 {
@@ -4406,8 +4449,7 @@ get_win_state(xcb_window_t w)
 void
 version(struct binding *bp, struct swm_region *r, union arg *args)
 {
-	struct swm_region	*tmpr;
-	int			i, num_screens;
+	int		i, num_screens;
 
 	/* suppress unused warnings since vars are needed */
 	(void)bp;
@@ -4422,12 +4464,9 @@ version(struct binding *bp, struct swm_region *r, union arg *args)
 		strlcpy(bar_vertext, "", sizeof bar_vertext);
 
 	num_screens = get_screen_count();
-	for (i = 0; i < num_screens; i++) {
-		TAILQ_FOREACH(tmpr, &screens[i].rl, entry) {
-			bar_draw(tmpr->bar);
-			xcb_flush(conn);
-		}
-	}
+	for (i = 0; i < num_screens; i++)
+		update_bars(&screens[i]);
+	xcb_flush(conn);
 }
 
 void
@@ -5430,9 +5469,14 @@ focus_win(struct ws_win *win)
 			    win->s->root, ewmh[_NET_ACTIVE_WINDOW].atom,
 			    XCB_ATOM_WINDOW, 32, 1, &w->id);
 
-			bar_draw(ws->r->bar);
-			if (r)
-				bar_draw(r->bar);
+			if (DEMANDS_ATTENTION(win)) {
+				clear_attention(win);
+				update_bars(win->s);
+			} else {
+				bar_draw(ws->r->bar);
+				if (r)
+					bar_draw(r->bar);
+			}
 		}
 	}
 
@@ -8028,8 +8072,6 @@ void
 search_resp_name_workspace(const char *resp, size_t len)
 {
 	struct workspace	*ws;
-	struct swm_region	*r;
-	int			num_screens, i;
 
 	DNPRINTF(SWM_D_MISC, "resp: %s\n", resp);
 
@@ -8038,8 +8080,8 @@ search_resp_name_workspace(const char *resp, size_t len)
 	ws = search_r->ws;
 
 	if (ws->name) {
-		free(search_r->ws->name);
-		search_r->ws->name = NULL;
+		free(ws->name);
+		ws->name = NULL;
 	}
 
 	if (len) {
@@ -8053,10 +8095,7 @@ search_resp_name_workspace(const char *resp, size_t len)
 	ewmh_update_desktop_names();
 	ewmh_get_desktop_names();
 
-	num_screens = get_screen_count();
-	for (i = 0; i < num_screens; i++)
-		TAILQ_FOREACH(r, &screens[i].rl, entry)
-			bar_draw(r->bar);
+	update_bars(search_r->s);
 }
 
 void
@@ -13973,7 +14012,6 @@ clientmessage(xcb_client_message_event_t *e)
 	struct ws_win		*win;
 	union arg		a;
 	uint32_t		vals[4];
-	int			num_screens, i;
 	xcb_map_request_event_t	mre;
 	bool			hidden;
 
@@ -13981,17 +14019,14 @@ clientmessage(xcb_client_message_event_t *e)
 	    get_atom_label(e->type), e->type);
 
 	if (e->type == ewmh[_NET_CURRENT_DESKTOP].atom) {
-		num_screens = get_screen_count();
-		for (i = 0; i < num_screens; i++)
-			if (screens[i].root == e->window) {
-				r = screens[i].r_focus;
-				break;
+		s = find_screen(e->window);
+		if (s) {
+			r = s->r_focus;
+			if (r && (int)e->data.data32[0] < workspace_limit) {
+				a.id = e->data.data32[0];
+				switchws(NULL, r, &a);
+				xcb_flush(conn);
 			}
-
-		if (r && e->data.data32[0] < (uint32_t)workspace_limit) {
-			a.id = e->data.data32[0];
-			switchws(NULL, r, &a);
-			xcb_flush(conn);
 		}
 		return;
 	} else if (e->type == ewmh[_NET_REQUEST_FRAME_EXTENTS].atom) {
@@ -14046,6 +14081,13 @@ clientmessage(xcb_client_message_event_t *e)
 
 			if (win->mapped)
 				update_focus(s);
+			else {
+				set_attention(win);
+				update_bars(s);
+			}
+		} else {
+			set_attention(win);
+			update_bars(s);
 		}
 	} else if (e->type == ewmh[_NET_CLOSE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_CLOSE_WINDOW\n");
@@ -14487,9 +14529,7 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 			unmap_workspace(&s->ws[i]);
 
 	ewmh_update_desktops();
-
-	TAILQ_FOREACH(r, &s->rl, entry)
-		bar_draw(r->bar);
+	update_bars(s);
 
 	flush();
 	DNPRINTF(SWM_D_EVENT, "done.\n");
@@ -15390,8 +15430,7 @@ main(int argc, char *argv[])
 
 		/* Need to ensure the bar(s) are always updated. */
 		for (i = 0; i < num_screens; i++)
-			TAILQ_FOREACH(r, &screens[i].rl, entry)
-				bar_draw(r->bar);
+			update_bars(&screens[i]);
 
 		xcb_flush(conn);
 	}
