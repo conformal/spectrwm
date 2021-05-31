@@ -773,6 +773,40 @@ Default is '!'.
 Set the total number of workspaces available.
 Minimum is 1, maximum is 22, default is 10.
 .El
+.Sh STACK MODES
+.Bl -tag -width "horizontal flipped"
+.It Ic vertical
+Master area is on the left and stack area is on the right.
+Additional windows are vertically tiled in stack area.
+.It Ic vertical flipped
+Same as above but stack and master areas are swapped.
+.It Ic horizontal
+Master area is on the top and stack area is on the bottom.
+Additional windows are horizontally tiled in stack area.
+.It Ic horizontal flipped
+Same as above but stack and master areas are swapped.
+.It Ic max
+The focused window occupies the whole region, except for the bar (if enabled).
+.El
+.Sh WINDOW STATES
+These can be set/unset by the corresponding
+.Ic toggle
+actions listed in the
+.Sx BINDINGS
+section below.
+.Bl -tag -width "fullscreen"
+.It Ic floating
+The window is mapped above others and is not in a tile;
+it may be freely resized and positioned.
+.It Ic maximized
+The window occupies the whole region, except for the bar
+(if enabled and
+.Ic maximize_hide_bar
+is 0). Focusing another window removes the maximized state of the window.
+.It Ic fullscreen
+The window occupies the whole region. Focusing another window does not
+remove the fullscreen state of the window.
+.El
 .Sh PROGRAMS
 .Nm
 allows you to define custom actions to launch programs of your choice and then
