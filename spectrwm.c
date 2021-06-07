@@ -599,10 +599,14 @@ struct layout {
 	{ NULL,			NULL,			0,	NULL  },
 };
 
-/* position of max_stack mode in the layouts array, index into layouts! */
-#define SWM_V_STACK		(0)
-#define SWM_H_STACK		(1)
-#define SWM_MAX_STACK		(2)
+/* position of stack modes in the layouts array, index into layouts! */
+enum {
+	SWM_V_STACK,
+	SWM_H_STACK,
+	SWM_MAX_STACK,
+
+	SWM_STACK_COUNT,
+};
 
 #define SWM_H_SLICE		(32)
 #define SWM_V_SLICE		(32)
@@ -613,6 +617,8 @@ struct workspace {
 	char			*name;		/* workspace name */
 	bool			always_raise;	/* raise windows on focus */
 	bool			bar_enabled;	/* bar visibility */
+	int			layout_id_now;	/* Current layout ID */
+	int			layout_id_old;	/* Prior layout ID */
 	struct layout		*cur_layout;	/* current layout handlers */
 	struct ws_win		*focus;		/* may be NULL */
 	struct ws_win		*focus_prev;	/* may be NULL */
@@ -739,6 +745,7 @@ union arg {
 #define SWM_ARG_ID_LAYOUT_VERTICAL	(61)
 #define SWM_ARG_ID_LAYOUT_HORIZONTAL	(62)
 #define SWM_ARG_ID_LAYOUT_MAX	(63)
+#define SWM_ARG_ID_PRIOR_LAYOUT	(64)
 #define SWM_ARG_ID_DONTCENTER	(70)
 #define SWM_ARG_ID_CENTER	(71)
 #define SWM_ARG_ID_KILLWINDOW	(80)
@@ -964,6 +971,7 @@ enum actionid {
 	FN_BAR_TOGGLE_WS,
 	FN_BUTTON2,
 	FN_CYCLE_LAYOUT,
+	FN_PRIOR_LAYOUT,
 	FN_FLIP_LAYOUT,
 	FN_FLOAT_TOGGLE,
 	FN_FOCUS,
@@ -5872,30 +5880,38 @@ void
 switchlayout(struct binding *bp, struct swm_region *r, union arg *args)
 {
 	struct workspace	*ws = r->ws;
+	int			tmp = ws->layout_id_now;
 
 	/* suppress unused warning since var is needed */
 	(void)bp;
 
 	DNPRINTF(SWM_D_EVENT, "workspace: %d\n", ws->idx);
 
+	if (args->id != SWM_ARG_ID_PRIOR_LAYOUT)
+		ws->layout_id_old = ws->layout_id_now;
+
 	switch (args->id) {
+	case SWM_ARG_ID_PRIOR_LAYOUT:
+		ws->cur_layout = &layouts[ws->layout_id_old];
+		ws->layout_id_now = ws->layout_id_old;
+		ws->layout_id_old = tmp;
+		break;
 	case SWM_ARG_ID_CYCLE_LAYOUT:
-		ws->cur_layout++;
-		if (ws->cur_layout->l_stack == NULL)
-			ws->cur_layout = &layouts[0];
+		ws->layout_id_now = (ws->layout_id_now + 1) % SWM_STACK_COUNT;
 		break;
 	case SWM_ARG_ID_LAYOUT_VERTICAL:
-		ws->cur_layout = &layouts[SWM_V_STACK];
+		ws->layout_id_now = SWM_V_STACK;
 		break;
 	case SWM_ARG_ID_LAYOUT_HORIZONTAL:
-		ws->cur_layout = &layouts[SWM_H_STACK];
+		ws->layout_id_now = SWM_H_STACK;
 		break;
 	case SWM_ARG_ID_LAYOUT_MAX:
-		ws->cur_layout = &layouts[SWM_MAX_STACK];
+		ws->layout_id_now = SWM_MAX_STACK;
 		break;
 	default:
 		goto out;
 	}
+	ws->cur_layout = &layouts[ws->layout_id_now];
 
 	clear_maximized(ws);
 
@@ -8436,6 +8452,7 @@ struct action {
 	{ "bar_toggle_ws",	bar_toggle,	0, {.id = SWM_ARG_ID_BAR_TOGGLE_WS} },
 	{ "button2",		pressbutton,	0, {.id = 2} },
 	{ "cycle_layout",	switchlayout,	0, {.id = SWM_ARG_ID_CYCLE_LAYOUT} },
+	{ "prior_layout",	switchlayout,	0, {.id = SWM_ARG_ID_PRIOR_LAYOUT} },
 	{ "flip_layout",	stack_config,	0, {.id = SWM_ARG_ID_FLIPLAYOUT} },
 	{ "float_toggle",	floating_toggle,0, {0} },
 	{ "focus",		focus_pointer,	0, {0} },
@@ -10731,6 +10748,8 @@ setlayout(const char *selector, const char *value, int flags, char **emsg)
 	for (i = 0; i < num_screens; i++) {
 		ws = (struct workspace *)&screens[i].ws;
 		ws[ws_id].cur_layout = &layouts[st];
+		ws[ws_id].layout_id_now = st;
+		ws[ws_id].layout_id_old = (st + 1) % SWM_STACK_COUNT;
 
 		ws[ws_id].always_raise = (ar != 0);
 		if (st == SWM_MAX_STACK)
@@ -13373,6 +13392,8 @@ setup_screens(void)
 					    SWM_ARG_ID_STACKINIT);
 			ws->cur_layout = &layouts[0];
 			ws->cur_layout->l_string(ws);
+			ws->layout_id_now = SWM_V_STACK;
+			ws->layout_id_old = SWM_MAX_STACK; /* Arbitrary */
 		}
 
 		scan_randr(i);
