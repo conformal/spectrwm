@@ -49,9 +49,6 @@
 #include <fcntl.h>
 #include <locale.h>
 #include <paths.h>
-#if !defined(__OpenBSD__)
-#include "pledge.h"
-#endif
 #include <pwd.h>
 #include <regex.h>
 #include <signal.h>
@@ -3759,9 +3756,6 @@ xft_init(struct swm_region *r)
 		else
 			font_pua_index = num_xftfonts;
 	}
-
-	if (pledge("stdio proc exec", NULL) == -1)
-		err(1, "pledge");
 
 	for (i = 0; i < num_fg_colors; i++) {
 		PIXEL_TO_XRENDERCOLOR(r->s->c[SWM_S_COLOR_BAR_FONT+i].pixel,
@@ -13784,9 +13778,6 @@ main(int argc, char *argv[])
 	if (setlocale(LC_CTYPE, "") == NULL || setlocale(LC_TIME, "") == NULL)
 		warnx("no locale support");
 
-	if (pledge("stdio proc exec rpath getpw dns inet unix wpath", NULL) == -1)
-		err(1, "pledge");
-
 	/* handle some signals */
 	bzero(&sact, sizeof(sact));
 	sigemptyset(&sact.sa_mask);
@@ -13803,9 +13794,6 @@ main(int argc, char *argv[])
 
 	if ((display = XOpenDisplay(0)) == NULL)
 		errx(1, "unable to open display");
-
-	if (pledge("stdio proc exec rpath getpw wpath", NULL) == -1)
-		err(1, "pledge");
 
 	conn = XGetXCBConnection(display);
 	if (xcb_connection_has_error(conn))
@@ -13859,9 +13847,6 @@ main(int argc, char *argv[])
 	else
 		scan_config();
 
-	if (pledge("stdio proc exec rpath wpath", NULL) == -1)
-		err(1, "pledge");
-
 	validate_spawns();
 
 	if (getenv("SWM_STARTED") == NULL)
@@ -13872,6 +13857,11 @@ main(int argc, char *argv[])
 	for (i = 0; i < num_screens; i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			bar_setup(r);
+
+#ifdef __OpenBSD__
+	if (pledge("stdio proc exec", NULL) == -1)
+		err(1, "pledge");
+#endif
 
 	/* Manage existing windows. */
 	grab_windows();
@@ -13956,9 +13946,6 @@ main(int argc, char *argv[])
 		xcb_flush(conn);
 	}
 done:
-	if (pledge("stdio proc", NULL) == -1)
-		err(1, "pledge");
-
 	shutdown_cleanup();
 
 	return (0);
