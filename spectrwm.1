@@ -953,6 +953,8 @@ cycle_layout
 .It Cm M-S-\e
 flip_layout
 .It Aq Ar unbound
+prior_layout
+.It Aq Ar unbound
 layout_vertical
 .It Aq Ar unbound
 layout_horizontal
@@ -1122,9 +1124,11 @@ Same as
 .Ic restart
 but configuration file is loaded in full.
 .It Cm cycle_layout
-Cycle layout.
+Switch to the next layout.
 .It Cm flip_layout
 Swap the master and stacking areas.
+.It Cm prior_layout
+Switch to the last used layout.
 .It Cm layout_vertical
 Switch to vertical layout.
 .It Cm layout_horizontal

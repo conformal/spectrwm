@@ -630,6 +630,7 @@ struct workspace {
 	bool			always_raise;	/* raise windows on focus */
 	bool			bar_enabled;	/* bar visibility */
 	struct layout		*cur_layout;	/* current layout handlers */
+	struct layout		*prev_layout;	/* may be NULL */
 	struct ws_win		*focus;		/* may be NULL */
 	struct ws_win		*focus_prev;	/* may be NULL */
 	struct ws_win		*focus_raise;	/* may be NULL */
@@ -750,6 +751,7 @@ union arg {
 #define SWM_ARG_ID_LAYOUT_VERTICAL	(61)
 #define SWM_ARG_ID_LAYOUT_HORIZONTAL	(62)
 #define SWM_ARG_ID_LAYOUT_MAX	(63)
+#define SWM_ARG_ID_PRIOR_LAYOUT	(64)
 #define SWM_ARG_ID_DONTCENTER	(70)
 #define SWM_ARG_ID_CENTER	(71)
 #define SWM_ARG_ID_KILLWINDOW	(80)
@@ -1033,6 +1035,7 @@ enum actionid {
 	FN_MVWS_21,
 	FN_MVWS_22,
 	FN_NAME_WORKSPACE,
+	FN_PRIOR_LAYOUT,
 	FN_QUIT,
 	FN_RAISE,
 	FN_RAISE_TOGGLE,
@@ -6187,6 +6190,7 @@ focus_pointer(struct binding *bp, struct swm_region *r, union arg *args)
 void
 switchlayout(struct binding *bp, struct swm_region *r, union arg *args)
 {
+	struct layout		*temp_layout;
 	struct workspace	*ws = r->ws;
 	bool			follow;
 
@@ -6200,18 +6204,28 @@ switchlayout(struct binding *bp, struct swm_region *r, union arg *args)
 
 	switch (args->id) {
 	case SWM_ARG_ID_CYCLE_LAYOUT:
+		ws->prev_layout = ws->cur_layout;
 		ws->cur_layout++;
 		if (ws->cur_layout->l_stack == NULL)
 			ws->cur_layout = &layouts[0];
 		break;
 	case SWM_ARG_ID_LAYOUT_VERTICAL:
+		ws->prev_layout = ws->cur_layout;
 		ws->cur_layout = &layouts[SWM_V_STACK];
 		break;
 	case SWM_ARG_ID_LAYOUT_HORIZONTAL:
+		ws->prev_layout = ws->cur_layout;
 		ws->cur_layout = &layouts[SWM_H_STACK];
 		break;
 	case SWM_ARG_ID_LAYOUT_MAX:
+		ws->prev_layout = ws->cur_layout;
 		ws->cur_layout = &layouts[SWM_MAX_STACK];
+		break;
+	case SWM_ARG_ID_PRIOR_LAYOUT:
+		temp_layout = ws->cur_layout;
+		if (ws->prev_layout)
+			ws->cur_layout = ws->prev_layout;
+		ws->prev_layout = temp_layout;
 		break;
 	default:
 		goto out;
@@ -8945,6 +8959,7 @@ struct action {
 	{ "mvws_21",		send_to_ws,	0, {.id = 20} },
 	{ "mvws_22",		send_to_ws,	0, {.id = 21} },
 	{ "name_workspace",	name_workspace,	0, {0} },
+	{ "prior_layout",	switchlayout,	0, {.id = SWM_ARG_ID_PRIOR_LAYOUT} },
 	{ "quit",		quit,		0, {0} },
 	{ "raise",		raise_focus,	0, {0} },
 	{ "raise_toggle",	raise_toggle,	0, {0} },
@@ -14203,6 +14218,7 @@ setup_screens(void)
 			ws->idx = j;
 			ws->name = NULL;
 			ws->bar_enabled = true;
+			ws->prev_layout = NULL;
 			ws->focus = NULL;
 			ws->focus_prev = NULL;
 			ws->focus_raise = NULL;
