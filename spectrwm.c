@@ -426,7 +426,6 @@ double			dialog_ratio = 0.6;
 #endif
 
 char		*bar_argv[] = { NULL, NULL };
-int		 bar_pipe[2];
 char		 bar_ext[SWM_BAR_MAX];
 char		 bar_ext_buf[SWM_BAR_MAX];
 char		 bar_vertext[SWM_BAR_MAX];
@@ -1520,10 +1519,11 @@ get_setup(void)
 {
 	int	 errcode = xcb_connection_has_error(conn);
 #ifdef XCB_CONN_ERROR
+	/* libxcb >= 1.8 */
 	char	*s;
 	switch (errcode) {
 	case XCB_CONN_ERROR:
-		s = "Socket error, pipe error or other stream error.";
+		s = "Socket, pipe or other stream error.";
 		break;
 	case XCB_CONN_CLOSED_EXT_NOTSUPPORTED:
 		s = "Extension not supported.";
@@ -1532,11 +1532,23 @@ get_setup(void)
 		s = "Insufficient memory.";
 		break;
 	case XCB_CONN_CLOSED_REQ_LEN_EXCEED:
-		s = "Request length was exceeded.";
+		s = "Request length exceeded.";
 		break;
 	case XCB_CONN_CLOSED_PARSE_ERR:
 		s = "Error parsing display string.";
 		break;
+#ifdef XCB_CONN_CLOSED_INVALID_SCREEN
+	/* libxcb >= 1.9 */
+	case XCB_CONN_CLOSED_INVALID_SCREEN:
+		s = "Invalid screen.";
+		break;
+#ifdef XCB_CONN_CLOSED_FDPASSING_FAILED
+	/* libxcb >= 1.9.2 */
+	case XCB_CONN_CLOSED_FDPASSING_FAILED:
+		s = "Failed to pass file descriptor.";
+		break;
+#endif
+#endif
 	default:
 		s = "Unknown error.";
 	}
@@ -2633,10 +2645,6 @@ bar_print_layout(struct swm_region *r)
 void
 bar_extra_stop(void)
 {
-	if (bar_pipe[0]) {
-		close(bar_pipe[0]);
-		bzero(bar_pipe, sizeof bar_pipe);
-	}
 	if (bar_pid) {
 		kill(bar_pid, SIGTERM);
 		bar_pid = 0;
@@ -3637,36 +3645,59 @@ bar_toggle(struct binding *bp, struct swm_region *r, union arg *args)
 void
 bar_extra_setup(void)
 {
+	int		fd, bar_pipe[2];
+
 	/* do this here because the conf file is in memory */
 	if (!bar_extra && bar_argv[0]) {
 		/* launch external status app */
 		bar_extra = true;
 		if (pipe(bar_pipe) == -1)
 			err(1, "pipe error");
+		/* Read must not block or spectrwm will hang. */
 		socket_setnonblock(bar_pipe[0]);
-		socket_setnonblock(bar_pipe[1]); /* XXX hmmm, really? */
-
-		/* Set stdin to read from the pipe. */
-		if (dup2(bar_pipe[0], STDIN_FILENO) == -1)
-			err(1, "dup2");
-
-		/* Set stdout to write to the pipe. */
-		if (dup2(bar_pipe[1], STDOUT_FILENO) == -1)
-			err(1, "dup2");
 
 		if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
 			err(1, "could not disable SIGPIPE");
+
 		switch (bar_pid = fork()) {
 		case -1:
 			err(1, "cannot fork");
 			break;
 		case 0: /* child */
 			close(bar_pipe[0]);
+
+			/* Isolate stdin. */
+			if ((fd = open(_PATH_DEVNULL, O_RDONLY, 0)) == -1) {
+				warn("open /dev/null");
+				_exit(1);
+			}
+			if (dup2(fd, STDIN_FILENO) == -1) {
+				warn("dup2 stdin");
+				_exit(1);
+			}
+			if (fd > STDERR_FILENO)
+				close(fd);
+
+			/* Reassign stdout to write end of pipe. */
+			if (dup2(bar_pipe[1], STDOUT_FILENO) == -1) {
+				warn("dup2 stdout");
+				_exit(1);
+			}
+			if (bar_pipe[1] > STDERR_FILENO)
+				close(bar_pipe[1]);
+
 			execvp(bar_argv[0], bar_argv);
-			err(1, "%s external app failed", bar_argv[0]);
+			warn("%s external app failed", bar_argv[0]);
+			_exit(1);
 			break;
 		default: /* parent */
 			close(bar_pipe[1]);
+
+			/* Reassign stdin to read end of pipe. */
+			if (dup2(bar_pipe[0], STDIN_FILENO) == -1)
+				err(1, "dup2");
+			if (bar_pipe[0] > STDERR_FILENO)
+				close(bar_pipe[0]);
 			break;
 		}
 
@@ -7922,7 +7953,7 @@ put_back_event(xcb_generic_event_t *evt)
 {
 	struct event	*ep;
 	if ((ep = malloc(sizeof (struct event))) == NULL)
-		err(1, "put_back_event: failed to allocate memory.");
+		err(1, "put_back_event: malloc");
 	ep->ev = evt;
 	STAILQ_INSERT_HEAD(&events, ep, entry);
 }
@@ -8772,10 +8803,14 @@ spawn_select(struct swm_region *r, union arg *args, const char *spawn_name,
 		err(1, "cannot fork");
 		break;
 	case 0: /* child */
-		if (dup2(select_list_pipe[0], STDIN_FILENO) == -1)
-			err(1, "dup2");
-		if (dup2(select_resp_pipe[1], STDOUT_FILENO) == -1)
-			err(1, "dup2");
+		if (dup2(select_list_pipe[0], STDIN_FILENO) == -1) {
+			warn("spawn_select: dup2");
+			_exit(1);
+		}
+		if (dup2(select_resp_pipe[1], STDOUT_FILENO) == -1) {
+			warn("spawn_select: dup2");
+			_exit(1);
+		}
 		close(select_list_pipe[1]);
 		close(select_resp_pipe[0]);
 		spawn(r->ws->idx, &a, false);
@@ -13960,12 +13995,18 @@ main(int argc, char *argv[])
 			search_do_resp();
 
 		num_readable = poll(pfd, bar_extra ? 2 : 1, 1000);
-		if (num_readable == -1) {
-			DNPRINTF(SWM_D_MISC, "poll failed: %s",
-			    strerror(errno));
-		} else if (num_readable > 0 && bar_extra &&
-		    pfd[1].revents & POLLIN) {
-			stdin_ready = true;
+		if (num_readable > 0) {
+			if (pfd[0].revents & POLLHUP)
+				goto done;
+
+			if (bar_extra) {
+				if (pfd[1].revents & POLLHUP)
+					bar_extra = false;
+				else if (pfd[1].revents & POLLIN)
+					stdin_ready = true;
+			}
+		} else if (num_readable == -1) {
+			DNPRINTF(SWM_D_MISC, "poll: %s\n", strerror(errno));
 		}
 
 		if (restart_wm)
