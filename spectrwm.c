@@ -13933,6 +13933,9 @@ main(int argc, char *argv[])
 		if (!running)
 			goto done;
 
+		if(xcb_connection_has_error(conn))
+			goto done;
+
 		if (stdin_ready) {
 			stdin_ready = false;
 			bar_extra_update();
