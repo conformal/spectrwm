@@ -5179,6 +5179,7 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 	}
 
 	ewmh_update_current_desktop();
+	ewmh_update_desktops();
 
 	center_pointer(r);
 	focus_flush();
@@ -12705,22 +12706,26 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 		unmanage_window(win);
 	}
 
-	stack(ws->r);
+	if (ws->r) {
+		stack(ws->r);
 
-	if (WS_FOCUSED(ws) && ws->focus_pending) {
-		focus_win(ws->focus_pending);
-		ws->focus_pending = NULL;
+		if (WS_FOCUSED(ws) && ws->focus_pending) {
+			focus_win(ws->focus_pending);
+			ws->focus_pending = NULL;
+		}
+
+		if ((dofocus && ws->focus == NULL) ||
+		    TAILQ_EMPTY(&ws->winlist)) {
+			DNPRINTF(SWM_D_FOCUS, "SetInputFocus: %#x, revert-to: "
+			    "PointerRoot, time: CurrentTime\n", ws->r->id);
+			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
+			    ws->r->id, XCB_CURRENT_TIME);
+			bar_draw(ws->r->bar);
+		}
+
+		center_pointer(ws->r);
 	}
 
-	if ((dofocus && ws->focus == NULL) || TAILQ_EMPTY(&ws->winlist)) {
-		DNPRINTF(SWM_D_FOCUS, "SetInputFocus: %#x, revert-to: "
-		    "PointerRoot, time: CurrentTime\n", ws->r->id);
-		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
-		    ws->r->id, XCB_CURRENT_TIME);
-		bar_draw(ws->r->bar);
-	}
-
-	center_pointer(ws->r);
 	focus_flush();
 	DNPRINTF(SWM_D_EVENT, "done\n");
 }
@@ -13213,6 +13218,7 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 		}
 	}
 
+	ewmh_update_desktops();
 	focus_flush();
 
 	/* Update workspace state and bar on all regions. */
