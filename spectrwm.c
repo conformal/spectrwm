@@ -5,7 +5,7 @@
  * Copyright (c) 2009 Pierre-Yves Ritschard <pyr@spootnik.org>
  * Copyright (c) 2010 Tuukka Kataja <stuge@xor.fi>
  * Copyright (c) 2011 Jason L. Wright <jason@thought.net>
- * Copyright (c) 2011-2021 Reginald Kennedy <rk@rejii.com>
+ * Copyright (c) 2011-2022 Reginald Kennedy <rk@rejii.com>
  * Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
  * Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
  * Copyright (c) 2012-2015 David Hill <dhill@mindcry.org>
@@ -267,6 +267,7 @@ uint32_t		swm_debug = 0
 #define WINID(w)		((w) ? (w)->id : XCB_WINDOW_NONE)
 #define ACCEPTS_FOCUS(w)	(!((w)->hints.flags & XCB_ICCCM_WM_HINT_INPUT) \
     || ((w)->hints.input))
+#define NOINPUT(w)		(!ACCEPTS_FOCUS(w) && !((w)->take_focus))
 #define WS_FOCUSED(ws)		((ws)->r && (ws)->r->s->r_focus == (ws)->r)
 #define YESNO(x)		((x) ? "yes" : "no")
 #define ICONIC(w)		((w)->ewmh_flags & EWMH_F_HIDDEN)
@@ -1118,13 +1119,13 @@ RB_HEAD(binding_tree, binding) bindings = RB_INITIALIZER(&bindings);
 void	 adjust_font(struct ws_win *);
 char	*argsep(char **);
 void	 bar_cleanup(struct swm_region *);
+void	 bar_draw(struct swm_bar *);
 void	 bar_extra_setup(void);
 void	 bar_extra_stop(void);
 int	 bar_extra_update(void);
 void	 bar_fmt(const char *, char *, struct swm_region *, size_t);
 void	 bar_fmt_expand(char *, size_t);
-void     bar_parse_markup(struct bar_section *);
-void	 bar_draw(struct swm_bar *);
+void	 bar_parse_markup(struct bar_section *);
 void	 bar_print(struct swm_region *, const char *);
 void	 bar_print_legacy(struct swm_region *, const char *);
 void	 bar_print_layout(struct swm_region *);
@@ -1257,12 +1258,13 @@ void	 get_wm_protocols(struct ws_win *);
 char	*get_wm_state_label(uint8_t);
 #endif
 int	 get_ws_idx(struct ws_win *);
+void	 grab_buttons_win(xcb_window_t);
 void	 grab_windows(void);
 void	 grabbuttons(void);
 void	 grabkeys(void);
 void	 iconify(struct binding *, struct swm_region *, union arg *);
+bool	 is_valid_markup(char *, size_t *);
 bool	 isxlfd(char *);
-bool     is_valid_markup(char *, size_t *);
 bool	 keybindreleased(struct binding *, xcb_key_release_event_t *);
 void	 keypress(xcb_key_press_event_t *);
 void	 keyrelease(xcb_key_release_event_t *);
@@ -1456,11 +1458,11 @@ cursors_cleanup(void)
 char *
 expand_tilde(const char *s)
 {
-	struct passwd           *ppwd;
-	int                     i;
+	struct passwd		*ppwd;
+	int			i;
 	long			max;
-	char                    *user;
-	const char              *sc = s;
+	char			*user;
+	const char		*sc = s;
 	char			*result;
 
 	if (s == NULL)
@@ -1607,6 +1609,8 @@ void
 event_drain(uint8_t rt)
 {
 	xcb_generic_event_t	*evt;
+
+	DNPRINTF(SWM_D_EVENT, "%s\n", rt ? xcb_event_get_label(rt) : "none");
 
 	/* Ensure all pending requests have been processed before filtering. */
 	xcb_aux_sync(conn);
@@ -2993,8 +2997,8 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		bar_window_class_instance(tmp, sizeof tmp, r);
 		break;
 	case 'R':
-	        snprintf(tmp, sizeof tmp, "%d", get_region_index(r) + 1);
-	        break;
+		snprintf(tmp, sizeof tmp, "%d", get_region_index(r) + 1);
+		break;
 	case 'S':
 		snprintf(tmp, sizeof tmp, "%s", r->ws->stacker);
 		break;
@@ -3840,11 +3844,13 @@ bar_setup(struct swm_region *r)
 	r->bar->id = xcb_generate_id(conn);
 	wa[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
 	wa[1] = r->s->c[SWM_S_COLOR_BAR_BORDER_UNFOCUS].pixel;
-	wa[2] = XCB_EVENT_MASK_ENTER_WINDOW |
+	wa[2] = XCB_EVENT_MASK_BUTTON_PRESS |
+	    XCB_EVENT_MASK_BUTTON_RELEASE |
+	    XCB_EVENT_MASK_ENTER_WINDOW |
 	    XCB_EVENT_MASK_LEAVE_WINDOW |
-	    XCB_EVENT_MASK_EXPOSURE |
 	    XCB_EVENT_MASK_POINTER_MOTION |
 	    XCB_EVENT_MASK_POINTER_MOTION_HINT |
+	    XCB_EVENT_MASK_EXPOSURE |
 	    XCB_EVENT_MASK_FOCUS_CHANGE;
 	wa[3] = r->s->colormap;
 
@@ -4836,21 +4842,15 @@ focus_win_input(struct ws_win *win, bool force_input)
 	/* Set input focus if no input hint, or indicated by hint. */
 	if (ACCEPTS_FOCUS(win)) {
 		DNPRINTF(SWM_D_FOCUS, "SetInputFocus: %#x, revert-to: "
-		    "PointerRoot, time: %#x\n", win->id, last_event_time);
+		    "PointerRoot, force: %d, time: %#x\n", win->id, force_input,
+		    last_event_time);
 		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT, win->id,
 		    (force_input ? XCB_CURRENT_TIME : last_event_time));
 	} else if (!win->take_focus) {
-		if (win->ws && win->ws->r) {
-			DNPRINTF(SWM_D_FOCUS, "SetInputFocus: %#x, revert-to: "
-			    "PointerRoot, time: CurrentTime\n", win->ws->r->id);
-			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
-			    win->ws->r->id, XCB_CURRENT_TIME);
-		} else {
-			DNPRINTF(SWM_D_FOCUS, "SetInputFocus: PointerRoot, "
-			    "revert-to: PointerRoot, time: CurrentTime\n");
-			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
-			    XCB_INPUT_FOCUS_POINTER_ROOT, XCB_CURRENT_TIME);
-		}
+		DNPRINTF(SWM_D_FOCUS, "SetInputFocus: PointerRoot, "
+		    "revert-to: PointerRoot, time: %#x\n", last_event_time);
+		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
+		    XCB_INPUT_FOCUS_POINTER_ROOT, last_event_time);
 	}
 
 	/* Tell app it can adjust focus to a specific window. */
@@ -4940,13 +4940,17 @@ focus_win(struct ws_win *win)
 		}
 
 		if (cfw != win) {
-			focus_win_input(win, false);
+			if (NOINPUT(win) && TRANS(win))
+				w = find_main_window(win);
+			else
+				w = win;
 
+			focus_win_input(w, false);
 			set_region(ws->r);
 
 			xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
 			    win->s->root, ewmh[_NET_ACTIVE_WINDOW].atom,
-			    XCB_ATOM_WINDOW, 32, 1, &win->id);
+			    XCB_ATOM_WINDOW, 32, 1, &w->id);
 
 			bar_draw(ws->r->bar);
 		}
@@ -4958,6 +4962,58 @@ out:
 	free(gifr);
 	free(war);
 	DNPRINTF(SWM_D_FOCUS, "done\n");
+}
+
+void
+grab_buttons_win(xcb_window_t win)
+{
+	struct binding		*bp;
+	int			i;
+	uint16_t		modifiers[4];
+
+	if (win == XCB_WINDOW_NONE)
+		return;
+
+	modifiers[0] = 0;
+	modifiers[1] = numlockmask;
+	modifiers[2] = XCB_MOD_MASK_LOCK;
+	modifiers[3] = numlockmask | XCB_MOD_MASK_LOCK;
+
+	xcb_ungrab_button(conn, XCB_BUTTON_INDEX_ANY, win, XCB_MOD_MASK_ANY);
+	RB_FOREACH(bp, binding_tree, &bindings) {
+		if (bp->type != BTNBIND)
+			continue;
+
+		/* When binding ws actions, skip unused workspaces. */
+		if ((int)bp->action > FN_WS_1 + workspace_limit - 1 &&
+		    bp->action <= FN_WS_22)
+			continue;
+
+		if ((int)bp->action > FN_MVWS_1 + workspace_limit - 1 &&
+		    bp->action <= FN_MVWS_22)
+			continue;
+
+		if (bp->mod == XCB_MOD_MASK_ANY) {
+			/* Grab ANYMOD case. */
+			DNPRINTF(SWM_D_MOUSE, "grab btn: %u, modmask: %d, "
+			    "win: %#x\n", bp->value, bp->mod, win);
+			xcb_grab_button(conn, 0, win,
+			    BUTTONMASK, XCB_GRAB_MODE_SYNC,
+			    XCB_GRAB_MODE_ASYNC, XCB_WINDOW_NONE,
+			    XCB_CURSOR_NONE, bp->value, bp->mod);
+		} else {
+			/* Need to grab each modifier permutation. */
+			for (i = 0; i < LENGTH(modifiers); ++i) {
+				DNPRINTF(SWM_D_MOUSE, "grab btn: %u, "
+				    "modmask: %u\n", bp->value,
+				    bp->mod | modifiers[i]);
+				xcb_grab_button(conn, 0, win, BUTTONMASK,
+				    XCB_GRAB_MODE_SYNC, XCB_GRAB_MODE_ASYNC,
+				    XCB_WINDOW_NONE, XCB_CURSOR_NONE,
+				    bp->value, bp->mod | modifiers[i]);
+			}
+		}
+	}
 }
 
 /* If a transient window should have focus instead, return it. */
@@ -5060,10 +5116,10 @@ focus_region(struct swm_region *r)
 			bar_draw(old_r->bar);
 		}
 
-		DNPRINTF(SWM_D_FOCUS, "SetInputFocus: %#x, revert-to: "
-		    "PointerRoot,time: CurrentTime\n", r->id);
-		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT, r->id,
-		    XCB_CURRENT_TIME);
+		DNPRINTF(SWM_D_FOCUS, "SetInputFocus: PointerRoot, "
+		    "revert-to: PointerRoot, time: CurrentTime\n");
+		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
+		    XCB_INPUT_FOCUS_POINTER_ROOT, XCB_CURRENT_TIME);
 	}
 }
 
@@ -5171,10 +5227,10 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 
 	/* Clear bar and set focus on region input win if new ws is empty. */
 	if (new_ws->focus_pending == NULL && new_ws->focus == NULL) {
-		DNPRINTF(SWM_D_FOCUS, "SetInputFocus: %#x, revert-to: "
-		    "PointerRoot, time: CurrentTime\n", r->id);
-		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT, r->id,
-		    XCB_CURRENT_TIME);
+		DNPRINTF(SWM_D_FOCUS, "SetInputFocus: PointerRoot, "
+		    "revert-to: PointerRoot, time: CurrentTime\n");
+		xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
+		    XCB_INPUT_FOCUS_POINTER_ROOT, XCB_CURRENT_TIME);
 		bar_draw(r->bar);
 	}
 
@@ -6146,9 +6202,9 @@ update_floater(struct ws_win *win)
 			load_float_geom(win);
 
 		if (((win->quirks & SWM_Q_FULLSCREEN) &&
-		     WIDTH(win) >= WIDTH(r) && HEIGHT(win) >= HEIGHT(r)) ||
+		    WIDTH(win) >= WIDTH(r) && HEIGHT(win) >= HEIGHT(r)) ||
 		    ((!WS_FOCUSED(win->ws) || win->ws->focus != win) &&
-		     (win->quirks & SWM_Q_MINIMALBORDER))) {
+		    (win->quirks & SWM_Q_MINIMALBORDER))) {
 			/* Remove border */
 			win->bordered = false;
 		} else if (!MANUAL(win)) {
@@ -6745,10 +6801,10 @@ send_to_ws(struct binding *bp, struct swm_region *r, union arg *args)
 		if (r->ws->focus) {
 			focus_win(r->ws->focus);
 		} else {
-			DNPRINTF(SWM_D_FOCUS, "SetInputFocus: %#x, revert-to: "
-			    "PointerRoot, time: CurrentTime\n", r->id);
+			DNPRINTF(SWM_D_FOCUS, "SetInputFocus: PointerRoot, "
+			    "revert-to: PointerRoot, time: CurrentTime\n");
 			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
-			    r->id, XCB_CURRENT_TIME);
+			    XCB_INPUT_FOCUS_POINTER_ROOT, XCB_CURRENT_TIME);
 			bar_draw(r->bar);
 		}
 	}
@@ -6817,7 +6873,7 @@ set_focus_redirect(struct ws_win *win)
 	struct ws_win	*w, *tmpw;
 	int		i, wincount;
 
-	if (win == NULL || !TRANS(win))
+	if (win == NULL || !TRANS(win) || NOINPUT(win))
 		return;
 
 	/* Limit search to prevent infinite loop. */
@@ -8371,7 +8427,7 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 	/* Release keyboard freeze if called via keybind. */
 	if (bp->type == KEYBIND)
 		xcb_allow_events(conn, XCB_ALLOW_ASYNC_KEYBOARD,
-		     XCB_CURRENT_TIME);
+		    XCB_CURRENT_TIME);
 
 	mintime = 1000 / r->s->rate;
 
@@ -9667,68 +9723,17 @@ grabkeys(void)
 void
 grabbuttons(void)
 {
-	struct binding	*bp;
-	int		num_screens, i, k;
-	uint16_t	modifiers[4];
+	struct ws_win	*w;
+	int		num_screens, i, j;
 
 	DNPRINTF(SWM_D_MOUSE, "begin\n");
 	updatenumlockmask();
 
-	modifiers[0] = 0;
-	modifiers[1] = numlockmask;
-	modifiers[2] = XCB_MOD_MASK_LOCK;
-	modifiers[3] = numlockmask | XCB_MOD_MASK_LOCK;
-
 	num_screens = get_screen_count();
-	for (k = 0; k < num_screens; k++) {
-		if (TAILQ_EMPTY(&screens[k].rl))
-			continue;
-		xcb_ungrab_button(conn, XCB_BUTTON_INDEX_ANY, screens[k].root,
-			XCB_MOD_MASK_ANY);
-		RB_FOREACH(bp, binding_tree, &bindings) {
-			if (bp->type != BTNBIND)
-				continue;
-
-			/* If there is a catch-all, only bind that. */
-			if ((binding_lookup(ANYMOD, BTNBIND, bp->value)) &&
-			    bp->mod != ANYMOD)
-				continue;
-
-			/* Skip unused ws binds. */
-			if ((int)bp->action > FN_WS_1 + workspace_limit - 1 &&
-			    bp->action <= FN_WS_22)
-				continue;
-
-			/* Skip unused mvws binds. */
-			if ((int)bp->action > FN_MVWS_1 + workspace_limit - 1 &&
-			    bp->action <= FN_MVWS_22)
-				continue;
-
-			if (bp->mod == XCB_MOD_MASK_ANY) {
-				/* All modifiers are grabbed in one pass. */
-				DNPRINTF(SWM_D_MOUSE, "grab btn: %u, "
-				    "modmask: %d\n", bp->value, bp->mod);
-				xcb_grab_button(conn, 0, screens[k].root,
-				    BUTTONMASK, XCB_GRAB_MODE_SYNC,
-				    XCB_GRAB_MODE_ASYNC, XCB_WINDOW_NONE,
-				    XCB_CURSOR_NONE, bp->value, bp->mod);
-			} else {
-				/* Need to grab each modifier permutation. */
-				for (i = 0; i < LENGTH(modifiers); ++i) {
-					DNPRINTF(SWM_D_MOUSE, "grab btn: %d, "
-					    "modmask: %u\n", bp->value,
-					    bp->mod | modifiers[i]);
-					xcb_grab_button(conn, 0,
-					    screens[k].root, BUTTONMASK,
-					    XCB_GRAB_MODE_SYNC,
-					    XCB_GRAB_MODE_ASYNC,
-					    XCB_WINDOW_NONE,
-					    XCB_CURSOR_NONE, bp->value,
-					    bp->mod | modifiers[i]);
-				}
-			}
-		}
-	}
+	for (i = 0; i < num_screens; i++)
+		for (j = 0; j < workspace_limit; j++)
+			TAILQ_FOREACH(w, &screens[i].ws[j].winlist, entry)
+				grab_buttons_win(w->id);
 	DNPRINTF(SWM_D_MOUSE, "done\n");
 }
 
@@ -11208,7 +11213,8 @@ reparent_window(struct ws_win *win)
 	if ((s = get_screen(win->s->idx)) == NULL)
 		errx(1, "ERROR: unable to get screen %d.", win->s->idx);
 	wa[0] = s->black_pixel;
-	wa[1] =
+	wa[1] = XCB_EVENT_MASK_BUTTON_PRESS |
+	    XCB_EVENT_MASK_BUTTON_RELEASE |
 	    XCB_EVENT_MASK_ENTER_WINDOW |
 	    XCB_EVENT_MASK_STRUCTURE_NOTIFY |
 	    XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
@@ -11237,8 +11243,10 @@ reparent_window(struct ws_win *win)
 		win->state = SWM_WIN_STATE_UNPARENTED;
 		unmanage_window(win);
 		return (1);
-	} else
+	} else {
 		xcb_change_save_set(conn, XCB_SET_MODE_INSERT, win->id);
+		grab_buttons_win(win->id);
+	}
 
 	return (0);
 }
@@ -11719,8 +11727,10 @@ buttonpress(xcb_button_press_event_t *e)
 {
 	struct ws_win		*win = NULL, *newf;
 	struct swm_region	*r, *old_r;
+	struct swm_bar		*bar;
 	struct action		*ap;
 	struct binding		*bp;
+	xcb_window_t		winid;
 	bool			replay = true;
 
 	last_event_time = e->time;
@@ -11730,40 +11740,12 @@ buttonpress(xcb_button_press_event_t *e)
 	    e->event, e->event_x, e->event_y, e->detail, e->time, e->root,
 	    e->root_x, e->root_y, e->child, e->state, YESNO(e->same_screen));
 
-	if (e->event == e->root) {
-		if (e->child) {
-			win = find_window(e->child);
-			if (win == NULL) {
-				r = find_region(e->child);
-				if (r)
-					focus_region(r);
-				replay = false;
-			}
-		} else {
-			/* Focus on region if it's empty. */
-			r = root_to_region(e->root, SWM_CK_POINTER);
-			if (r && TAILQ_EMPTY(&r->ws->winlist)) {
-				old_r = root_to_region(e->root, SWM_CK_FOCUS);
-				if (old_r && old_r != r)
-					unfocus_win(old_r->ws->focus);
+	if (e->event == e->root)
+		winid = e->child;
+	else
+		winid = e->event;
 
-				/* Clear bar since empty. */
-				bar_draw(r->bar);
-				DNPRINTF(SWM_D_FOCUS, "SetInputFocus: %#x, "
-				    "revert-to: PointerRoot, time: %#x\n",
-				    r->id, last_event_time);
-				xcb_set_input_focus(conn,
-				    XCB_INPUT_FOCUS_POINTER_ROOT, r->id,
-				    XCB_CURRENT_TIME);
-				bar_draw(r->bar);
-
-				/* Don't replay root window events. */
-				replay = false;
-			}
-		}
-	} else
-		win = find_window(e->event);
-
+	win = find_window(winid);
 	if (win) {
 		newf = get_focus_magic(win);
 		if (win->ws->focus == newf && newf != win) {
@@ -11772,6 +11754,34 @@ buttonpress(xcb_button_press_event_t *e)
 			newf = win;
 		}
 		focus_win(newf);
+	} else {
+		/* Not a managed window, figure out region. */
+		r = find_region(winid);
+		if (r == NULL) {
+			bar = find_bar(winid);
+			if (bar)
+				r = bar->r;
+
+			/* Fallback to pointer location. */
+			if (r == NULL)
+				r = root_to_region(e->root, SWM_CK_POINTER);
+		}
+
+		/* If region is empty, need to set focus to root. */
+		if (r && TAILQ_EMPTY(&r->ws->winlist)) {
+			old_r = root_to_region(e->root, SWM_CK_FOCUS);
+			if (old_r && old_r != r)
+				unfocus_win(old_r->ws->focus);
+
+			/* Clear bar since empty. */
+			bar_draw(r->bar);
+			DNPRINTF(SWM_D_FOCUS, "set_input_focus: %#x, "
+			    "revert-to: parent, time: %#x\n", e->root, e->time);
+			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
+			    XCB_INPUT_FOCUS_POINTER_ROOT, e->time);
+		}
+
+		focus_region(r);
 	}
 
 	/* Handle any bound action. */
@@ -11796,17 +11806,20 @@ buttonpress(xcb_button_press_event_t *e)
 	replay = replay && !(ap->flags & FN_F_NOREPLAY);
 
 out:
-	if (replay) {
-		/* Replay event to event window */
-		DNPRINTF(SWM_D_EVENT, "replaying\n");
-		xcb_allow_events(conn, XCB_ALLOW_REPLAY_POINTER, e->time);
-	} else {
-		/* Unfreeze grab events. */
-		DNPRINTF(SWM_D_EVENT, "unfreezing\n");
-		xcb_allow_events(conn, XCB_ALLOW_SYNC_POINTER, e->time);
+	/* Only managed client windows have grabs that need releasing. */
+	if (win && win->id == e->event) {
+		if (replay) {
+			DNPRINTF(SWM_D_EVENT, "replaying\n");
+			xcb_allow_events(conn, XCB_ALLOW_REPLAY_POINTER,
+			    e->time);
+		} else {
+			DNPRINTF(SWM_D_EVENT, "unfreezing\n");
+			xcb_allow_events(conn, XCB_ALLOW_SYNC_POINTER, e->time);
+		}
 	}
 
 	focus_flush();
+	DNPRINTF(SWM_D_FOCUS, "done\n");
 }
 
 void
@@ -11814,6 +11827,7 @@ buttonrelease(xcb_button_release_event_t *e)
 {
 	struct action		*ap;
 	struct binding		*bp;
+	struct ws_win		*win;
 
 	last_event_time = e->time;
 
@@ -11822,23 +11836,29 @@ buttonrelease(xcb_button_release_event_t *e)
 	    e->event, e->event_x, e->event_y, e->detail, e->time, e->root,
 	    e->root_x, e->root_y, e->child, e->state, YESNO(e->same_screen));
 
-	bp = binding_lookup(CLEANMASK(e->state), BTNBIND, e->detail);
-	if (bp == NULL)
-		/* Look for catch-all. */
-		bp = binding_lookup(ANYMOD, BTNBIND, e->detail);
+	/* Only managed client windows have grabs that need releasing. */
+	win = find_window(e->event);
+	if (win && win->id == e->event) {
+		bp = binding_lookup(CLEANMASK(e->state), BTNBIND, e->detail);
+		if (bp == NULL)
+			/* Look for catch-all. */
+			bp = binding_lookup(ANYMOD, BTNBIND, e->detail);
 
-	if (bp && (ap = &actions[bp->action]) && !(ap->flags & FN_F_NOREPLAY) &&
-	    bp->flags & BINDING_F_REPLAY) {
-		/* Replay event to event window */
-		DNPRINTF(SWM_D_EVENT, "replaying\n");
-		xcb_allow_events(conn, XCB_ALLOW_REPLAY_POINTER, e->time);
-	} else {
-		/* Unfreeze grab events. */
-		DNPRINTF(SWM_D_EVENT, "unfreezing\n");
-		xcb_allow_events(conn, XCB_ALLOW_SYNC_POINTER, e->time);
+		if (bp && bp->flags & BINDING_F_REPLAY &&
+		    (((ap = &actions[bp->action]) == NULL) ||
+		    !(ap->flags & FN_F_NOREPLAY))) {
+			DNPRINTF(SWM_D_EVENT, "replaying\n");
+			xcb_allow_events(conn, XCB_ALLOW_REPLAY_POINTER,
+			    e->time);
+		} else {
+			DNPRINTF(SWM_D_EVENT, "unfreezing\n");
+			xcb_allow_events(conn, XCB_ALLOW_SYNC_POINTER, e->time);
+		}
+
+		xcb_flush(conn);
 	}
 
-	xcb_flush(conn);
+	DNPRINTF(SWM_D_FOCUS, "done\n");
 }
 
 #ifdef SWM_DEBUG
@@ -12091,10 +12111,10 @@ destroynotify(xcb_destroy_notify_event_t *e)
 			focus_win(ws->focus_pending);
 			ws->focus_pending = NULL;
 		} else if (ws->focus == NULL) {
-			DNPRINTF(SWM_D_FOCUS, "SetInputFocus: %#x, revert-to: "
-			    "PointerRoot, time: CurrentTime\n", ws->r->id);
+			DNPRINTF(SWM_D_FOCUS, "SetInputFocus: PointerRoot, "
+			    "revert-to: PointerRoot, time: CurrentTime\n");
 			xcb_set_input_focus(conn, XCB_INPUT_FOCUS_POINTER_ROOT,
-			    ws->r->id, XCB_CURRENT_TIME);
+			    XCB_INPUT_FOCUS_POINTER_ROOT, XCB_CURRENT_TIME);
 		}
 
 		focus_flush();
@@ -12301,7 +12321,6 @@ enternotify(xcb_enter_notify_event_t *e)
 		}
 
 		focus_win(get_focus_magic(win));
-		focus_flush();
 	}
 
 	DNPRINTF(SWM_D_EVENT, "done\n");
@@ -12919,11 +12938,12 @@ enable_wm(void)
 	    XCB_EVENT_MASK_BUTTON_RELEASE |
 	    XCB_EVENT_MASK_ENTER_WINDOW |
 	    XCB_EVENT_MASK_LEAVE_WINDOW |
+	    XCB_EVENT_MASK_POINTER_MOTION |
+	    XCB_EVENT_MASK_POINTER_MOTION_HINT |
 	    XCB_EVENT_MASK_STRUCTURE_NOTIFY |
 	    XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
 	    XCB_EVENT_MASK_FOCUS_CHANGE |
-	    XCB_EVENT_MASK_PROPERTY_CHANGE |
-	    XCB_EVENT_MASK_OWNER_GRAB_BUTTON;
+	    XCB_EVENT_MASK_PROPERTY_CHANGE;
 	xcb_screen_t		*sc;
 	xcb_void_cookie_t	wac;
 	xcb_generic_error_t	*error;
@@ -13027,7 +13047,9 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 
 	/* Invisible region window to detect pointer events on empty regions. */
 	r->id = xcb_generate_id(conn);
-	wa[0] = XCB_EVENT_MASK_POINTER_MOTION |
+	wa[0] = XCB_EVENT_MASK_BUTTON_PRESS |
+	    XCB_EVENT_MASK_BUTTON_RELEASE |
+	    XCB_EVENT_MASK_POINTER_MOTION |
 	    XCB_EVENT_MASK_POINTER_MOTION_HINT;
 
 	/* Depth of InputOnly always 0. */
@@ -13128,7 +13150,7 @@ scan_randr(int idx)
 							currate =
 							    mode[j].dot_clock /
 							    (mode[j].htotal *
-							     mode[j].vtotal);
+							    mode[j].vtotal);
 						break;
 					}
 				}
