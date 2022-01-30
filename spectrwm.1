@@ -292,7 +292,7 @@ It may contain the following character sequences:
 .It Li "+A" Ta "Output of the external script"
 .It Li "+C" Ta "Window class (from WM_CLASS)"
 .It Li "+D" Ta "Workspace name"
-.It Li "+F" Ta "Floating indicator"
+.It Li "+F" Ta "Focus status indicator"
 .It Li "+I" Ta "Workspace index"
 .It Li "+L" Ta "Workspace list indicator"
 .It Li "+M" Ta "Number of iconic (minimized) windows in workspace"
@@ -448,6 +448,29 @@ Possible values are
 and
 .Ar last
 (default).
+.It Ic focus_mark_none
+Set the
+.Ic bar_format
+focus status indicator (+F) string to substitute when no window is focused.
+Default is ''.
+.It Ic focus_mark_normal
+Set the
+.Ic bar_format
+focus status indicator (+F) string to substitute when a normal (not floating or
+maximized) window is focused.
+Default is ''.
+.It Ic focus_mark_floating
+Set the
+.Ic bar_format
+focus status indicator (+F) string to substitute when a floating window is
+focused.
+Default is '(f)'.
+.It Ic focus_mark_maximized
+Set the
+.Ic bar_format
+focus status indicator (+F) string to substitute when a maximized window is
+focused.
+Default is '(m)'.
 .It Ic focus_mode
 Window focus behavior with respect to the pointer.
 Possible values:
