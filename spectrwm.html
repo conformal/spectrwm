@@ -277,7 +277,7 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
       </tr>
       <tr id="+F">
         <td><a class="permalink" href="#+F"><code class="Li">+F</code></a></td>
-        <td>Floating indicator</td>
+        <td>Focus status indicator</td>
       </tr>
       <tr id="+I">
         <td><a class="permalink" href="#+I"><code class="Li">+I</code></a></td>
@@ -452,6 +452,21 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
   <dt id="focus_default"><a class="permalink" href="#focus_default"><code class="Ic">focus_default</code></a></dt>
   <dd>Window to put focus when no window has been focused. Possible values are
       <var class="Ar">first</var> and <var class="Ar">last</var> (default).</dd>
+  <dt id="focus_mark_none"><a class="permalink" href="#focus_mark_none"><code class="Ic">focus_mark_none</code></a></dt>
+  <dd>Set the <code class="Ic">bar_format</code> focus status indicator (+F)
+      string to substitute when no window is focused. Default is ''.</dd>
+  <dt id="focus_mark_normal"><a class="permalink" href="#focus_mark_normal"><code class="Ic">focus_mark_normal</code></a></dt>
+  <dd>Set the <code class="Ic">bar_format</code> focus status indicator (+F)
+      string to substitute when a normal (not floating or maximized) window is
+      focused. Default is ''.</dd>
+  <dt id="focus_mark_floating"><a class="permalink" href="#focus_mark_floating"><code class="Ic">focus_mark_floating</code></a></dt>
+  <dd>Set the <code class="Ic">bar_format</code> focus status indicator (+F)
+      string to substitute when a floating window is focused. Default is
+    '(f)'.</dd>
+  <dt id="focus_mark_maximized"><a class="permalink" href="#focus_mark_maximized"><code class="Ic">focus_mark_maximized</code></a></dt>
+  <dd>Set the <code class="Ic">bar_format</code> focus status indicator (+F)
+      string to substitute when a maximized window is focused. Default is
+    '(m)'.</dd>
   <dt id="focus_mode"><a class="permalink" href="#focus_mode"><code class="Ic">focus_mode</code></a></dt>
   <dd>Window focus behavior with respect to the pointer. Possible values:
     <p class="Pp"></p>

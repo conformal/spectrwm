@@ -497,6 +497,10 @@ char		*workspace_mark_current = NULL;
 char		*workspace_mark_urgent = NULL;
 char		*workspace_mark_active = NULL;
 char		*workspace_mark_empty = NULL;
+char		*focus_mark_none = NULL;
+char		*focus_mark_normal = NULL;
+char		*focus_mark_floating = NULL;
+char		*focus_mark_maximized = NULL;
 char		*stack_mark_max = NULL;
 char		*stack_mark_vertical = NULL;
 char		*stack_mark_vertical_flip = NULL;
@@ -2719,11 +2723,13 @@ void
 bar_window_state(char *s, size_t sz, struct swm_region *r)
 {
 	if (r == NULL || r ->ws == NULL || r->ws->focus == NULL)
-		return;
-	if (MAXIMIZED(r->ws->focus))
-		strlcat(s, "(m)", sz);
+		strlcpy(s, focus_mark_none, sz);
+	else if (MAXIMIZED(r->ws->focus))
+		strlcpy(s, focus_mark_maximized, sz);
 	else if (ABOVE(r->ws->focus))
-		strlcat(s, "(f)", sz);
+		strlcpy(s, focus_mark_floating, sz);
+	else
+		strlcpy(s, focus_mark_normal, sz);
 }
 
 void
@@ -10731,6 +10737,10 @@ enum {
 	SWM_S_WORKSPACE_LIMIT,
 	SWM_S_WORKSPACE_INDICATOR,
 	SWM_S_WORKSPACE_NAME,
+	SWM_S_FOCUS_MARK_NONE,
+	SWM_S_FOCUS_MARK_NORMAL,
+	SWM_S_FOCUS_MARK_FLOATING,
+	SWM_S_FOCUS_MARK_MAXIMIZED,
 	SWM_S_WORKSPACE_MARK_CURRENT,
 	SWM_S_WORKSPACE_MARK_URGENT,
 	SWM_S_WORKSPACE_MARK_ACTIVE,
@@ -11002,6 +11012,22 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 			ewmh_update_desktop_names();
 			ewmh_get_desktop_names();
 		}
+		break;
+	case SWM_S_FOCUS_MARK_NONE:
+		free(focus_mark_none);
+		focus_mark_none = unescape_value(value);
+		break;
+	case SWM_S_FOCUS_MARK_NORMAL:
+		free(focus_mark_normal);
+		focus_mark_normal = unescape_value(value);
+		break;
+	case SWM_S_FOCUS_MARK_FLOATING:
+		free(focus_mark_floating);
+		focus_mark_floating = unescape_value(value);
+		break;
+	case SWM_S_FOCUS_MARK_MAXIMIZED:
+		free(focus_mark_maximized);
+		focus_mark_maximized = unescape_value(value);
 		break;
 	case SWM_S_WORKSPACE_MARK_CURRENT:
 		free(workspace_mark_current);
@@ -11473,6 +11499,10 @@ struct config_option configopt[] = {
 	{ "workspace_limit",		setconfvalue,	SWM_S_WORKSPACE_LIMIT },
 	{ "workspace_indicator",	setconfvalue,	SWM_S_WORKSPACE_INDICATOR },
 	{ "name",			setconfvalue,	SWM_S_WORKSPACE_NAME },
+	{ "focus_mark_none",		setconfvalue,	SWM_S_FOCUS_MARK_NONE },
+	{ "focus_mark_normal",		setconfvalue,	SWM_S_FOCUS_MARK_NORMAL },
+	{ "focus_mark_floating",	setconfvalue,	SWM_S_FOCUS_MARK_FLOATING },
+	{ "focus_mark_maximized",	setconfvalue,	SWM_S_FOCUS_MARK_MAXIMIZED },
 	{ "workspace_mark_current",	setconfvalue,	SWM_S_WORKSPACE_MARK_CURRENT },
 	{ "workspace_mark_urgent",	setconfvalue,	SWM_S_WORKSPACE_MARK_URGENT },
 	{ "workspace_mark_active",	setconfvalue,	SWM_S_WORKSPACE_MARK_ACTIVE },
@@ -14306,6 +14336,18 @@ setup_globals(void)
 	if ((clock_format = strdup("%a %b %d %R %Z %Y")) == NULL)
 		err(1, "clock_format: strdup");
 
+	if ((focus_mark_none = strdup("")) == NULL)
+		err(1, "focus_mark_none: strdup");
+
+	if ((focus_mark_normal = strdup("")) == NULL)
+		err(1, "focus_mark_normal: strdup");
+
+	if ((focus_mark_floating = strdup("(f)")) == NULL)
+		err(1, "focus_mark_floating: strdup");
+
+	if ((focus_mark_maximized = strdup("(m)")) == NULL)
+		err(1, "focus_mark_maximized: strdup");
+
 	if ((stack_mark_max = strdup("[ ]")) == NULL)
 		err(1, "stack_mark_max: strdup");
 
@@ -14538,6 +14580,10 @@ shutdown_cleanup(void)
 	free(bar_fonts);
 	free(clock_format);
 	free(startup_exception);
+	free(focus_mark_none);
+	free(focus_mark_normal);
+	free(focus_mark_floating);
+	free(focus_mark_maximized);
 	free(stack_mark_max);
 	free(stack_mark_vertical);
 	free(stack_mark_vertical_flip);
