@@ -3047,6 +3047,12 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 	case 'V':
 		snprintf(tmp, sizeof tmp, "%s", bar_vertext);
 		break;
+	case 'w':
+		count = 0;
+		TAILQ_FOREACH(w, &r->ws->winlist, entry)
+				++count;
+		snprintf(tmp, sizeof tmp, "%d", count);
+		break;
 	case 'W':
 		bar_window_name(tmp, sizeof tmp, r);
 		break;
