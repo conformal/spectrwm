@@ -334,6 +334,17 @@ uint32_t		swm_debug = 0
 #define SWM_LIB			"/usr/local/lib/libswmhack.so"
 #endif
 
+#ifndef XCB_RANDR_ROTATION_ROTATE_0
+#define XCB_RANDR_ROTATION_ROTATE_0	1
+#define XCB_RANDR_ROTATION_ROTATE_90	2
+#define XCB_RANDR_ROTATION_ROTATE_180	4
+#define XCB_RANDR_ROTATION_ROTATE_270	8
+#endif
+
+#define ROTATION_OK(ws)		(ws->cur_layout == &layouts[SWM_V_STACK] || ws->cur_layout == &layouts[SWM_H_STACK])
+#define ROTATION_AXIS(reg)	((reg)->g.r == XCB_RANDR_ROTATION_ROTATE_0 || (reg)->g.r == XCB_RANDR_ROTATION_ROTATE_180)
+#define ROTATION_FLIP(reg)	((reg)->g.r == XCB_RANDR_ROTATION_ROTATE_180 || (reg)->g.r == XCB_RANDR_ROTATION_ROTATE_270)
+
 char			**start_argv;
 xcb_atom_t		a_state;
 xcb_atom_t		a_prot;
@@ -368,6 +379,7 @@ int			font_adjusted = 0;
 uint16_t		mod_key = MODKEY;
 bool			warp_focus = false;
 bool			warp_pointer = false;
+bool			workspace_autorotate = false;
 bool			workspace_clamp = false;
 
 /* dmenu search */
@@ -500,6 +512,7 @@ struct swm_geometry {
 	int			y;
 	int			w;
 	int			h;
+	int			r;
 };
 
 struct swm_screen;
@@ -1305,7 +1318,7 @@ void	 move(struct binding *, struct swm_region *, union arg *);
 void	 move_win(struct ws_win *, struct binding *, int);
 uint32_t name_to_pixel(struct swm_screen *, const char *);
 void	 name_workspace(struct binding *, struct swm_region *, union arg *);
-void	 new_region(struct swm_screen *, int, int, int, int);
+void	 new_region(struct swm_screen *, int, int, int, int, int);
 int	 parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
 int	 parsebinding(const char *, uint16_t *, enum binding_type *, uint32_t *,
 	     uint32_t *, char **);
@@ -1339,6 +1352,8 @@ int	 reparent_window(struct ws_win *);
 void	 reparentnotify(xcb_reparent_notify_event_t *);
 void	 resize(struct binding *, struct swm_region *, union arg *);
 void	 resize_win(struct ws_win *, struct binding *, int);
+void	 rotatews_moverg(struct workspace *, struct swm_region *, struct swm_region *);
+void	 rotatews_fromrg(struct workspace *, struct swm_region *);
 void	 update_mapping(struct swm_screen *);
 void	 update_stacking(struct swm_screen *);
 void	 restart(struct binding *, struct swm_region *, union arg *);
@@ -5280,6 +5295,31 @@ focus_region(struct swm_region *r)
 }
 
 void
+rotatews_moverg(struct workspace *ws, struct swm_region *old_r, struct swm_region *new_r)
+{
+	if (ROTATION_AXIS(old_r) != ROTATION_AXIS(new_r)) {
+		ws->cur_layout = (ws->cur_layout == &layouts[SWM_H_STACK] ?
+		    &layouts[SWM_V_STACK] : &layouts[SWM_H_STACK]);
+	}
+	if (ROTATION_FLIP(old_r) != ROTATION_FLIP(new_r)) {
+		if (ws->cur_layout == &layouts[SWM_H_STACK])
+			ws->l_state.horizontal_flip = !ws->l_state.horizontal_flip;
+		else
+			ws->l_state.vertical_flip = !ws->l_state.vertical_flip;
+	}
+}
+
+void
+rotatews_fromrg(struct workspace *ws, struct swm_region *r)
+{
+	ws->cur_layout = (ROTATION_AXIS(r) ? &layouts[SWM_V_STACK] : &layouts[SWM_H_STACK]);
+	if (ws->cur_layout == &layouts[SWM_H_STACK])
+		ws->l_state.horizontal_flip = ROTATION_FLIP(r);
+	else
+		ws->l_state.vertical_flip = ROTATION_FLIP(r);
+}
+
+void
 switchws(struct binding *bp, struct swm_region *r, union arg *args)
 {
 	struct swm_screen	*s;
@@ -5336,10 +5376,20 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 		other_r->ws_prior = new_ws;
 		other_r->ws = old_ws;
 		old_ws->r = other_r;
+
+		if (workspace_autorotate) {
+			if (ROTATION_OK(new_ws))
+				rotatews_moverg(new_ws, other_r, this_r);
+			if (ROTATION_OK(old_ws))
+				rotatews_moverg(old_ws, this_r, other_r);
+		}
 	} else {
 		/* the other workspace is hidden, hide this one */
 		old_ws->r = NULL;
 		unmap_old = true;
+
+		if (workspace_autorotate && ROTATION_OK(new_ws))
+			rotatews_fromrg(new_ws, this_r);
 	}
 
 	this_r->ws_prior = old_ws;
@@ -10658,6 +10708,7 @@ enum {
 	SWM_S_WINDOW_CLASS_ENABLED,
 	SWM_S_WINDOW_INSTANCE_ENABLED,
 	SWM_S_WINDOW_NAME_ENABLED,
+	SWM_S_WORKSPACE_AUTOROTATE,
 	SWM_S_WORKSPACE_CLAMP,
 	SWM_S_WORKSPACE_LIMIT,
 	SWM_S_WORKSPACE_INDICATOR,
@@ -10884,6 +10935,9 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 		break;
 	case SWM_S_WINDOW_NAME_ENABLED:
 		window_name_enabled = (atoi(value) != 0);
+		break;
+	case SWM_S_WORKSPACE_AUTOROTATE:
+		workspace_autorotate = (atoi(value) != 0);
 		break;
 	case SWM_S_WORKSPACE_CLAMP:
 		workspace_clamp = (atoi(value) != 0);
@@ -11143,7 +11197,7 @@ setconfregion(const char *selector, const char *value, int flags, char **emsg)
 		return (1);
 	}
 
-	new_region(&screens[sidx], x, y, w, h);
+	new_region(&screens[sidx], x, y, w, h, XCB_RANDR_ROTATION_ROTATE_0);
 
 	return (0);
 }
@@ -11379,6 +11433,7 @@ struct config_option configopt[] = {
 	{ "window_class_enabled",	setconfvalue,	SWM_S_WINDOW_CLASS_ENABLED },
 	{ "window_instance_enabled",	setconfvalue,	SWM_S_WINDOW_INSTANCE_ENABLED },
 	{ "window_name_enabled",	setconfvalue,	SWM_S_WINDOW_NAME_ENABLED },
+	{ "workspace_autorotate",	setconfvalue,	SWM_S_WORKSPACE_AUTOROTATE },
 	{ "workspace_clamp",		setconfvalue,	SWM_S_WORKSPACE_CLAMP },
 	{ "workspace_limit",		setconfvalue,	SWM_S_WORKSPACE_LIMIT },
 	{ "workspace_indicator",	setconfvalue,	SWM_S_WORKSPACE_INDICATOR },
@@ -13530,7 +13585,7 @@ enable_wm(void)
 }
 
 void
-new_region(struct swm_screen *s, int x, int y, int w, int h)
+new_region(struct swm_screen *s, int x, int y, int w, int h, int rot)
 {
 	struct swm_region	*r = NULL, *n;
 	struct workspace	*ws = NULL;
@@ -13582,11 +13637,14 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 
 	/* if we don't have a workspace already, find one */
 	if (ws == NULL) {
-		for (i = 0; i < workspace_limit; i++)
+		for (i = 0; i < workspace_limit; i++) {
 			if (s->ws[i].r == NULL) {
 				ws = &s->ws[i];
+				if (workspace_autorotate && ROTATION_OK(ws))
+					rotatews_fromrg(ws, r);
 				break;
 			}
+		}
 	}
 
 	if (ws == NULL)
@@ -13596,6 +13654,7 @@ new_region(struct swm_screen *s, int x, int y, int w, int h)
 	Y(r) = y;
 	WIDTH(r) = w;
 	HEIGHT(r) = h;
+	r->g.r = rot;
 	r->bar = NULL;
 	r->s = s;
 	r->ws = ws;
@@ -13667,7 +13726,8 @@ scan_randr(struct swm_screen *s)
 		    NULL);
 		if (srr == NULL) {
 			new_region(s, 0, 0, screen->width_in_pixels,
-			    screen->height_in_pixels);
+			    screen->height_in_pixels,
+			    XCB_RANDR_ROTATION_ROTATE_0);
 			goto out;
 		} else {
 			ncrtc = srr->num_crtcs;
@@ -13691,10 +13751,11 @@ scan_randr(struct swm_screen *s)
 
 			if (cir->mode == 0) {
 				new_region(s, 0, 0, screen->width_in_pixels,
-				    screen->height_in_pixels);
+				    screen->height_in_pixels,
+				    XCB_RANDR_ROTATION_ROTATE_0);
 			} else {
 				new_region(s, cir->x, cir->y, cir->width,
-				    cir->height);
+				    cir->height, cir->rotation);
 
 				/* Determine the crtc refresh rate. */
 				for (j = 0; j < nmodes; j++) {
@@ -13725,7 +13786,7 @@ scan_randr(struct swm_screen *s)
 	/* If detection failed, create a single region that spans the screen. */
 	if (TAILQ_EMPTY(&s->rl))
 		new_region(s, 0, 0, screen->width_in_pixels,
-		    screen->height_in_pixels);
+		    screen->height_in_pixels, XCB_RANDR_ROTATION_ROTATE_0);
 
 #ifdef SWM_XRR_HAS_CRTC
 out:
