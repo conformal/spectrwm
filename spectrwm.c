@@ -415,6 +415,9 @@ double			dialog_ratio = 0.6;
 				"-*-times-medium-r-*-*-12-*-*-*-*-*-*-*,"	\
 				"-misc-fixed-medium-r-*-*-12-*-*-*-*-*-*-*,"	\
 				"-*-*-*-r-*-*-*-*-*-*-*-*-*-*"
+#define SWM_BAR_FONTS_FALLBACK	"-*-fixed-*-r-*-*-*-*-*-*-*-*-*-*,"		\
+				"-*-*-*-*-*-r-*-*-*-*-*-*-*-*,"			\
+				"-*-*-*-*-*-*-*-*-*-*-*-*-*-*"
 
 #define SWM_BAR_MAX_FONTS	(10)
 #define SWM_BAR_MAX_COLORS	(10)
@@ -470,9 +473,8 @@ pid_t		 bar_pid;
 XFontSet	 bar_fs = NULL;
 XFontSetExtents	*bar_fs_extents;
 char		*bar_fontnames[SWM_BAR_MAX_FONTS];
-XftFont		*bar_xftfonts[SWM_BAR_MAX_FONTS + 1];
-int		num_xftfonts;
-char		*bar_fontname_pua;
+int		 num_xftfonts = 0;
+char		*bar_fontname_pua = NULL;
 int		font_pua_index;
 bool		 bar_font_legacy = true;
 char		*bar_fonts = NULL;
@@ -701,6 +703,7 @@ struct swm_screen {
 	Visual			*xvisual; /* Needed for Xft. */
 	xcb_colormap_t		colormap;
 	xcb_gcontext_t		gc;
+	XftFont			*bar_xftfonts[SWM_BAR_MAX_FONTS + 1];
 };
 struct swm_screen	*screens;
 
@@ -1126,7 +1129,7 @@ void	 bar_extra_stop(void);
 int	 bar_extra_update(void);
 void	 bar_fmt(const char *, char *, struct swm_region *, size_t);
 void	 bar_fmt_expand(char *, size_t);
-void	 bar_parse_markup(struct bar_section *);
+void	 bar_parse_markup(struct swm_screen *s, struct bar_section *);
 void	 bar_print(struct swm_region *, const char *);
 void	 bar_print_legacy(struct swm_region *, const char *);
 void	 bar_print_layout(struct swm_region *);
@@ -1220,7 +1223,7 @@ void	 focusout(xcb_focus_out_event_t *);
 #endif
 void	 focusrg(struct binding *, struct swm_region *, union arg *);
 bool	 follow_pointer(struct swm_screen *);
-void	 fontset_init(void);
+int	 fontset_init(void);
 void	 free_window(struct ws_win *);
 void	 fullscreen_toggle(struct binding *, struct swm_region *, union arg *);
 xcb_atom_t get_atom_from_string(const char *);
@@ -1377,6 +1380,7 @@ void	 setup_btnbindings(void);
 void	 setup_ewmh(void);
 void	 setup_extensions(void);
 void	 setup_focus(void);
+void	 setup_fonts(void);
 void	 setup_globals(void);
 void	 setup_keybindings(void);
 void	 setup_quirks(void);
@@ -1436,7 +1440,7 @@ void	 win_to_ws(struct ws_win *, int, uint32_t);
 pid_t	 window_get_pid(xcb_window_t);
 void	 wkill(struct binding *, struct swm_region *, union arg *);
 void	 update_ws_stack(struct workspace *);
-void	 xft_init(struct swm_region *);
+int	 xft_init(struct swm_screen *);
 void	 _add_startup_exception(const char *, va_list);
 void	 add_startup_exception(const char *, ...);
 
@@ -2139,10 +2143,10 @@ debug_refresh(struct ws_win *win)
 			width = l_lbox.width + 4;
 			height = bar_fs_extents->max_logical_extent.height + 4;
 		} else {
-			XftTextExtentsUtf8(display, bar_xftfonts[0],
+			XftTextExtentsUtf8(display, win->s->bar_xftfonts[0],
 			    (FcChar8 *)s, len, &info);
 			width = info.xOff + 4;
-			height = bar_xftfonts[0]->height + 4;
+			height = win->s->bar_xftfonts[0]->height + 4;
 		}
 
 		mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
@@ -2185,9 +2189,9 @@ debug_refresh(struct ws_win *win)
 			    win->s->xvisual, win->s->colormap);
 
 			XftDrawStringUtf8(draw, &bar_fg_colors[0],
-			    bar_xftfonts[0], 2, (bar_height +
-			    bar_xftfonts[0]->height) / 2 -
-			    bar_xftfonts[0]->descent, (FcChar8 *)s, len);
+			    win->s->bar_xftfonts[0], 2, (bar_height +
+			    win->s->bar_xftfonts[0]->height) / 2 -
+			    win->s->bar_xftfonts[0]->descent, (FcChar8 *)s, len);
 
 			XftDrawDestroy(draw);
 		}
@@ -2449,10 +2453,12 @@ bar_print(struct swm_region *r, const char *s)
 	int32_t				x = 0;
 	XGlyphInfo			info;
 	XftDraw				*draw;
+	XftFont				*xf;
 
 	len = strlen(s);
+	xf = r->s->bar_xftfonts[0];
 
-	XftTextExtentsUtf8(display, bar_xftfonts[0], (FcChar8 *)s, len, &info);
+	XftTextExtentsUtf8(display, xf, (FcChar8 *)s, len, &info);
 
 	switch (bar_justify) {
 	case SWM_BAR_JUSTIFY_LEFT:
@@ -2483,9 +2489,8 @@ bar_print(struct swm_region *r, const char *s)
 	draw = XftDrawCreate(display, r->bar->buffer, r->s->xvisual,
 	    r->s->colormap);
 
-	XftDrawStringUtf8(draw, &bar_fg_colors[0], bar_xftfonts[0], x,
-	    (HEIGHT(r->bar) + bar_xftfonts[0]->height) / 2 -
-	    bar_xftfonts[0]->descent, (FcChar8 *)s, len);
+	XftDrawStringUtf8(draw, &bar_fg_colors[0], xf, x, (HEIGHT(r->bar) +
+	    xf->height) / 2 - xf->descent, (FcChar8 *)s, len);
 
 	XftDrawDestroy(draw);
 
@@ -2500,6 +2505,7 @@ bar_print_layout(struct swm_region *r)
 	struct text_fragment	*frag;
 	xcb_rectangle_t		rect;
 	XftDraw			*xft_draw = NULL;
+	XftFont			*xf;
 	GC			draw = 0;
 	XGCValues		gcvd;
 	uint32_t		gcv[1];
@@ -2514,7 +2520,7 @@ bar_print_layout(struct swm_region *r)
 	/* Parse markup sequences in each section  */
 	/* For the legacy font, just setup one text fragment  */
 	for (i = 0; i < numsect; i++) {
-		bar_parse_markup(bsect + i);
+		bar_parse_markup(r->s, bsect + i);
 		if (bsect[i].fit_to_text) {
 			bsect[i].width = bsect[i].text_width + 2 *
 			    SWM_BAR_OFFSET;
@@ -2602,6 +2608,7 @@ bar_print_layout(struct swm_region *r)
 			fn = frag->font;
 			fg = frag->fg;
 			bg = frag->bg;
+			xf = r->s->bar_xftfonts[fn];
 
 			/* Paint background color of the text fragment  */
 			if (bg != section_bg) {
@@ -2625,10 +2632,9 @@ bar_print_layout(struct swm_region *r)
 				    frag->text, frag->length);
 			} else {
 				XftDrawStringUtf8(xft_draw, &bar_fg_colors[fg],
-				    bar_xftfonts[fn], xpos, (HEIGHT(r->bar) +
-				    bar_xftfonts[fn]->height) / 2 -
-				    bar_xftfonts[fn]->descent,
-				    (FcChar8 *)frag->text, frag->length);
+				    xf, xpos, (HEIGHT(r->bar) + xf->height) / 2
+				    - xf->descent, (FcChar8 *)frag->text,
+				    frag->length);
 			}
 
 			xpos += frag->width;
@@ -3294,7 +3300,7 @@ is_valid_markup(char *f, size_t *size)
 }
 
 void
-bar_parse_markup(struct bar_section *sect)
+bar_parse_markup(struct swm_screen *s, struct bar_section *sect)
 {
 	XRectangle		ibox, lbox;
 	XGlyphInfo		info;
@@ -3338,7 +3344,7 @@ bar_parse_markup(struct bar_section *sect)
 			if (len) {
 				/* Finish processing preceding fragment */
 				XftTextExtentsUtf8(display,
-				    bar_xftfonts[frag[i].font],
+				    s->bar_xftfonts[frag[i].font],
 				    (FcChar8 *)frag[i].text, len, &info);
 
 				frag[i].length = len;
@@ -3358,7 +3364,8 @@ bar_parse_markup(struct bar_section *sect)
 			frag[i].length = strnlen(fmt, (*u1 >= 0xf0) ? 4 : 3);
 			frag[i].text = fmt;
 
-			XftTextExtentsUtf8(display, bar_xftfonts[frag[i].font],
+			XftTextExtentsUtf8(display,
+			    s->bar_xftfonts[frag[i].font],
 			    (FcChar8 *)frag[i].text, frag[i].length, &info);
 
 			frag[i].width = info.xOff;
@@ -3386,7 +3393,7 @@ bar_parse_markup(struct bar_section *sect)
 					frag[i].width = lbox.width;
 				} else {
 					XftTextExtentsUtf8(display,
-					    bar_xftfonts[frag[i].font],
+					    s->bar_xftfonts[frag[i].font],
 					    (FcChar8 *)frag[i].text, len,
 					    &info);
 					frag[i].width = info.xOff;
@@ -3428,7 +3435,7 @@ bar_parse_markup(struct bar_section *sect)
 				frag[i].width = lbox.width;
 			} else {
 				XftTextExtentsUtf8(display,
-				    bar_xftfonts[frag[i].font],
+				    s->bar_xftfonts[frag[i].font],
 				    (FcChar8 *)frag[i].text, len,
 				    &info);
 				frag[i].width = info.xOff;
@@ -3455,7 +3462,8 @@ bar_parse_markup(struct bar_section *sect)
 			TEXTEXTENTS(bar_fs, frag[i].text, len, &ibox, &lbox);
 			frag[i].width = lbox.width;
 		} else {
-			XftTextExtentsUtf8(display, bar_xftfonts[frag[i].font],
+			XftTextExtentsUtf8(display,
+			    s->bar_xftfonts[frag[i].font],
 			    (FcChar8 *)frag[i].text, len, &info);
 			frag[i].width = info.xOff;
 		}
@@ -3723,7 +3731,7 @@ isxlfd(char *s)
 	return (count == 14);
 }
 
-void
+int
 fontset_init(void)
 {
 	char			*default_string;
@@ -3758,8 +3766,10 @@ fontset_init(void)
 		}
 	}
 
-	if (bar_fs == NULL)
-		errx(1, "Error creating font set structure.");
+	if (bar_fs == NULL) {
+		warnx("Error creating font set structure.");
+		return (1);
+	}
 
 	bar_fs_extents = XExtentsOfFontSet(bar_fs);
 
@@ -3768,44 +3778,137 @@ fontset_init(void)
 
 	if (bar_height < 1)
 		bar_height = 1;
+
+	return (0);
 }
 
-void
-xft_init(struct swm_region *r)
+int
+xft_init(struct swm_screen *s)
 {
 	XRenderColor	color;
 	int		i;
 
+	DNPRINTF(SWM_D_INIT, "loading bar_fonts: %s\n", bar_fonts);
+
 	for (i = 0; i < num_xftfonts; i++) {
-		bar_xftfonts[i] = XftFontOpenName(display, r->s->idx,
+		s->bar_xftfonts[i] = XftFontOpenName(display, s->idx,
 		    bar_fontnames[i]);
-		if (bar_xftfonts[i] == NULL)
+		if (s->bar_xftfonts[i] == NULL)
 			warnx("unable to load font %s", bar_fontnames[i]);
 	}
 
 	font_pua_index = 0;
 	if (bar_fontname_pua) {
-		bar_xftfonts[num_xftfonts] = XftFontOpenName(display,
-		    r->s->idx, bar_fontname_pua);
-		if (bar_xftfonts[i] == NULL)
+		s->bar_xftfonts[num_xftfonts] = XftFontOpenName(display, s->idx,
+		    bar_fontname_pua);
+		if (s->bar_xftfonts[num_xftfonts] == NULL)
 			warnx("unable to load font %s", bar_fontname_pua);
 		else
 			font_pua_index = num_xftfonts;
 	}
 
 	for (i = 0; i < num_fg_colors; i++) {
-		PIXEL_TO_XRENDERCOLOR(r->s->c[SWM_S_COLOR_BAR_FONT+i].pixel,
+		PIXEL_TO_XRENDERCOLOR(s->c[SWM_S_COLOR_BAR_FONT+i].pixel,
 		    color);
-		if (!XftColorAllocValue(display, r->s->xvisual,
-		    r->s->colormap, &color, &bar_fg_colors[i]))
+		if (!XftColorAllocValue(display, s->xvisual, s->colormap,
+		    &color, &bar_fg_colors[i]))
 			warn("Xft error: unable to allocate color.");
 	}
 
-	if (bar_xftfonts[0] != NULL)
-		bar_height = bar_xftfonts[0]->height + 2 * bar_border_width;
+	PIXEL_TO_XRENDERCOLOR(s->c[SWM_S_COLOR_BAR].pixel, color);
+	if (!XftColorAllocValue(display, s->xvisual, s->colormap, &color,
+	    &search_font_color))
+		warn("Xft error: unable to allocate color.");
 
+	if (s->bar_xftfonts[0] == NULL)
+		return (1);
+
+	bar_height = s->bar_xftfonts[0]->height + 2 * bar_border_width;
 	if (bar_height < 1)
 		bar_height = 1;
+
+	return (0);
+}
+
+void
+setup_fonts(void)
+{
+	int	i, num_screens;
+	int	fail = 0;
+	bool	custom = false;
+	size_t	len;
+	char	*buf, *b, *sp;
+
+	/* Process bar_fonts. */
+	if (bar_fonts && bar_fonts[0] != '\0')
+		custom = true;
+	else {
+		/* Use defaults. */
+		free(bar_fonts);
+		if ((bar_fonts = strdup(SWM_BAR_FONTS)) == NULL)
+			err(1, "setup_fonts: strdup");
+	}
+
+	DNPRINTF(SWM_D_CONF, "custom: %s\n", YESNO(custom));
+
+	len = strlen(bar_fonts) + 1;
+	if ((buf = malloc(len)) == NULL)
+		err(1, "setup_fonts: calloc");
+
+	/* If all entries are XLFD, use legacy mode. */
+	memcpy(buf, bar_fonts, len);
+	bar_font_legacy = true;
+	sp = buf;
+	while ((b = strsep(&sp, ",")) != NULL) {
+		if (*b == '\0')
+			continue;
+		if (!isxlfd(b)) {
+			bar_font_legacy = false;
+			break;
+		}
+	}
+
+	/* Otherwise, use Xft mode and parse list into array. */
+	if (!bar_font_legacy) {
+		memcpy(buf, bar_fonts, len);
+		sp = buf;
+		while ((b = strsep(&sp, ",")) != NULL) {
+			if (*b == '\0')
+				continue;
+			if ((bar_fontnames[num_xftfonts] = strdup(b)) == NULL)
+				err(1, "setup_fonts: strdup");
+			num_xftfonts++;
+			if (num_xftfonts == SWM_BAR_MAX_FONTS)
+				break;
+		}
+	}
+	free(buf);
+
+	DNPRINTF(SWM_D_CONF, "legacy: %s, bar_fonts: %s\n",
+	    YESNO(bar_font_legacy), bar_fonts);
+
+	if (bar_font_legacy)
+		fail = fontset_init();
+	else {
+		num_screens = get_screen_count();
+		for (i = 0; i < num_screens; i++)
+			if ((fail = xft_init(&screens[i])))
+				break;
+	}
+
+	if (fail) {
+		warnx("Failed to load bar_font. Switching to fallback.");
+		if (custom)
+			add_startup_exception("Error loading bar_font: %s",
+			    bar_fonts);
+		free(bar_fonts);
+		if ((bar_fonts = strdup(SWM_BAR_FONTS_FALLBACK)) == NULL)
+			err(1, "setup_fonts: strdup");
+
+		bar_font_legacy = true;
+		if (fontset_init())
+			errx(1, "Failed to load a font.");
+	}
 }
 
 void
@@ -3826,11 +3929,6 @@ bar_setup(struct swm_region *r)
 
 	if ((r->bar = calloc(1, sizeof(struct swm_bar))) == NULL)
 		err(1, "bar_setup: calloc: failed to allocate memory.");
-
-	if (bar_font_legacy)
-		fontset_init();
-	else
-		xft_init(r);
 
 	r->bar->r = r;
 	X(r->bar) = X(r);
@@ -7268,6 +7366,7 @@ search_win(struct binding *bp, struct swm_region *r, union arg *args)
 	struct search_window	*sw = NULL;
 	xcb_window_t		w;
 	uint32_t		wa[3];
+	uint32_t		offset;
 	int			i, width, height;
 	char			s[11];
 	FILE			*lfile;
@@ -7321,14 +7420,16 @@ search_win(struct binding *bp, struct swm_region *r, union arg *args)
 			width = l_lbox.width + 4;
 			height = bar_fs_extents->max_logical_extent.height + 4;
 		} else {
-			XftTextExtentsUtf8(display, bar_xftfonts[0],
+			XftTextExtentsUtf8(display, r->s->bar_xftfonts[0],
 			    (FcChar8 *)s, len, &info);
 			width = info.xOff + 4;
-			height = bar_xftfonts[0]->height + 4;
+			height = r->s->bar_xftfonts[0]->height + 4;
 		}
 
-		xcb_create_window(conn, win->s->depth, w, win->frame, 0, 0,
-		    width, height, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+		offset = (win->bordered ? border_width : 0);
+
+		xcb_create_window(conn, win->s->depth, w, win->frame, offset,
+		    offset, width, height, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
 		    win->s->visual, XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL |
 		    XCB_CW_COLORMAP, wa);
 
@@ -7354,9 +7455,9 @@ search_win(struct binding *bp, struct swm_region *r, union arg *args)
 			    r->s->colormap);
 
 			XftDrawStringUtf8(draw, &search_font_color,
-			    bar_xftfonts[0], 2, (HEIGHT(r->bar) +
-			    bar_xftfonts[0]->height) / 2 -
-			    bar_xftfonts[0]->descent, (FcChar8 *)s, len);
+			    r->s->bar_xftfonts[0], 2, (HEIGHT(r->bar) +
+			    r->s->bar_xftfonts[0]->height) / 2 -
+			    r->s->bar_xftfonts[0]->descent, (FcChar8 *)s, len);
 
 			XftDrawDestroy(draw);
 		}
@@ -7474,8 +7575,7 @@ ewmh_update_desktop_names(void)
 		}
 
 		if ((name_list = calloc(len, sizeof(char))) == NULL)
-			err(1, "update_desktop_names: calloc: failed to "
-			    "allocate memory.");
+			err(1, "update_desktop_names: calloc");
 
 		p = name_list;
 		for (j = 0; j < workspace_limit; ++j) {
@@ -10582,7 +10682,6 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 {
 	struct workspace	*ws;
 	int			i, ws_id, num_screens, n;
-	char			*b, *str, *sp;
 
 	switch (flags) {
 	case SWM_S_BAR_ACTION:
@@ -10618,45 +10717,9 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 		}
 		break;
 	case SWM_S_BAR_FONT:
-		b = bar_fonts;
-		if (asprintf(&bar_fonts, "%s,%s", value, bar_fonts) == -1)
-			err(1, "setconfvalue: asprintf: failed to allocate "
-				"memory for bar_fonts.");
-		free(b);
-
-		if ((sp = str = strdup(value)) == NULL)
+		free(bar_fonts);
+		if ((bar_fonts = strdup(value)) == NULL)
 			err(1, "setconfvalue: strdup");
-
-		/* If there are any non-XLFD entries, switch to Xft mode. */
-		while ((b = strsep(&sp, ",")) != NULL) {
-			if (*b == '\0')
-				continue;
-			if (!isxlfd(b)) {
-				bar_font_legacy = false;
-				break;
-			}
-		}
-		free(str);
-		if (bar_font_legacy)
-			break;
-
-		/* Non-legacy fonts: read list of Xft fontname */
-		if ((sp = str = strdup(value)) == NULL)
-			err(1, "setconfvalue: strdup");
-
-		num_xftfonts = 0;
-		while ((b = strsep(&sp, ",")) != NULL) {
-			if (*b == '\0')
-				continue;
-			free(bar_fontnames[num_xftfonts]);
-			if ((bar_fontnames[num_xftfonts] = strdup(b))
-			    == NULL)
-				err(1, "setconfvalue: bar_font");
-			num_xftfonts++;
-			if (num_xftfonts == SWM_BAR_MAX_FONTS)
-				break;
-		}
-		free(str);
 		break;
 	case SWM_S_BAR_FONT_PUA:
 		free(bar_fontname_pua);
@@ -13930,6 +13993,7 @@ setup_screens(void)
 		s->visual = screen->root_visual;
 		s->colormap = screen->default_colormap;
 		s->xvisual = DefaultVisual(display, i);
+		s->bar_xftfonts[0] = NULL;
 
 		DNPRINTF(SWM_D_INIT, "root_depth: %d, screen_depth: %d\n",
 		    screen->root_depth, xcb_aux_get_depth(conn, screen));
@@ -14103,9 +14167,6 @@ setup_extensions(void)
 void
 setup_globals(void)
 {
-	if ((bar_fonts = strdup(SWM_BAR_FONTS)) == NULL)
-		err(1, "bar_fonts: strdup");
-
 	if ((clock_format = strdup("%a %b %d %R %Z %Y")) == NULL)
 		err(1, "clock_format: strdup");
 
@@ -14285,6 +14346,15 @@ shutdown_cleanup(void)
 			for (j = 0; j < num_fg_colors; j++)
 				XftColorFree(display, s->xvisual, s->colormap,
 				    &bar_fg_colors[j]);
+
+			for (i = 0; i < num_xftfonts; i++)
+				if (s->bar_xftfonts[i])
+					XftFontClose(display,
+					    s->bar_xftfonts[i]);
+
+			if (font_pua_index)
+				XftFontClose(display,
+				    s->bar_xftfonts[font_pua_index]);
 		}
 
 		for (j = 0; j < SWM_S_COLOR_MAX; ++j)
@@ -14341,13 +14411,6 @@ shutdown_cleanup(void)
 
 	if (bar_fs)
 		XFreeFontSet(display, bar_fs);
-
-	for (i = 0; i < num_xftfonts; i++)
-		if (bar_xftfonts[i])
-			XftFontClose(display, bar_xftfonts[i]);
-
-	if (font_pua_index)
-		 XftFontClose(display, bar_xftfonts[font_pua_index]);
 
 	xcb_key_symbols_free(syms);
 	xcb_flush(conn);
@@ -14549,12 +14612,13 @@ main(int argc, char *argv[])
 	else
 		scan_config();
 
+	setup_fonts();
 	validate_spawns();
 
 	if (getenv("SWM_STARTED") == NULL)
 		setenv("SWM_STARTED", "YES", 1);
 
-	/* setup all bars */
+	/* Setup bars on all regions. */
 	num_screens = get_screen_count();
 	for (i = 0; i < num_screens; i++)
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
