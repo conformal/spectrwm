@@ -1,6 +1,6 @@
 .\" Copyright (c) 2009-2012 Marco Peereboom <marco@peereboom.us>
 .\" Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
-.\" Copyright (c) 2011-2021 Reginald Kennedy <rk@rejii.com>
+.\" Copyright (c) 2011-2022 Reginald Kennedy <rk@rejii.com>
 .\" Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
 .\" Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
 .\" Copyright (c) 2012 David Hill <dhill@mindcry.org>
@@ -17,7 +17,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: August 29 2018 $
+.Dd $Mdocdate: August 23 2022 $
 .Dt SPECTRWM 1
 .Os
 .Sh NAME
@@ -519,8 +519,28 @@ When set to 1,
 will also hide/restore the bar visibility of the affected workspace.
 Defaults to 0.
 .It Ic modkey
-Change mod key.
-Mod1 is generally the ALT key and Mod4 is the windows key on a PC.
+Change the current modifier value of
+.Ic MOD
+in
+.Ic bind
+entries that come later in the configuration file.
+For existing bindings, the new value is substituted for the previous value.
+Possible values are
+.Ar Mod1
+(default),
+.Ar Mod2 ,
+.Ar Mod3 ,
+.Ar Mod4
+and
+.Ar Mod5 .
+.Pp
+.Ar Mod1
+is generally the Alt key,
+.Ar Mod2
+is the Command key on macOS and
+.Ar Mod4
+is the Windows key on a PC.
+The current modifier key mapping can be found by running xmodmap(1).
 .It Ic name
 Set the name of a workspace at start-of-day.
 Defined in the format
@@ -781,7 +801,7 @@ Remember that when using
 .Ql #
 in your program call, it must be escaped with a backslash, i.e. \e#
 .Pp
-The following argument variables will be substituted for values at the time the
+The following argument variables are replaced with values at the time the
 program is spawned:
 .Pp
 .Bl -tag -width "$bar_font_color" -offset indent -compact
