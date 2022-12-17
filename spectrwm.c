@@ -541,8 +541,8 @@ struct ws_win {
 	struct ws_win		*focus_redirect;/* focus on transient */
 	struct swm_geometry	g;		/* current geometry */
 	struct swm_geometry	g_prev;		/* prev configured geometry */
-	struct swm_geometry	g_float;	/* region coordinates */
-	bool			g_floatvalid;	/* g_float geometry validity */
+	struct swm_geometry	g_float;	/* root coordinates */
+	struct swm_geometry	g_floatref;	/* reference coordinates */
 	bool			mapped;
 #ifdef SWM_DEBUG
 	uint32_t		mapping;	/* # of pending operations */
@@ -6249,34 +6249,38 @@ stack(struct swm_region *r) {
 void
 store_float_geom(struct ws_win *win)
 {
-	if (win == NULL || win->ws->r == NULL)
+	if (win == NULL)
 		return;
 
-	/* retain window geom and region geom */
+	/* Exclude fullscreen/maximized/tiled. */
+	if (FULLSCREEN(win) || MAXIMIZED(win) || (!ABOVE(win) && !TRANS(win)))
+		return;
+
+	/* Retain window geometry and update reference coordinates. */
 	win->g_float = win->g;
-	win->g_float.x -= X(win->ws->r);
-	win->g_float.y -= Y(win->ws->r);
-	win->g_floatvalid = true;
-	DNPRINTF(SWM_D_MISC, "win %#x, g: (%d,%d) %d x %d, g_float: (%d,%d) "
-	    "%d x %d\n", win->id, X(win), Y(win), WIDTH(win), HEIGHT(win),
-	    win->g_float.x, win->g_float.y, win->g_float.w, win->g_float.h);
+	if (win->ws->r)
+		win->g_floatref = win->ws->r->g;
+
+	DNPRINTF(SWM_D_MISC, "win %#x, g_float: (%d,%d) %d x %d, "
+	    "g_floatref: (%d,%d) %d x %d\n", win->id, win->g_float.x,
+	    win->g_float.y, win->g_float.w, win->g_float.h, win->g_floatref.x,
+	    win->g_floatref.y, win->g_floatref.w, win->g_floatref.h);
 }
 
 void
 load_float_geom(struct ws_win *win)
 {
-	if (win == NULL || win->ws->r == NULL)
+	if (win == NULL)
 		return;
 
-	if (win->g_floatvalid) {
-		win->g = win->g_float;
-		X(win) += X(win->ws->r);
-		Y(win) += Y(win->ws->r);
-		DNPRINTF(SWM_D_MISC, "win %#x, g: (%d,%d) %d x %d\n", win->id,
-		    X(win), Y(win), WIDTH(win), HEIGHT(win));
-	} else {
-		DNPRINTF(SWM_D_MISC, "win %#x, g_float is not set.\n", win->id);
+	win->g = win->g_float;
+	if (win->ws->r) {
+		/* Adjust position to current region. */
+		X(win) += X(win->ws->r) - win->g_floatref.x;
+		Y(win) += Y(win->ws->r) - win->g_floatref.y;
 	}
+	DNPRINTF(SWM_D_MISC, "win %#x, g: (%d,%d) %d x %d\n", win->id,
+	    X(win), Y(win), WIDTH(win), HEIGHT(win));
 }
 
 void
@@ -6299,16 +6303,10 @@ update_floater(struct ws_win *win)
 
 	if (FULLSCREEN(win)) {
 		/* _NET_WM_FULLSCREEN: fullscreen without border. */
-		if (!win->g_floatvalid)
-			store_float_geom(win);
-
 		win->g = r->g;
 		win->bordered = false;
 	} else if (MAXIMIZED(win)) {
 		/* Maximize: like a single stacked window. */
-		if (!win->g_floatvalid)
-			store_float_geom(win);
-
 		win->g = r->g;
 
 		if (bar_enabled && ws->bar_enabled && !maximize_hide_bar) {
@@ -8345,9 +8343,11 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 	DNPRINTF(SWM_D_EVENT, "win %#x, floating: %s, transient: %#x\n",
 	    win->id, YESNO(ABOVE(win)), win->transient);
 
-	if (MAXIMIZED(win))
-		store_float_geom(win);
-	else if (!(TRANS(win) || ABOVE(win)))
+	/* Override floating geometry when resizing maximized windows. */
+	if (MAXIMIZED(win)) {
+		win->g_float = win->g;
+		win->g_floatref = r->g;
+	} else if (!(TRANS(win) || ABOVE(win)))
 		return;
 
 	ewmh_apply_flags(win, (win->ewmh_flags | SWM_F_MANUAL | EWMH_F_ABOVE) &
@@ -8638,8 +8638,10 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 	if (MAXSTACK(win->ws) && !TRANS(win))
 		return;
 
+	/* Override floating geometry when moving tiled or maximized windows. */
 	if (!(ABOVE(win) || TRANS(win)) || MAXIMIZED(win)) {
-		store_float_geom(win);
+		win->g_float = win->g;
+		win->g_floatref = r->g;
 		restack = true;
 	}
 
@@ -9939,10 +9941,13 @@ get_binding_keycode(struct binding *bp)
 		/* Keycodes are unsigned, bail if kc++ is reduced to 0. */
 		for (kc = min; kc > 0 && kc <= max; kc++) {
 			if (xcb_key_symbols_get_keysym(syms, kc, col) ==
-			    bp->value)
+			    bp->value) {
+				free(kmr);
 				return (kc);
+			}
 		}
 	}
+	free(kmr);
 
 	return (XCB_NO_SYMBOL);
 }
@@ -11827,6 +11832,7 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	HEIGHT(win) = gr->height;
 	X(win) = gr->x + gr->border_width;
 	Y(win) = gr->y + gr->border_width;
+	win->g_float = win->g; /* Window is initially floating. */
 	win->bordered = false;
 	win->mapped = (war->map_state != XCB_MAP_STATE_UNMAPPED);
 #ifdef SWM_DEBUG
@@ -11937,11 +11943,12 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	/* Remove any _SWM_WS now that we set _NET_WM_DESKTOP. */
 	xcb_delete_property(conn, win->id, a_swm_ws);
 
-	/* WS must already be set for this to work. */
-	store_float_geom(win);
-
-	/* Make sure window is positioned inside its region, if its active. */
 	if (win->ws->r) {
+		/* On MapRequest, region is the reference instead of root. */
+		if (mapping)
+			win->g_floatref = win->ws->r->g;
+
+		/* Make sure window has at least 1px inside its region. */
 		region_containment(win, win->ws->r, SWM_CW_ALLSIDES |
 		    SWM_CW_HARDBOUNDARY);
 		update_window(win);
@@ -12545,19 +12552,17 @@ configurerequest(xcb_configure_request_event_t *e)
 		else if (win->ws->old_r)
 			r = win->ws->old_r;
 
-		/* windows are centered unless ANYWHERE quirk is set. */
+		/* Windows are centered unless ANYWHERE quirk is set. */
 		if (win->quirks & SWM_Q_ANYWHERE) {
-			if (e->value_mask & XCB_CONFIG_WINDOW_X) {
+			if (e->value_mask & XCB_CONFIG_WINDOW_X)
 				win->g_float.x = e->x;
-				if (r)
-					win->g_float.x -= X(r);
-			}
 
-			if (e->value_mask & XCB_CONFIG_WINDOW_Y) {
+			if (e->value_mask & XCB_CONFIG_WINDOW_Y)
 				win->g_float.y = e->y;
-				if (r)
-					win->g_float.y -= Y(r);
-			}
+
+			/* Assume position is in reference to latest region. */
+			if (r)
+				win->g_floatref = r->g;
 		}
 
 		if (e->value_mask & XCB_CONFIG_WINDOW_WIDTH)
@@ -12565,8 +12570,6 @@ configurerequest(xcb_configure_request_event_t *e)
 
 		if (e->value_mask & XCB_CONFIG_WINDOW_HEIGHT)
 			win->g_float.h = e->height;
-
-		win->g_floatvalid = true;
 
 		if (!MAXIMIZED(win) && !FULLSCREEN(win) &&
 		    (TRANS(win) || (ABOVE(win) && !MAXSTACK(win->ws)))) {
@@ -13029,6 +13032,7 @@ focus_window(xcb_window_t id)
 				return;
 			}
 			r = get_pointer_region(find_screen(gr->root));
+			free(gr);
 		}
 		focus_region(r);
 	}
@@ -14367,7 +14371,10 @@ shutdown_cleanup(void)
 
 			while ((w = TAILQ_FIRST(&ws->winlist)) != NULL) {
 				unmap_window(w);
-				load_float_geom(w);
+				/* Load floating geometry and adjust to root. */
+				w->g = w->g_float;
+				w->g.x -= w->g_floatref.x;
+				w->g.y -= w->g_floatref.y;
 				update_window(w);
 
 				if (MAXSTACK(ws)) {
