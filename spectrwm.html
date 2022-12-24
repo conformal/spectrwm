@@ -1,1565 +1,1532 @@
 <!DOCTYPE html>
 <html>
+<!-- This is an automatically generated file.  Do not edit.
+   Copyright (c) 2009-2012 Marco Peereboom <marco@peereboom.us>
+   Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
+   Copyright (c) 2011-2022 Reginald Kennedy <rk@rejii.com>
+   Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
+   Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
+   Copyright (c) 2012 David Hill <dhill@mindcry.org>
+
+   Permission to use, copy, modify, and distribute this software for any
+   purpose with or without fee is hereby granted, provided that the above
+   copyright notice and this permission notice appear in all copies.
+
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+   WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+   MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+   ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+   OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+   -->
 <head>
-<meta charset="utf-8"/>
-<style>
-table.head, table.foot { width: 100%; }
-td.head-rtitle, td.foot-os { text-align: right; }
-td.head-vol { text-align: center; }
-table.foot td { width: 50%; }
-table.head td { width: 33%; }
-div.spacer { margin: 1em 0; }
-</style>
-<title>
-SPECTRWM(1)</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    .Nd, .Bf, .Op { display: inline; }
+    .Pa, .Ad { font-style: italic; }
+    .Ms { font-weight: bold; }
+    .Bl-diag > dt { font-weight: bold; }
+    code.Nm, .Fl, .Cm, .Ic, code.In, .Fd, .Fn, .Cd { font-weight: bold;
+      font-family: inherit; }
+  </style>
+  <title>SPECTRWM(1)</title>
 </head>
 <body>
-<div class="mandoc">
 <table class="head">
-<tbody>
-<tr>
-<td class="head-ltitle">
-SPECTRWM(1)</td>
-<td class="head-vol">
-General Commands Manual</td>
-<td class="head-rtitle">
-SPECTRWM(1)</td>
-</tr>
-</tbody>
+  <tr>
+    <td class="head-ltitle">SPECTRWM(1)</td>
+    <td class="head-vol">General Commands Manual</td>
+    <td class="head-rtitle">SPECTRWM(1)</td>
+  </tr>
 </table>
-<div class="section">
-<h1 id="NAME">NAME</h1> <b class="name">spectrwm</b> &#8212; <span class="desc">window manager for X11</span></div>
-<div class="section">
-<h1 id="SYNOPSIS">SYNOPSIS</h1><table class="synopsis">
-<col style="width: 8.00ex;"/>
-<col/>
-<tbody>
-<tr>
-<td>
-<b class="name">spectrwm</b></td>
-<td>
-</td>
-</tr>
-</tbody>
+<div class="manual-text">
+<section class="Sh">
+<h1 class="Sh" id="NAME"><a class="permalink" href="#NAME">NAME</a></h1>
+<p class="Pp"><code class="Nm">spectrwm</code> &#x2014; <span class="Nd">window
+    manager for X11</span></p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="SYNOPSIS"><a class="permalink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<table class="Nm">
+  <tr>
+    <td><code class="Nm">spectrwm</code></td>
+    <td>[<code class="Fl">-c</code> <var class="Ar">file</var>]
+      [<code class="Fl">-v</code>]</td>
+  </tr>
 </table>
-</div>
-<div class="section">
-<h1 id="DESCRIPTION">DESCRIPTION</h1> <b class="name">spectrwm</b> is a minimalistic window manager that tries to stay out of the way so that valuable screen real estate can be used for much more important stuff. It has sane defaults and does not require one to learn a language to do any configuration. It was written by hackers for hackers and it strives to be small, compact and fast.<div class="spacer">
-</div>
-When <b class="name">spectrwm</b> starts up, it reads settings from its configuration file, <i class="file">spectrwm.conf</i>. See the <i class="link-sec"><a class="link-sec" href="#CONFIGURATION_FILES">CONFIGURATION FILES</a></i> section below.<div class="spacer">
-</div>
-The following notation is used throughout this page:<div class="spacer">
-</div>
-<dl style="margin-top: 0.00em;margin-bottom: 0.00em;margin-left: 6.00ex;" class="list list-tag">
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M</b></dt>
-<dd class="list-tag" style="margin-left: 6.00ex;">
-Meta</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">S</b></dt>
-<dd class="list-tag" style="margin-left: 6.00ex;">
-Shift</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-&#10216;<b class="flag">Name</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 6.00ex;">
-Named key or button</dd>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="OPTIONS"><a class="permalink" href="#OPTIONS">OPTIONS</a></h1>
+<dl class="Bl-tag">
+  <dt id="c"><a class="permalink" href="#c"><code class="Fl">-c</code></a>
+    <var class="Ar">file</var></dt>
+  <dd>Specify a configuration file to load instead of scanning for one.</dd>
+  <dt id="v"><a class="permalink" href="#v"><code class="Fl">-v</code></a></dt>
+  <dd>Print version and exit.</dd>
 </dl>
-<div class="spacer">
+</section>
+<section class="Sh">
+<h1 class="Sh" id="DESCRIPTION"><a class="permalink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+<p class="Pp"><code class="Nm">spectrwm</code> is a minimalistic window manager
+    that tries to stay out of the way so that valuable screen real estate can be
+    used for much more important stuff. It has sane defaults and does not
+    require one to learn a language to do any configuration. It was written by
+    hackers for hackers and it strives to be small, compact and fast.</p>
+<p class="Pp">When <code class="Nm">spectrwm</code> starts up, it reads settings
+    from its configuration file, <span class="Pa">spectrwm.conf</span>. See the
+    <a class="Sx" href="#CONFIGURATION_FILES">CONFIGURATION FILES</a> section
+    below.</p>
+<p class="Pp">The following notation is used throughout this page:</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<dl class="Bl-tag Bl-compact">
+  <dt id="M"><a class="permalink" href="#M"><code class="Cm">M</code></a></dt>
+  <dd>Meta</dd>
+  <dt id="S"><a class="permalink" href="#S"><code class="Cm">S</code></a></dt>
+  <dd>Shift</dd>
+  <dt>&#x27E8;<code class="Cm">Name</code>&#x27E9;</dt>
+  <dd>Named key or button</dd>
+</dl>
 </div>
-<b class="name">spectrwm</b> is very simple in its use. Most of the actions are initiated via key or pointer bindings. See the <i class="link-sec"><a class="link-sec" href="#BINDINGS">BINDINGS</a></i> section below for defaults and customizations.</div>
-<div class="section">
-<h1 id="CONFIGURATION_FILES">CONFIGURATION FILES</h1> <b class="name">spectrwm</b> first tries to open the user specific file, <i class="file">~/.spectrwm.conf</i>. If that file is unavailable, it then tries to open the global configuration file <i class="file">/etc/spectrwm.conf</i>.<div class="spacer">
-</div>
-The format of the file is<div class="spacer">
-</div>
-<blockquote style="margin-top: 0.00em;margin-bottom: 0.00em;">
-<div class="display">
-<code class="lit"><i class="arg">keyword</i> <code class="lit">=</code> <i class="arg">setting</i></code></div>
-</blockquote>
-<div class="spacer">
-</div>
-For example:<div class="spacer">
-</div>
-<blockquote style="margin-top: 0.00em;margin-bottom: 0.00em;">
-<div class="display">
-<code class="lit">color_focus = red</code></div>
-</blockquote>
-<div class="spacer">
-</div>
-Enabling or disabling an option is done by using 1 or 0 respectively.<div class="spacer">
-</div>
-Colors need to be specified per the <a class="link-man">XQueryColor(3)</a> specification.<div class="spacer">
-</div>
-Comments begin with a #. When a literal &#8216;<code class="lit">#</code>&#8217; is desired in an option, then it must be escaped with a backslash, i.e. \#<div class="spacer">
-</div>
-The file supports the following keywords:<dl style="margin-top: 0.00em;margin-bottom: 0.00em;" class="list list-tag">
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">autorun</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Launch an application in a specified workspace at start-of-day. Defined in the format <code class="lit">ws</code>[<i class="arg">idx</i>]:<i class="arg">application</i>, e.g. ws[2]:xterm launches an <a class="link-man">xterm(1)</a> in workspace 2.<div class="spacer">
-</div>
-Note that workspace mapping is handled via <i class="file">libswmhack.so</i>. When <b class="cmd">autorun</b> spawns windows via a daemon, ensure the daemon is started with the correct <i class="file">LD_PRELOAD</i> in its environment.<div class="spacer">
-</div>
-For example, starting <a class="link-man">urxvtd(1)</a> via <a class="link-man">xinit(1)</a>:<div class="spacer">
-</div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-LD_PRELOAD=/usr/lib/libswmhack.so.0.0 urxvtd -q -o -f</pre>
-<div class="spacer">
-</div>
-Spawned programs automatically have <i class="file">LD_PRELOAD</i> set when executed.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">bar_action</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-External script that populates additional information in the status bar, such as battery life.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">bar_at_bottom</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Place the statusbar at the bottom of each region instead of the top.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">bar_border</b>[<i class="arg">x</i>]</dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Border color of the status bar(s) in screen <i class="arg">x</i>.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">bar_border_unfocus</b>[<i class="arg">x</i>]</dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Border color of the status bar(s) on unfocused region(s) in screen <i class="arg">x</i>.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">bar_border_width</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Set status bar border thickness in pixels. Disable border by setting to 0.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">bar_color</b>[<i class="arg">x</i>]</dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Background color of the status bar(s) in screen <i class="arg">x</i>.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">bar_enabled</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Set default <b class="cmd">bar_toggle</b> state; default is 1.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">bar_enabled_ws</b>[<i class="arg">x</i>]</dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Set default <b class="cmd">bar_toggle_ws</b> state on workspace <i class="arg">x</i>; default is 1.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">bar_font</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Font used in the status bar. Either Xft or X Logical Font Description (XLFD) may be used to specify fonts. Fallback fonts may be specified by separating each font with a comma. If all entries are in XLFD syntax, font set will be used. If at least one entry is Xft, Xft will be used. Note that if Xft is in use, only the first font that successfully loads will be used regardless of missing glyphs. The default is to use font set. Also note that <a class="link-man">dmenu(1)</a> does not support Xft fonts.<div class="spacer">
-</div>
-Xft examples:<div class="spacer">
-</div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-bar_font = Terminus:style=Regular:pixelsize=14:antialias=true 
- 
+<p class="Pp"><code class="Nm">spectrwm</code> is very simple in its use. Most
+    of the actions are initiated via key or pointer button bindings. See the
+    <a class="Sx" href="#BINDINGS">BINDINGS</a> section below for defaults and
+    customizations.</p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="CONFIGURATION_FILES"><a class="permalink" href="#CONFIGURATION_FILES">CONFIGURATION
+  FILES</a></h1>
+<p class="Pp"><code class="Nm">spectrwm</code> looks for the user-configuration
+    file in the following order:</p>
+<p class="Pp"></p>
+<ol class="Bl-enum Bd-indent Bl-compact">
+  <li><span class="Pa">$XDG_CONFIG_HOME/spectrwm/spectrwm.conf</span></li>
+  <li><span class="Pa">~/.config/spectrwm/spectrwm.conf</span> (if
+      <span class="Pa">$XDG_CONFIG_HOME</span> is either not set or empty)</li>
+  <li><span class="Pa">~/.spectrwm.conf</span>.</li>
+</ol>
+<p class="Pp">If the user-configuration file is not found,
+    <code class="Nm">spectrwm</code> then looks for the global configuration
+    file in the following order:</p>
+<p class="Pp"></p>
+<ol class="Bl-enum Bd-indent Bl-compact">
+  <li><span class="Pa">$XDG_CONFIG_DIRS/spectrwm/spectrwm.conf</span> (each
+      colon-separated directory in
+    <span class="Pa">$XDG_CONFIG_DIRS</span>)</li>
+  <li><span class="Pa">/etc/xdg/spectrwm/spectrwm.conf</span> (if
+      <span class="Pa">$XDG_CONFIG_DIRS</span> is either not set or empty)</li>
+  <li><span class="Pa">/etc/spectrwm.conf</span></li>
+</ol>
+<p class="Pp">The format of the file is</p>
+<p class="Pp"></p>
+<div class="Bd Bd-indent"><code class="Li"><var class="Ar">keyword</var>
+  <code class="Li">=</code> <var class="Ar">setting</var></code></div>
+<p class="Pp">For example:</p>
+<p class="Pp"></p>
+<div class="Bd Bd-indent"><code class="Li">color_focus = red</code></div>
+<p class="Pp">Enabling or disabling an option is done by using 1 or 0
+    respectively.</p>
+<p class="Pp">Colors need to be specified per the
+    <a class="Xr">XQueryColor(3)</a> specification.</p>
+<p class="Pp">Mark option values may be wrapped in single/double quotes to
+    prevent whitespace trimming, specify empty strings, etc. Literal
+    quote/backslash characters can be escaped with backslash '\', when
+  needed.</p>
+<p class="Pp">Comments begin with a #. When a literal
+    &#x2018;<code class="Li">#</code>&#x2019; is desired in an option, then it
+    must be escaped with a backslash, i.e. \#</p>
+<p class="Pp">The file supports the following keywords:</p>
+<dl class="Bl-tag">
+  <dt id="autorun"><a class="permalink" href="#autorun"><code class="Ic">autorun</code></a></dt>
+  <dd>Launch an application in a specified workspace at start-of-day. Defined in
+      the format
+      <code class="Li">ws</code>[<var class="Ar">idx</var>]:<var class="Ar">application</var>,
+      e.g. ws[2]:xterm launches an <a class="Xr">xterm(1)</a> in workspace 2.
+    <p class="Pp">Note that workspace mapping is handled via
+        <span class="Pa">libswmhack.so</span>. When
+        <code class="Ic">autorun</code> spawns windows via a daemon, ensure the
+        daemon is started with the correct <span class="Pa">LD_PRELOAD</span> in
+        its environment.</p>
+    <p class="Pp">For example, starting <a class="Xr">urxvtd(1)</a> via
+        <a class="Xr">xinit(1)</a>:</p>
+    <div class="Bd Pp Bd-indent Li">
+    <pre>LD_PRELOAD=/usr/lib/libswmhack.so.0.0 urxvtd -q -o -f</pre>
+    </div>
+    <p class="Pp">Spawned programs automatically have
+        <span class="Pa">LD_PRELOAD</span> set when executed.</p>
+    <p class="Pp">It is advised to check the man page of
+        <span class="Pa">ld.so</span> as <span class="Pa">LD_PRELOAD</span> is
+        sometimes ignored by some operating systems. A workaround is available,
+        e.g. launch an xterm(1) in workspace 2:</p>
+    <div class="Bd Pp Bd-indent Li">
+    <pre>autorun = ws[2]:xterm -name ws2
+quirk[XTerm:ws2] = WS[2]</pre>
+    </div>
+  </dd>
+  <dt id="bar_action"><a class="permalink" href="#bar_action"><code class="Ic">bar_action</code></a></dt>
+  <dd>External script that populates additional information in the status bar,
+      such as battery life.</dd>
+  <dt id="bar_action_expand"><a class="permalink" href="#bar_action_expand"><code class="Ic">bar_action_expand</code></a></dt>
+  <dd>Process <code class="Ic">bar_format</code> character sequences in
+      <code class="Ic">bar_action</code> output; default is 0.</dd>
+  <dt id="bar_at_bottom"><a class="permalink" href="#bar_at_bottom"><code class="Ic">bar_at_bottom</code></a></dt>
+  <dd>Place the statusbar at the bottom of each region instead of the top.</dd>
+  <dt id="bar_border"><a class="permalink" href="#bar_border"><code class="Ic">bar_border</code></a>[<var class="Ar">x</var>]</dt>
+  <dd>Border color of the status bar(s) in screen <var class="Ar">x</var>.</dd>
+  <dt id="bar_border_unfocus"><a class="permalink" href="#bar_border_unfocus"><code class="Ic">bar_border_unfocus</code></a>[<var class="Ar">x</var>]</dt>
+  <dd>Border color of the status bar(s) on unfocused region(s) in screen
+      <var class="Ar">x</var>.</dd>
+  <dt id="bar_border_width"><a class="permalink" href="#bar_border_width"><code class="Ic">bar_border_width</code></a></dt>
+  <dd>Set status bar border thickness in pixels. Disable border by setting to
+    0.</dd>
+  <dt id="bar_color"><a class="permalink" href="#bar_color"><code class="Ic">bar_color</code></a>[<var class="Ar">x</var>]</dt>
+  <dd>Background color of the status bar(s) in screen <var class="Ar">x</var>.
+    <p class="Pp">A comma separated list of up to 10 colors can be specified.
+        The first value is used as the default background color. Any of these
+        colors can then be selected as a background color in the status bar
+        through the use of the markup sequence <code class="Ic">+@bg=n;</code>
+        where n is between 0 and 9.</p>
+  </dd>
+  <dt id="bar_color_selected"><a class="permalink" href="#bar_color_selected"><code class="Ic">bar_color_selected</code></a>[<var class="Ar">x</var>]</dt>
+  <dd>Background color for selections on the status bar(s) in screen
+      <var class="Ar">x</var>. Defaults to the value of
+      <code class="Ic">bar_border</code>.</dd>
+  <dt id="bar_enabled"><a class="permalink" href="#bar_enabled"><code class="Ic">bar_enabled</code></a></dt>
+  <dd>Set default <code class="Ic">bar_toggle</code> state; default is 1.</dd>
+  <dt id="bar_enabled_ws"><a class="permalink" href="#bar_enabled_ws"><code class="Ic">bar_enabled_ws</code></a>[<var class="Ar">x</var>]</dt>
+  <dd>Set default <code class="Ic">bar_toggle_ws</code> state on workspace
+      <var class="Ar">x</var>; default is 1.</dd>
+  <dt id="bar_font"><a class="permalink" href="#bar_font"><code class="Ic">bar_font</code></a></dt>
+  <dd>Fonts used in the status bar. Either Xft or X Logical Font Description
+      (XLFD) may be used to specify fonts. Fallback fonts may be specified by
+      separating each font with a comma. If all entries are in XLFD syntax, font
+      set will be used. If at least one entry is Xft, Xft will be used.
+    <p class="Pp">The default is to use font set.</p>
+    <p class="Pp">If Xft is used, a comma-separated list of up to 10 fonts can
+        be specified. The first entry is the default font. Any font defined here
+        can then be selected in the status bar through the use of the markup
+        sequence <code class="Ic">+@fn=n;</code> where n is between 0 and 9.</p>
+    <p class="Pp">Also note that <a class="Xr">dmenu(1)</a> prior to 4.6 does
+        not support Xft fonts.</p>
+    <p class="Pp">Xft examples:</p>
+    <div class="Bd Pp Bd-indent Li">
+    <pre>bar_font = Terminus:style=Regular:pixelsize=14:antialias=true
+
 bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,Terminus:pixelsize=14,-*-clean-medium-*-*-*-12-*-*-*-*-*-*-*</pre>
-<div class="spacer">
-</div>
-Font set examples:<div class="spacer">
-</div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-bar_font = -*-terminus-medium-*-*-*-14-*-*-*-*-*-*-* 
- 
+    </div>
+    <p class="Pp">Font set examples:</p>
+    <div class="Bd Pp Bd-indent Li">
+    <pre>bar_font = -*-terminus-medium-*-*-*-14-*-*-*-*-*-*-*
+
 bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-*-*-*-*-*-*-*,-*-clean-medium-*-*-*-12-*-*-*-*-*-*-*</pre>
-<div class="spacer">
-</div>
-To list the available fonts in your system see <a class="link-man">fc-list(1)</a> or <a class="link-man">xlsfonts(1)</a> manpages. The <a class="link-man">xfontsel(1)</a> application can help with the XLFD setting.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">bar_font_color</b>[<i class="arg">x</i>]</dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Color of the font in status bar in screen <i class="arg">x</i>.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">bar_format</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Set the bar format string, overriding <b class="cmd">clock_format</b> and all of the <b class="cmd">enabled</b> options. The format is passed through <a class="link-man">strftime(3)</a> before being used. It may contain the following character sequences:<table style="margin-top: 0.00em;margin-bottom: 0.00em;margin-left: 6.00ex;" class="list list-col">
-<col style="width: 18.00ex;"/>
-<col style="min-width: 13.00ex;"/>
-<tbody>
-<tr class="list-col">
-<td class="list-col" style="margin-top: 1.00em;">
-<span class="symb">Character sequence</span></td>
-<td class="list-col" style="margin-top: 1.00em;">
-<span class="symb">Replaced with</span></td>
-</tr>
-<tr class="list-col">
-<td class="list-col" style="margin-top: 1.00em;">
-<code class="lit">+&lt;</code></td>
-<td class="list-col" style="margin-top: 1.00em;">
-Pad with a space</td>
-</tr>
-<tr class="list-col">
-<td class="list-col" style="margin-top: 1.00em;">
-<code class="lit">+A</code></td>
-<td class="list-col" style="margin-top: 1.00em;">
-Output of the external script</td>
-</tr>
-<tr class="list-col">
-<td class="list-col" style="margin-top: 1.00em;">
-<code class="lit">+C</code></td>
-<td class="list-col" style="margin-top: 1.00em;">
-Window class (from WM_CLASS)</td>
-</tr>
-<tr class="list-col">
-<td class="list-col" style="margin-top: 1.00em;">
-<code class="lit">+D</code></td>
-<td class="list-col" style="margin-top: 1.00em;">
-Workspace name</td>
-</tr>
-<tr class="list-col">
-<td class="list-col" style="margin-top: 1.00em;">
-<code class="lit">+F</code></td>
-<td class="list-col" style="margin-top: 1.00em;">
-Floating indicator</td>
-</tr>
-<tr class="list-col">
-<td class="list-col" style="margin-top: 1.00em;">
-<code class="lit">+I</code></td>
-<td class="list-col" style="margin-top: 1.00em;">
-Workspace index</td>
-</tr>
-<tr class="list-col">
-<td class="list-col" style="margin-top: 1.00em;">
-<code class="lit">+M</code></td>
-<td class="list-col" style="margin-top: 1.00em;">
-Number of iconic (minimized) windows in workspace</td>
-</tr>
-<tr class="list-col">
-<td class="list-col" style="margin-top: 1.00em;">
-<code class="lit">+N</code></td>
-<td class="list-col" style="margin-top: 1.00em;">
-Screen number</td>
-</tr>
-<tr class="list-col">
-<td class="list-col" style="margin-top: 1.00em;">
-<code class="lit">+P</code></td>
-<td class="list-col" style="margin-top: 1.00em;">
-Window class and instance separated by a colon</td>
-</tr>
-<tr class="list-col">
-<td class="list-col" style="margin-top: 1.00em;">
-<code class="lit">+S</code></td>
-<td class="list-col" style="margin-top: 1.00em;">
-Stacking algorithm</td>
-</tr>
-<tr class="list-col">
-<td class="list-col" style="margin-top: 1.00em;">
-<code class="lit">+T</code></td>
-<td class="list-col" style="margin-top: 1.00em;">
-Window instance (from WM_CLASS)</td>
-</tr>
-<tr class="list-col">
-<td class="list-col" style="margin-top: 1.00em;">
-<code class="lit">+U</code></td>
-<td class="list-col" style="margin-top: 1.00em;">
-Urgency hint</td>
-</tr>
-<tr class="list-col">
-<td class="list-col" style="margin-top: 1.00em;">
-<code class="lit">+V</code></td>
-<td class="list-col" style="margin-top: 1.00em;">
-Program version</td>
-</tr>
-<tr class="list-col">
-<td class="list-col" style="margin-top: 1.00em;">
-<code class="lit">+W</code></td>
-<td class="list-col" style="margin-top: 1.00em;">
-Window name (from _NET_WM_NAME/WM_NAME)</td>
-</tr>
-<tr class="list-col">
-<td class="list-col" style="margin-top: 1.00em;">
-<code class="lit">++</code></td>
-<td class="list-col" style="margin-top: 1.00em;">
-A literal &#8216;<code class="lit">+</code>&#8217;</td>
-</tr>
-</tbody>
-</table>
-<div class="spacer">
-</div>
-All character sequences may limit its output to a specific length, for example +64A. Any characters that don't match the specification are copied as-is.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">bar_justify</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Justify the status bar text. Possible values are <i class="arg">left</i>, <i class="arg">center</i>, and <i class="arg">right</i>.<div class="spacer">
-</div>
-Note that if the output is not left justified, it may not be properly aligned in some circumstances, due to the white-spaces in the default static format. See the <b class="cmd">bar_format</b> option for more details.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">bind</b>[<i class="arg">x</i>]</dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Bind key or button combo to action <i class="arg">x</i>. See the <i class="link-sec"><a class="link-sec" href="#BINDINGS">BINDINGS</a></i> section below.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">border_width</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Set window border thickness in pixels. Disable all borders by setting to 0.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">boundary_width</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Set region containment boundary width in pixels. This is how far a window must be dragged/resized (with the pointer) beyond the region edge before it is allowed outside the region. Disable the window containment effect by setting to 0.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">clock_enabled</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Enable or disable displaying the clock in the status bar. Disable by setting to 0 so a custom clock could be used in the <b class="cmd">bar_action</b> script.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">iconic_enabled</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Display the number of iconic (minimized) windows in the status bar. Enable by setting to 1.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">color_focus</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Border color of the currently focused window. Default is red.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">color_focus_maximized</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Border color of the currently focused, maximized window. Defaults to the value of <b class="cmd">color_focus</b>.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">color_unfocus</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Border color of unfocused windows, default is rgb:88/88/88.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">color_unfocus_maximized</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Border color of unfocused, maximized windows. Defaults to the value of <b class="cmd">color_unfocus</b>.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">dialog_ratio</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Some applications have dialogue windows that are too small to be useful. This ratio is the screen size to what they will be resized. For example, 0.6 is 60% of the physical screen size.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">disable_border</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Remove border when bar is disabled and there is only one window on the region.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">focus_close</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Window to put focus when the focused window is closed. Possible values are <i class="arg">first</i>, <i class="arg">next</i>, <i class="arg">previous</i> (default) and <i class="arg">last</i>. <i class="arg">next</i> and <i class="arg">previous</i> are relative to the window that is closed.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">focus_close_wrap</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Whether to allow the focus to jump to the last window when the first window is closed or vice versa. Disable by setting to 0.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">focus_default</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Window to put focus when no window has been focused. Possible values are <i class="arg">first</i> and <i class="arg">last</i> (default).</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">focus_mode</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Window focus behavior with respect to the pointer. Possible values:<div class="spacer">
-</div>
-<dl style="margin-top: 0.00em;margin-bottom: 0.00em;margin-left: 6.00ex;" class="list list-tag">
-<dt class="list-tag" style="margin-top: 0.00em;">
-<i class="arg">default</i></dt>
-<dd class="list-tag" style="margin-left: 7.00ex;">
-Set window focus on border crossings caused by cursor motion and window interaction.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<i class="arg">follow</i></dt>
-<dd class="list-tag" style="margin-left: 7.00ex;">
-Set window focus on all cursor border crossings, including workspace switches and changes to layout.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<i class="arg">manual</i></dt>
-<dd class="list-tag" style="margin-left: 7.00ex;">
-Set window focus on window interaction only.</dd>
+    </div>
+    <p class="Pp">To list the available fonts in your system see
+        <a class="Xr">fc-list(1)</a> or <a class="Xr">xlsfonts(1)</a> manpages.
+        The <a class="Xr">xfontsel(1)</a> application can help with the XLFD
+        setting.</p>
+  </dd>
+  <dt id="bar_font_color"><a class="permalink" href="#bar_font_color"><code class="Ic">bar_font_color</code></a>[<var class="Ar">x</var>]</dt>
+  <dd>Foreground color of the status bar(s) in screen <var class="Ar">x</var>.
+    <p class="Pp">A comma separated list of up to 10 colors can be specified.
+        The first value is used as the default foreground color. Any of these
+        colors can then be selected as a foreground color in the status bar
+        through the use of the markup sequence <code class="Ic">+@fg=n;</code>
+        where n is between 0 and 9.</p>
+  </dd>
+  <dt id="bar_font_color_selected"><a class="permalink" href="#bar_font_color_selected"><code class="Ic">bar_font_color_selected</code></a>[<var class="Ar">x</var>]</dt>
+  <dd>Foreground color for selections on the status bar(s) in screen
+      <var class="Ar">x</var>. Defaults to the value of
+      <code class="Ic">bar_color</code>.</dd>
+  <dt id="bar_font_pua"><a class="permalink" href="#bar_font_pua"><code class="Ic">bar_font_pua</code></a></dt>
+  <dd>Specify a font to override the Unicode Private Use Area code points
+      (U+E000 -&gt; U+F8FF, U+F0000 -&gt; U+FFFFD, U+100000 -&gt; U+10FFFD).
+      Some fonts use these code points to provide special icon glyphs. Available
+      only with Xft fonts.</dd>
+  <dt id="bar_format"><a class="permalink" href="#bar_format"><code class="Ic">bar_format</code></a></dt>
+  <dd>Set the bar format string, overriding <code class="Ic">clock_format</code>
+      and all of the <code class="Ic">enabled</code> options. The format is
+      passed through <a class="Xr">strftime(3)</a> before being used. It may
+      contain the following character sequences:
+    <table class="Bl-column Bd-indent">
+      <tr id="Character">
+        <td><a class="permalink" href="#Character"><b class="Sy">Character
+          sequence</b></a></td>
+        <td><a class="permalink" href="#Replaced"><b class="Sy" id="Replaced">Replaced
+          with</b></a></td>
+      </tr>
+      <tr id="+_">
+        <td><a class="permalink" href="#+_"><code class="Li">+&lt;</code></a></td>
+        <td>Pad with a space</td>
+      </tr>
+      <tr id="+A">
+        <td><a class="permalink" href="#+A"><code class="Li">+A</code></a></td>
+        <td>Output of the external script</td>
+      </tr>
+      <tr id="+C">
+        <td><a class="permalink" href="#+C"><code class="Li">+C</code></a></td>
+        <td>Window class (from WM_CLASS)</td>
+      </tr>
+      <tr id="+D">
+        <td><a class="permalink" href="#+D"><code class="Li">+D</code></a></td>
+        <td>Workspace name</td>
+      </tr>
+      <tr id="+F">
+        <td><a class="permalink" href="#+F"><code class="Li">+F</code></a></td>
+        <td>Floating indicator</td>
+      </tr>
+      <tr id="+I">
+        <td><a class="permalink" href="#+I"><code class="Li">+I</code></a></td>
+        <td>Workspace index</td>
+      </tr>
+      <tr id="+L">
+        <td><a class="permalink" href="#+L"><code class="Li">+L</code></a></td>
+        <td>Workspace list indicator</td>
+      </tr>
+      <tr id="+M">
+        <td><a class="permalink" href="#+M"><code class="Li">+M</code></a></td>
+        <td>Number of iconic (minimized) windows in workspace</td>
+      </tr>
+      <tr id="+N">
+        <td><a class="permalink" href="#+N"><code class="Li">+N</code></a></td>
+        <td>Screen number</td>
+      </tr>
+      <tr id="+P">
+        <td><a class="permalink" href="#+P"><code class="Li">+P</code></a></td>
+        <td>Window class and instance separated by a colon</td>
+      </tr>
+      <tr id="+R">
+        <td><a class="permalink" href="#+R"><code class="Li">+R</code></a></td>
+        <td>Region index</td>
+      </tr>
+      <tr id="+S">
+        <td><a class="permalink" href="#+S"><code class="Li">+S</code></a></td>
+        <td>Stacking algorithm</td>
+      </tr>
+      <tr id="+T">
+        <td><a class="permalink" href="#+T"><code class="Li">+T</code></a></td>
+        <td>Window instance (from WM_CLASS)</td>
+      </tr>
+      <tr id="+U">
+        <td><a class="permalink" href="#+U"><code class="Li">+U</code></a></td>
+        <td>Urgency hint</td>
+      </tr>
+      <tr id="+V">
+        <td><a class="permalink" href="#+V"><code class="Li">+V</code></a></td>
+        <td>Program version</td>
+      </tr>
+      <tr id="+W">
+        <td><a class="permalink" href="#+W"><code class="Li">+W</code></a></td>
+        <td>Window name (from _NET_WM_NAME/WM_NAME)</td>
+      </tr>
+      <tr id="+__weight__justify_">
+        <td><a class="permalink" href="#+__weight__justify_"><code class="Li">+|[weight][justify]</code></a></td>
+        <td>Begin new section and reset markup sequence effects.
+        <p class="Pp"><code class="Ic">weight</code> is a positive integer used
+            to allocate horizontal space between 'L', 'C' and 'R' sections (see
+            justify). The default weight is 1.</p>
+        <p class="Pp"><code class="Ic">justify</code> can have the value L, C, R
+            or T. L, C, R are for left, center and right justified sections
+            respectively. A 'T' section will limit its space usage to fit to the
+            text. If no value is specified for a given section, the setting from
+            <code class="Ic">bar_justify</code> is used.</p>
+        </td>
+      </tr>
+      <tr id="++">
+        <td><a class="permalink" href="#++"><code class="Li">++</code></a></td>
+        <td>A literal &#x2018;<code class="Li">+</code>&#x2019;</td>
+      </tr>
+      <tr id="+@">
+        <td><a class="permalink" href="#+@"><code class="Li">+@</code></a></td>
+        <td>Prefix for text markup sequences</td>
+      </tr>
+    </table>
+    <p class="Pp">The currently recognized text markup sequences are:</p>
+    <table class="Bl-column Bd-indent">
+      <tr id="Character~2">
+        <td><a class="permalink" href="#Character~2"><b class="Sy">Character
+          sequence</b></a></td>
+        <td><a class="permalink" href="#Action"><b class="Sy" id="Action">Action</b></a></td>
+      </tr>
+      <tr id="+@fn=n;">
+        <td><a class="permalink" href="#+@fn=n;"><code class="Li">+@fn=n;</code></a></td>
+        <td>Selects font n (from 0 to 9) from
+          <code class="Ic">bar_font</code>.</td>
+      </tr>
+      <tr id="+@fg=n;">
+        <td><a class="permalink" href="#+@fg=n;"><code class="Li">+@fg=n;</code></a></td>
+        <td>Selects foreground color n (from 0 to 9) from
+          <code class="Ic">bar_font_color</code>.</td>
+      </tr>
+      <tr id="+@bg=n;">
+        <td><a class="permalink" href="#+@bg=n;"><code class="Li">+@bg=n;</code></a></td>
+        <td>Selects background color n (from 0 to 9) from
+          <code class="Ic">bar_color</code>.</td>
+      </tr>
+      <tr id="+@stp;">
+        <td><a class="permalink" href="#+@stp;"><code class="Li">+@stp;</code></a></td>
+        <td>Stops the interpretation of markup sequences. Any markup sequence
+          found after +@stp will appear as normal characters in the status
+          bar.</td>
+      </tr>
+    </table>
+    <p class="Pp">Note that markup sequences in
+        <code class="Ic">bar_action</code> script output will only be processed
+        if <code class="Ic">bar_action_expand</code> is enabled.</p>
+    <p class="Pp">All character sequences may limit its output to a specific
+        length, for example +64A. By default, no padding/alignment is done in
+        case the length of the replaced string is less than the specified length
+        (64 in the example). The padding/alignment can be enabled using a '_'
+        character in the sequence. For example: +_64W, +64_W and +_64_W enable
+        padding before (right alignment), after (left alignment), and both
+        before and after (center alignment) window name, respectively. Any
+        characters that do not match the specification are copied as-is.</p>
+  </dd>
+  <dt id="bar_justify"><a class="permalink" href="#bar_justify"><code class="Ic">bar_justify</code></a></dt>
+  <dd>Justify the status bar text. Possible values are
+      <var class="Ar">left</var>, <var class="Ar">center</var>, and
+      <var class="Ar">right</var>.
+    <p class="Pp">Note that if the output is not left justified, it may not be
+        properly aligned in some circumstances, due to the white-spaces in the
+        default static format. See the <code class="Ic">bar_format</code> option
+        for more details.</p>
+  </dd>
+  <dt id="bind"><a class="permalink" href="#bind"><code class="Ic">bind</code></a>[<var class="Ar">x</var>]</dt>
+  <dd>Bind key or button combo to action <var class="Ar">x</var>. See the
+      <a class="Sx" href="#BINDINGS">BINDINGS</a> section below.</dd>
+  <dt id="border_width"><a class="permalink" href="#border_width"><code class="Ic">border_width</code></a></dt>
+  <dd>Set window border thickness in pixels. Disable all borders by setting to
+      0.</dd>
+  <dt id="boundary_width"><a class="permalink" href="#boundary_width"><code class="Ic">boundary_width</code></a></dt>
+  <dd>Set region containment boundary width in pixels. This is how far a window
+      must be dragged/resized (with the pointer) beyond the region edge before
+      it is allowed outside the region. Disable the window containment effect by
+      setting to 0.</dd>
+  <dt id="clock_enabled"><a class="permalink" href="#clock_enabled"><code class="Ic">clock_enabled</code></a></dt>
+  <dd>Enable or disable displaying the clock in the status bar. Disable by
+      setting to 0 so a custom clock could be used in the
+      <code class="Ic">bar_action</code> script.</dd>
+  <dt id="color_focus"><a class="permalink" href="#color_focus"><code class="Ic">color_focus</code></a></dt>
+  <dd>Border color of the currently focused window. Default is red.</dd>
+  <dt id="color_focus_maximized"><a class="permalink" href="#color_focus_maximized"><code class="Ic">color_focus_maximized</code></a></dt>
+  <dd>Border color of the currently focused, maximized window. Defaults to the
+      value of <code class="Ic">color_focus</code>.</dd>
+  <dt id="color_unfocus"><a class="permalink" href="#color_unfocus"><code class="Ic">color_unfocus</code></a></dt>
+  <dd>Border color of unfocused windows, default is rgb:88/88/88.</dd>
+  <dt id="color_unfocus_maximized"><a class="permalink" href="#color_unfocus_maximized"><code class="Ic">color_unfocus_maximized</code></a></dt>
+  <dd>Border color of unfocused, maximized windows. Defaults to the value of
+      <code class="Ic">color_unfocus</code>.</dd>
+  <dt id="cycle_visible"><a class="permalink" href="#cycle_visible"><code class="Ic">cycle_visible</code></a></dt>
+  <dd>Include workspaces that are mapped when switching with
+      <code class="Ic">ws_next</code>, <code class="Ic">ws_prev</code>,
+      <code class="Ic">ws_next_all</code>, <code class="Ic">ws_prev_all</code>,
+      <code class="Ic">ws_next_move</code>, or
+      <code class="Ic">ws_prev_move</code>. Enable by setting to 1.
+    <p class="Pp">Note that mapped workspaces will be swapped unless
+        <code class="Ic">workspace_clamp</code> is enabled. If
+        <code class="Ic">warp_focus</code> is also enabled, focus will go to the
+        region where the workspace is mapped.</p>
+  </dd>
+  <dt id="dialog_ratio"><a class="permalink" href="#dialog_ratio"><code class="Ic">dialog_ratio</code></a></dt>
+  <dd>Some applications have dialogue windows that are too small to be useful.
+      This ratio is the screen size to what they will be resized. For example,
+      0.6 is 60% of the physical screen size.</dd>
+  <dt id="disable_border"><a class="permalink" href="#disable_border"><code class="Ic">disable_border</code></a></dt>
+  <dd>Remove border when bar is disabled and there is only one window on the
+      region. Enable by setting to 1. Setting this to
+      <var class="Ar">always</var> removes the border regardless of the bar
+      being enabled/disabled. Defaults to 0.</dd>
+  <dt id="focus_close"><a class="permalink" href="#focus_close"><code class="Ic">focus_close</code></a></dt>
+  <dd>Window to put focus when the focused window is closed. Possible values are
+      <var class="Ar">first</var>, <var class="Ar">next</var>,
+      <var class="Ar">previous</var> (default) and <var class="Ar">last</var>.
+      <var class="Ar">next</var> and <var class="Ar">previous</var> are relative
+      to the window that is closed.</dd>
+  <dt id="focus_close_wrap"><a class="permalink" href="#focus_close_wrap"><code class="Ic">focus_close_wrap</code></a></dt>
+  <dd>Whether to allow the focus to jump to the last window when the first
+      window is closed or vice versa. Disable by setting to 0.</dd>
+  <dt id="focus_default"><a class="permalink" href="#focus_default"><code class="Ic">focus_default</code></a></dt>
+  <dd>Window to put focus when no window has been focused. Possible values are
+      <var class="Ar">first</var> and <var class="Ar">last</var> (default).</dd>
+  <dt id="focus_mode"><a class="permalink" href="#focus_mode"><code class="Ic">focus_mode</code></a></dt>
+  <dd>Window focus behavior with respect to the pointer. Possible values:
+    <p class="Pp"></p>
+    <div class="Bd-indent">
+    <dl class="Bl-tag Bl-compact">
+      <dt><var class="Ar">default</var></dt>
+      <dd>Set window focus on border crossings caused by cursor motion and
+          window interaction.</dd>
+      <dt><var class="Ar">follow</var></dt>
+      <dd>Set window focus on all cursor border crossings, including workspace
+          switches and changes to layout.</dd>
+      <dt><var class="Ar">manual</var></dt>
+      <dd>Set window focus on window interaction only.</dd>
+    </dl>
+    </div>
+  </dd>
+  <dt id="iconic_enabled"><a class="permalink" href="#iconic_enabled"><code class="Ic">iconic_enabled</code></a></dt>
+  <dd>Display the number of iconic (minimized) windows in the status bar. Enable
+      by setting to 1.</dd>
+  <dt id="keyboard_mapping"><a class="permalink" href="#keyboard_mapping"><code class="Ic">keyboard_mapping</code></a></dt>
+  <dd>Clear all key bindings (not button bindings) and load new bindings from
+      the specified file. This allows you to load pre-defined key bindings for
+      your keyboard layout. See the
+      <a class="Sx" href="#KEYBOARD_MAPPING_FILES">KEYBOARD MAPPING FILES</a>
+      section below for a list of keyboard mapping files that have been provided
+      for several keyboard layouts.
+    <p class="Pp">Note that <span class="Pa">/dev/null</span> can be specified
+        if you only want to clear bindings.</p>
+  </dd>
+  <dt id="layout"><a class="permalink" href="#layout"><code class="Ic">layout</code></a></dt>
+  <dd>Select layout to use at start-of-day. Defined in the format
+      <code class="Li">ws</code>[<var class="Ar">idx</var>]:<var class="Ar">master_grow</var>:<var class="Ar">master_add</var>:<var class="Ar">stack_inc</var>:<var class="Ar">always_raise</var>:<var class="Ar">stack_mode</var>,
+      e.g. ws[2]:-4:0:1:0:horizontal sets workspace 2 to the horizontal stack
+      mode, shrinks the master area by 4 ticks and adds one window to the stack,
+      while maintaining default floating window behavior. Possible
+      <var class="Ar">stack_mode</var> values are
+      <var class="Ar">vertical</var>, <var class="Ar">vertical_flip</var>,
+      <var class="Ar">horizontal</var>, <var class="Ar">horizontal_flip</var>
+      and <var class="Ar">max</var>.
+    <p class="Pp">See <code class="Ic">master_grow</code>,
+        <code class="Ic">master_shrink</code>,
+        <code class="Ic">master_add</code>, <code class="Ic">master_del</code>,
+        <code class="Ic">stack_inc</code>, <code class="Ic">stack_dec</code>,
+        <code class="Ic">stack_balance</code>, and
+        <code class="Ic">always_raise</code> for more information. Note that the
+        stacking options are complicated and have side-effects. One should
+        familiarize oneself with these commands before experimenting with the
+        <code class="Ic">layout</code> option.</p>
+    <p class="Pp">This setting is not retained at restart.</p>
+  </dd>
+  <dt id="maximize_hide_bar"><a class="permalink" href="#maximize_hide_bar"><code class="Ic">maximize_hide_bar</code></a></dt>
+  <dd>When set to 1, <code class="Ic">maximize_toggle</code> will also
+      hide/restore the bar visibility of the affected workspace. Defaults to
+    0.</dd>
+  <dt id="modkey"><a class="permalink" href="#modkey"><code class="Ic">modkey</code></a></dt>
+  <dd>Change the current modifier value of <code class="Ic">MOD</code> in
+      <code class="Ic">bind</code> entries that come later in the configuration
+      file. For existing bindings, the new value is substituted for the previous
+      value. Possible values are <var class="Ar">Mod1</var> (default),
+      <var class="Ar">Mod2</var>, <var class="Ar">Mod3</var>,
+      <var class="Ar">Mod4</var> and <var class="Ar">Mod5</var>.
+    <p class="Pp"><var class="Ar">Mod1</var> is generally the Alt key,
+        <var class="Ar">Mod2</var> is the Command key on macOS and
+        <var class="Ar">Mod4</var> is the Windows key on a PC. The current
+        modifier key mapping can be found by running xmodmap(1).</p>
+  </dd>
+  <dt id="name"><a class="permalink" href="#name"><code class="Ic">name</code></a></dt>
+  <dd>Set the name of a workspace at start-of-day. Defined in the format
+      <code class="Li">ws</code>[<var class="Ar">idx</var>]:<var class="Ar">name</var>,
+      e.g. ws[1]:Console sets the name of workspace 1 to
+      &#x201C;Console&#x201D;.</dd>
+  <dt id="program"><a class="permalink" href="#program"><code class="Ic">program</code></a>[<var class="Ar">p</var>]</dt>
+  <dd>Define new action to spawn a program <var class="Ar">p</var>. See the
+      <a class="Sx" href="#PROGRAMS">PROGRAMS</a> section below.</dd>
+  <dt id="quirk"><a class="permalink" href="#quirk"><code class="Ic">quirk</code></a>[<var class="Ar">c</var>[:<var class="Ar">i</var>[:<var class="Ar">n</var>]]]</dt>
+  <dd>Add &quot;quirk&quot; for windows with class <var class="Ar">c</var>,
+      instance <var class="Ar">i</var> (optional) and name
+      <var class="Ar">n</var> (optional). See the
+      <a class="Sx" href="#QUIRKS">QUIRKS</a> section below.</dd>
+  <dt id="region"><a class="permalink" href="#region"><code class="Ic">region</code></a></dt>
+  <dd>Allocates a custom region, removing any autodetected regions which occupy
+      the same space on the screen. Defined in the format
+      <code class="Li">screen</code>[<var class="Ar">idx</var>]:<var class="Ar">width</var>x<var class="Ar">height</var>+<var class="Ar">x</var>+<var class="Ar">y</var>,
+      e.g. screen[1]:800x1200+0+0.
+    <p class="Pp">To make a region span multiple monitors, create a region big
+        enough to cover them all, e.g. screen[1]:2048x768+0+0 makes the region
+        span two monitors with 1024x768 resolution sitting one next to the
+        other.</p>
+  </dd>
+  <dt id="region_padding"><a class="permalink" href="#region_padding"><code class="Ic">region_padding</code></a></dt>
+  <dd>Pixel width of empty space within region borders. Disable by setting to
+    0.</dd>
+  <dt id="spawn_position"><a class="permalink" href="#spawn_position"><code class="Ic">spawn_position</code></a></dt>
+  <dd>Position in stack to place newly spawned windows. Possible values are
+      <var class="Ar">first</var>, <var class="Ar">next</var>,
+      <var class="Ar">previous</var> and <var class="Ar">last</var> (default).
+      <var class="Ar">next</var> and <var class="Ar">previous</var> are relative
+      to the focused window.</dd>
+  <dt id="stack_enabled"><a class="permalink" href="#stack_enabled"><code class="Ic">stack_enabled</code></a></dt>
+  <dd>Enable or disable displaying the current stacking algorithm in the status
+      bar.</dd>
+  <dt id="stack_mark_horizontal"><a class="permalink" href="#stack_mark_horizontal"><code class="Ic">stack_mark_horizontal</code></a></dt>
+  <dd>Set the <var class="Ar">horizontal</var> layout mark for the
+      <code class="Ic">bar_format</code> stacking indicator (+S). Default is
+      '[-]'.</dd>
+  <dt id="stack_mark_horizontal_flip"><a class="permalink" href="#stack_mark_horizontal_flip"><code class="Ic">stack_mark_horizontal_flip</code></a></dt>
+  <dd>Set the <var class="Ar">horizontal_flip</var> layout mark for the
+      <code class="Ic">bar_format</code> stacking indicator (+S). Default is
+      '[v]'.</dd>
+  <dt id="stack_mark_max"><a class="permalink" href="#stack_mark_max"><code class="Ic">stack_mark_max</code></a></dt>
+  <dd>Set the <var class="Ar">max</var> layout mark for the
+      <code class="Ic">bar_format</code> stacking indicator (+S). Default is '[
+      ]'.</dd>
+  <dt id="stack_mark_vertical"><a class="permalink" href="#stack_mark_vertical"><code class="Ic">stack_mark_vertical</code></a></dt>
+  <dd>Set the <var class="Ar">vertical</var> layout mark for the
+      <code class="Ic">bar_format</code> stacking indicator (+S). Default is
+      '[|]'.</dd>
+  <dt id="stack_mark_vertical_flip"><a class="permalink" href="#stack_mark_vertical_flip"><code class="Ic">stack_mark_vertical_flip</code></a></dt>
+  <dd>Set the <var class="Ar">vertical_flip</var> layout mark for the
+      <code class="Ic">bar_format</code> stacking indicator (+S). Default is
+      '[&gt;]'.</dd>
+  <dt id="term_width"><a class="permalink" href="#term_width"><code class="Ic">term_width</code></a></dt>
+  <dd>Set a preferred minimum width for the terminal. If this value is greater
+      than 0, <code class="Nm">spectrwm</code> will attempt to adjust the font
+      sizes in the terminal to keep the terminal width above this number as the
+      window is resized. Only <a class="Xr">xterm(1)</a> is currently supported.
+      The <a class="Xr">xterm(1)</a> binary must not be setuid or setgid, which
+      it is by default on most systems. Users may need to set program[term] (see
+      the <a class="Sx" href="#PROGRAMS">PROGRAMS</a> section) to use an
+      alternate copy of the <a class="Xr">xterm(1)</a> binary without the setgid
+      bit set.</dd>
+  <dt id="tile_gap"><a class="permalink" href="#tile_gap"><code class="Ic">tile_gap</code></a></dt>
+  <dd>Pixel width of empty space between tiled windows. Negative values cause
+      overlap. Set this to the opposite of <code class="Ic">border_width</code>
+      to collapse the border between tiles. Disable by setting to 0.</dd>
+  <dt id="urgent_collapse"><a class="permalink" href="#urgent_collapse"><code class="Ic">urgent_collapse</code></a></dt>
+  <dd>Minimizes the space consumed by the urgency hint indicator by removing the
+      placeholders for non-urgent workspaces, the trailing space when there are
+      urgent windows and the default leading space. Enable by setting to 1.</dd>
+  <dt id="urgent_enabled"><a class="permalink" href="#urgent_enabled"><code class="Ic">urgent_enabled</code></a></dt>
+  <dd>Enable or disable the urgency hint indicator in the status bar. Note that
+      many terminal emulators require an explicit setting for the bell character
+      to trigger urgency on the window. In <a class="Xr">xterm(1)</a>, for
+      example, one needs to add the following line to
+      <span class="Pa">.Xdefaults</span>:
+    <div class="Bd Pp Bd-indent Li">
+    <pre>xterm.bellIsUrgent: true</pre>
+    </div>
+  </dd>
+  <dt id="verbose_layout"><a class="permalink" href="#verbose_layout"><code class="Ic">verbose_layout</code></a></dt>
+  <dd>Enable or disable displaying the current master window count and stack
+      column/row count in the status bar. Enable by setting to 1. See
+      <var class="Ar">master_add</var>, <var class="Ar">master_del</var>,
+      <var class="Ar">stack_inc</var> and <var class="Ar">stack_dec</var> for
+      more information.</dd>
+  <dt id="warp_focus"><a class="permalink" href="#warp_focus"><code class="Ic">warp_focus</code></a></dt>
+  <dd>Focus on the target window/workspace/region when clamped. For example,
+      when attempting to switch to a workspace that is mapped on another region
+      and <var class="Ar">workspace_clamp</var> is enabled, focus on the region
+      with the target workspace. Enable by setting to 1.</dd>
+  <dt id="warp_pointer"><a class="permalink" href="#warp_pointer"><code class="Ic">warp_pointer</code></a></dt>
+  <dd>Centers the pointer on the focused window when using bindings to change
+      focus, switch workspaces, change regions, etc. Enable by setting to
+    1.</dd>
+  <dt id="window_class_enabled"><a class="permalink" href="#window_class_enabled"><code class="Ic">window_class_enabled</code></a></dt>
+  <dd>Enable or disable displaying the window class name (from WM_CLASS) in the
+      status bar. Enable by setting to 1.</dd>
+  <dt id="window_instance_enabled"><a class="permalink" href="#window_instance_enabled"><code class="Ic">window_instance_enabled</code></a></dt>
+  <dd>Enable or disable displaying the window instance name (from WM_CLASS) in
+      the status bar. Enable by setting to 1.</dd>
+  <dt id="window_name_enabled"><a class="permalink" href="#window_name_enabled"><code class="Ic">window_name_enabled</code></a></dt>
+  <dd>Enable or disable displaying the window display name (from
+      _NET_WM_NAME/WM_NAME) in the status bar. Enable by setting to 1.
+    <p class="Pp">To prevent excessively large window names from pushing the
+        remaining text off the bar, it is limited to 64 characters, by default.
+        See the <code class="Ic">bar_format</code> option for more details.</p>
+  </dd>
+  <dt id="workspace_clamp"><a class="permalink" href="#workspace_clamp"><code class="Ic">workspace_clamp</code></a></dt>
+  <dd>Prevents workspaces from being swapped when attempting to switch to a
+      workspace that is mapped to another region. Use
+      <var class="Ar">warp_focus</var> if you want to focus on the region
+      containing the workspace and <var class="Ar">warp_pointer</var> if you
+      want to also send the pointer. Enable by setting to 1.</dd>
+  <dt id="workspace_indicator"><a class="permalink" href="#workspace_indicator"><code class="Ic">workspace_indicator</code></a></dt>
+  <dd>Configure the status bar workspace indicator. One or more of the following
+      options may be specified in a comma-separated list:
+    <p class="Pp"></p>
+    <div class="Bd-indent">
+    <dl class="Bl-tag Bl-compact">
+      <dt><var class="Ar">listcurrent</var></dt>
+      <dd>Include the current workspace.</dd>
+      <dt><var class="Ar">listactive</var></dt>
+      <dd>Include workspaces with windows.</dd>
+      <dt><var class="Ar">listempty</var></dt>
+      <dd>Include empty workspaces.</dd>
+      <dt><var class="Ar">listnamed</var></dt>
+      <dd>Include named workspaces.</dd>
+      <dt><var class="Ar">listurgent</var></dt>
+      <dd>Include workspaces with urgent window(s).</dd>
+      <dt><var class="Ar">listall</var></dt>
+      <dd>Include all workspaces.</dd>
+      <dt><var class="Ar">hidecurrent</var></dt>
+      <dd>Always exclude the current workspace from the list.</dd>
+      <dt><var class="Ar">markcurrent</var></dt>
+      <dd>Indicate the current workspace if it is in the list.</dd>
+      <dt><var class="Ar">markactive</var></dt>
+      <dd>Indicate workspaces in the list that are active.</dd>
+      <dt><var class="Ar">markempty</var></dt>
+      <dd>Indicate workspaces in the list that are empty.</dd>
+      <dt><var class="Ar">markurgent</var></dt>
+      <dd>Indicate workspaces in the list that contain urgent window(s).</dd>
+      <dt><var class="Ar">printnames</var></dt>
+      <dd>Display the names of named workspaces in the list.</dd>
+      <dt><var class="Ar">noindexes</var></dt>
+      <dd>Hide the index of the workspaces.</dd>
+    </dl>
+    </div>
+    <p class="Pp">The default is
+        <var class="Ar">listcurrent</var>,<var class="Ar">listactive</var>,<var class="Ar">markcurrent</var>,<var class="Ar">printnames</var></p>
+  </dd>
+  <dt id="workspace_mark_active"><a class="permalink" href="#workspace_mark_active"><code class="Ic">workspace_mark_active</code></a></dt>
+  <dd>Set the 'active workspace' mark used in the
+      <code class="Ic">workspace_indicator</code>. Default is '^'.</dd>
+  <dt id="workspace_mark_current"><a class="permalink" href="#workspace_mark_current"><code class="Ic">workspace_mark_current</code></a></dt>
+  <dd>Set the 'current workspace' mark used in the
+      <code class="Ic">workspace_indicator</code>. Default is '*'.</dd>
+  <dt id="workspace_mark_empty"><a class="permalink" href="#workspace_mark_empty"><code class="Ic">workspace_mark_empty</code></a></dt>
+  <dd>Set the 'empty workspace' mark used in the
+      <code class="Ic">workspace_indicator</code>. Default is '-'.</dd>
+  <dt id="workspace_mark_urgent"><a class="permalink" href="#workspace_mark_urgent"><code class="Ic">workspace_mark_urgent</code></a></dt>
+  <dd>Set the 'urgent workspace' mark used in the
+      <code class="Ic">workspace_indicator</code>. Default is '!'.</dd>
+  <dt id="workspace_limit"><a class="permalink" href="#workspace_limit"><code class="Ic">workspace_limit</code></a></dt>
+  <dd>Set the total number of workspaces available. Minimum is 1, maximum is 22,
+      default is 10.</dd>
 </dl>
-</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">maximize_hide_bar</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-When set to 1, <b class="cmd">maximize_toggle</b> will also hide/restore the bar visibility of the affected workspace. Defaults to 0.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">java_workaround</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Workaround a Java GUI rendering issue on non-reparenting window managers by impersonating the LG3D window manager, written by Sun. Default is 1.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">keyboard_mapping</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Clear all key bindings (not button bindings) and load new bindings from the specified file. This allows you to load pre-defined key bindings for your keyboard layout. See the <i class="link-sec"><a class="link-sec" href="#KEYBOARD_MAPPING_FILES">KEYBOARD MAPPING FILES</a></i> section below for a list of keyboard mapping files that have been provided for several keyboard layouts.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">layout</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Select layout to use at start-of-day. Defined in the format <code class="lit">ws</code>[<i class="arg">idx</i>]:<i class="arg">master_grow</i>:<i class="arg">master_add</i>:<i class="arg">stack_inc</i>:<i class="arg">always_raise</i>:<i class="arg">stack_mode</i>, e.g. ws[2]:-4:0:1:0:horizontal sets worskspace 2 to the horizontal stack mode, shrinks the master area by 4 ticks and adds one window to the stack, while maintaining default floating window behavior. Possible <i class="arg">stack_mode</i> values are <i class="arg">vertical</i>, <i class="arg">vertical_flip</i>, <i class="arg">horizontal</i>, <i class="arg">horizontal_flip</i> and <i class="arg">fullscreen</i>.<div class="spacer">
-</div>
-See <b class="cmd">master_grow</b>, <b class="cmd">master_shrink</b>, <b class="cmd">master_add</b>, <b class="cmd">master_del</b>, <b class="cmd">stack_inc</b>, <b class="cmd">stack_dec</b>, <b class="cmd">stack_balance</b>, and <b class="cmd">always_raise</b> for more information. Note that the stacking options are complicated and have side-effects. One should familiarize oneself with these commands before experimenting with the <b class="cmd">layout</b> option.<div class="spacer">
-</div>
-This setting is not retained at restart.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">modkey</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Change mod key. Mod1 is generally the ALT key and Mod4 is the windows key on a PC.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">name</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Set the name of a workspace at start-of-day. Defined in the format <code class="lit">ws</code>[<i class="arg">idx</i>]:<i class="arg">name</i>, e.g. ws[1]:Console sets the name of workspace 1 to &#8220;Console&#8221;.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">program</b>[<i class="arg">p</i>]</dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Define new action to spawn a program <i class="arg">p</i>. See the <i class="link-sec"><a class="link-sec" href="#PROGRAMS">PROGRAMS</a></i> section below.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">quirk</b>[<i class="arg">c</i>:<i class="arg">i</i>:<i class="arg">n</i>]</dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Add &quot;quirk&quot; for windows with class <i class="arg">c</i>, instance <i class="arg">i</i> and name <i class="arg">n</i>. See the <i class="link-sec"><a class="link-sec" href="#QUIRKS">QUIRKS</a></i> section below.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">region</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Allocates a custom region, removing any autodetected regions which occupy the same space on the screen. Defined in the format <code class="lit">screen</code>[<i class="arg">idx</i>]:<i class="arg">width</i>x<i class="arg">height</i>+<i class="arg">x</i>+<i class="arg">y</i>, e.g. screen[1]:800x1200+0+0.<div class="spacer">
-</div>
-To make a region span multiple monitors, create a region big enough to cover them all, e.g. screen[1]:2048x768+0+0 makes the region span two monitors with 1024x768 resolution sitting one next to the other.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">region_padding</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Pixel width of empty space within region borders. Disable by setting to 0.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">spawn_position</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Position in stack to place newly spawned windows. Possible values are <i class="arg">first</i>, <i class="arg">next</i>, <i class="arg">previous</i> and <i class="arg">last</i> (default). <i class="arg">next</i> and <i class="arg">previous</i> are relative to the focused window.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">stack_enabled</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Enable or disable displaying the current stacking algorithm in the status bar.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">term_width</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Set a preferred minimum width for the terminal. If this value is greater than 0, <b class="name">spectrwm</b> will attempt to adjust the font sizes in the terminal to keep the terminal width above this number as the window is resized. Only <a class="link-man">xterm(1)</a> is currently supported. The <a class="link-man">xterm(1)</a> binary must not be setuid or setgid, which it is by default on most systems. Users may need to set program[term] (see the <i class="link-sec"><a class="link-sec" href="#PROGRAMS">PROGRAMS</a></i> section) to use an alternate copy of the <a class="link-man">xterm(1)</a> binary without the setgid bit set.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">tile_gap</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Pixel width of empty space between tiled windows. Negative values cause overlap. Set this to the opposite of <b class="cmd">border_width</b> to collapse the border between tiles. Disable by setting to 0.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">urgent_collapse</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Minimizes the space consumed by the urgency hint indicator by removing the placeholders for non-urgent workspaces, the trailing space when there are urgent windows and the default leading space. Enable by setting to 1.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">urgent_enabled</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Enable or disable the urgency hint indicator in the status bar. Note that many terminal emulators require an explicit setting for the bell character to trigger urgency on the window. In <a class="link-man">xterm(1)</a>, for example, one needs to add the following line to <i class="file">.Xdefaults</i>:<div class="spacer">
-</div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-xterm.bellIsUrgent: true</pre>
-</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">verbose_layout</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Enable or disable displaying the current master window count and stack column/row count in the status bar. Enable by setting to 1. See <i class="arg">master_add</i>, <i class="arg">master_del</i>, <i class="arg">stack_inc</i> and <i class="arg">stack_dec</i> for more information.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">workspace_clamp</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Prevents workspaces from being swapped when attempting to switch to a workspace that is mapped to another region. Use <i class="arg">warp_focus</i> if you want to focus on the region containing the workspace and <i class="arg">warp_pointer</i> if you want to also send the pointer. Enable by setting to 1.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">window_class_enabled</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Enable or disable displaying the window class name (from WM_CLASS) in the status bar. Enable by setting to 1.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">window_instance_enabled</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Enable or disable displaying the window instance name (from WM_CLASS) in the status bar. Enable by setting to 1.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">window_name_enabled</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Enable or disable displaying the window display name (from _NET_WM_NAME/WM_NAME) in the status bar. Enable by setting to 1.<div class="spacer">
-</div>
-To prevent excessively large window names from pushing the remaining text off the bar, it's limited to 64 characters, by default. See the <b class="cmd">bar_format</b> option for more details.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">warp_focus</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Focus on the target window/workspace/region when clamped. For example, when attempting to switch to a workspace that is mapped on another region and <i class="arg">workspace_clamp</i> is enabled, focus on the region with the target workspace. Enable by setting to 1.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">warp_pointer</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Centers the pointer on the focused window when using bindings to change focus, switch workspaces, change regions, etc. Enable by setting to 1.</dd>
-<dt class="list-tag" style="margin-top: 1.00em;">
-<b class="cmd">workspace_limit</b></dt>
-<dd class="list-tag" style="margin-left: 2.00em;">
-Set the total number of workspaces available. Minimum is 1, maximum is 22, default is 10.</dd>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="STACK_MODES"><a class="permalink" href="#STACK_MODES">STACK
+  MODES</a></h1>
+<dl class="Bl-tag">
+  <dt id="vertical"><a class="permalink" href="#vertical"><code class="Ic">vertical</code></a></dt>
+  <dd>Master area is on the left and stack area is on the right. Additional
+      windows are vertically tiled in stack area.</dd>
+  <dt><code class="Ic">vertical flipped</code></dt>
+  <dd>Same as above but stack and master areas are swapped.</dd>
+  <dt id="horizontal"><a class="permalink" href="#horizontal"><code class="Ic">horizontal</code></a></dt>
+  <dd>Master area is on the top and stack area is on the bottom. Additional
+      windows are horizontally tiled in stack area.</dd>
+  <dt><code class="Ic">horizontal flipped</code></dt>
+  <dd>Same as above but stack and master areas are swapped.</dd>
+  <dt id="max"><a class="permalink" href="#max"><code class="Ic">max</code></a></dt>
+  <dd>The focused window occupies the whole region, except for the bar (if
+      enabled).</dd>
+</dl>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="WINDOW_STATES"><a class="permalink" href="#WINDOW_STATES">WINDOW
+  STATES</a></h1>
+<p class="Pp">These can be set/unset by the corresponding
+    <code class="Ic">toggle</code> actions listed in the
+    <a class="Sx" href="#BINDINGS">BINDINGS</a> section below.</p>
+<dl class="Bl-tag">
+  <dt id="floating"><a class="permalink" href="#floating"><code class="Ic">floating</code></a></dt>
+  <dd>The window is mapped above others and is not in a tile; it may be freely
+      resized and positioned.</dd>
+  <dt id="maximized"><a class="permalink" href="#maximized"><code class="Ic">maximized</code></a></dt>
+  <dd>The window occupies the whole region, except for the bar (if enabled and
+      <code class="Ic">maximize_hide_bar</code> is 0). Focusing another window
+      removes the maximized state of the window.</dd>
+  <dt id="fullscreen"><a class="permalink" href="#fullscreen"><code class="Ic">fullscreen</code></a></dt>
+  <dd>The window occupies the whole region. Focusing another window does not
+      remove the fullscreen state of the window.</dd>
+</dl>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="PROGRAMS"><a class="permalink" href="#PROGRAMS">PROGRAMS</a></h1>
+<p class="Pp"><code class="Nm">spectrwm</code> allows you to define custom
+    actions to launch programs of your choice and then bind them the same as
+    with built-in actions. See the <a class="Sx" href="#BINDINGS">BINDINGS</a>
+    section below.</p>
+<p class="Pp">Custom programs in the configuration file are specified as
+    follows:</p>
+<p class="Pp"></p>
+<div class="Bd Bd-indent"><code class="Li">program[<var class="Ar">action</var>]
+  = <var class="Ar">progpath</var> [<var class="Ar">arg</var>
+  [<var class="Ar">arg ...</var>]]</code></div>
+<p class="Pp"><var class="Ar">action</var> is any identifier that does not
+    conflict with a built-in action or keyword, <var class="Ar">progpath</var>
+    is the desired program, and <var class="Ar">arg</var> is zero or more
+    arguments to the program.</p>
+<p class="Pp">With the exception of '~' expansion, program calls are executed
+    as-is without any interpretation. A shell can be called to execute shell
+    commands. (e.g. sh -c 'command string').</p>
+<p class="Pp">Remember that when using &#x2018;<code class="Li">#</code>&#x2019;
+    in your program call, it must be escaped with a backslash, i.e. \#</p>
+<p class="Pp">The following argument variables are replaced with values at the
+    time the program is spawned:</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<dl class="Bl-tag Bl-compact">
+  <dt id="$bar_border"><a class="permalink" href="#$bar_border"><code class="Cm">$bar_border</code></a></dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt id="$bar_color"><a class="permalink" href="#$bar_color"><code class="Cm">$bar_color</code></a></dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt id="$bar_color_selected"><a class="permalink" href="#$bar_color_selected"><code class="Cm">$bar_color_selected</code></a></dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt id="$bar_font"><a class="permalink" href="#$bar_font"><code class="Cm">$bar_font</code></a></dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt id="$bar_font_color"><a class="permalink" href="#$bar_font_color"><code class="Cm">$bar_font_color</code></a></dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt id="$bar_font_color_selected"><a class="permalink" href="#$bar_font_color_selected"><code class="Cm">$bar_font_color_selected</code></a></dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt id="$color_focus"><a class="permalink" href="#$color_focus"><code class="Cm">$color_focus</code></a></dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt id="$color_unfocus"><a class="permalink" href="#$color_unfocus"><code class="Cm">$color_unfocus</code></a></dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt id="$dmenu_bottom"><a class="permalink" href="#$dmenu_bottom"><code class="Cm">$dmenu_bottom</code></a></dt>
+  <dd>-b if <code class="Ic">bar_at_bottom</code> is enabled.</dd>
+  <dt id="$region_index"><a class="permalink" href="#$region_index"><code class="Cm">$region_index</code></a></dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt id="$workspace_index"><a class="permalink" href="#$workspace_index"><code class="Cm">$workspace_index</code></a></dt>
+  <dd style="width: auto;">&#x00A0;</dd>
 </dl>
 </div>
-<div class="section">
-<h1 id="PROGRAMS">PROGRAMS</h1> <b class="name">spectrwm</b> allows you to define custom actions to launch programs of your choice and then bind them the same as with built-in actions. See the <i class="link-sec"><a class="link-sec" href="#BINDINGS">BINDINGS</a></i> section below.<div class="spacer">
-</div>
-Custom programs in the configuration file are specified as follows:<div class="spacer">
-</div>
-<blockquote style="margin-top: 0.00em;margin-bottom: 0.00em;">
-<div class="display">
-<code class="lit">program[<i class="arg">action</i>] = <i class="arg">progpath</i> [<span class="opt"><i class="arg">arg</i> [<span class="opt"><i class="arg">arg ...</i></span>]</span>]</code></div>
-</blockquote>
-<div class="spacer">
-</div>
-<i class="arg">action</i> is any identifier that does not conflict with a built-in action or keyword, <i class="arg">progpath</i> is the desired program, and <i class="arg">arg</i> is zero or more arguments to the program.<div class="spacer">
-</div>
-Remember that when using &#8216;<code class="lit">#</code>&#8217; in your program call, it must be escaped with a backslash, i.e. \#<div class="spacer">
-</div>
-The following argument variables will be substituted for values at the time the program is spawned:<div class="spacer">
-</div>
-<dl style="margin-top: 0.00em;margin-bottom: 0.00em;margin-left: 6.00ex;" class="list list-tag">
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">$bar_border</b></dt>
-<dd class="list-tag" style="margin-left: 15.00ex;">
-</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">$bar_color</b></dt>
-<dd class="list-tag" style="margin-left: 15.00ex;">
-</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">$bar_font</b></dt>
-<dd class="list-tag" style="margin-left: 15.00ex;">
-</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">$bar_font_color</b></dt>
-<dd class="list-tag" style="margin-left: 15.00ex;">
-</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">$color_focus</b></dt>
-<dd class="list-tag" style="margin-left: 15.00ex;">
-</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">$color_unfocus</b></dt>
-<dd class="list-tag" style="margin-left: 15.00ex;">
-</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">$dmenu_bottom</b></dt>
-<dd class="list-tag" style="margin-left: 15.00ex;">
--b if <b class="cmd">bar_at_bottom</b> is enabled.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">$region_index</b></dt>
-<dd class="list-tag" style="margin-left: 15.00ex;">
-</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">$workspace_index</b></dt>
-<dd class="list-tag" style="margin-left: 15.00ex;">
-</dd>
-</dl>
-<div class="spacer">
-</div>
-Example:<div class="spacer">
-</div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-program[ff] = /usr/local/bin/firefox http://spectrwm.org/ 
+<p class="Pp">Example:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>program[ff] = /usr/local/bin/firefox http://spectrwm.org/
 bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
-<div class="spacer">
 </div>
-To cancel the previous, unbind it:<div class="spacer">
+<p class="Pp">To cancel the previous, unbind it:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>bind[] = MOD+Shift+b</pre>
 </div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-bind[] = MOD+Shift+b</pre>
-<div class="spacer">
-</div>
-Default programs:<dl style="margin-top: 0.00em;margin-bottom: 0.00em;margin-left: 6.00ex;" class="list list-tag">
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">lock</b></dt>
-<dd class="list-tag" style="margin-left: 15.00ex;">
-xlock</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">menu</b></dt>
-<dd class="list-tag" style="margin-left: 15.00ex;">
-dmenu_run $dmenu_bottom -fn $bar_font -nb $bar_color -nf $bar_font_color -sb $bar_border -sf $bar_color</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">term</b></dt>
-<dd class="list-tag" style="margin-left: 15.00ex;">
-xterm</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">initscr</b></dt>
-<dd class="list-tag" style="margin-left: 15.00ex;">
-initscreen.sh        # optional</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">screenshot_all</b></dt>
-<dd class="list-tag" style="margin-left: 15.00ex;">
-screenshot.sh full   # optional</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">screenshot_wind</b></dt>
-<dd class="list-tag" style="margin-left: 15.00ex;">
-screenshot.sh window # optional</dd>
+<p class="Pp">Default programs:</p>
+<div class="Bd-indent">
+<dl class="Bl-tag Bl-compact">
+  <dt id="term"><a class="permalink" href="#term"><code class="Cm">term</code></a></dt>
+  <dd>xterm</dd>
+  <dt id="lock"><a class="permalink" href="#lock"><code class="Cm">lock</code></a></dt>
+  <dd>xlock</dd>
+  <dt id="menu"><a class="permalink" href="#menu"><code class="Cm">menu</code></a></dt>
+  <dd>dmenu_run $dmenu_bottom -fn $bar_font -nb $bar_color -nf $bar_font_color
+      -sb $bar_color_selected -sf $bar_font_color_selected</dd>
+  <dt id="search"><a class="permalink" href="#search"><code class="Cm">search</code></a></dt>
+  <dd>dmenu $dmenu_bottom -i -fn $bar_font -nb $bar_color -nf $bar_font_color
+      -sb $bar_color_selected -sf $bar_font_color_selected</dd>
+  <dt id="name_workspace"><a class="permalink" href="#name_workspace"><code class="Cm">name_workspace</code></a></dt>
+  <dd>dmenu $dmenu_bottom -p Workspace -fn $bar_font -nb $bar_color -nf
+      $bar_font_color -sb $bar_color_selected -sf $bar_font_color_selected</dd>
+  <dt id="initscr"><a class="permalink" href="#initscr"><code class="Cm">initscr</code></a></dt>
+  <dd>initscreen.sh # optional</dd>
+  <dt id="screenshot_all"><a class="permalink" href="#screenshot_all"><code class="Cm">screenshot_all</code></a></dt>
+  <dd>screenshot.sh full # optional</dd>
+  <dt id="screenshot_wind"><a class="permalink" href="#screenshot_wind"><code class="Cm">screenshot_wind</code></a></dt>
+  <dd>screenshot.sh window # optional</dd>
 </dl>
-<div class="spacer">
 </div>
-Note that optional default programs will not be validated unless overridden. If a default program fails validation, you can resolve the exception by installing the program, modifying the program call or disabling the program by freeing the respective binding.<div class="spacer">
+<p class="Pp">Note that optional default programs will not be validated unless
+    overridden. If a default program fails validation, you can resolve the
+    exception by installing the program, modifying the program call or disabling
+    the program by freeing the respective binding.</p>
+<p class="Pp">For example, to override <code class="Ic">lock</code>:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>program[lock] = xscreensaver-command -lock</pre>
 </div>
-For example, to override <b class="cmd">lock</b>:<div class="spacer">
+<p class="Pp">To unbind <code class="Ic">lock</code> and prevent it from being
+    validated:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>bind[] = MOD+Shift+Delete</pre>
 </div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-program[lock] = xscreensaver-command -lock</pre>
-<div class="spacer">
-</div>
-To unbind <b class="cmd">lock</b> and prevent it from being validated:<div class="spacer">
-</div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-bind[] = MOD+Shift+Delete</pre>
-</div>
-<div class="section">
-<h1 id="BINDINGS">BINDINGS</h1> <b class="name">spectrwm</b> provides many functions (or actions) accessed via key or pointer bindings.<div class="spacer">
-</div>
-The default bindings are listed below:<div class="spacer">
-</div>
-<dl style="margin-top: 0.00em;margin-bottom: 0.00em;margin-left: 6.00ex;" class="list list-tag">
-<dt class="list-tag" style="margin-top: 0.00em;">
-&#10216;<b class="flag">Button1</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-focus</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-</b>&#10216;<b class="flag">Button1</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-move</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-</b>&#10216;<b class="flag">Button3</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-resize</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-</b>&#10216;<b class="flag">Button3</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-resize_centered</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-</b>&#10216;<b class="flag">Return</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-term</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-p</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-menu</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-q</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-quit</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-q</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-restart</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-</b>&#10216;<b class="flag">Space</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-cycle_layout</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-\</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-flip_layout</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-</b>&#10216;<b class="flag">Space</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-stack_reset</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-&#10216;<i class="arg">unbound</i>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-stack_balance</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-h</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-master_shrink</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-l</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-master_grow</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-,</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-master_add</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-.</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-master_del</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-,</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-stack_inc</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-.</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-stack_dec</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-</b>&#10216;<b class="flag">Return</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-swap_main</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-j</b>, <b class="flag">M-</b>&#10216;<b class="flag">TAB</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-focus_next</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-k</b>, <b class="flag">M-S-</b>&#10216;<b class="flag">TAB</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-focus_prev</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-m</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-focus_main</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-u</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-focus_urgent</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-j</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-swap_next</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-k</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-swap_prev</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-b</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-bar_toggle</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-b</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-bar_toggle_ws</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-x</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-wind_del</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-x</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-wind_kill</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-</b>&#10216;<i class="arg">1-9,0,F1-F12</i>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-ws_&#10216;<i class="arg">1-22</i>&#10217;</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-</b>&#10216;<i class="arg">1-9,0,F1-F12</i>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-mvws_&#10216;<i class="arg">1-22</i>&#10217;</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-</b>&#10216;<i class="arg">Keypad 1-9</i>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-rg_&#10216;<i class="arg">1-9</i>&#10217;</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-</b>&#10216;<i class="arg">Keypad 1-9</i>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-mvrg_&#10216;<i class="arg">1-9</i>&#10217;</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-&#10216;<i class="arg">unbound</i>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-mvrg_next</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-&#10216;<i class="arg">unbound</i>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-mvrg_prev</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-</b>&#10216;<b class="flag">Right</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-ws_next</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-</b>&#10216;<b class="flag">Left</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-ws_prev</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-</b>&#10216;<b class="flag">Up</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-ws_next_all</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-</b>&#10216;<b class="flag">Down</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-ws_prev_all</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-a</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-ws_prior</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-</b>&#10216;<b class="flag">Down</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-ws_prev_move</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-</b>&#10216;<b class="flag">Up</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-ws_next_move</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-</b>&#10216;<b class="flag">Right</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-rg_next</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-</b>&#10216;<b class="flag">Left</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-rg_prev</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-&#10216;<i class="arg">unbound</i>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-rg_move_next</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-&#10216;<i class="arg">unbound</i>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-rg_move_prev</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-s</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-screenshot_all</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-s</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-screenshot_wind</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-v</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-version</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-t</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-float_toggle</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-</b>&#10216;<b class="flag">Delete</b>&#10217;</dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-lock</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-i</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-initscr</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-w</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-iconify</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-w</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-uniconify</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-e</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-maximize_toggle</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-e</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-fullscreen_toggle</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-r</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-raise</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-r</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-always_raise</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-v</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-button2</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M--</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-width_shrink</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-=</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-width_grow</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S--</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-height_shrink</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-=</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-height_grow</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-[</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-move_left</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-]</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-move_right</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-[</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-move_up</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-]</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-move_down</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-S-/</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-name_workspace</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-/</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-search_workspace</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">M-f</b></dt>
-<dd class="list-tag" style="margin-left: 18.00ex;">
-search_win</dd>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="BINDINGS"><a class="permalink" href="#BINDINGS">BINDINGS</a></h1>
+<p class="Pp"><code class="Nm">spectrwm</code> provides many functions (or
+    actions) accessed via key or pointer button bindings.</p>
+<p class="Pp">The default bindings are listed below:</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<dl class="Bl-tag Bl-compact">
+  <dt>&#x27E8;<code class="Cm">Button1</code>&#x27E9;</dt>
+  <dd>focus</dd>
+  <dt id="M-"><a class="permalink" href="#M-"><code class="Cm">M-</code></a>&#x27E8;<code class="Cm">Button1</code>&#x27E9;</dt>
+  <dd>move</dd>
+  <dt id="M-~2"><a class="permalink" href="#M-~2"><code class="Cm">M-</code></a>&#x27E8;<code class="Cm">Button3</code>&#x27E9;</dt>
+  <dd>resize</dd>
+  <dt id="M-S-"><a class="permalink" href="#M-S-"><code class="Cm">M-S-</code></a>&#x27E8;<code class="Cm">Button3</code>&#x27E9;</dt>
+  <dd>resize_centered</dd>
+  <dt id="M-S-~2"><a class="permalink" href="#M-S-~2"><code class="Cm">M-S-</code></a>&#x27E8;<code class="Cm">Return</code>&#x27E9;</dt>
+  <dd>term</dd>
+  <dt id="M-p"><a class="permalink" href="#M-p"><code class="Cm">M-p</code></a></dt>
+  <dd>menu</dd>
+  <dt id="M-S-q"><a class="permalink" href="#M-S-q"><code class="Cm">M-S-q</code></a></dt>
+  <dd>quit</dd>
+  <dt id="M-q"><a class="permalink" href="#M-q"><code class="Cm">M-q</code></a></dt>
+  <dd>restart</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>restart_of_day</dd>
+  <dt id="M-~3"><a class="permalink" href="#M-~3"><code class="Cm">M-</code></a>&#x27E8;<code class="Cm">Space</code>&#x27E9;</dt>
+  <dd>cycle_layout</dd>
+  <dt><code class="Cm">M-S-\</code></dt>
+  <dd>flip_layout</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>layout_vertical</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>layout_horizontal</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>layout_max</dd>
+  <dt id="M-S-~3"><a class="permalink" href="#M-S-~3"><code class="Cm">M-S-</code></a>&#x27E8;<code class="Cm">Space</code>&#x27E9;</dt>
+  <dd>stack_reset</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>stack_balance</dd>
+  <dt id="M-h"><a class="permalink" href="#M-h"><code class="Cm">M-h</code></a></dt>
+  <dd>master_shrink</dd>
+  <dt id="M-l"><a class="permalink" href="#M-l"><code class="Cm">M-l</code></a></dt>
+  <dd>master_grow</dd>
+  <dt id="M-,"><a class="permalink" href="#M-,"><code class="Cm">M-,</code></a></dt>
+  <dd>master_add</dd>
+  <dt id="M-."><a class="permalink" href="#M-."><code class="Cm">M-.</code></a></dt>
+  <dd>master_del</dd>
+  <dt id="M-S-,"><a class="permalink" href="#M-S-,"><code class="Cm">M-S-,</code></a></dt>
+  <dd>stack_inc</dd>
+  <dt id="M-S-."><a class="permalink" href="#M-S-."><code class="Cm">M-S-.</code></a></dt>
+  <dd>stack_dec</dd>
+  <dt id="M-~4"><a class="permalink" href="#M-~4"><code class="Cm">M-</code></a>&#x27E8;<code class="Cm">Return</code>&#x27E9;</dt>
+  <dd>swap_main</dd>
+  <dt id="M-j"><a class="permalink" href="#M-j"><code class="Cm">M-j</code></a>,
+    <code class="Cm">M-</code>&#x27E8;<code class="Cm">TAB</code>&#x27E9;</dt>
+  <dd>focus_next</dd>
+  <dt id="M-k"><a class="permalink" href="#M-k"><code class="Cm">M-k</code></a>,
+    <code class="Cm">M-S-</code>&#x27E8;<code class="Cm">TAB</code>&#x27E9;</dt>
+  <dd>focus_prev</dd>
+  <dt id="M-m"><a class="permalink" href="#M-m"><code class="Cm">M-m</code></a></dt>
+  <dd>focus_main</dd>
+  <dt id="M-u"><a class="permalink" href="#M-u"><code class="Cm">M-u</code></a></dt>
+  <dd>focus_urgent</dd>
+  <dt id="M-S-j"><a class="permalink" href="#M-S-j"><code class="Cm">M-S-j</code></a></dt>
+  <dd>swap_next</dd>
+  <dt id="M-S-k"><a class="permalink" href="#M-S-k"><code class="Cm">M-S-k</code></a></dt>
+  <dd>swap_prev</dd>
+  <dt id="M-b"><a class="permalink" href="#M-b"><code class="Cm">M-b</code></a></dt>
+  <dd>bar_toggle</dd>
+  <dt id="M-S-b"><a class="permalink" href="#M-S-b"><code class="Cm">M-S-b</code></a></dt>
+  <dd>bar_toggle_ws</dd>
+  <dt id="M-x"><a class="permalink" href="#M-x"><code class="Cm">M-x</code></a></dt>
+  <dd>wind_del</dd>
+  <dt id="M-S-x"><a class="permalink" href="#M-S-x"><code class="Cm">M-S-x</code></a></dt>
+  <dd>wind_kill</dd>
+  <dt id="M-~5"><a class="permalink" href="#M-~5"><code class="Cm">M-</code></a>&#x27E8;<var class="Ar">1-9,0,F1-F12</var>&#x27E9;</dt>
+  <dd>ws_&#x27E8;<var class="Ar">1-22</var>&#x27E9;</dd>
+  <dt id="M-S-~4"><a class="permalink" href="#M-S-~4"><code class="Cm">M-S-</code></a>&#x27E8;<var class="Ar">1-9,0,F1-F12</var>&#x27E9;</dt>
+  <dd>mvws_&#x27E8;<var class="Ar">1-22</var>&#x27E9;</dd>
+  <dt id="M-~6"><a class="permalink" href="#M-~6"><code class="Cm">M-</code></a>&#x27E8;<var class="Ar">Keypad
+    1-9</var>&#x27E9;</dt>
+  <dd>rg_&#x27E8;<var class="Ar">1-9</var>&#x27E9;</dd>
+  <dt id="M-S-~5"><a class="permalink" href="#M-S-~5"><code class="Cm">M-S-</code></a>&#x27E8;<var class="Ar">Keypad
+    1-9</var>&#x27E9;</dt>
+  <dd>mvrg_&#x27E8;<var class="Ar">1-9</var>&#x27E9;</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>mvrg_next</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>mvrg_prev</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>ws_empty</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>ws_empty_move</dd>
+  <dt id="M-~7"><a class="permalink" href="#M-~7"><code class="Cm">M-</code></a>&#x27E8;<code class="Cm">Right</code>&#x27E9;</dt>
+  <dd>ws_next</dd>
+  <dt id="M-~8"><a class="permalink" href="#M-~8"><code class="Cm">M-</code></a>&#x27E8;<code class="Cm">Left</code>&#x27E9;</dt>
+  <dd>ws_prev</dd>
+  <dt id="M-~9"><a class="permalink" href="#M-~9"><code class="Cm">M-</code></a>&#x27E8;<code class="Cm">Up</code>&#x27E9;</dt>
+  <dd>ws_next_all</dd>
+  <dt id="M-~10"><a class="permalink" href="#M-~10"><code class="Cm">M-</code></a>&#x27E8;<code class="Cm">Down</code>&#x27E9;</dt>
+  <dd>ws_prev_all</dd>
+  <dt id="M-a"><a class="permalink" href="#M-a"><code class="Cm">M-a</code></a></dt>
+  <dd>ws_prior</dd>
+  <dt id="M-S-~6"><a class="permalink" href="#M-S-~6"><code class="Cm">M-S-</code></a>&#x27E8;<code class="Cm">Down</code>&#x27E9;</dt>
+  <dd>ws_prev_move</dd>
+  <dt id="M-S-~7"><a class="permalink" href="#M-S-~7"><code class="Cm">M-S-</code></a>&#x27E8;<code class="Cm">Up</code>&#x27E9;</dt>
+  <dd>ws_next_move</dd>
+  <dt id="M-S-~8"><a class="permalink" href="#M-S-~8"><code class="Cm">M-S-</code></a>&#x27E8;<code class="Cm">Right</code>&#x27E9;</dt>
+  <dd>rg_next</dd>
+  <dt id="M-S-~9"><a class="permalink" href="#M-S-~9"><code class="Cm">M-S-</code></a>&#x27E8;<code class="Cm">Left</code>&#x27E9;</dt>
+  <dd>rg_prev</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>rg_move_next</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>rg_move_prev</dd>
+  <dt id="M-s"><a class="permalink" href="#M-s"><code class="Cm">M-s</code></a></dt>
+  <dd>screenshot_all</dd>
+  <dt id="M-S-s"><a class="permalink" href="#M-S-s"><code class="Cm">M-S-s</code></a></dt>
+  <dd>screenshot_wind</dd>
+  <dt id="M-S-v"><a class="permalink" href="#M-S-v"><code class="Cm">M-S-v</code></a></dt>
+  <dd>version</dd>
+  <dt id="M-t"><a class="permalink" href="#M-t"><code class="Cm">M-t</code></a></dt>
+  <dd>float_toggle</dd>
+  <dt id="M-S-~10"><a class="permalink" href="#M-S-~10"><code class="Cm">M-S-</code></a>&#x27E8;<code class="Cm">Delete</code>&#x27E9;</dt>
+  <dd>lock</dd>
+  <dt id="M-S-i"><a class="permalink" href="#M-S-i"><code class="Cm">M-S-i</code></a></dt>
+  <dd>initscr</dd>
+  <dt id="M-w"><a class="permalink" href="#M-w"><code class="Cm">M-w</code></a></dt>
+  <dd>iconify</dd>
+  <dt id="M-S-w"><a class="permalink" href="#M-S-w"><code class="Cm">M-S-w</code></a></dt>
+  <dd>uniconify</dd>
+  <dt id="M-e"><a class="permalink" href="#M-e"><code class="Cm">M-e</code></a></dt>
+  <dd>maximize_toggle</dd>
+  <dt id="M-S-e"><a class="permalink" href="#M-S-e"><code class="Cm">M-S-e</code></a></dt>
+  <dd>fullscreen_toggle</dd>
+  <dt id="M-r"><a class="permalink" href="#M-r"><code class="Cm">M-r</code></a></dt>
+  <dd>raise</dd>
+  <dt id="M-S-r"><a class="permalink" href="#M-S-r"><code class="Cm">M-S-r</code></a></dt>
+  <dd>always_raise</dd>
+  <dt id="M-v"><a class="permalink" href="#M-v"><code class="Cm">M-v</code></a></dt>
+  <dd>button2</dd>
+  <dt id="M--"><a class="permalink" href="#M--"><code class="Cm">M--</code></a></dt>
+  <dd>width_shrink</dd>
+  <dt id="M-="><a class="permalink" href="#M-="><code class="Cm">M-=</code></a></dt>
+  <dd>width_grow</dd>
+  <dt id="M-S--"><a class="permalink" href="#M-S--"><code class="Cm">M-S--</code></a></dt>
+  <dd>height_shrink</dd>
+  <dt id="M-S-="><a class="permalink" href="#M-S-="><code class="Cm">M-S-=</code></a></dt>
+  <dd>height_grow</dd>
+  <dt id="M-_"><a class="permalink" href="#M-_"><code class="Cm">M-[</code></a></dt>
+  <dd>move_left</dd>
+  <dt id="M-_~2"><a class="permalink" href="#M-_~2"><code class="Cm">M-]</code></a></dt>
+  <dd>move_right</dd>
+  <dt id="M-S-_"><a class="permalink" href="#M-S-_"><code class="Cm">M-S-[</code></a></dt>
+  <dd>move_up</dd>
+  <dt id="M-S-_~2"><a class="permalink" href="#M-S-_~2"><code class="Cm">M-S-]</code></a></dt>
+  <dd>move_down</dd>
+  <dt id="M-S-/"><a class="permalink" href="#M-S-/"><code class="Cm">M-S-/</code></a></dt>
+  <dd>name_workspace</dd>
+  <dt id="M-/"><a class="permalink" href="#M-/"><code class="Cm">M-/</code></a></dt>
+  <dd>search_workspace</dd>
+  <dt id="M-f"><a class="permalink" href="#M-f"><code class="Cm">M-f</code></a></dt>
+  <dd>search_win</dd>
 </dl>
-<div class="spacer">
 </div>
-The action names and descriptions are listed below:<div class="spacer">
-</div>
-<dl style="margin-top: 0.00em;margin-bottom: 0.00em;margin-left: 6.00ex;" class="list list-tag">
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">focus</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Focus window/region under pointer.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">move</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Move window with pointer while binding is pressed.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">resize</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Resize window with pointer while binding is pressed.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">resize_centered</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Same as <b class="cmd">resize</b> but keep window centered.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">term</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Spawn a new terminal (see <i class="link-sec"><a class="link-sec" href="#PROGRAMS">PROGRAMS</a></i> above).</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">menu</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Menu (see <i class="link-sec"><a class="link-sec" href="#PROGRAMS">PROGRAMS</a></i> above).</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">quit</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Quit <b class="name">spectrwm</b>.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">restart</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Restart <b class="name">spectrwm</b>.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">cycle_layout</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Cycle layout.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">flip_layout</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Swap the master and stacking areas.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">stack_reset</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Reset layout.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">stack_balance</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Balance master/stacking area.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">master_shrink</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Shrink master area.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">master_grow</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Grow master area.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">master_add</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Add windows to master area.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">master_del</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Remove windows from master area.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">stack_inc</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Add columns/rows to stacking area.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">stack_dec</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Remove columns/rows from stacking area.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">swap_main</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Move current window to master area.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">focus_next</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Focus next window in workspace.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">focus_prev</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Focus previous window in workspace.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">focus_main</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Focus on main window in workspace.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">focus_urgent</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Focus on next window with the urgency hint flag set. The workspace is switched if needed.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">swap_next</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Swap with next window in workspace.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">swap_prev</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Swap with previous window in workspace.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">bar_toggle</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Toggle overall visibility of status bars.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">bar_toggle_ws</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Toggle status bar on current workspace.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">wind_del</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Delete current window in workspace.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">wind_kill</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Destroy current window in workspace.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">ws_</b><i class="arg">n</i></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Switch to workspace <i class="arg">n</i>, where <i class="arg">n</i> is 1 through <b class="cmd">workspace_limit</b>.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">mvws_</b><i class="arg">n</i></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Move current window to workspace <i class="arg">n</i>, where <i class="arg">n</i> is 1 through <b class="cmd">workspace_limit</b>.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">rg_</b><i class="arg">n</i></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Focus on region <i class="arg">n</i>, where <i class="arg">n</i> is 1 through 9.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">mvrg_</b><i class="arg">n</i></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Move current window to region <i class="arg">n</i>, where <i class="arg">n</i> is 1 through 9.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">mvrg_next</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Move current window to workspace in next region.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">mvrg_prev</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Move current window to workspace in previous region.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">ws_next</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Switch to next workspace with a window in it.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">ws_prev</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Switch to previous workspace with a window in it.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">ws_next_all</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Switch to next workspace.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">ws_prev_all</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Switch to previous workspace.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">ws_next_move</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Switch to next workspace with the current window.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">ws_prev_move</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Switch to previous workspace with the current window.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">ws_prior</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Switch to last visited workspace.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">rg_next</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Switch to next region.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">rg_prev</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Switch to previous region.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">rg_move_next</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Switch region to next screen.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">rg_move_prev</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Switch region to previous screen.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">screenshot_all</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Take screenshot of entire screen (if enabled) (see <i class="link-sec"><a class="link-sec" href="#PROGRAMS">PROGRAMS</a></i> above).</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">screenshot_wind</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Take screenshot of selected window (if enabled) (see <i class="link-sec"><a class="link-sec" href="#PROGRAMS">PROGRAMS</a></i> above).</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">version</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Toggle version in status bar.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">float_toggle</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Toggle focused window between tiled and floating.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">lock</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Lock screen (see <i class="link-sec"><a class="link-sec" href="#PROGRAMS">PROGRAMS</a></i> above).</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">initscr</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Reinitialize physical screens (see <i class="link-sec"><a class="link-sec" href="#PROGRAMS">PROGRAMS</a></i> above).</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">iconify</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Minimize (unmap) currently focused window.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">uniconify</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Restore (map) window returned by <a class="link-man">dmenu(1)</a> selection.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">maximize_toggle</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Toggle maximization of focused window.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">fullscreen_toggle</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Toggle fullscreen state of focused window.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">raise</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Raise the current window.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">always_raise</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-When set tiled windows are allowed to obscure floating windows.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">button2</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Fake a middle mouse button click (Button2).</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">width_shrink</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Shrink the width of a floating window.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">width_grow</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Grow the width of a floating window.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">height_shrink</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Shrink the height of a floating window.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">height_grow</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Grow the height of a floating window.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">move_left</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Move a floating window a step to the left.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">move_right</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Move a floating window a step to the right.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">move_up</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Move a floating window a step upwards.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">move_down</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Move a floating window a step downwards.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">name_workspace</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Name the current workspace.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">search_workspace</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Search for a workspace.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">search_win</b></dt>
-<dd class="list-tag" style="margin-left: 16.00ex;">
-Search the windows in the current workspace.</dd>
+<p class="Pp">The action names and descriptions are listed below:</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<dl class="Bl-tag Bl-compact">
+  <dt id="focus"><a class="permalink" href="#focus"><code class="Cm">focus</code></a></dt>
+  <dd>Focus window/region under pointer.</dd>
+  <dt id="move"><a class="permalink" href="#move"><code class="Cm">move</code></a></dt>
+  <dd>Move window with pointer while binding is pressed.</dd>
+  <dt id="resize"><a class="permalink" href="#resize"><code class="Cm">resize</code></a></dt>
+  <dd>Resize window with pointer while binding is pressed.</dd>
+  <dt id="resize_centered"><a class="permalink" href="#resize_centered"><code class="Cm">resize_centered</code></a></dt>
+  <dd>Same as <code class="Ic">resize</code> but keep window centered.</dd>
+  <dt id="term~2"><a class="permalink" href="#term~2"><code class="Cm">term</code></a></dt>
+  <dd>Spawn a new terminal (see <a class="Sx" href="#PROGRAMS">PROGRAMS</a>
+      above).</dd>
+  <dt id="menu~2"><a class="permalink" href="#menu~2"><code class="Cm">menu</code></a></dt>
+  <dd>Menu (see <a class="Sx" href="#PROGRAMS">PROGRAMS</a> above).</dd>
+  <dt id="quit"><a class="permalink" href="#quit"><code class="Cm">quit</code></a></dt>
+  <dd>Quit <code class="Nm">spectrwm</code>.</dd>
+  <dt id="restart"><a class="permalink" href="#restart"><code class="Cm">restart</code></a></dt>
+  <dd>Restart <code class="Nm">spectrwm</code>.</dd>
+  <dt id="restart_of_day"><a class="permalink" href="#restart_of_day"><code class="Cm">restart_of_day</code></a></dt>
+  <dd>Same as <code class="Ic">restart</code> but configuration file is loaded
+      in full.</dd>
+  <dt id="cycle_layout"><a class="permalink" href="#cycle_layout"><code class="Cm">cycle_layout</code></a></dt>
+  <dd>Cycle layout.</dd>
+  <dt id="flip_layout"><a class="permalink" href="#flip_layout"><code class="Cm">flip_layout</code></a></dt>
+  <dd>Swap the master and stacking areas.</dd>
+  <dt id="layout_vertical"><a class="permalink" href="#layout_vertical"><code class="Cm">layout_vertical</code></a></dt>
+  <dd>Switch to vertical layout.</dd>
+  <dt id="layout_horizontal"><a class="permalink" href="#layout_horizontal"><code class="Cm">layout_horizontal</code></a></dt>
+  <dd>Switch to horizontal layout.</dd>
+  <dt id="layout_max"><a class="permalink" href="#layout_max"><code class="Cm">layout_max</code></a></dt>
+  <dd>Switch to max layout.</dd>
+  <dt id="stack_reset"><a class="permalink" href="#stack_reset"><code class="Cm">stack_reset</code></a></dt>
+  <dd>Reset layout.</dd>
+  <dt id="stack_balance"><a class="permalink" href="#stack_balance"><code class="Cm">stack_balance</code></a></dt>
+  <dd>Balance master/stacking area.</dd>
+  <dt id="master_shrink"><a class="permalink" href="#master_shrink"><code class="Cm">master_shrink</code></a></dt>
+  <dd>Shrink master area.</dd>
+  <dt id="master_grow"><a class="permalink" href="#master_grow"><code class="Cm">master_grow</code></a></dt>
+  <dd>Grow master area.</dd>
+  <dt id="master_add"><a class="permalink" href="#master_add"><code class="Cm">master_add</code></a></dt>
+  <dd>Add windows to master area.</dd>
+  <dt id="master_del"><a class="permalink" href="#master_del"><code class="Cm">master_del</code></a></dt>
+  <dd>Remove windows from master area.</dd>
+  <dt id="stack_inc"><a class="permalink" href="#stack_inc"><code class="Cm">stack_inc</code></a></dt>
+  <dd>Add columns/rows to stacking area.</dd>
+  <dt id="stack_dec"><a class="permalink" href="#stack_dec"><code class="Cm">stack_dec</code></a></dt>
+  <dd>Remove columns/rows from stacking area.</dd>
+  <dt id="swap_main"><a class="permalink" href="#swap_main"><code class="Cm">swap_main</code></a></dt>
+  <dd>Move current window to master area.</dd>
+  <dt id="focus_next"><a class="permalink" href="#focus_next"><code class="Cm">focus_next</code></a></dt>
+  <dd>Focus next window in workspace.</dd>
+  <dt id="focus_prev"><a class="permalink" href="#focus_prev"><code class="Cm">focus_prev</code></a></dt>
+  <dd>Focus previous window in workspace.</dd>
+  <dt id="focus_main"><a class="permalink" href="#focus_main"><code class="Cm">focus_main</code></a></dt>
+  <dd>Focus on main window in workspace.</dd>
+  <dt id="focus_urgent"><a class="permalink" href="#focus_urgent"><code class="Cm">focus_urgent</code></a></dt>
+  <dd>Focus on next window with the urgency hint flag set. The workspace is
+      switched if needed.</dd>
+  <dt id="swap_next"><a class="permalink" href="#swap_next"><code class="Cm">swap_next</code></a></dt>
+  <dd>Swap with next window in workspace.</dd>
+  <dt id="swap_prev"><a class="permalink" href="#swap_prev"><code class="Cm">swap_prev</code></a></dt>
+  <dd>Swap with previous window in workspace.</dd>
+  <dt id="bar_toggle"><a class="permalink" href="#bar_toggle"><code class="Cm">bar_toggle</code></a></dt>
+  <dd>Toggle overall visibility of status bars.</dd>
+  <dt id="bar_toggle_ws"><a class="permalink" href="#bar_toggle_ws"><code class="Cm">bar_toggle_ws</code></a></dt>
+  <dd>Toggle status bar on current workspace.</dd>
+  <dt id="wind_del"><a class="permalink" href="#wind_del"><code class="Cm">wind_del</code></a></dt>
+  <dd>Delete current window.</dd>
+  <dt id="wind_kill"><a class="permalink" href="#wind_kill"><code class="Cm">wind_kill</code></a></dt>
+  <dd>Kill the program that created the current window.</dd>
+  <dt id="ws_"><a class="permalink" href="#ws_"><code class="Cm">ws_</code></a><var class="Ar">n</var></dt>
+  <dd>Switch to workspace <var class="Ar">n</var>, where <var class="Ar">n</var>
+      is 1 through <code class="Ic">workspace_limit</code>.</dd>
+  <dt id="mvws_"><a class="permalink" href="#mvws_"><code class="Cm">mvws_</code></a><var class="Ar">n</var></dt>
+  <dd>Move current window to workspace <var class="Ar">n</var>, where
+      <var class="Ar">n</var> is 1 through
+      <code class="Ic">workspace_limit</code>.</dd>
+  <dt id="rg_"><a class="permalink" href="#rg_"><code class="Cm">rg_</code></a><var class="Ar">n</var></dt>
+  <dd>Focus on region <var class="Ar">n</var>, where <var class="Ar">n</var> is
+      1 through 9.</dd>
+  <dt id="mvrg_"><a class="permalink" href="#mvrg_"><code class="Cm">mvrg_</code></a><var class="Ar">n</var></dt>
+  <dd>Move current window to region <var class="Ar">n</var>, where
+      <var class="Ar">n</var> is 1 through 9.</dd>
+  <dt id="mvrg_next"><a class="permalink" href="#mvrg_next"><code class="Cm">mvrg_next</code></a></dt>
+  <dd>Move current window to workspace in next region.</dd>
+  <dt id="mvrg_prev"><a class="permalink" href="#mvrg_prev"><code class="Cm">mvrg_prev</code></a></dt>
+  <dd>Move current window to workspace in previous region.</dd>
+  <dt id="ws_empty"><a class="permalink" href="#ws_empty"><code class="Cm">ws_empty</code></a></dt>
+  <dd>Switch to the first empty workspace.</dd>
+  <dt id="ws_empty_move"><a class="permalink" href="#ws_empty_move"><code class="Cm">ws_empty_move</code></a></dt>
+  <dd>Switch to the first empty workspace and move current window.</dd>
+  <dt id="ws_next"><a class="permalink" href="#ws_next"><code class="Cm">ws_next</code></a></dt>
+  <dd>Switch to next workspace with a window in it.</dd>
+  <dt id="ws_prev"><a class="permalink" href="#ws_prev"><code class="Cm">ws_prev</code></a></dt>
+  <dd>Switch to previous workspace with a window in it.</dd>
+  <dt id="ws_next_all"><a class="permalink" href="#ws_next_all"><code class="Cm">ws_next_all</code></a></dt>
+  <dd>Switch to next workspace.</dd>
+  <dt id="ws_prev_all"><a class="permalink" href="#ws_prev_all"><code class="Cm">ws_prev_all</code></a></dt>
+  <dd>Switch to previous workspace.</dd>
+  <dt id="ws_next_move"><a class="permalink" href="#ws_next_move"><code class="Cm">ws_next_move</code></a></dt>
+  <dd>Switch to next workspace with the current window.</dd>
+  <dt id="ws_prev_move"><a class="permalink" href="#ws_prev_move"><code class="Cm">ws_prev_move</code></a></dt>
+  <dd>Switch to previous workspace with the current window.</dd>
+  <dt id="ws_prior"><a class="permalink" href="#ws_prior"><code class="Cm">ws_prior</code></a></dt>
+  <dd>Switch to last visited workspace.</dd>
+  <dt id="rg_next"><a class="permalink" href="#rg_next"><code class="Cm">rg_next</code></a></dt>
+  <dd>Switch to next region.</dd>
+  <dt id="rg_prev"><a class="permalink" href="#rg_prev"><code class="Cm">rg_prev</code></a></dt>
+  <dd>Switch to previous region.</dd>
+  <dt id="rg_move_next"><a class="permalink" href="#rg_move_next"><code class="Cm">rg_move_next</code></a></dt>
+  <dd>Switch region to next screen.</dd>
+  <dt id="rg_move_prev"><a class="permalink" href="#rg_move_prev"><code class="Cm">rg_move_prev</code></a></dt>
+  <dd>Switch region to previous screen.</dd>
+  <dt id="screenshot_all~2"><a class="permalink" href="#screenshot_all~2"><code class="Cm">screenshot_all</code></a></dt>
+  <dd>Take screenshot of entire screen (if enabled) (see
+      <a class="Sx" href="#PROGRAMS">PROGRAMS</a> above).</dd>
+  <dt id="screenshot_wind~2"><a class="permalink" href="#screenshot_wind~2"><code class="Cm">screenshot_wind</code></a></dt>
+  <dd>Take screenshot of selected window (if enabled) (see
+      <a class="Sx" href="#PROGRAMS">PROGRAMS</a> above).</dd>
+  <dt id="version"><a class="permalink" href="#version"><code class="Cm">version</code></a></dt>
+  <dd>Toggle version in status bar.</dd>
+  <dt id="float_toggle"><a class="permalink" href="#float_toggle"><code class="Cm">float_toggle</code></a></dt>
+  <dd>Toggle focused window between tiled and floating.</dd>
+  <dt id="lock~2"><a class="permalink" href="#lock~2"><code class="Cm">lock</code></a></dt>
+  <dd>Lock screen (see <a class="Sx" href="#PROGRAMS">PROGRAMS</a> above).</dd>
+  <dt id="initscr~2"><a class="permalink" href="#initscr~2"><code class="Cm">initscr</code></a></dt>
+  <dd>Reinitialize physical screens (see
+      <a class="Sx" href="#PROGRAMS">PROGRAMS</a> above).</dd>
+  <dt id="iconify"><a class="permalink" href="#iconify"><code class="Cm">iconify</code></a></dt>
+  <dd>Minimize (unmap) currently focused window.</dd>
+  <dt id="uniconify"><a class="permalink" href="#uniconify"><code class="Cm">uniconify</code></a></dt>
+  <dd>Restore (map) window returned by <a class="Xr">dmenu(1)</a>
+    selection.</dd>
+  <dt id="maximize_toggle"><a class="permalink" href="#maximize_toggle"><code class="Cm">maximize_toggle</code></a></dt>
+  <dd>Toggle maximization of focused window.</dd>
+  <dt id="fullscreen_toggle"><a class="permalink" href="#fullscreen_toggle"><code class="Cm">fullscreen_toggle</code></a></dt>
+  <dd>Toggle fullscreen state of focused window.</dd>
+  <dt id="raise"><a class="permalink" href="#raise"><code class="Cm">raise</code></a></dt>
+  <dd>Raise the current window.</dd>
+  <dt id="always_raise"><a class="permalink" href="#always_raise"><code class="Cm">always_raise</code></a></dt>
+  <dd>When set tiled windows are allowed to obscure floating windows.</dd>
+  <dt id="button2"><a class="permalink" href="#button2"><code class="Cm">button2</code></a></dt>
+  <dd>Fake a middle mouse button click (Button2).</dd>
+  <dt id="width_shrink"><a class="permalink" href="#width_shrink"><code class="Cm">width_shrink</code></a></dt>
+  <dd>Shrink the width of a floating window.</dd>
+  <dt id="width_grow"><a class="permalink" href="#width_grow"><code class="Cm">width_grow</code></a></dt>
+  <dd>Grow the width of a floating window.</dd>
+  <dt id="height_shrink"><a class="permalink" href="#height_shrink"><code class="Cm">height_shrink</code></a></dt>
+  <dd>Shrink the height of a floating window.</dd>
+  <dt id="height_grow"><a class="permalink" href="#height_grow"><code class="Cm">height_grow</code></a></dt>
+  <dd>Grow the height of a floating window.</dd>
+  <dt id="move_left"><a class="permalink" href="#move_left"><code class="Cm">move_left</code></a></dt>
+  <dd>Move a floating window a step to the left.</dd>
+  <dt id="move_right"><a class="permalink" href="#move_right"><code class="Cm">move_right</code></a></dt>
+  <dd>Move a floating window a step to the right.</dd>
+  <dt id="move_up"><a class="permalink" href="#move_up"><code class="Cm">move_up</code></a></dt>
+  <dd>Move a floating window a step upwards.</dd>
+  <dt id="move_down"><a class="permalink" href="#move_down"><code class="Cm">move_down</code></a></dt>
+  <dd>Move a floating window a step downwards.</dd>
+  <dt id="name_workspace~2"><a class="permalink" href="#name_workspace~2"><code class="Cm">name_workspace</code></a></dt>
+  <dd>Name the current workspace.</dd>
+  <dt id="search_workspace"><a class="permalink" href="#search_workspace"><code class="Cm">search_workspace</code></a></dt>
+  <dd>Search for a workspace.</dd>
+  <dt id="search_win"><a class="permalink" href="#search_win"><code class="Cm">search_win</code></a></dt>
+  <dd>Search the windows in the current workspace.</dd>
 </dl>
-<div class="spacer">
 </div>
-Custom bindings in the configuration file are specified as follows:<div class="spacer">
-</div>
-<blockquote style="margin-top: 0.00em;margin-bottom: 0.00em;">
-<div class="display">
-<code class="lit">bind[<i class="arg">action</i>] = <i class="arg">combo</i></code></div>
-</blockquote>
-<div class="spacer">
-</div>
-<i class="arg">action</i> is one of the actions listed above (or empty to unbind) and <i class="arg">combo</i> is in the form of zero or more modifier keys and/or special arguments (Mod1, Shift, MOD, etc.) and a normal key (b, Space, etc.) or a button (Button1 .. Button255), separated by &#8216;<code class="lit">+</code>&#8217;. Multiple key/button combinations may be bound to the same action.<div class="spacer">
-</div>
-Special arguments:<dl style="margin-top: 0.00em;margin-bottom: 0.00em;margin-left: 6.00ex;" class="list list-tag">
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">MOD</b></dt>
-<dd class="list-tag" style="margin-left: 10.00ex;">
-Substituted for the currently defined <b class="cmd">modkey</b>.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">ANYMOD</b></dt>
-<dd class="list-tag" style="margin-left: 10.00ex;">
-Select all modifier combinations not handled by another binding.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">REPLAY</b></dt>
-<dd class="list-tag" style="margin-left: 10.00ex;">
-Reprocess binding press/release events for other programs to handle.  Unavailable for <b class="cmd">move</b>, <b class="cmd">resize</b> and <b class="cmd">resize_centered</b>.</dd>
+<p class="Pp">Custom bindings in the configuration file are specified as
+    follows:</p>
+<p class="Pp"></p>
+<div class="Bd Bd-indent"><code class="Li">bind[<var class="Ar">action</var>] =
+  <var class="Ar">combo</var></code></div>
+<p class="Pp"><var class="Ar">action</var> is one of the actions listed above
+    (or empty to unbind) and <var class="Ar">combo</var> is in the form of zero
+    or more modifier keys and/or special arguments (Mod1, Shift, Control, MOD,
+    etc.) and a normal key (b, Space, etc) or a button (Button1 .. Button255),
+    separated by &#x2018;<code class="Li">+</code>&#x2019;. Multiple key/button
+    combinations may be bound to the same action.</p>
+<p class="Pp">Special arguments:</p>
+<div class="Bd-indent">
+<dl class="Bl-tag Bl-compact">
+  <dt id="MOD"><a class="permalink" href="#MOD"><code class="Cm">MOD</code></a></dt>
+  <dd>Substituted for the currently defined <code class="Ic">modkey</code>.</dd>
+  <dt id="ANYMOD"><a class="permalink" href="#ANYMOD"><code class="Cm">ANYMOD</code></a></dt>
+  <dd>Select all modifier combinations not handled by another binding.</dd>
+  <dt id="REPLAY"><a class="permalink" href="#REPLAY"><code class="Cm">REPLAY</code></a></dt>
+  <dd>Reprocess binding press/release events for other programs to handle.
+      Unavailable for <code class="Ic">move</code>,
+      <code class="Ic">resize</code> and
+      <code class="Ic">resize_centered</code>.</dd>
 </dl>
-<div class="spacer">
 </div>
-<b class="flag">MOD</b> example:<div class="spacer">
-</div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-bind[reset] = Mod4+q # bind Windows-key + q to reset 
-bind[] = Mod1+q # unbind Alt + q 
-bind[move] = MOD+Button3 # Bind move to M-Button3 
+<p class="Pp"><code class="Cm">MOD</code> example:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>bind[reset] = Mod4+q # bind Windows-key + q to reset
+bind[] = Mod1+q # unbind Alt + q
+bind[move] = MOD+Button3 # Bind move to M-Button3
 bind[] = MOD+Button1 # Unbind default move binding.</pre>
-<div class="spacer">
 </div>
-<b class="flag">ANYMOD</b> example:<div class="spacer">
-</div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-bind[focus] = ANYMOD+Button3 
+<p class="Pp"><code class="Cm">ANYMOD</code> example:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>bind[focus] = ANYMOD+Button3
 bind[move] = MOD+Button3</pre>
-<div class="spacer">
 </div>
-In the above example, <b class="flag">M-</b>&#10216;<b class="flag">Button3</b>&#10217; initiates <b class="cmd">move</b> and &#10216;<b class="flag">Button3</b>&#10217; pressed with any other combination of modifiers sets focus to the window/region under the pointer.<div class="spacer">
+<p class="Pp">In the above example,
+    <code class="Cm">M-</code>&#x27E8;<code class="Cm">Button3</code>&#x27E9;
+    initiates <code class="Ic">move</code> and
+    &#x27E8;<code class="Cm">Button3</code>&#x27E9; pressed with any other
+    combination of modifiers sets focus to the window/region under the
+  pointer.</p>
+<p class="Pp"><code class="Cm">REPLAY</code> example:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>bind[focus] = REPLAY+Button3</pre>
 </div>
-<b class="flag">REPLAY</b> example:<div class="spacer">
-</div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-bind[focus] = REPLAY+Button3</pre>
-<div class="spacer">
-</div>
-In the above example, when &#10216;<b class="flag">Button3</b>&#10217; is pressed without any modifier(s), focus is set to the window under the pointer and the button press is passed to the window.<div class="spacer">
-</div>
-To bind non-latin characters such as &#229; or &#960; you must enter the xkb character name instead of the character itself. Run <a class="link-man">xev(1)</a>, focus the window and press the specific key and in the terminal output read the symbol name. In the following example for &#229;:<div class="spacer">
-</div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-KeyPress event, serial 41, synthetic NO, window 0x2600001, 
-    root 0x15a, subw 0x0, time 106213808, (11,5), root:(359,823), 
-    state 0x0, keycode 24 (keysym 0xe5, aring), same_screen YES, 
-    XLookupString gives 2 bytes: (c3 a5) &quot;&#229;&quot; 
-    XmbLookupString gives 2 bytes: (c3 a5) &quot;&#229;&quot; 
+<p class="Pp">In the above example, when
+    &#x27E8;<code class="Cm">Button3</code>&#x27E9; is pressed without any
+    modifier(s), focus is set to the window under the pointer and the button
+    press is passed to the window.</p>
+<p class="Pp">To bind non-latin characters such as &#x00E5; or &#x03C0; you must
+    enter the xkb character name instead of the character itself. Run
+    <a class="Xr">xev(1)</a>, focus the window and press the specific key and in
+    the terminal output read the symbol name. In the following example for
+    &#x00E5;:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>KeyPress event, serial 41, synthetic NO, window 0x2600001,
+    root 0x15a, subw 0x0, time 106213808, (11,5), root:(359,823),
+    state 0x0, keycode 24 (keysym 0xe5, aring), same_screen YES,
+    XLookupString gives 2 bytes: (c3 a5) &quot;&#x00E5;&quot;
+    XmbLookupString gives 2 bytes: (c3 a5) &quot;&#x00E5;&quot;
     XFilterEvent returns: False</pre>
-<div class="spacer">
 </div>
-The xkb name is aring. In other words, in <i class="file">spectrwm.conf</i> add:<div class="spacer">
+<p class="Pp">The xkb name is aring. In other words, in
+    <span class="Pa">spectrwm.conf</span> add:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>bind[program] = MOD+aring</pre>
 </div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-bind[program] = MOD+aring</pre>
-</div>
-<div class="section">
-<h1 id="KEYBOARD_MAPPING_FILES">KEYBOARD MAPPING FILES</h1> Keyboard mapping files for several keyboard layouts are listed below. These files can be used with the <b class="cmd">keyboard_mapping</b> setting to load pre-defined key bindings for the specified keyboard layout.<div class="spacer">
-</div>
-<dl style="margin-top: 0.00em;margin-bottom: 0.00em;margin-left: 6.00ex;" class="list list-tag">
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">spectrwm_cz.conf</b></dt>
-<dd class="list-tag" style="margin-left: 19.00ex;">
-Czech Republic keyboard layout</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">spectrwm_es.conf</b></dt>
-<dd class="list-tag" style="margin-left: 19.00ex;">
-Spanish keyboard layout</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">spectrwm_fr.conf</b></dt>
-<dd class="list-tag" style="margin-left: 19.00ex;">
-French keyboard layout</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">spectrwm_fr_ch.conf</b></dt>
-<dd class="list-tag" style="margin-left: 19.00ex;">
-Swiss French keyboard layout</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">spectrwm_se.conf</b></dt>
-<dd class="list-tag" style="margin-left: 19.00ex;">
-Swedish keyboard layout</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">spectrwm_us.conf</b></dt>
-<dd class="list-tag" style="margin-left: 19.00ex;">
-United States keyboard layout</dd>
+<p class="Pp">To clear all default keyboard bindings and specify your own, see
+    the <code class="Ic">keyboard_mapping</code> option.</p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="KEYBOARD_MAPPING_FILES"><a class="permalink" href="#KEYBOARD_MAPPING_FILES">KEYBOARD
+  MAPPING FILES</a></h1>
+<p class="Pp">Keyboard mapping files for several keyboard layouts are listed
+    below. These files can be used with the
+    <code class="Ic">keyboard_mapping</code> setting to load pre-defined key
+    bindings for the specified keyboard layout.</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<dl class="Bl-tag Bl-compact">
+  <dt id="spectrwm_cz.conf"><a class="permalink" href="#spectrwm_cz.conf"><code class="Cm">spectrwm_cz.conf</code></a></dt>
+  <dd>Czech Republic keyboard layout</dd>
+  <dt id="spectrwm_es.conf"><a class="permalink" href="#spectrwm_es.conf"><code class="Cm">spectrwm_es.conf</code></a></dt>
+  <dd>Spanish keyboard layout</dd>
+  <dt id="spectrwm_fr.conf"><a class="permalink" href="#spectrwm_fr.conf"><code class="Cm">spectrwm_fr.conf</code></a></dt>
+  <dd>French keyboard layout</dd>
+  <dt id="spectrwm_fr_ch.conf"><a class="permalink" href="#spectrwm_fr_ch.conf"><code class="Cm">spectrwm_fr_ch.conf</code></a></dt>
+  <dd>Swiss French keyboard layout</dd>
+  <dt id="spectrwm_se.conf"><a class="permalink" href="#spectrwm_se.conf"><code class="Cm">spectrwm_se.conf</code></a></dt>
+  <dd>Swedish keyboard layout</dd>
+  <dt id="spectrwm_us.conf"><a class="permalink" href="#spectrwm_us.conf"><code class="Cm">spectrwm_us.conf</code></a></dt>
+  <dd>United States keyboard layout</dd>
 </dl>
 </div>
-<div class="section">
-<h1 id="QUIRKS">QUIRKS</h1> <b class="name">spectrwm</b> provides &quot;quirks&quot; which handle windows that must be treated specially in a tiling window manager, such as some dialogs and fullscreen apps.<div class="spacer">
-</div>
-The default quirks are described below:<div class="spacer">
-</div>
-<dl style="margin-top: 0.00em;margin-bottom: 0.00em;margin-left: 6.00ex;" class="list list-tag">
-<dt class="list-tag" style="margin-top: 0.00em;">
-Firefox-bin:firefox-bin</dt>
-<dd class="list-tag" style="margin-left: 38.00ex;">
-TRANSSZ</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-Firefox:Dialog</dt>
-<dd class="list-tag" style="margin-left: 38.00ex;">
-FLOAT</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-Gimp:gimp</dt>
-<dd class="list-tag" style="margin-left: 38.00ex;">
-FLOAT + ANYWHERE</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-MPlayer:xv</dt>
-<dd class="list-tag" style="margin-left: 38.00ex;">
-FLOAT + FULLSCREEN + FOCUSPREV</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-OpenOffice.org 2.4:VCLSalFrame</dt>
-<dd class="list-tag" style="margin-left: 38.00ex;">
-FLOAT</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-OpenOffice.org 3.1:VCLSalFrame</dt>
-<dd class="list-tag" style="margin-left: 38.00ex;">
-FLOAT</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-pcb:pcb</dt>
-<dd class="list-tag" style="margin-left: 38.00ex;">
-FLOAT</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-xine:Xine Window</dt>
-<dd class="list-tag" style="margin-left: 38.00ex;">
-FLOAT + ANYWHERE</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-xine:xine Panel</dt>
-<dd class="list-tag" style="margin-left: 38.00ex;">
-FLOAT + ANYWHERE</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-xine:xine Video Fullscreen Window</dt>
-<dd class="list-tag" style="margin-left: 38.00ex;">
-FULLSCREEN + FLOAT</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-Xitk:Xitk Combo</dt>
-<dd class="list-tag" style="margin-left: 38.00ex;">
-FLOAT + ANYWHERE</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-Xitk:Xine Window</dt>
-<dd class="list-tag" style="margin-left: 38.00ex;">
-FLOAT + ANYWHERE</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-XTerm:xterm</dt>
-<dd class="list-tag" style="margin-left: 38.00ex;">
-XTERM_FONTADJ</dd>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="QUIRKS"><a class="permalink" href="#QUIRKS">QUIRKS</a></h1>
+<p class="Pp"><code class="Nm">spectrwm</code> provides &quot;quirks&quot; which
+    handle windows that must be treated specially in a tiling window manager,
+    such as some dialogs and fullscreen apps.</p>
+<p class="Pp">The default quirks are described below:</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<dl class="Bl-tag Bl-compact">
+  <dt>Firefox-bin:firefox-bin</dt>
+  <dd>TRANSSZ</dd>
+  <dt>Firefox:Dialog</dt>
+  <dd>FLOAT</dd>
+  <dt>Gimp:gimp</dt>
+  <dd>FLOAT + ANYWHERE</dd>
+  <dt>MPlayer:xv</dt>
+  <dd>FLOAT + FULLSCREEN + FOCUSPREV</dd>
+  <dt>OpenOffice.org 2.4:VCLSalFrame</dt>
+  <dd>FLOAT</dd>
+  <dt>OpenOffice.org 3.1:VCLSalFrame</dt>
+  <dd>FLOAT</dd>
+  <dt>pcb:pcb</dt>
+  <dd>FLOAT</dd>
+  <dt>xine:Xine Window</dt>
+  <dd>FLOAT + ANYWHERE</dd>
+  <dt>xine:xine Panel</dt>
+  <dd>FLOAT + ANYWHERE</dd>
+  <dt>xine:xine Video Fullscreen Window</dt>
+  <dd>FULLSCREEN + FLOAT</dd>
+  <dt>Xitk:Xitk Combo</dt>
+  <dd>FLOAT + ANYWHERE</dd>
+  <dt>Xitk:Xine Window</dt>
+  <dd>FLOAT + ANYWHERE</dd>
+  <dt>XTerm:xterm</dt>
+  <dd>XTERM_FONTADJ</dd>
 </dl>
-<div class="spacer">
 </div>
-The quirks themselves are described below:<div class="spacer">
-</div>
-<dl style="margin-top: 0.00em;margin-bottom: 0.00em;margin-left: 6.00ex;" class="list list-tag">
-<dt class="list-tag" style="margin-top: 0.00em;">
-ANYWHERE</dt>
-<dd class="list-tag" style="margin-left: 21.00ex;">
-Allow window to position itself, uncentered.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-FLOAT</dt>
-<dd class="list-tag" style="margin-left: 21.00ex;">
-This window should not be tiled, but allowed to float freely.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-FOCUSONMAP_SINGLE</dt>
-<dd class="list-tag" style="margin-left: 21.00ex;">
-When the window first appears on the screen, change focus to the window if there are no other windows on the workspace with the same WM_CLASS class/instance value. Has no effect when <b class="cmd">focus_mode</b> is set to <i class="arg">follow</i>.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-FOCUSPREV</dt>
-<dd class="list-tag" style="margin-left: 21.00ex;">
-On exit force focus on previously focused application not previous application in the stack.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-FULLSCREEN</dt>
-<dd class="list-tag" style="margin-left: 21.00ex;">
-Remove border to allow window to use full region size.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-IGNOREPID</dt>
-<dd class="list-tag" style="margin-left: 21.00ex;">
-Ignore the PID when determining the initial workspace for a new window. Especially useful for terminal windows that share a process.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-IGNORESPAWNWS</dt>
-<dd class="list-tag" style="margin-left: 21.00ex;">
-Ignore the spawn workspace when determining the initial workspace for a new window.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-MINIMALBORDER</dt>
-<dd class="list-tag" style="margin-left: 21.00ex;">
-Remove border when window is unfocused and floating.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-NOFOCUSCYCLE</dt>
-<dd class="list-tag" style="margin-left: 21.00ex;">
-Remove from normal focus cycle (focus_prev or focus_next). The window can still be focused using search_win.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-NOFOCUSONMAP</dt>
-<dd class="list-tag" style="margin-left: 21.00ex;">
-Don't change focus to the window when it first appears on the screen. Has no effect when <b class="cmd">focus_mode</b> is set to <i class="arg">follow</i>.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-OBEYAPPFOCUSREQ</dt>
-<dd class="list-tag" style="margin-left: 21.00ex;">
-When an application requests focus on the window via a _NET_ACTIVE_WINDOW client message (source indication of 1), comply with the request. Note that a source indication of 0 (unspecified) or 2 (pager) are always obeyed.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-TRANSSZ</dt>
-<dd class="list-tag" style="margin-left: 21.00ex;">
-Adjusts size on transient windows that are too small using <b class="cmd">dialog_ratio</b> (see <i class="link-sec"><a class="link-sec" href="#CONFIGURATION_FILES">CONFIGURATION FILES</a></i>).</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-WS[<i class="arg">n</i>]</dt>
-<dd class="list-tag" style="margin-left: 21.00ex;">
-Force a new window to appear on workspace <i class="arg">n</i>.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-XTERM_FONTADJ</dt>
-<dd class="list-tag" style="margin-left: 21.00ex;">
-Adjust <a class="link-man">xterm(1)</a> fonts when resizing.</dd>
+<p class="Pp">The quirks themselves are described below:</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<dl class="Bl-tag Bl-compact">
+  <dt>ANYWHERE</dt>
+  <dd>Allow window to position itself, uncentered.</dd>
+  <dt>FLOAT</dt>
+  <dd>This window should not be tiled, but allowed to float freely.</dd>
+  <dt>FOCUSONMAP_SINGLE</dt>
+  <dd>When the window first appears on the screen, change focus to the window if
+      there are no other windows on the workspace with the same WM_CLASS
+      class/instance value. Has no effect when
+      <code class="Ic">focus_mode</code> is set to
+    <var class="Ar">follow</var>.</dd>
+  <dt>FOCUSPREV</dt>
+  <dd>On exit force focus on previously focused application not previous
+      application in the stack.</dd>
+  <dt>FULLSCREEN</dt>
+  <dd>Remove border to allow window to use full region size.</dd>
+  <dt>IGNOREPID</dt>
+  <dd>Ignore the PID when determining the initial workspace for a new window.
+      Especially useful for terminal windows that share a process.</dd>
+  <dt>IGNORESPAWNWS</dt>
+  <dd>Ignore the spawn workspace when determining the initial workspace for a
+      new window.</dd>
+  <dt>MINIMALBORDER</dt>
+  <dd>Remove border when window is unfocused and floating.</dd>
+  <dt>NOFOCUSCYCLE</dt>
+  <dd>Remove from normal focus cycle (focus_prev or focus_next). The window can
+      still be focused using search_win.</dd>
+  <dt>NOFOCUSONMAP</dt>
+  <dd>Do not change focus to the window when it first appears on the screen. Has
+      no effect when <code class="Ic">focus_mode</code> is set to
+      <var class="Ar">follow</var>.</dd>
+  <dt>OBEYAPPFOCUSREQ</dt>
+  <dd>When an application requests focus on the window via a _NET_ACTIVE_WINDOW
+      client message (source indication of 1), comply with the request. Note
+      that a source indication of 0 (unspecified) or 2 (pager) are always
+      obeyed.</dd>
+  <dt>TRANSSZ</dt>
+  <dd>Adjusts size on transient windows that are too small using
+      <code class="Ic">dialog_ratio</code> (see
+      <a class="Sx" href="#CONFIGURATION_FILES">CONFIGURATION FILES</a>).</dd>
+  <dt>WS[<var class="Ar">n</var>]</dt>
+  <dd>Force a new window to appear on workspace <var class="Ar">n</var>.</dd>
+  <dt>XTERM_FONTADJ</dt>
+  <dd>Adjust <a class="Xr">xterm(1)</a> fonts when resizing.</dd>
 </dl>
-<div class="spacer">
 </div>
-Custom quirks in the configuration file are specified as follows:<div class="spacer">
-</div>
-<blockquote style="margin-top: 0.00em;margin-bottom: 0.00em;">
-<div class="display">
-<code class="lit">quirk[<i class="arg">class</i>[:<i class="arg">instance</i>[:<i class="arg">name</i>]]] = <i class="arg">quirk</i> [<span class="opt">+ <i class="arg">quirk ...</i></span>]</code></div>
-</blockquote>
-<div class="spacer">
-</div>
-<i class="arg">class</i>, <i class="arg">instance</i> (optional) and <i class="arg">name</i> (optional) are patterns used to determine which window(s) the quirk(s) apply to and <i class="arg">quirk</i> is one of the quirks from the list above.<div class="spacer">
-</div>
-Note that patterns are interpreted as POSIX Extended Regular Expressions. Any ':', '[' or ']' must be escaped with '\'. See <a class="link-man">regex(7)</a> for more information on POSIX Extended Regular Expressions.<div class="spacer">
-</div>
-For example:<div class="spacer">
-</div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-quirk[MPlayer] = FLOAT + FULLSCREEN + FOCUSPREV # Float all windows having a class of 'MPlayer' 
-quirk[.*] = FLOAT # Float all windows by default. 
-quirk[.*:.*:.*] = FLOAT # Same as above. 
-quirk[Firefox:Navigator] = FLOAT # Float all Firefox browser windows. 
-quirk[::Console] = FLOAT # Float windows with WM_CLASS not set and a window name of 'Console'. 
-quirk[\[0-9\].*:.*:\[\[\:alnum\:\]\]*] = FLOAT # Float windows with WM_CLASS class beginning with a number, any WM_CLASS instance and a _NET_WM_NAME/WM_NAME either blank or containing alphanumeric characters without spaces. 
+<p class="Pp">Custom quirks in the configuration file are specified as
+  follows:</p>
+<p class="Pp"></p>
+<div class="Bd
+  Bd-indent"><code class="Li">quirk[<var class="Ar">class</var>[:<var class="Ar">instance</var>[:<var class="Ar">name</var>]]]
+  = <var class="Ar">quirk</var> [+ <var class="Ar">quirk ...</var>]</code></div>
+<p class="Pp"><var class="Ar">class</var>, <var class="Ar">instance</var>
+    (optional) and <var class="Ar">name</var> (optional) are patterns used to
+    determine which window(s) the quirk(s) apply to and
+    <var class="Ar">quirk</var> is one of the quirks from the list above.</p>
+<p class="Pp">Note that patterns are interpreted as POSIX Extended Regular
+    Expressions. Any ':', '[' or ']' must be escaped with '\'. See
+    <a class="Xr">regex(7)</a> for more information on POSIX Extended Regular
+    Expressions.</p>
+<p class="Pp">For example:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>quirk[MPlayer] = FLOAT + FULLSCREEN + FOCUSPREV # Float all windows having a class of 'MPlayer'
+quirk[.*] = FLOAT # Float all windows by default.
+quirk[.*:.*:.*] = FLOAT # Same as above.
+quirk[Firefox:Navigator] = FLOAT # Float all Firefox browser windows.
+quirk[::Console] = FLOAT # Float windows with WM_CLASS not set and a window name of 'Console'.
+quirk[\[0-9\].*:.*:\[\[\:alnum\:\]\]*] = FLOAT # Float windows with WM_CLASS class beginning with a number, any WM_CLASS instance and a _NET_WM_NAME/WM_NAME either blank or containing alphanumeric characters without spaces.
 quirk[pcb:pcb] = NONE # remove existing quirk</pre>
-<div class="spacer">
 </div>
-You can obtain <i class="arg">class</i>, <i class="arg">instance</i> and <i class="arg">name</i> by running <a class="link-man">xprop(1)</a> and then clicking on the desired window. In the following example the main window of Firefox was clicked:<div class="spacer">
-</div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-$ xprop | grep -E &quot;^(WM_CLASS|_NET_WM_NAME|WM_NAME)&quot; 
-WM_CLASS(STRING) = &quot;Navigator&quot;, &quot;Firefox&quot; 
-WM_NAME(STRING) = &quot;spectrwm - ConformalOpenSource&quot; 
+<p class="Pp">You can obtain <var class="Ar">class</var>,
+    <var class="Ar">instance</var> and <var class="Ar">name</var> by running
+    <a class="Xr">xprop(1)</a> and then clicking on the desired window. In the
+    following example the main window of Firefox was clicked:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>$ xprop | grep -E &quot;^(WM_CLASS|_NET_WM_NAME|WM_NAME)&quot;
+WM_CLASS(STRING) = &quot;Navigator&quot;, &quot;Firefox&quot;
+WM_NAME(STRING) = &quot;spectrwm - ConformalOpenSource&quot;
 _NET_WM_NAME(UTF8_STRING) = &quot;spectrwm - ConformalOpenSource&quot;</pre>
-<div class="spacer">
 </div>
-Note that <a class="link-man">xprop(1)</a> displays WM_CLASS as:<div class="spacer">
+<p class="Pp">Note that <a class="Xr">xprop(1)</a> displays WM_CLASS as:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>WM_CLASS(STRING) = &quot;&lt;instance&gt;&quot;, &quot;&lt;class&gt;&quot;</pre>
 </div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-WM_CLASS(STRING) = &quot;&lt;instance&gt;&quot;, &quot;&lt;class&gt;&quot;</pre>
-<div class="spacer">
+<p class="Pp">In the example above the quirk entry would be:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>quirk[Firefox:Navigator] = FLOAT</pre>
 </div>
-In the example above the quirk entry would be:<div class="spacer">
-</div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-quirk[Firefox:Navigator] = FLOAT</pre>
-<div class="spacer">
-</div>
-<b class="name">spectrwm</b> also automatically assigns quirks to windows based on the value of the window's _NET_WM_WINDOW_TYPE property as follows:<div class="spacer">
-</div>
-<dl style="margin-top: 0.00em;margin-bottom: 0.00em;margin-left: 6.00ex;" class="list list-tag">
-<dt class="list-tag" style="margin-top: 0.00em;">
-_NET_WM_WINDOW_TYPE_DOCK</dt>
-<dd class="list-tag" style="margin-left: 35.00ex;">
-FLOAT + ANYWHERE</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-_NET_WM_WINDOW_TYPE_TOOLBAR</dt>
-<dd class="list-tag" style="margin-left: 35.00ex;">
-FLOAT + ANYWHERE</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-_NET_WM_WINDOW_TYPE_UTILITY</dt>
-<dd class="list-tag" style="margin-left: 35.00ex;">
-FLOAT + ANYWHERE</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-_NET_WM_WINDOW_TYPE_SPLASH</dt>
-<dd class="list-tag" style="margin-left: 35.00ex;">
-FLOAT</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-_NET_WM_WINDOW_TYPE_DIALOG</dt>
-<dd class="list-tag" style="margin-left: 35.00ex;">
-FLOAT</dd>
+<p class="Pp"><code class="Nm">spectrwm</code> also automatically assigns quirks
+    to windows based on the value of the window's _NET_WM_WINDOW_TYPE property
+    as follows:</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<dl class="Bl-tag Bl-compact">
+  <dt>_NET_WM_WINDOW_TYPE_DOCK</dt>
+  <dd>FLOAT + ANYWHERE</dd>
+  <dt>_NET_WM_WINDOW_TYPE_TOOLBAR</dt>
+  <dd>FLOAT + ANYWHERE</dd>
+  <dt>_NET_WM_WINDOW_TYPE_UTILITY</dt>
+  <dd>FLOAT + ANYWHERE</dd>
+  <dt>_NET_WM_WINDOW_TYPE_SPLASH</dt>
+  <dd>FLOAT</dd>
+  <dt>_NET_WM_WINDOW_TYPE_DIALOG</dt>
+  <dd>FLOAT</dd>
 </dl>
-<div class="spacer">
 </div>
-In all other cases, no automatic quirks are assigned to the window. Quirks specified in the configuration file override the automatic quirks.</div>
-<div class="section">
-<h1 id="EWMH">EWMH</h1> <b class="name">spectrwm</b> partially implements the Extended Window Manager Hints (EWMH) specification. This enables controlling windows as well as <b class="name">spectrwm</b> itself from external scripts and programs. This is achieved by <b class="name">spectrwm</b> responding to certain ClientMessage events. From the terminal these events can be conveniently sent using tools such as <a class="link-man">wmctrl(1)</a> and <a class="link-man">xdotool(1)</a>. For the actual format of these ClientMessage events, see the EWMH specification.<div class="spacer">
-</div>
-The id of the currently focused window is stored in the _NET_ACTIVE_WINDOW property of the root window. This can be used for example to retrieve the title of the currently active window with <a class="link-man">xprop(1)</a> and <a class="link-man">grep(1)</a>:<div class="spacer">
-</div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-$ WINDOWID=`xprop -root _NET_ACTIVE_WINDOW | grep -o &quot;0x.*&quot;` 
+<p class="Pp">In all other cases, no automatic quirks are assigned to the
+    window. Quirks specified in the configuration file override the automatic
+    quirks.</p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="EWMH"><a class="permalink" href="#EWMH">EWMH</a></h1>
+<p class="Pp"><code class="Nm">spectrwm</code> partially implements the Extended
+    Window Manager Hints (EWMH) specification. This enables controlling windows
+    as well as <code class="Nm">spectrwm</code> itself from external scripts and
+    programs. This is achieved by <code class="Nm">spectrwm</code> responding to
+    certain ClientMessage events. From the terminal these events can be
+    conveniently sent using tools such as <a class="Xr">wmctrl(1)</a> and
+    <a class="Xr">xdotool(1)</a>. For the actual format of these ClientMessage
+    events, see the EWMH specification.</p>
+<p class="Pp">The id of the currently focused window is stored in the
+    _NET_ACTIVE_WINDOW property of the root window. This can be used for example
+    to retrieve the title of the currently active window with
+    <a class="Xr">xprop(1)</a> and <a class="Xr">grep(1)</a>:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>$ WINDOWID=`xprop -root _NET_ACTIVE_WINDOW | grep -o &quot;0x.*&quot;`
 $ xprop -id $WINDOWID _NET_WM_NAME | grep -o &quot;\&quot;.*\&quot;&quot;</pre>
-<div class="spacer">
 </div>
-A window can be focused by sending a _NET_ACTIVE_WINDOW client message to the root window. For example, using <a class="link-man">wmctrl(1)</a> to send the message (assuming 0x4a0000b is the id of the window to be focused):<div class="spacer">
+<p class="Pp">A window can be focused by sending a _NET_ACTIVE_WINDOW client
+    message to the root window. For example, using <a class="Xr">wmctrl(1)</a>
+    to send the message (assuming 0x4a0000b is the id of the window to be
+    focused):</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>$ wmctrl -i -a 0x4a0000b</pre>
 </div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-$ wmctrl -i -a 0x4a0000b</pre>
-<div class="spacer">
+<p class="Pp">Windows can be closed by sending a _NET_CLOSE_WINDOW client
+    message to the root window. For example, using <a class="Xr">wmctrl(1)</a>
+    to send the message (assuming 0x4a0000b is the id of the window to be
+    closed):</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>$ wmctrl -i -c 0x4a0000b</pre>
 </div>
-Windows can be closed by sending a _NET_CLOSE_WINDOW client message to the root window. For example, using <a class="link-man">wmctrl(1)</a> to send the message (assuming 0x4a0000b is the id of the window to be closed):<div class="spacer">
+<p class="Pp">Windows can be floated and un-floated by adding or removing the
+    _NET_WM_STATE_ABOVE atom from the _NET_WM_STATE property of the window. This
+    can be achieved by sending a _NET_WM_STATE client message to the root
+    window. For example, the following toggles the floating state of a window
+    using <a class="Xr">wmctrl(1)</a> to send the message (assuming 0x4a0000b is
+    the id of the window to be floated or un-floated):</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>$ wmctrl -i -r 0x4a0000b -b toggle,above</pre>
 </div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-$ wmctrl -i -c 0x4a0000b</pre>
-<div class="spacer">
+<p class="Pp">Windows can also be iconified and un-iconified by substituting
+    _NET_WM_STATE_HIDDEN for _NET_WM_STATE_ABOVE in the previous example:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>$ wmctrl -i -r 0x4a0000b -b toggle,hidden</pre>
 </div>
-Windows can be floated and un-floated by adding or removing the _NET_WM_STATE_ABOVE atom from the _NET_WM_STATE property of the window. This can be achieved by sending a _NET_WM_STATE client message to the root window. For example, the following toggles the floating state of a window using <a class="link-man">wmctrl(1)</a> to send the message (assuming 0x4a0000b is the id of the window to be floated or un-floated):<div class="spacer">
+<p class="Pp">Floating windows can also be resized and moved by sending a
+    _NET_MOVERESIZE_WINDOW client message to the root window. For example, using
+    <a class="Xr">wmctrl(1)</a> to send the message (assuming 0x4a0000b is the
+    id of the window to be resize/moved):</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>$ wmctrl -i -r 0x4a0000b -e 0,100,50,640,480</pre>
 </div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-$ wmctrl -i -r 0x4a0000b -b toggle,_NET_WM_STATE_ABOVE</pre>
-<div class="spacer">
-</div>
-Windows can also be iconified and un-iconified by substituting _NET_WM_STATE_HIDDEN for _NET_WM_STATE_ABOVE in the previous example:<div class="spacer">
-</div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-$ wmctrl -i -r 0x4a0000b -b toggle,_NET_WM_STATE_HIDDEN</pre>
-<div class="spacer">
-</div>
-Floating windows can also be resized and moved by sending a _NET_MOVERESIZE_WINDOW client message to the root window. For example, using <a class="link-man">wmctrl(1)</a> to send the message (assuming 0x4a0000b is the id of the window to be resize/moved):<div class="spacer">
-</div>
-<pre style="margin-left: 5.00ex;" class="lit display">
-$ wmctrl -i -r 0x4a0000b -e 0,100,50,640,480</pre>
-<div class="spacer">
-</div>
-This moves the window to (100,50) and resizes it to 640x480.<div class="spacer">
-</div>
-Any _NET_MOVERESIZE_WINDOW events received for stacked windows are ignored.</div>
-<div class="section">
-<h1 id="SIGNALS">SIGNALS</h1> Sending <b class="name">spectrwm</b> a HUP signal will restart it.</div>
-<div class="section">
-<h1 id="FILES">FILES</h1><dl style="margin-top: 0.00em;margin-bottom: 0.00em;" class="list list-tag">
-<dt class="list-tag" style="margin-top: 0.00em;">
-<i class="file">~/.spectrwm.conf</i></dt>
-<dd class="list-tag" style="margin-left: 21.00ex;">
-<b class="name">spectrwm</b> user specific settings.</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<i class="file">/etc/spectrwm.conf</i></dt>
-<dd class="list-tag" style="margin-left: 21.00ex;">
-<b class="name">spectrwm</b> global settings.</dd>
+<p class="Pp">This moves the window to (100,50) and resizes it to 640x480.</p>
+<p class="Pp">Any _NET_MOVERESIZE_WINDOW events received for stacked windows are
+    ignored.</p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="SIGNALS"><a class="permalink" href="#SIGNALS">SIGNALS</a></h1>
+<p class="Pp">Sending <code class="Nm">spectrwm</code> a HUP signal will restart
+    it.</p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="FILES"><a class="permalink" href="#FILES">FILES</a></h1>
+<dl class="Bl-tag Bl-compact">
+  <dt><span class="Pa">~/.spectrwm.conf</span></dt>
+  <dd><code class="Nm">spectrwm</code> user specific settings.</dd>
+  <dt><span class="Pa">/etc/spectrwm.conf</span></dt>
+  <dd><code class="Nm">spectrwm</code> global settings.</dd>
+</dl>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="HISTORY"><a class="permalink" href="#HISTORY">HISTORY</a></h1>
+<p class="Pp"><code class="Nm">spectrwm</code> was inspired by xmonad &amp;
+  dwm.</p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="AUTHORS"><a class="permalink" href="#AUTHORS">AUTHORS</a></h1>
+<p class="Pp"><code class="Nm">spectrwm</code> was written by:</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<dl class="Bl-tag Bl-compact">
+  <dt><span class="An">Marco Peereboom</span>
+    &lt;<a class="Mt" href="mailto:marco@peereboom.us">marco@peereboom.us</a>&gt;</dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt><span class="An">Ryan Thomas McBride</span>
+    &lt;<a class="Mt" href="mailto:mcbride@countersiege.com">mcbride@countersiege.com</a>&gt;</dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt><span class="An">Darrin Chandler</span>
+    &lt;<a class="Mt" href="mailto:dwchandler@stilyagin.com">dwchandler@stilyagin.com</a>&gt;</dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt><span class="An">Pierre-Yves Ritschard</span>
+    &lt;<a class="Mt" href="mailto:pyr@spootnik.org">pyr@spootnik.org</a>&gt;</dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt><span class="An">Tuukka Kataja</span>
+    &lt;<a class="Mt" href="mailto:stuge@xor.fi">stuge@xor.fi</a>&gt;</dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt><span class="An">Jason L. Wright</span>
+    &lt;<a class="Mt" href="mailto:jason@thought.net">jason@thought.net</a>&gt;</dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt><span class="An">Reginald Kennedy</span>
+    &lt;<a class="Mt" href="mailto:rk@rejii.com">rk@rejii.com</a>&gt;</dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt><span class="An">Lawrence Teo</span>
+    &lt;<a class="Mt" href="mailto:lteo@lteo.net">lteo@lteo.net</a>&gt;</dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt><span class="An">Tiago Cunha</span>
+    &lt;<a class="Mt" href="mailto:tcunha@gmx.com">tcunha@gmx.com</a>&gt;</dt>
+  <dd style="width: auto;">&#x00A0;</dd>
+  <dt><span class="An">David Hill</span>
+    &lt;<a class="Mt" href="mailto:dhill@mindcry.org">dhill@mindcry.org</a>&gt;</dt>
+  <dd style="width: auto;">&#x00A0;</dd>
 </dl>
 </div>
-<div class="section">
-<h1 id="HISTORY">HISTORY</h1> <b class="name">spectrwm</b> was inspired by xmonad &amp; dwm.</div>
-<div class="section">
-<h1 id="AUTHORS">AUTHORS</h1> <b class="name">spectrwm</b> was written by:<div class="spacer">
-</div>
-<dl style="margin-top: 0.00em;margin-bottom: 0.00em;margin-left: 6.00ex;" class="list list-tag">
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">Marco Peereboom</b> &#10216;marco@peereboom.us&#10217;</dt>
-<dd class="list-tag" style="margin-left: 48.00ex;">
-</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">Ryan Thomas McBride</b> &#10216;mcbride@countersiege.com&#10217;</dt>
-<dd class="list-tag" style="margin-left: 48.00ex;">
-</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">Darrin Chandler</b> &#10216;dwchandler@stilyagin.com&#10217;</dt>
-<dd class="list-tag" style="margin-left: 48.00ex;">
-</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">Pierre-Yves Ritschard</b> &#10216;pyr@spootnik.org&#10217;</dt>
-<dd class="list-tag" style="margin-left: 48.00ex;">
-</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">Tuukka Kataja</b> &#10216;stuge@xor.fi&#10217;</dt>
-<dd class="list-tag" style="margin-left: 48.00ex;">
-</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">Jason L. Wright</b> &#10216;jason@thought.net&#10217;</dt>
-<dd class="list-tag" style="margin-left: 48.00ex;">
-</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">Reginald Kennedy</b> &#10216;rk@rejii.com&#10217;</dt>
-<dd class="list-tag" style="margin-left: 48.00ex;">
-</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">Lawrence Teo</b> &#10216;lteo@lteo.net&#10217;</dt>
-<dd class="list-tag" style="margin-left: 48.00ex;">
-</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">Tiago Cunha</b> &#10216;tcunha@gmx.com&#10217;</dt>
-<dd class="list-tag" style="margin-left: 48.00ex;">
-</dd>
-<dt class="list-tag" style="margin-top: 0.00em;">
-<b class="flag">David Hill</b> &#10216;dhill@mindcry.org&#10217;</dt>
-<dd class="list-tag" style="margin-left: 48.00ex;">
-</dd>
-</dl>
+</section>
 </div>
 <table class="foot">
-<tbody>
-<tr>
-<td class="foot-date">
-February 15, 2012</td>
-<td class="foot-os">
-Bitrig 1.0</td>
-</tr>
-</tbody>
+  <tr>
+    <td class="foot-date">December 25, 2022</td>
+  </tr>
 </table>
-</div>
 </body>
 </html>
-

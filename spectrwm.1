@@ -17,7 +17,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: August 23 2022 $
+.Dd $Mdocdate: December 25 2022 $
 .Dt SPECTRWM 1
 .Os
 .Sh NAME
@@ -64,7 +64,7 @@ Named key or button
 .Pp
 .Nm
 is very simple in its use.
-Most of the actions are initiated via key or pointer bindings.
+Most of the actions are initiated via key or pointer button bindings.
 See the
 .Sx BINDINGS
 section below for defaults and customizations.
@@ -194,7 +194,7 @@ A comma separated list of up to 10 colors can be specified.
 The first value is used as the default background color.
 Any of these colors can then be selected as a background color in the status
 bar through the use of the markup sequence
-.Ic +@bg=n;
+.Ic +@bg=n;\&
 where n is between 0 and 9.
 .It Ic bar_color_selected Ns Bq Ar x
 Background color for selections on the status bar(s) in screen
@@ -224,7 +224,7 @@ If Xft is used, a comma-separated list of up to 10 fonts can be specified.
 The first entry is the default font.
 Any font defined here can then be selected in the status bar through the use of
 the markup sequence
-.Ic +@fn=n;
+.Ic +@fn=n;\&
 where n is between 0 and 9.
 .Pp
 Also note that
@@ -264,7 +264,7 @@ A comma separated list of up to 10 colors can be specified.
 The first value is used as the default foreground color.
 Any of these colors can then be selected as a foreground color in the status
 bar through the use of the markup sequence
-.Ic +@fg=n;
+.Ic +@fg=n;\&
 where n is between 0 and 9.
 .It Ic bar_font_color_selected Ns Bq Ar x
 Foreground color for selections on the status bar(s) in screen
@@ -326,13 +326,13 @@ is used.
 The currently recognized text markup sequences are:
 .Bl -column "Character sequence" "Action" -offset indent
 .It Sy "Character sequence" Ta Sy "Action"
-.It Li "+@fn=n;" Ta Selects font n (from 0 to 9) from
+.It Li "+@fn=n;\&" Ta Selects font n (from 0 to 9) from
 .Ic bar_font .
-.It Li "+@fg=n;" Ta Selects foreground color n (from 0 to 9) from
+.It Li "+@fg=n;\&" Ta Selects foreground color n (from 0 to 9) from
 .Ic bar_font_color .
-.It Li "+@bg=n;" Ta Selects background color n (from 0 to 9) from
+.It Li "+@bg=n;\&" Ta Selects background color n (from 0 to 9) from
 .Ic bar_color .
-.It Li "+@stp;" Ta Stops the interpretation of markup sequences.
+.It Li "+@stp;\&" Ta Stops the interpretation of markup sequences.
 Any markup sequence found after +@stp will appear as normal characters in the
 status bar.
 .El
@@ -351,7 +351,7 @@ The padding/alignment can be enabled using a '_' character in the sequence.
 For example: +_64W, +64_W and +_64_W enable padding before (right alignment),
 after (left alignment), and both before and after (center alignment) window
 name, respectively.
-Any characters that don't match the specification are copied as-is.
+Any characters that do not match the specification are copied as-is.
 .It Ic bar_justify
 Justify the status bar text.
 Possible values are
@@ -482,7 +482,7 @@ Select layout to use at start-of-day.
 Defined in the format
 .Li ws Ns Bo Ar idx Bc : Ns Ar master_grow : Ns Ar master_add : Ns Ar \
 stack_inc : Ns Ar always_raise : Ns Ar stack_mode ,
-e.g. ws[2]:-4:0:1:0:horizontal sets worskspace 2 to the horizontal stack mode,
+e.g. ws[2]:-4:0:1:0:horizontal sets workspace 2 to the horizontal stack mode,
 shrinks the master area by 4 ticks and adds one window to the stack, while
 maintaining default floating window behavior.
 Possible
@@ -704,7 +704,7 @@ Enable or disable displaying the window display name
 Enable by setting to 1.
 .Pp
 To prevent excessively large window names from pushing the remaining text off
-the bar, it's limited to 64 characters, by default.
+the bar, it is limited to 64 characters, by default.
 See the
 .Ic bar_format
 option for more details.
@@ -804,8 +804,8 @@ The window occupies the whole region, except for the bar
 .Ic maximize_hide_bar
 is 0). Focusing another window removes the maximized state of the window.
 .It Ic fullscreen
-The window occupies the whole region. Focusing another window does not
-remove the fullscreen state of the window.
+The window occupies the whole region.
+Focusing another window does not remove the fullscreen state of the window.
 .El
 .Sh PROGRAMS
 .Nm
@@ -908,7 +908,8 @@ bind[] = MOD+Shift+Delete
 .Ed
 .Sh BINDINGS
 .Nm
-provides many functions (or actions) accessed via key or pointer bindings.
+provides many functions (or actions) accessed via key or pointer button
+bindings.
 .Pp
 The default bindings are listed below:
 .Pp
@@ -1150,9 +1151,9 @@ Toggle overall visibility of status bars.
 .It Cm bar_toggle_ws
 Toggle status bar on current workspace.
 .It Cm wind_del
-Delete current window in workspace.
+Delete current window.
 .It Cm wind_kill
-Destroy current window in workspace.
+Kill the program that created the current window.
 .It Cm ws_ Ns Ar n
 Switch to workspace
 .Ar n ,
@@ -1450,7 +1451,7 @@ Remove border when window is unfocused and floating.
 Remove from normal focus cycle (focus_prev or focus_next). The window can still
 be focused using search_win.
 .It NOFOCUSONMAP
-Don't change focus to the window when it first appears on the screen.
+Do not change focus to the window when it first appears on the screen.
 Has no effect when
 .Ic focus_mode
 is set to
