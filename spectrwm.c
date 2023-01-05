@@ -5,7 +5,7 @@
  * Copyright (c) 2009 Pierre-Yves Ritschard <pyr@spootnik.org>
  * Copyright (c) 2010 Tuukka Kataja <stuge@xor.fi>
  * Copyright (c) 2011 Jason L. Wright <jason@thought.net>
- * Copyright (c) 2011-2022 Reginald Kennedy <rk@rejii.com>
+ * Copyright (c) 2011-2023 Reginald Kennedy <rk@rejii.com>
  * Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
  * Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
  * Copyright (c) 2012-2015 David Hill <dhill@mindcry.org>
@@ -4498,8 +4498,13 @@ restart(struct binding *bp, struct swm_region *r, union arg *args)
 bool
 follow_pointer(struct swm_screen *s)
 {
-	return (focus_mode == SWM_FOCUS_FOLLOW && s->r_focus &&
+	bool	result;
+
+	result = (focus_mode == SWM_FOCUS_FOLLOW && s->r_focus &&
 	    !MAPONFOCUS(s->r_focus->ws) && s->r_focus == get_pointer_region(s));
+	DNPRINTF(SWM_D_FOCUS, "%s\n", YESNO(result));
+
+	return (result);
 }
 
 struct swm_region *
@@ -4516,9 +4521,10 @@ get_pointer_region(struct swm_screen *s)
 	    xcb_query_pointer(conn, s->root), NULL);
 	if (qpr) {
 		w = find_window(qpr->child);
-		if (w && w->ws && w->ws->r)
+		if (w && w->ws && w->ws->r) {
+			pointer_window = qpr->child;
 			r = w->ws->r;
-		else {
+		} else {
 			DNPRINTF(SWM_D_MISC, "pointer: (%d,%d)\n", qpr->root_x,
 			    qpr->root_y);
 			r = region_under(s, qpr->root_x, qpr->root_y);
@@ -4539,6 +4545,8 @@ get_pointer_win(struct swm_screen *s)
 	    xcb_query_pointer(conn, s->root), NULL);
 	if (qpr) {
 		win = find_window(qpr->child);
+		if (win)
+			pointer_window = qpr->child;
 		free(qpr);
 	}
 
@@ -5285,7 +5293,7 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 	struct workspace	*new_ws, *old_ws;
 	xcb_window_t		none = XCB_WINDOW_NONE;
 	int			wsid = args->id;
-	bool			unmap_old = false, follow;
+	bool			unmap_old = false;
 
 	if (r == NULL || r->s == NULL)
 		return;
@@ -5357,17 +5365,20 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 	ewmh_update_current_desktop();
 	ewmh_update_desktops();
 
-	follow = follow_pointer(s);
-	if (!follow)
+	if (focus_mode != SWM_FOCUS_FOLLOW)
 		update_focus(s);
 
 	center_pointer(r);
 	flush();
-	if (follow) {
-		if (pointer_window != XCB_WINDOW_NONE)
-			focus_window(pointer_window);
-		else if (new_ws->focus == NULL)
-			focus_win(get_focus_magic(win));
+
+	if (focus_mode == SWM_FOCUS_FOLLOW) {
+		if (!MAPONFOCUS(r->ws) && r == get_pointer_region(s)) {
+			if (pointer_window != XCB_WINDOW_NONE)
+				focus_window(pointer_window);
+			else if (new_ws->focus == NULL)
+				focus_win(get_region_focus(r));
+		} else
+			focus_win(get_region_focus(r));
 		xcb_flush(conn);
 	}
 
@@ -7174,7 +7185,6 @@ void
 iconify(struct binding *bp, struct swm_region *r, union arg *args)
 {
 	struct ws_win		*win, *nfw;
-	bool			follow;
 
 	/* Suppress warning. */
 	(void)bp;
@@ -7189,17 +7199,26 @@ iconify(struct binding *bp, struct swm_region *r, union arg *args)
 	ewmh_apply_flags(win, win->ewmh_flags | EWMH_F_HIDDEN);
 	ewmh_update_wm_state(win);
 
-	follow = follow_pointer(r->s);
 	nfw = get_focus_other(win);
 
-	if (!follow)
+	if (focus_mode != SWM_FOCUS_FOLLOW && nfw)
 		set_focus_win(get_focus_magic(nfw));
 
 	stack(r);
-	if (!follow) {
+	if (focus_mode != SWM_FOCUS_FOLLOW) {
 		update_focus(win->s);
 		center_pointer(win->ws->r);
-		flush();
+	}
+	flush();
+
+	if (focus_mode == SWM_FOCUS_FOLLOW) {
+		if (follow_pointer(r->s)) {
+			if (pointer_window != XCB_WINDOW_NONE)
+				focus_window(pointer_window);
+			else if (r->ws->focus == NULL)
+				focus_win(get_focus_magic(nfw));
+		} else
+			focus_win(get_focus_magic(nfw));
 	}
 }
 
@@ -7477,7 +7496,6 @@ search_resp_uniconify(const char *resp, size_t len)
 	char			*name;
 	struct ws_win		*win;
 	char			*s;
-	bool			follow;
 
 	DNPRINTF(SWM_D_MISC, "resp: %s\n", resp);
 
@@ -7495,8 +7513,7 @@ search_resp_uniconify(const char *resp, size_t len)
 			ewmh_apply_flags(win, win->ewmh_flags & ~EWMH_F_HIDDEN);
 			ewmh_update_wm_state(win);
 
-			follow = follow_pointer(win->s);
-			if (!follow)
+			if (focus_mode != SWM_FOCUS_FOLLOW)
 				set_focus_win(get_focus_magic(win));
 
 			if (FLOATING(win))
@@ -7506,10 +7523,20 @@ search_resp_uniconify(const char *resp, size_t len)
 			stack(win->ws->r);
 			update_stacking(win->s);
 
-			if (!follow) {
+			if (focus_mode != SWM_FOCUS_FOLLOW) {
 				update_focus(win->s);
 				center_pointer(win->ws->r);
-				flush();
+			}
+			flush();
+
+			if (focus_mode == SWM_FOCUS_FOLLOW) {
+				if (follow_pointer(win->s)) {
+					if (pointer_window != XCB_WINDOW_NONE)
+						focus_window(pointer_window);
+					else if (win->ws->focus == NULL)
+						focus_win(get_focus_magic(win));
+				} else
+					focus_win(get_focus_magic(win));
 			}
 
 			draw_frame(win);
@@ -7977,8 +8004,6 @@ void
 floating_toggle(struct binding *bp, struct swm_region *r, union arg *args)
 {
 	struct ws_win		*w;
-	xcb_window_t		pointer_window_orig;
-	bool			follow;
 
 	/* suppress unused warning since var is needed */
 	(void)bp;
@@ -8002,17 +8027,19 @@ floating_toggle(struct binding *bp, struct swm_region *r, union arg *args)
 	update_win_stacking(w);
 	stack(r);
 
-	follow = follow_pointer(r->s);
-	if (!follow && WIN_FOCUSED(w))
+	if (focus_mode != SWM_FOCUS_FOLLOW && WIN_FOCUSED(w))
 		focus_win(w);
 
-	pointer_window_orig = pointer_window;
 	center_pointer(r);
 	flush();
-	if (follow && pointer_window != pointer_window_orig) {
-		if (pointer_window != XCB_WINDOW_NONE)
-			focus_window(pointer_window);
-		else if (r->ws->focus == NULL)
+
+	if (focus_mode == SWM_FOCUS_FOLLOW) {
+		if (follow_pointer(r->s)) {
+			if (pointer_window != XCB_WINDOW_NONE)
+				focus_window(pointer_window);
+			else if (r->ws->focus == NULL)
+				focus_win(get_region_focus(r));
+		} else
 			focus_win(get_region_focus(r));
 		xcb_flush(conn);
 	}
@@ -13336,7 +13363,6 @@ clientmessage(xcb_client_message_event_t *e)
 	struct ws_win		*win;
 	struct swm_region	*r = NULL;
 	union arg		a;
-	xcb_window_t		pointer_window_orig;
 	uint32_t		vals[4];
 	int			num_screens, i;
 	xcb_map_request_event_t	mre;
@@ -13360,6 +13386,7 @@ clientmessage(xcb_client_message_event_t *e)
 		if (r && e->data.data32[0] < (uint32_t)workspace_limit) {
 			a.id = e->data.data32[0];
 			switchws(NULL, r, &a);
+			xcb_flush(conn);
 		}
 		return;
 	} else if (e->type == ewmh[_NET_REQUEST_FRAME_EXTENTS].atom) {
@@ -13382,8 +13409,6 @@ clientmessage(xcb_client_message_event_t *e)
 		}
 		return;
 	}
-
-	pointer_window_orig = pointer_window;
 
 	if (e->type == ewmh[_NET_ACTIVE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_ACTIVE_WINDOW, source_type: "
@@ -13485,11 +13510,20 @@ clientmessage(xcb_client_message_event_t *e)
 		}
 	}
 
+	if (focus_mode != SWM_FOCUS_FOLLOW) {
+		update_focus(win->s);
+		center_pointer(win->ws->r);
+	}
 	flush();
-	if (focus_mode == SWM_FOCUS_FOLLOW &&
-	    pointer_window != pointer_window_orig) {
-		focus_window(pointer_window);
-		xcb_flush(conn);
+
+	if (focus_mode == SWM_FOCUS_FOLLOW) {
+		if (follow_pointer(win->s)) {
+			if (pointer_window != XCB_WINDOW_NONE)
+				focus_window(pointer_window);
+			else if (win->ws->focus == NULL)
+				focus_win(get_focus_magic(win));
+		} else
+			focus_win(get_focus_magic(win));
 	}
 
 	DNPRINTF(SWM_D_EVENT, "done\n");
