@@ -5004,7 +5004,8 @@ focus_win(struct ws_win *win)
 	}
 
 	cfid = get_input_focus();
-	if (cfid != XCB_WINDOW_NONE && cfid != win->s->swmwin) {
+	if (cfid != XCB_WINDOW_NONE && cfid != win->s->swmwin &&
+	    find_region(cfid) == NULL) {
 		DNPRINTF(SWM_D_FOCUS, "cur focus: %#x\n", cfid);
 
 		cfw = find_window(cfid);
@@ -5203,7 +5204,7 @@ update_focus(struct swm_screen *s)
 		TAILQ_FOREACH(r, &s->rl, entry)
 			if (r->ws && r->ws->focus)
 				draw_frame(r->ws->focus);
-		set_input_focus(s->swmwin, true);
+		set_input_focus((s->r_focus ? s->r_focus->id : s->swmwin), true);
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, s->root,
 		    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
 		    &none);
@@ -5277,7 +5278,7 @@ focus_region(struct swm_region *r)
 			bar_draw(old_r->bar);
 		}
 
-		set_input_focus(r->s->swmwin, true);
+		set_input_focus(r->id, true);
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
 		    r->s->root, ewmh[_NET_ACTIVE_WINDOW].atom,
 		    XCB_ATOM_WINDOW, 32, 1, &none);
@@ -13023,7 +13024,7 @@ click_focus(struct swm_screen *s, xcb_window_t id, int x, int y)
 					unfocus_win(rr->ws->focus);
 			}
 
-			set_input_focus(r->s->swmwin, false);
+			set_input_focus(r->id, false);
 			bar_draw(r->bar);
 		}
 
