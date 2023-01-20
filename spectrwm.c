@@ -4981,7 +4981,7 @@ set_input_focus(xcb_window_t winid, bool force)
 void
 focus_win(struct ws_win *win)
 {
-	struct ws_win				*cfw = NULL, *mainw = NULL, *w;
+	struct ws_win				*cfw = NULL, *w;
 	struct workspace			*ws;
 	xcb_get_window_attributes_reply_t	*war = NULL;
 	xcb_window_t				cfid;
@@ -5039,20 +5039,7 @@ focus_win(struct ws_win *win)
 
 	if (ws->r) {
 		if (MAPONFOCUS(ws)) {
-			/* Only related windows should be mapped. */
-			mainw = find_main_window(win);
-			TAILQ_FOREACH(w, &win->s->stack, stack_entry) {
-				if (w->ws != ws)
-					continue;
-
-				if (HIDDEN(w))
-					continue;
-
-				if (find_main_window(w) == mainw)
-					map_window(w);
-				else
-					unmap_window(w);
-			}
+			update_mapping(win->s);
 			update_stacking(win->s);
 		} else if ((tile_gap < 0 && !FLOATING(win)) ||
 		    ws->always_raise) {
@@ -6760,11 +6747,6 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 	    "win: %#x, mainw: %#x\n", WINID(ws->focus), WINID(ws->focus_prev),
 	    WINID(TAILQ_FIRST(&ws->winlist)), WINID(win), WINID(mainw));
 
-	/* Unmap unrelated windows. */
-	TAILQ_FOREACH(w, &ws->winlist, entry)
-		if (find_main_window(w) != mainw)
-			unmap_window(w);
-
 	/* Update window geometry. */
 	TAILQ_FOREACH(w, &ws->winlist, entry) {
 		if (HIDDEN(w))
@@ -6804,9 +6786,6 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 
 			update_window(w);
 		}
-
-		if (find_main_window(w) == mainw)
-			map_window(w);
 	}
 }
 
@@ -6848,7 +6827,7 @@ void
 update_mapping(struct swm_screen *s)
 {
 	struct swm_region	*r;
-	struct ws_win		*w, *mainw = NULL;
+	struct ws_win		*w, *mw = NULL;
 	bool			mof;
 
 	TAILQ_FOREACH(r, &s->rl, entry) {
@@ -6857,15 +6836,14 @@ update_mapping(struct swm_screen *s)
 
 		mof = MAPONFOCUS(r->ws);
 		if (mof)
-			mainw = find_main_window(get_region_focus(r));
-		TAILQ_FOREACH(w, &r->ws->winlist, entry) {
-			DNPRINTF(SWM_D_MISC, "win %#x, mainw: %#x, find: %#x\n",
-			    w->id, WINID(mainw), WINID(find_main_window(w)));
-			if (HIDDEN(w) || (mof && find_main_window(w) != mainw))
-				unmap_window(w);
-			else
+			mw = find_main_window(get_region_focus(r));
+		/* Map first, then unmap. */
+		TAILQ_FOREACH(w, &r->ws->winlist, entry)
+			if (!HIDDEN(w) && (!mof || find_main_window(w) == mw))
 				map_window(w);
-		}
+		TAILQ_FOREACH(w, &r->ws->winlist, entry)
+			if (HIDDEN(w) || (mof && find_main_window(w) != mw))
+				unmap_window(w);
 	}
 }
 
