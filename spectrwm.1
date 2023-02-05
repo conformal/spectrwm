@@ -1490,7 +1490,7 @@ to and
 is one of the quirks from the list above.
 .Pp
 Note that patterns are interpreted as POSIX Extended Regular Expressions.
-Any ':', '[' or ']' must be escaped with '\\'.
+Any ':', '[' or ']' must be escaped with '\e'.
 See
 .Xr regex 7
 for more information on POSIX Extended Regular Expressions.
@@ -1504,7 +1504,7 @@ quirk[.*:.*:.*] = FLOAT # Same as above.
 quirk[Firefox:Navigator] = FLOAT # Float all Firefox browser windows.
 quirk[::Console] = FLOAT # Float windows with WM_CLASS not set and a \
 window name of 'Console'.
-quirk[\\[0-9\\].*:.*:\\[\\[\\:alnum\\:\\]\\]*] = FLOAT # Float windows with \
+quirk[\e[0-9\e].*:.*:\e[\e[\e:alnum\e:\e]\e]*] = FLOAT # Float windows with \
 WM_CLASS class beginning with a number, any WM_CLASS instance and a \
 _NET_WM_NAME/WM_NAME either blank or containing alphanumeric characters \
 without spaces.
@@ -1583,7 +1583,7 @@ and
 .Xr grep 1 :
 .Bd -literal -offset indent
 $ WINDOWID=`xprop \-root _NET_ACTIVE_WINDOW | grep \-o "0x.*"`
-$ xprop \-id $WINDOWID _NET_WM_NAME | grep \-o "\\".*\\""
+$ xprop \-id $WINDOWID _NET_WM_NAME | grep \-o "\e".*\e""
 .Ed
 .Pp
 A window can be focused by sending a _NET_ACTIVE_WINDOW client message to the
