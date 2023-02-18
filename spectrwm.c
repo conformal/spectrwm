@@ -6723,7 +6723,10 @@ void
 max_stack(struct workspace *ws, struct swm_geometry *g)
 {
 	struct swm_geometry	gg = *g;
-	struct ws_win		*w, *win = NULL, *mainw;
+	struct ws_win		*w;
+#ifdef SWM_DEBUG
+	struct ws_win		*win = NULL, *mainw;
+#endif
 
 	DNPRINTF(SWM_D_STACK, "workspace: %d\n", ws->idx);
 
@@ -6733,6 +6736,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 	if (count_win(ws, SWM_COUNT_NORMAL) == 0)
 		return;
 
+#ifdef SWM_DEBUG
 	/* Figure out which window to put on top. */
 	if (ws->focus)
 		win = ws->focus;
@@ -6742,6 +6746,7 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		win = get_main_window(ws);
 
 	mainw = find_main_window(win);
+#endif
 
 	DNPRINTF(SWM_D_STACK, "focus: %#x, focus_prev: %#x,first: %#x, "
 	    "win: %#x, mainw: %#x\n", WINID(ws->focus), WINID(ws->focus_prev),
