@@ -729,6 +729,7 @@ union arg {
 #define SWM_ARG_ID_FOCUSPREV	(1)
 #define SWM_ARG_ID_FOCUSMAIN	(2)
 #define SWM_ARG_ID_FOCUSURGENT	(3)
+#define SWM_ARG_ID_FOCUSPRIOR	(4)
 #define SWM_ARG_ID_SWAPNEXT	(10)
 #define SWM_ARG_ID_SWAPPREV	(11)
 #define SWM_ARG_ID_SWAPMAIN	(12)
@@ -987,6 +988,7 @@ enum actionid {
 	FN_FOCUS_MAIN,
 	FN_FOCUS_NEXT,
 	FN_FOCUS_PREV,
+	FN_FOCUS_PRIOR,
 	FN_FOCUS_URGENT,
 	FN_FULLSCREEN_TOGGLE,
 	FN_MAXIMIZE_TOGGLE,
@@ -6133,6 +6135,12 @@ focus(struct binding *bp, struct swm_region *r, union arg *args)
 		if (winfocus == cur_focus)
 			winfocus = cur_focus->ws->focus_prev;
 		break;
+	case SWM_ARG_ID_FOCUSPRIOR:
+		if (cur_focus == NULL)
+			goto out;
+
+		winfocus = ws->focus_prev;
+		break;
 	case SWM_ARG_ID_FOCUSURGENT:
 		/* Search forward for the next urgent window. */
 		winfocus = NULL;
@@ -8919,6 +8927,7 @@ struct action {
 	{ "focus_main",		focus,		0, {.id = SWM_ARG_ID_FOCUSMAIN} },
 	{ "focus_next",		focus,		0, {.id = SWM_ARG_ID_FOCUSNEXT} },
 	{ "focus_prev",		focus,		0, {.id = SWM_ARG_ID_FOCUSPREV} },
+	{ "focus_prior",	focus,		0, {.id = SWM_ARG_ID_FOCUSPRIOR} },
 	{ "focus_urgent",	focus,		0, {.id = SWM_ARG_ID_FOCUSURGENT} },
 	{ "fullscreen_toggle",	fullscreen_toggle, 0, {0} },
 	{ "maximize_toggle",	maximize_toggle,0, {0} },
@@ -9763,6 +9772,7 @@ setup_keybindings(void)
 	BINDKEY(MOD,		XK_Tab,			FN_FOCUS_NEXT);
 	BINDKEY(MOD,		XK_k,			FN_FOCUS_PREV);
 	BINDKEY(MODSHIFT,	XK_Tab,			FN_FOCUS_PREV);
+	BINDKEY(MODSHIFT,	XK_a,			FN_FOCUS_PRIOR);
 	BINDKEY(MOD,		XK_u,			FN_FOCUS_URGENT);
 	BINDKEY(MODSHIFT,	XK_e,			FN_FULLSCREEN_TOGGLE);
 	BINDKEY(MOD,		XK_e,			FN_MAXIMIZE_TOGGLE);
