@@ -6722,30 +6722,9 @@ horizontal_stack(struct workspace *ws, struct swm_geometry *g)
 void
 max_stack(struct workspace *ws, struct swm_geometry *g)
 {
-	struct swm_geometry	gg = *g;
-	struct ws_win		*w, *win = NULL, *mainw;
+	struct ws_win		*w;
 
 	DNPRINTF(SWM_D_STACK, "workspace: %d\n", ws->idx);
-
-	if (ws == NULL)
-		return;
-
-	if (count_win(ws, SWM_COUNT_NORMAL) == 0)
-		return;
-
-	/* Figure out which window to put on top. */
-	if (ws->focus)
-		win = ws->focus;
-	else if (ws->focus_prev)
-		win = ws->focus_prev;
-	else
-		win = get_main_window(ws);
-
-	mainw = find_main_window(win);
-
-	DNPRINTF(SWM_D_STACK, "focus: %#x, focus_prev: %#x,first: %#x, "
-	    "win: %#x, mainw: %#x\n", WINID(ws->focus), WINID(ws->focus_prev),
-	    WINID(TAILQ_FIRST(&ws->winlist)), WINID(win), WINID(mainw));
 
 	/* Update window geometry. */
 	TAILQ_FOREACH(w, &ws->winlist, entry) {
@@ -6768,12 +6747,11 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		}
 
 		/* Only reconfigure if necessary. */
-		if (X(w) != gg.x || Y(w) != gg.y || WIDTH(w) != gg.w ||
-		    HEIGHT(w) != gg.h) {
-			w->g = gg;
+		if (X(w) != g->x || Y(w) != g->y || WIDTH(w) != g->w ||
+		    HEIGHT(w) != g->h) {
+			w->g = *g;
 
-			if (disable_border_always ||
-			    (disable_border &&
+			if (disable_border_always || (disable_border &&
 			    !(bar_enabled && ws->bar_enabled))) {
 				w->bordered = false;
 				WIDTH(w) += 2 * border_width;
