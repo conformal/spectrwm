@@ -15,7 +15,7 @@ BUILDVERSION!= sh "${.CURDIR}/../buildver.sh"
 CFLAGS+= -DSPECTRWM_BUILDSTR=\"$(BUILDVERSION)\"
 .endif
 
-CFLAGS+= -std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Wno-uninitialized -g
+CFLAGS+= -std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Wno-uninitialized
 CFLAGS+= -I. -I${LOCALBASE}/include -I${LOCALBASE}/include/freetype2
 CFLAGS+= -DSWM_LIB=\"$(SWM_LIBDIR)/libswmhack.so.$(LVERS)\"
 LDADD+= -lutil -L${LOCALBASE}/lib -lX11 -lX11-xcb -lxcb \
