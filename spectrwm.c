@@ -14694,7 +14694,8 @@ main(int argc, char *argv[])
 
 		if (stdin_ready) {
 			stdin_ready = false;
-			bar_extra_update();
+			if (bar_extra_update() == 0)
+				continue;
 		}
 
 		/* Need to ensure the bar(s) are always updated. */
