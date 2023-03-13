@@ -2511,10 +2511,9 @@ bar_print_layout(struct swm_region *r)
 	uint32_t		gcv[1];
 	int			xpos, i, j;
 	int			bg, fg, fn, section_bg;
-	int 			space, usage, weight;
+	int 			space, remain, weight;
 
-	space =  WIDTH(r) - 2 * SWM_BAR_OFFSET;
-	usage = 0;
+	space =  WIDTH(r) - 2 * bar_border_width;
 	weight = 0;
 
 	/* Parse markup sequences in each section  */
@@ -2524,16 +2523,24 @@ bar_print_layout(struct swm_region *r)
 		if (bsect[i].fit_to_text) {
 			bsect[i].width = bsect[i].text_width + 2 *
 			    SWM_BAR_OFFSET;
-			usage += bsect[i].width;
+			space -= bsect[i].width;
 		} else
 			weight += bsect[i].weight;
 	}
 
 	/* Calculate width for each text justified section  */
-	space -= usage;
+	remain = space;
+	j = -1;
 	for (i = 0; i < numsect; i++)
-		if (!bsect[i].fit_to_text && weight > 0)
+		if (!bsect[i].fit_to_text && weight > 0) {
 			bsect[i].width = bsect[i].weight * space / weight;
+			remain -= bsect[i].width;
+			j = i;
+		}
+
+	/* Add any space that was rounded off to the last section. */
+	if (j != -1)
+		bsect[j].width += remain;
 
 	/* Calculate starting position of each section and text */
 	xpos = 0;
