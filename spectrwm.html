@@ -135,8 +135,8 @@
     <a class="Xr">XQueryColor(3)</a> specification.</p>
 <p class="Pp">Mark option values may be wrapped in single/double quotes to
     prevent whitespace trimming, specify empty strings, etc. Literal
-    quote/backslash characters can be escaped with backslash '\', when
-  needed.</p>
+    quote/backslash characters can be escaped with a backslash
+    &#x2018;\&#x2019;, when needed.</p>
 <p class="Pp">Comments begin with a #. When a literal
     &#x2018;<code class="Li">#</code>&#x2019; is desired in an option, then it
     must be escaped with a backslash, i.e. \#</p>
@@ -700,19 +700,42 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
     </div>
     <p class="Pp">The default is
         <var class="Ar">listcurrent</var>,<var class="Ar">listactive</var>,<var class="Ar">markcurrent</var>,<var class="Ar">printnames</var></p>
+    <p class="Pp">Note that markup sequences can be used to style the workspace
+        indicator. For example, to change the color of the current
+      workspace:</p>
+    <div class="Bd Pp Bd-indent Li">
+    <pre>workspace_mark_current = '+@fg=1;'
+workspace_mark_current_suffix = '+@fg=0;'</pre>
+    </div>
   </dd>
   <dt id="workspace_mark_active"><a class="permalink" href="#workspace_mark_active"><code class="Ic">workspace_mark_active</code></a></dt>
-  <dd>Set the 'active workspace' mark used in the
+  <dd>Set the string inserted before active workspaces in the
       <code class="Ic">workspace_indicator</code>. Default is '^'.</dd>
+  <dt id="workspace_mark_active_suffix"><a class="permalink" href="#workspace_mark_active_suffix"><code class="Ic">workspace_mark_active_suffix</code></a></dt>
+  <dd>Set the string inserted after active workspaces in the
+      <code class="Ic">workspace_indicator</code>. Default is '' (empty
+    string).</dd>
   <dt id="workspace_mark_current"><a class="permalink" href="#workspace_mark_current"><code class="Ic">workspace_mark_current</code></a></dt>
-  <dd>Set the 'current workspace' mark used in the
+  <dd>Set the string inserted before the current workspace in the
       <code class="Ic">workspace_indicator</code>. Default is '*'.</dd>
+  <dt id="workspace_mark_current_suffix"><a class="permalink" href="#workspace_mark_current_suffix"><code class="Ic">workspace_mark_current_suffix</code></a></dt>
+  <dd>Set the string inserted after the current workspace in the
+      <code class="Ic">workspace_indicator</code>. Default is '' (empty
+    string).</dd>
   <dt id="workspace_mark_empty"><a class="permalink" href="#workspace_mark_empty"><code class="Ic">workspace_mark_empty</code></a></dt>
-  <dd>Set the 'empty workspace' mark used in the
+  <dd>Set the string inserted before empty workspaces in the
       <code class="Ic">workspace_indicator</code>. Default is '-'.</dd>
+  <dt id="workspace_mark_empty_suffix"><a class="permalink" href="#workspace_mark_empty_suffix"><code class="Ic">workspace_mark_empty_suffix</code></a></dt>
+  <dd>Set the string inserted after empty workspaces in the
+      <code class="Ic">workspace_indicator</code>. Default is '' (empty
+    string).</dd>
   <dt id="workspace_mark_urgent"><a class="permalink" href="#workspace_mark_urgent"><code class="Ic">workspace_mark_urgent</code></a></dt>
-  <dd>Set the 'urgent workspace' mark used in the
+  <dd>Set the string inserted before urgent workspaces in the
       <code class="Ic">workspace_indicator</code>. Default is '!'.</dd>
+  <dt id="workspace_mark_urgent_suffix"><a class="permalink" href="#workspace_mark_urgent_suffix"><code class="Ic">workspace_mark_urgent_suffix</code></a></dt>
+  <dd>Set the string inserted after urgent workspaces in the
+      <code class="Ic">workspace_indicator</code>. Default is '' (empty
+    string).</dd>
   <dt id="workspace_limit"><a class="permalink" href="#workspace_limit"><code class="Ic">workspace_limit</code></a></dt>
   <dd>Set the total number of workspaces available. Minimum is 1, maximum is 22,
       default is 10.</dd>
@@ -1562,7 +1585,7 @@ $ xprop -id $WINDOWID _NET_WM_NAME | grep -o &quot;\&quot;.*\&quot;&quot;</pre>
 </div>
 <table class="foot">
   <tr>
-    <td class="foot-date">December 25, 2022</td>
+    <td class="foot-date">April 21, 2023</td>
   </tr>
 </table>
 </body>
