@@ -17,7 +17,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: December 25 2022 $
+.Dd $Mdocdate: April 21 2023 $
 .Dt SPECTRWM 1
 .Os
 .Sh NAME
@@ -118,7 +118,8 @@ specification.
 .Pp
 Mark option values may be wrapped in single/double quotes to prevent
 whitespace trimming, specify empty strings, etc.
-Literal quote/backslash characters can be escaped with backslash '\e',
+Literal quote/backslash characters can be escaped with a backslash
+.Sq \e ,
 when needed.
 .Pp
 Comments begin with a #.
@@ -793,22 +794,45 @@ Hide the index of the workspaces.
 .Pp
 The default is
 .Ar listcurrent , Ns Ar listactive , Ns Ar markcurrent , Ns Ar printnames
+.Pp
+Note that markup sequences can be used to style the workspace indicator.
+For example, to change the color of the current workspace:
+.Bd -literal -offset indent
+workspace_mark_current = '+@fg=1;'
+workspace_mark_current_suffix = '+@fg=0;'
+.Ed
 .It Ic workspace_mark_active
-Set the 'active workspace' mark used in the
+Set the string inserted before active workspaces in the
 .Ic workspace_indicator .
 Default is '^'.
+.It Ic workspace_mark_active_suffix
+Set the string inserted after active workspaces in the
+.Ic workspace_indicator .
+Default is '' (empty string).
 .It Ic workspace_mark_current
-Set the 'current workspace' mark used in the
+Set the string inserted before the current workspace in the
 .Ic workspace_indicator .
 Default is '*'.
+.It Ic workspace_mark_current_suffix
+Set the string inserted after the current workspace in the
+.Ic workspace_indicator .
+Default is '' (empty string).
 .It Ic workspace_mark_empty
-Set the 'empty workspace' mark used in the
+Set the string inserted before empty workspaces in the
 .Ic workspace_indicator .
 Default is '-'.
+.It Ic workspace_mark_empty_suffix
+Set the string inserted after empty workspaces in the
+.Ic workspace_indicator .
+Default is '' (empty string).
 .It Ic workspace_mark_urgent
-Set the 'urgent workspace' mark used in the
+Set the string inserted before urgent workspaces in the
 .Ic workspace_indicator .
 Default is '!'.
+.It Ic workspace_mark_urgent_suffix
+Set the string inserted after urgent workspaces in the
+.Ic workspace_indicator .
+Default is '' (empty string).
 .It Ic workspace_limit
 Set the total number of workspaces available.
 Minimum is 1, maximum is 22, default is 10.

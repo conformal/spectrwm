@@ -494,9 +494,13 @@ XftColor	search_font_color;
 char		*startup_exception = NULL;
 unsigned int	 nr_exceptions = 0;
 char		*workspace_mark_current = NULL;
+char		*workspace_mark_current_suffix = NULL;
 char		*workspace_mark_urgent = NULL;
+char		*workspace_mark_urgent_suffix = NULL;
 char		*workspace_mark_active = NULL;
+char		*workspace_mark_active_suffix = NULL;
 char		*workspace_mark_empty = NULL;
+char		*workspace_mark_empty_suffix = NULL;
 char		*focus_mark_none = NULL;
 char		*focus_mark_normal = NULL;
 char		*focus_mark_floating = NULL;
@@ -627,6 +631,8 @@ struct layout {
 
 #define MAXSTACK(ws)		((ws)->cur_layout == &layouts[SWM_MAX_STACK])
 
+#define SWM_FANCY_MAXLEN	8		/* Includes null byte. */
+
 /* define work spaces */
 struct workspace {
 	int			idx;		/* workspace index */
@@ -642,7 +648,8 @@ struct workspace {
 	struct swm_region	*old_r;		/* may be NULL */
 	struct ws_win_list	winlist;	/* list of windows in ws */
 	int			state;		/* mapping state */
-	char			stacker[10];	/* display stacker and layout */
+	char			*stacker;	/* stack_mark buffer */
+	size_t			stacker_len;
 
 	/* stacker state */
 	struct {
@@ -1406,6 +1413,7 @@ void	 setup_focus(void);
 void	 setup_fonts(void);
 void	 setup_globals(void);
 void	 setup_keybindings(void);
+void	 setup_marks(void);
 void	 setup_quirks(void);
 void	 setup_screens(void);
 void	 setup_spawn(void);
@@ -2377,29 +2385,31 @@ setscreencolor(const char *val, int i, int c)
 void
 fancy_stacker(struct workspace *ws)
 {
-	strlcpy(ws->stacker, "[   ]", sizeof ws->stacker);
 	if (ws->cur_layout->l_stack == vertical_stack)
-		snprintf(ws->stacker, sizeof ws->stacker,
+		snprintf(ws->stacker, ws->stacker_len,
 		    ws->l_state.vertical_flip ? "[%d>%d]" : "[%d|%d]",
 		    ws->l_state.vertical_mwin, ws->l_state.vertical_stacks);
 	else if (ws->cur_layout->l_stack == horizontal_stack)
-		snprintf(ws->stacker, sizeof ws->stacker,
+		snprintf(ws->stacker, ws->stacker_len,
 		    ws->l_state.horizontal_flip ? "[%dv%d]" : "[%d-%d]",
 		    ws->l_state.horizontal_mwin, ws->l_state.horizontal_stacks);
+	else
+		strlcpy(ws->stacker, "[   ]", ws->stacker_len);
 }
 
 void
 plain_stacker(struct workspace *ws)
 {
-	strlcpy(ws->stacker, stack_mark_max, sizeof ws->stacker);
 	if (ws->cur_layout->l_stack == vertical_stack)
-		strlcpy(ws->stacker, ws->l_state.vertical_flip ?
-		    stack_mark_vertical_flip : stack_mark_vertical,
-		    sizeof ws->stacker);
+		strlcpy(ws->stacker, (ws->l_state.vertical_flip ?
+		    stack_mark_vertical_flip : stack_mark_vertical),
+		    ws->stacker_len);
 	else if (ws->cur_layout->l_stack == horizontal_stack)
-		strlcpy(ws->stacker, ws->l_state.horizontal_flip ?
-		    stack_mark_horizontal_flip : stack_mark_horizontal,
-		    sizeof ws->stacker);
+		strlcpy(ws->stacker, (ws->l_state.horizontal_flip ?
+		    stack_mark_horizontal_flip : stack_mark_horizontal),
+		    ws->stacker_len);
+	else
+		strlcpy(ws->stacker, stack_mark_max, ws->stacker_len);
 }
 
 void
@@ -2798,7 +2808,7 @@ bar_workspace_indicator(char *s, size_t sz, struct swm_region *r)
 	struct ws_win		*w;
 	struct workspace	*ws;
 	int		 	 i, count = 0;
-	char			 tmp[SWM_BAR_MAX], *mark;
+	char			 tmp[SWM_BAR_MAX], *mark, *suffix;
 	bool			 current, active, named, urgent, collapse;
 
 	if (r == NULL)
@@ -2833,22 +2843,31 @@ bar_workspace_indicator(char *s, size_t sz, struct swm_region *r)
 				strlcat(s, " ", sz);
 
 			if (current &&
-			    workspace_indicator & SWM_WSI_MARKCURRENT)
+			    workspace_indicator & SWM_WSI_MARKCURRENT) {
 				mark = workspace_mark_current;
-			else if (urgent &&
-			    workspace_indicator & SWM_WSI_MARKURGENT)
+				suffix = workspace_mark_current_suffix;
+			} else if (urgent &&
+			    workspace_indicator & SWM_WSI_MARKURGENT) {
 				mark = workspace_mark_urgent;
-			else if (active &&
-			    workspace_indicator & SWM_WSI_MARKACTIVE)
+				suffix = workspace_mark_urgent_suffix;
+			} else if (active &&
+			    workspace_indicator & SWM_WSI_MARKACTIVE) {
 				mark = workspace_mark_active;
-			else if (!active &&
-			    workspace_indicator & SWM_WSI_MARKEMPTY)
+				suffix = workspace_mark_active_suffix;
+			} else if (!active &&
+			    workspace_indicator & SWM_WSI_MARKEMPTY) {
 				mark = workspace_mark_empty;
-			else if (!collapse)
+				suffix = workspace_mark_empty_suffix;
+			} else if (!collapse) {
 				mark = " ";
-			else
-				mark = "";
-			strlcat(s, mark, sz);
+				suffix = NULL;
+			} else {
+				mark = NULL;
+				suffix = NULL;
+			}
+
+			if (mark)
+				strlcat(s, mark, sz);
 
 			if (named && workspace_indicator & SWM_WSI_PRINTNAMES) {
 				snprintf(tmp, sizeof tmp, "%d:%s", ws->idx + 1,
@@ -2862,6 +2881,8 @@ bar_workspace_indicator(char *s, size_t sz, struct swm_region *r)
 			else
 				snprintf(tmp, sizeof tmp, "%d", ws->idx + 1);
 			strlcat(s, tmp, sz);
+			if (suffix)
+				strlcat(s, suffix, sz);
 			count++;
 		}
 	}
@@ -4046,6 +4067,39 @@ bar_cleanup(struct swm_region *r)
 	xcb_free_pixmap(conn, r->bar->buffer);
 	free(r->bar);
 	r->bar = NULL;
+}
+
+void
+setup_marks(void)
+{
+	struct workspace	*ws;
+	int			i, j, num_screens;
+	size_t			mlen, len;
+
+	/* Allocate stacking indicator buffers for longest mark. */
+	if (verbose_layout)
+		mlen = SWM_FANCY_MAXLEN;
+	else {
+		mlen = strlen(stack_mark_max);
+		if ((len = strlen(stack_mark_vertical)) > mlen)
+			mlen = len;
+		if ((len = strlen(stack_mark_vertical_flip)) > mlen)
+			mlen = len;
+		if ((len = strlen(stack_mark_horizontal)) > mlen)
+			mlen = len;
+		if ((len = strlen(stack_mark_horizontal_flip)) > mlen)
+			mlen = len;
+		mlen++; /* null byte. */
+	}
+
+	num_screens = get_screen_count();
+	for (i = 0; i < num_screens; i++)
+		for (j = 0; j < workspace_limit; ++j) {
+			ws = &screens[i].ws[j];
+			if ((ws->stacker = calloc(mlen, sizeof(char))) == NULL)
+				err(1, "setup_marks: calloc");
+			ws->stacker_len = mlen;
+		}
 }
 
 void
@@ -10758,9 +10812,13 @@ enum {
 	SWM_S_FOCUS_MARK_FLOATING,
 	SWM_S_FOCUS_MARK_MAXIMIZED,
 	SWM_S_WORKSPACE_MARK_CURRENT,
+	SWM_S_WORKSPACE_MARK_CURRENT_SUFFIX,
 	SWM_S_WORKSPACE_MARK_URGENT,
+	SWM_S_WORKSPACE_MARK_URGENT_SUFFIX,
 	SWM_S_WORKSPACE_MARK_ACTIVE,
+	SWM_S_WORKSPACE_MARK_ACTIVE_SUFFIX,
 	SWM_S_WORKSPACE_MARK_EMPTY,
+	SWM_S_WORKSPACE_MARK_EMPTY_SUFFIX,
 	SWM_S_STACK_MARK_MAX,
 	SWM_S_STACK_MARK_VERTICAL,
 	SWM_S_STACK_MARK_VERTICAL_FLIP,
@@ -11049,17 +11107,33 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 		free(workspace_mark_current);
 		workspace_mark_current = unescape_value(value);
 		break;
+	case SWM_S_WORKSPACE_MARK_CURRENT_SUFFIX:
+		free(workspace_mark_current_suffix);
+		workspace_mark_current_suffix = unescape_value(value);
+		break;
 	case SWM_S_WORKSPACE_MARK_URGENT:
 		free(workspace_mark_urgent);
 		workspace_mark_urgent = unescape_value(value);
+		break;
+	case SWM_S_WORKSPACE_MARK_URGENT_SUFFIX:
+		free(workspace_mark_urgent_suffix);
+		workspace_mark_urgent_suffix = unescape_value(value);
 		break;
 	case SWM_S_WORKSPACE_MARK_ACTIVE:
 		free(workspace_mark_active);
 		workspace_mark_active = unescape_value(value);
 		break;
+	case SWM_S_WORKSPACE_MARK_ACTIVE_SUFFIX:
+		free(workspace_mark_active_suffix);
+		workspace_mark_active_suffix = unescape_value(value);
+		break;
 	case SWM_S_WORKSPACE_MARK_EMPTY:
 		free(workspace_mark_empty);
 		workspace_mark_empty = unescape_value(value);
+		break;
+	case SWM_S_WORKSPACE_MARK_EMPTY_SUFFIX:
+		free(workspace_mark_empty_suffix);
+		workspace_mark_empty_suffix = unescape_value(value);
 		break;
 	case SWM_S_STACK_MARK_MAX:
 		free(stack_mark_max);
@@ -11520,9 +11594,13 @@ struct config_option configopt[] = {
 	{ "focus_mark_floating",	setconfvalue,	SWM_S_FOCUS_MARK_FLOATING },
 	{ "focus_mark_maximized",	setconfvalue,	SWM_S_FOCUS_MARK_MAXIMIZED },
 	{ "workspace_mark_current",	setconfvalue,	SWM_S_WORKSPACE_MARK_CURRENT },
+	{ "workspace_mark_current_suffix",	setconfvalue,	SWM_S_WORKSPACE_MARK_CURRENT_SUFFIX },
 	{ "workspace_mark_urgent",	setconfvalue,	SWM_S_WORKSPACE_MARK_URGENT },
+	{ "workspace_mark_urgent_suffix",	setconfvalue,	SWM_S_WORKSPACE_MARK_URGENT_SUFFIX },
 	{ "workspace_mark_active",	setconfvalue,	SWM_S_WORKSPACE_MARK_ACTIVE },
+	{ "workspace_mark_active_suffix",	setconfvalue,	SWM_S_WORKSPACE_MARK_ACTIVE_SUFFIX },
 	{ "workspace_mark_empty",	setconfvalue,	SWM_S_WORKSPACE_MARK_EMPTY },
+	{ "workspace_mark_empty_suffix",	setconfvalue,	SWM_S_WORKSPACE_MARK_EMPTY_SUFFIX },
 	{ "stack_mark_max",		setconfvalue,	SWM_S_STACK_MARK_MAX },
 	{ "stack_mark_vertical",	setconfvalue,	SWM_S_STACK_MARK_VERTICAL },
 	{ "stack_mark_vertical_flip",	setconfvalue,	SWM_S_STACK_MARK_VERTICAL_FLIP },
@@ -14270,6 +14348,8 @@ setup_screens(void)
 			ws->focus_raise = NULL;
 			ws->r = NULL;
 			ws->old_r = NULL;
+			ws->stacker = NULL;
+			ws->stacker_len = 0;
 			TAILQ_INIT(&ws->winlist);
 
 			for (k = 0; layouts[k].l_stack != NULL; k++)
@@ -14277,7 +14357,6 @@ setup_screens(void)
 					layouts[k].l_config(ws,
 					    SWM_ARG_ID_STACKINIT);
 			ws->cur_layout = &layouts[0];
-			ws->cur_layout->l_string(ws);
 		}
 
 #if defined(SWM_XCB_HAS_XINPUT) && defined(XCB_INPUT_RAW_BUTTON_PRESS)
@@ -14558,6 +14637,7 @@ shutdown_cleanup(void)
 		for (j = 0; j < SWM_WS_MAX; ++j) {
 			ws = &s->ws[j];
 			free(ws->name);
+			free(ws->stacker);
 
 			while ((w = TAILQ_FIRST(&ws->winlist)) != NULL) {
 				unmap_window(w);
@@ -14606,9 +14686,13 @@ shutdown_cleanup(void)
 	free(stack_mark_horizontal);
 	free(stack_mark_horizontal_flip);
 	free(workspace_mark_current);
+	free(workspace_mark_current_suffix);
 	free(workspace_mark_urgent);
+	free(workspace_mark_urgent_suffix);
 	free(workspace_mark_active);
+	free(workspace_mark_active_suffix);
 	free(workspace_mark_empty);
+	free(workspace_mark_empty_suffix);
 
 	if (bar_fs)
 		XFreeFontSet(display, bar_fs);
@@ -14813,6 +14897,7 @@ main(int argc, char *argv[])
 	else
 		scan_config();
 
+	setup_marks();
 	setup_fonts();
 	validate_spawns();
 
