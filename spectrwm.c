@@ -5141,7 +5141,7 @@ get_focus_magic(struct ws_win *win)
 
 	winfocus = find_main_window(win);
 
-	if (winfocus->focus_redirect == NULL)
+	if (winfocus == NULL || winfocus->focus_redirect == NULL)
 		return (winfocus);
 
 	/* Put limit just in case a redirect loop exists. */
@@ -6968,6 +6968,12 @@ find_main_window(struct ws_win *win)
 {
 	struct ws_win	*w;
 	int		i, wincount;
+
+	/* window can have been freed */
+	if (validate_win(win)) {
+		DNPRINTF(SWM_D_EVENT, "invalid win\n");
+		return (NULL);
+	}
 
 	if (win == NULL || !TRANS(win))
 		return (win);
