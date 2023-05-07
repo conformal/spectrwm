@@ -5859,7 +5859,7 @@ get_focus_other(struct ws_win *win)
 
 	if (ws->focus == win && TRANS(win)) {
 		w = find_window(win->transient);
-		if (w && w->ws == ws && !HIDDEN(w)) {
+		if (w && w != win && w->ws == ws && !HIDDEN(w)) {
 			winfocus = w;
 			goto done;
 		}
