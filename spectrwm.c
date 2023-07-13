@@ -285,6 +285,8 @@ uint32_t		swm_debug = 0
 #define FLOATING(w)		(ABOVE(w) || TRANS(w) || FULLSCREEN(w) ||      \
     MAXIMIZED(w))
 #define RAISED(w)		((w)->ws->focus_raise == (w))
+#define REPARENTED(w)		((w)->frame != XCB_WINDOW_NONE)
+#define ICONIC(w)		((w)->state == XCB_ICCCM_WM_STATE_ICONIC)
 
 #define ROTATION_OK(ws)		((ws)->cur_layout == &layouts[SWM_V_STACK] ||  \
     (ws)->cur_layout == &layouts[SWM_H_STACK])
@@ -542,13 +544,6 @@ struct swm_region {
 };
 TAILQ_HEAD(swm_region_list, swm_region);
 
-enum {
-	SWM_WIN_STATE_REPARENTING,
-	SWM_WIN_STATE_REPARENTED,
-	SWM_WIN_STATE_UNPARENTING,
-	SWM_WIN_STATE_UNPARENTED,
-};
-
 struct ws_win {
 	TAILQ_ENTRY(ws_win)	entry;
 	TAILQ_ENTRY(ws_win)	stack_entry;
@@ -558,7 +553,6 @@ struct ws_win {
 	xcb_visualid_t		visual;
 	struct ws_win		*focus_redirect;/* focus on transient */
 	struct swm_geometry	g;		/* current geometry */
-	struct swm_geometry	g_prev;		/* prev configured geometry */
 	struct swm_geometry	g_float;	/* root coordinates */
 	struct swm_geometry	g_floatref;	/* reference coordinates */
 	bool			mapped;
@@ -566,7 +560,7 @@ struct ws_win {
 	uint32_t		mapping;	/* # of pending operations */
 #endif
 	uint32_t		unmapping;	/* # of pending operations */
-	uint8_t			state;
+	uint32_t		state;		/* current ICCCM WM_STATE */
 	bool			bordered;
 	uint32_t		ewmh_flags;
 	int			font_size_boundary[SWM_MAX_FONT_STEPS];
@@ -647,7 +641,6 @@ struct workspace {
 	struct swm_region	*r;		/* may be NULL */
 	struct swm_region	*old_r;		/* may be NULL */
 	struct ws_win_list	winlist;	/* list of windows in ws */
-	int			state;		/* mapping state */
 	char			*stacker;	/* stack_mark buffer */
 	size_t			stacker_len;
 
@@ -1297,10 +1290,10 @@ bool	 get_urgent(struct ws_win *);
 const char	*get_win_input_model_label(struct ws_win *);
 #endif
 char	*get_win_name(xcb_window_t);
-uint8_t	 get_win_state(xcb_window_t);
+uint32_t get_win_state(xcb_window_t);
 void	 get_wm_protocols(struct ws_win *);
 #ifdef SWM_DEBUG
-const char	*get_wm_state_label(uint8_t);
+const char	*get_wm_state_label(uint32_t);
 #endif
 int	 get_ws_idx(struct ws_win *);
 void	 grab_buttons_win(xcb_window_t);
@@ -1363,7 +1356,9 @@ void	 region_containment(struct ws_win *, struct swm_region *, int);
 struct swm_region	*region_under(struct swm_screen *, int, int);
 void	 regionize(struct ws_win *, int, int);
 int	 reparent_window(struct ws_win *);
+#ifdef SWM_DEBUG
 void	 reparentnotify(xcb_reparent_notify_event_t *);
+#endif
 void	 resize(struct binding *, struct swm_region *, union arg *);
 void	 resize_win(struct ws_win *, struct binding *, int);
 void	 rotatews_moverg(struct workspace *, struct swm_region *,
@@ -1420,7 +1415,7 @@ void	 setup_spawn(void);
 #if defined(SWM_XCB_HAS_XINPUT) && defined(XCB_INPUT_RAW_BUTTON_PRESS)
 void	 setup_xinput2(struct swm_screen *);
 #endif
-void	 set_win_state(struct ws_win *, uint8_t);
+void	 set_win_state(struct ws_win *, uint32_t);
 void	 shutdown_cleanup(void);
 void	 sighdlr(int);
 void	 socket_setnonblock(int);
@@ -2229,8 +2224,8 @@ debug_refresh(struct ws_win *win)
 
 		free(s);
 	} else if (win->debug != XCB_WINDOW_NONE) {
-			xcb_destroy_window(conn, win->debug);
-			win->debug = XCB_WINDOW_NONE;
+		xcb_destroy_window(conn, win->debug);
+		win->debug = XCB_WINDOW_NONE;
 	}
 }
 
@@ -2240,8 +2235,7 @@ update_debug(struct swm_screen *s)
 	struct ws_win	*w;
 
 	TAILQ_FOREACH(w, &s->stack, stack_entry)
-		if (w->mapped)
-			debug_refresh(w);
+		debug_refresh(w);
 }
 #else
 void
@@ -4103,9 +4097,9 @@ setup_marks(void)
 }
 
 void
-set_win_state(struct ws_win *win, uint8_t state)
+set_win_state(struct ws_win *win, uint32_t state)
 {
-	uint32_t		data[2] = { state, XCB_ATOM_NONE };
+	uint32_t		data[2] = { state, XCB_WINDOW_NONE };
 
 	DNPRINTF(SWM_D_EVENT, "win %#x, state: %s(%u)\n", WINID(win),
 	    get_wm_state_label(state), state);
@@ -4113,11 +4107,12 @@ set_win_state(struct ws_win *win, uint8_t state)
 	if (win == NULL)
 		return;
 
+	win->state = state;
 	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id, a_state,
 	    a_state, 32, 2, data);
 }
 
-uint8_t
+uint32_t
 get_win_state(xcb_window_t w)
 {
 	xcb_get_property_reply_t	*r;
@@ -4453,7 +4448,7 @@ update_win_stacking(struct ws_win *win)
 	if (win == NULL)
 		return;
 
-	if (win->frame == XCB_WINDOW_NONE) {
+	if (!REPARENTED(win)) {
 		DNPRINTF(SWM_D_EVENT, "win %#x not reparented.\n", win->id);
 		return;
 	}
@@ -4493,6 +4488,12 @@ map_window(struct ws_win *win)
 	DNPRINTF(SWM_D_EVENT, "win %#x, mapped: %s\n",
 	    win->id, YESNO(win->mapped));
 
+	if (!REPARENTED(win)) {
+		DNPRINTF(SWM_D_EVENT, "skip win %#x; not reparented\n",
+		    win->id);
+		return;
+	}
+
 	if (win->mapped)
 		return;
 
@@ -4517,6 +4518,12 @@ unmap_window(struct ws_win *win)
 
 	DNPRINTF(SWM_D_EVENT, "win %#x, mapped: %s\n", win->id,
 	    YESNO(win->mapped));
+
+	if (!REPARENTED(win)) {
+		DNPRINTF(SWM_D_EVENT, "skip win %#x; not reparented\n",
+		    win->id);
+		return;
+	}
 
 	if (!win->mapped)
 		return;
@@ -6706,13 +6713,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 
 		/* Window coordinates exclude frame. */
 
-		if (winno > 1 || !disable_border ||
-		    (bar_enabled && ws->bar_enabled &&
-		    !disable_border_always)) {
-			bordered = true;
-		} else {
-			bordered = false;
-		}
+		bordered = (winno > 1 || !disable_border || (bar_enabled &&
+		    ws->bar_enabled && !disable_border_always));
 
 		if (rot) {
 			if (X(win) != cell.y || Y(win) != cell.x ||
@@ -6735,6 +6737,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 		}
 
 		if (!bordered) {
+			reconfigure = true;
 			X(win) -= border_width;
 			Y(win) -= border_width;
 			WIDTH(win) += 2 * border_width;
@@ -6965,7 +6968,8 @@ update_mapping(struct swm_screen *s)
 			mw = find_main_window(get_region_focus(r));
 		/* Map first, then unmap. */
 		TAILQ_FOREACH(w, &r->ws->winlist, entry)
-			if (!HIDDEN(w) && (!mof || find_main_window(w) == mw))
+			if (!HIDDEN(w) && (!mof || (mof &&
+			    find_main_window(w) == mw)))
 				map_window(w);
 		TAILQ_FOREACH(w, &r->ws->winlist, entry)
 			if (HIDDEN(w) || (mof && find_main_window(w) != mw))
@@ -8279,7 +8283,7 @@ draw_frame(struct ws_win *win)
 	if (win == NULL)
 		return;
 
-	if (win->frame == XCB_WINDOW_NONE) {
+	if (!REPARENTED(win)) {
 		DNPRINTF(SWM_D_EVENT, "win %#x not reparented\n", win->id);
 		return;
 	}
@@ -8328,7 +8332,7 @@ update_window(struct ws_win *win)
 	uint16_t	mask;
 	uint32_t	wc[5];
 
-	if (win->frame == XCB_WINDOW_NONE) {
+	if (!REPARENTED(win)) {
 		DNPRINTF(SWM_D_EVENT, "skip win %#x; not reparented\n",
 		    win->id);
 		return;
@@ -8375,8 +8379,6 @@ update_window(struct ws_win *win)
 	 * resized, but Java has special needs...
 	 */
 	config_win(win, NULL);
-
-	win->g_prev = win->g;
 }
 
 struct event {
@@ -11890,6 +11892,11 @@ reparent_window(struct ws_win *win)
 	xcb_generic_error_t	*error;
 	uint32_t		wa[3];
 
+	if (REPARENTED(win)) {
+		DNPRINTF(SWM_D_MISC, "win %#x already reparented.\n", win->id);
+		return (0);
+	}
+
 	win->frame = xcb_generate_id(conn);
 
 	DNPRINTF(SWM_D_MISC, "win %#x (f:%#x)\n", win->id, win->frame);
@@ -11914,7 +11921,6 @@ reparent_window(struct ws_win *win)
 	    win->s->visual, XCB_CW_BORDER_PIXEL | XCB_CW_EVENT_MASK |
 	    XCB_CW_COLORMAP, wa);
 
-	win->state = SWM_WIN_STATE_REPARENTING;
 	c = xcb_reparent_window_checked(conn, win->id, win->frame, 0, 0);
 	if ((error = xcb_request_check(conn, c))) {
 		DNPRINTF(SWM_D_MISC, "error:\n");
@@ -11924,7 +11930,6 @@ reparent_window(struct ws_win *win)
 		/* Abort. */
 		xcb_destroy_window(conn, win->frame);
 		win->frame = XCB_WINDOW_NONE;
-		win->state = SWM_WIN_STATE_UNPARENTED;
 		unmanage_window(win);
 		return (1);
 	} else {
@@ -11948,6 +11953,9 @@ reparent_window(struct ws_win *win)
 void
 unparent_window(struct ws_win *win)
 {
+	if (!REPARENTED(win))
+		return;
+
 	if (win->id != XCB_WINDOW_NONE) {
 		xcb_reparent_window(conn, win->id, win->s->root, X(win), Y(win));
 
@@ -11964,7 +11972,6 @@ unparent_window(struct ws_win *win)
 
 	xcb_destroy_window(conn, win->frame);
 	win->frame = XCB_WINDOW_NONE;
-	win->state = SWM_WIN_STATE_UNPARENTING;
 }
 
 struct ws_win *
@@ -12201,14 +12208,22 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	/* Set initial _NET_WM_ALLOWED_ACTIONS */
 	ewmh_update_actions(win);
 
-	if (reparent_window(win))
-		win = NULL;
+	if (reparent_window(win) == 0) {
+		if (win->ws->r && !HIDDEN(win))
+			map_window(win);
+		else
+			unmap_window(win);
 
-	if (win) {
+		update_window(win);
+		update_win_stacking(win);
+
 		DNPRINTF(SWM_D_MISC, "done. win %#x, (x,y) w x h: (%d,%d) "
 		    "%d x %d, ws: %d, iconic: %s, transient: %#x\n", win->id,
 		    X(win), Y(win), WIDTH(win), HEIGHT(win), win->ws->idx,
 		    YESNO(HIDDEN(win)), win->transient);
+	} else {
+		/* Failed to manage. */
+		win = NULL;
 	}
 out:
 	free(war);
@@ -12241,10 +12256,7 @@ unmanage_window(struct ws_win *win)
 	DNPRINTF(SWM_D_MISC, "win %#x (f:%#x)\n", win->id, win->frame);
 
 	kill_refs(win);
-
-	if (win->state != SWM_WIN_STATE_UNPARENTED &&
-	    win->state != SWM_WIN_STATE_UNPARENTING)
-		unparent_window(win);
+	unparent_window(win);
 
 	TAILQ_REMOVE(&win->s->stack, win, stack_entry);
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
@@ -13004,7 +13016,7 @@ get_state_mask_label(uint16_t state)
 }
 
 const char *
-get_wm_state_label(uint8_t state)
+get_wm_state_label(uint32_t state)
 {
 	const char *label;
 	switch (state) {
@@ -13411,33 +13423,15 @@ propertynotify(xcb_property_notify_event_t *e)
 	DNPRINTF(SWM_D_EVENT, "done\n");
 }
 
+#ifdef SWM_DEBUG
 void
 reparentnotify(xcb_reparent_notify_event_t *e)
 {
-	struct ws_win	*win;
-
 	DNPRINTF(SWM_D_EVENT, "event: %#x, win %#x, parent: %#x, "
 	    "(x,y): (%u,%u), override_redirect: %u\n", e->event, e->window,
 	    e->parent, e->x, e->y, e->override_redirect);
-
-	win = find_window(e->window);
-	if (win) {
-		if (win->state == SWM_WIN_STATE_REPARENTING) {
-			win->state = SWM_WIN_STATE_REPARENTED;
-
-			if (win->ws->r && !HIDDEN(win))
-				map_window(win);
-			else
-				unmap_window(win);
-
-			update_window(win);
-			update_win_stacking(win);
-		} else if (win->state == SWM_WIN_STATE_UNPARENTING) {
-			win->state = SWM_WIN_STATE_UNPARENTED;
-		}
-	}
-	DNPRINTF(SWM_D_EVENT, "done\n");
 }
+#endif
 
 void
 unmapnotify(xcb_unmap_notify_event_t *e)
@@ -14752,7 +14746,9 @@ event_handle(xcb_generic_event_t *evt)
 		EVENT(XCB_MAP_NOTIFY, mapnotify);
 #endif
 		EVENT(XCB_MAP_REQUEST, maprequest);
+#ifdef SWM_DEBUG
 		EVENT(XCB_REPARENT_NOTIFY, reparentnotify);
+#endif
 		EVENT(XCB_CONFIGURE_NOTIFY, configurenotify);
 		EVENT(XCB_CONFIGURE_REQUEST, configurerequest);
 		/*EVENT(XCB_GRAVITY_NOTIFY, );*/
