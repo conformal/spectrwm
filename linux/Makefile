@@ -22,8 +22,8 @@ endif
 
 BIN_CFLAGS   := -fPIE
 BIN_LDFLAGS  := -fPIE -pie
-BIN_CPPFLAGS := $(shell $(PKG_CONFIG) --cflags x11 x11-xcb xcb-icccm xcb-keysyms xcb-randr xcb-util xcb-xinput xcb-xtest xcursor xft)
-BIN_LDLIBS   := $(shell $(PKG_CONFIG) --libs   x11 x11-xcb xcb-icccm xcb-keysyms xcb-randr xcb-util xcb-xinput xcb-xtest xcursor xft)
+BIN_CPPFLAGS := $(shell $(PKG_CONFIG) --cflags x11 x11-xcb xcb-icccm xcb-keysyms xcb-randr xcb-util xcb-xinput xcb-xtest xcursor fontconfig xft)
+BIN_LDLIBS   := $(shell $(PKG_CONFIG) --libs   x11 x11-xcb xcb-icccm xcb-keysyms xcb-randr xcb-util xcb-xinput xcb-xtest xcursor fontconfig xft)
 LIB_CFLAGS   := -fPIC
 LIB_LDFLAGS  := -fPIC -shared
 LIB_CPPFLAGS := $(shell $(PKG_CONFIG) --cflags x11)

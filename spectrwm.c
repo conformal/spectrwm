@@ -1250,6 +1250,7 @@ xcb_atom_t get_atom_from_string(const char *);
 char	*get_atom_name(xcb_atom_t);
 #endif
 xcb_keycode_t	 get_binding_keycode(struct binding *);
+int		 get_character_font(struct swm_screen *, FcChar32, int);
 struct swm_region	*get_current_region(struct swm_screen *);
 #ifdef SWM_DEBUG
 const char	*get_event_label(xcb_generic_event_t *);
@@ -3352,16 +3353,49 @@ is_valid_markup(char *f, size_t *size)
 	return false;
 }
 
+int
+get_character_font(struct swm_screen *s, FcChar32 c, int pref)
+{
+	int			i;
+
+	/* Try special font for PUA codepoints. */
+	if (font_pua_index && s->bar_xftfonts[font_pua_index] &&
+	    ((0xe000 <= c && c <= 0xf8ff) || (0xf0000 <= c && c <= 0xffffd) ||
+	    (0x100000 <= c && c <= 0x10fffd)) &&
+	    XftCharExists(display, s->bar_xftfonts[font_pua_index], c))
+		return (font_pua_index);
+
+	if (pref >= num_xftfonts)
+		pref = -1;
+
+	/* Try specified font. */
+	if (pref >= 0 && s->bar_xftfonts[pref] &&
+	    XftCharExists(display, s->bar_xftfonts[pref], c))
+		return (pref);
+
+	/* Search the rest, from the top. */
+	for (i = 0; i < num_xftfonts; i++)
+		if (i != pref && s->bar_xftfonts[i] &&
+		    XftCharExists(display, s->bar_xftfonts[i], c))
+			return (i);
+
+	/* Fallback to the specified font, if valid. */
+	if (pref >= 0)
+		return (pref);
+
+	return (0);
+}
+
 void
 bar_parse_markup(struct swm_screen *s, struct bar_section *sect)
 {
 	XRectangle		ibox, lbox;
 	XGlyphInfo		info;
-	int 			i = 0, len = 0, stop = 0;
-	int			idx, prevfont;
-	char			*fmt;
-	unsigned char		*u1, *u2;
 	struct text_fragment	*frag;
+	int 			i = 0, len = 0, stop = 0, fmtlen, termfrag = 0;
+	int			idx, fn, fg, bg;
+	FcChar32		c;
+	char			*fmt;
 	size_t			size;
 
 	sect->text_width = 0;
@@ -3369,147 +3403,82 @@ bar_parse_markup(struct swm_screen *s, struct bar_section *sect)
 	frag = sect->frag;
 	frag[0].text = sect->fmtrep;
 	frag[0].length = 0;
-	frag[0].font = 0;
+	frag[0].font = fn = 0;
 	frag[0].width = 0;
-	frag[0].bg = 0;
-	frag[0].fg = 0;
+	frag[0].bg = bg = 0;
+	frag[0].fg = fg = 0;
+
+	fmt = sect->fmtrep;
+	fmtlen = strlen(fmt);
 
 	if (bar_font_legacy) {
-		TEXTEXTENTS(bar_fs, sect->fmtrep, strlen(sect->fmtrep), &ibox,
-		    &lbox);
+		TEXTEXTENTS(bar_fs, fmt, fmtlen, &ibox, &lbox);
 		sect->height = lbox.height;
 		sect->ypos = lbox.y;
 	}
 
-	fmt = sect->fmtrep;
 	while (*fmt != '\0') {
-		/*
-		 * Use special font for Unicode Private Use Area code points
-		 * U+E000 -> U+F8FF, U+F0000 -> U+FFFFD, U+100000 -> U+10FFFD
-		 */
+		/* Handle markup sequences. */
+		if (*fmt == '+' && !stop) {
+			if (*(fmt+1) == '@' && (is_valid_markup(fmt, &size))) {
+				idx = *(fmt+5) - '0';
+				if ((*(fmt+2) == 'f') && (*(fmt+3) == 'n'))
+					fn = idx;
+				else if ((*(fmt+2) == 'f') && (*(fmt+3) == 'g'))
+					fg = idx;
+				else if ((*(fmt+2) == 'b') && (*(fmt+3) == 'g'))
+					bg = idx;
+				else if ((*(fmt+2) == 's') && (*(fmt+3) == 't')
+				    && (*(fmt+4) == 'p'))
+					stop = 1;
 
-		u1 = (unsigned char *)fmt;
-		u2 = (unsigned char *)(fmt+1);
-		if ((font_pua_index) && ((*u1 == 0xee) ||
-		    (*u1 == 0xef && *u2 <= 0xa3) ||
-		    (*u1 == 0xf3 && *u2 >= 0xb0) ||
-		    (*u1 == 0xf4 && *u2 <= 0x8f))) {
-			if (len) {
-				/* Finish processing preceding fragment */
+				/* Eat markup. */
+				fmt += size;
+				fmtlen -= size;
+				termfrag = 1;
+				continue;
+			} else if (*(fmt+1) == '+') {
+				/* Eat escape. */
+				fmt++;
+				fmtlen--;
+			}
+		}
+
+		/* Decode current character. */
+		len = FcUtf8ToUcs4((FcChar8 *)fmt, &c, fmtlen);
+		if (len <= 0)
+			break;
+
+		idx = get_character_font(s, c, fn);
+		if (idx != frag[i].font || termfrag) {
+			/* Terminate current fragment. */
+			if (frag[i].length > 0) {
 				XftTextExtentsUtf8(display,
 				    s->bar_xftfonts[frag[i].font],
-				    (FcChar8 *)frag[i].text, len, &info);
-
-				frag[i].length = len;
+				    (FcChar8 *)frag[i].text,
+				    frag[i].length, &info);
 				frag[i].width = info.xOff;
 				sect->text_width += frag[i].width;
 				i++;
 				if (i == SWM_TEXTFRAGS_MAX)
 					break;
-				frag[i].font = frag[i-1].font;
-				frag[i].fg = frag[i-1].fg;
-				frag[i].bg = frag[i-1].bg;
-				len = 0;
 			}
 
-			prevfont = frag[i].font;
-			frag[i].font = font_pua_index;
-			frag[i].length = strnlen(fmt, (*u1 >= 0xf0) ? 4 : 3);
+			/* Begin new fragment. */
 			frag[i].text = fmt;
-
-			XftTextExtentsUtf8(display,
-			    s->bar_xftfonts[frag[i].font],
-			    (FcChar8 *)frag[i].text, frag[i].length, &info);
-
-			frag[i].width = info.xOff;
-			sect->text_width += frag[i].width;
-
-			fmt += frag[i].length;
-			i++;
-			if (i == SWM_TEXTFRAGS_MAX)
-				break;
-
-			frag[i].font = prevfont;
-			frag[i].fg = frag[i-1].fg;
-			frag[i].bg = frag[i-1].bg;
-			frag[i].text = fmt;
-			continue;
+			frag[i].length = 0;
+			frag[i].font = idx;
+			frag[i].fg = fg;
+			frag[i].bg = bg;
+			termfrag = 0;
 		}
-		/* process markup code */
-		if ((*fmt == '+') && (*(fmt+1) == '@') && (!stop) &&
-			(is_valid_markup(fmt, &size))) {
-			if (len) {
-				/* Process preceding text fragment */
-				if (bar_font_legacy) {
-					TEXTEXTENTS(bar_fs, frag[i].text, len,
-					    &ibox, &lbox);
-					frag[i].width = lbox.width;
-				} else {
-					XftTextExtentsUtf8(display,
-					    s->bar_xftfonts[frag[i].font],
-					    (FcChar8 *)frag[i].text, len,
-					    &info);
-					frag[i].width = info.xOff;
-				}
-				frag[i].length = len;
-				sect->text_width += frag[i].width;
-				i++;
-				if (i == SWM_TEXTFRAGS_MAX)
-					break;
-				frag[i].font = frag[i-1].font;
-				frag[i].fg = frag[i-1].fg;
-				frag[i].bg = frag[i-1].bg;
-				len = 0;
-			}
-			idx = *(fmt+5) - '0';
-			if ((*(fmt+2) == 'f') && (*(fmt+3) == 'n'))
-				frag[i].font = idx;
-			else if ((*(fmt+2) == 'f') && (*(fmt+3) == 'g'))
-				frag[i].fg = idx;
-			else if ((*(fmt+2) == 'b') && (*(fmt+3) == 'g'))
-				frag[i].bg = idx;
-			else if ((*(fmt+2) == 's') && (*(fmt+3) == 't')
-			    && (*(fmt+4) == 'p'))
-				stop = 1;
 
-			*fmt = '\0';
-			fmt += size;
-			frag[i].text = fmt;
-			continue;
-		}
-		/* process escaped '+' */
-		if ((*fmt == '+') && (*(fmt+1) == '+') && (!stop)) {
-			len++;
-			fmt++;
-			*fmt = '\0';
-			if (bar_font_legacy) {
-				TEXTEXTENTS(bar_fs, frag[i].text, len,
-				    &ibox, &lbox);
-				frag[i].width = lbox.width;
-			} else {
-				XftTextExtentsUtf8(display,
-				    s->bar_xftfonts[frag[i].font],
-				    (FcChar8 *)frag[i].text, len,
-				    &info);
-				frag[i].width = info.xOff;
-			}
-			frag[i].length = len;
-			sect->text_width += frag[i].width;
-			len = 0;
-			fmt++;
-			i++;
-			if (i == SWM_TEXTFRAGS_MAX)
-				break;
-			frag[i].font = frag[i-1].font;
-			frag[i].fg = frag[i-1].fg;
-			frag[i].bg = frag[i-1].bg;
-			frag[i].text = fmt;
-			continue;
-		}
-		fmt++;
-		len++;
+		frag[i].length += len;
+		fmt += len;
+		fmtlen -= len;
 	}
-	if ((len) && (i < SWM_TEXTFRAGS_MAX)) {
+
+	if ((frag[i].length > 0) && (i < SWM_TEXTFRAGS_MAX)) {
 		/* Process last text fragment */
 		if (bar_font_legacy) {
 			TEXTEXTENTS(bar_fs, frag[i].text, len, &ibox, &lbox);
@@ -3517,13 +3486,13 @@ bar_parse_markup(struct swm_screen *s, struct bar_section *sect)
 		} else {
 			XftTextExtentsUtf8(display,
 			    s->bar_xftfonts[frag[i].font],
-			    (FcChar8 *)frag[i].text, len, &info);
+			    (FcChar8 *)frag[i].text, frag[i].length, &info);
 			frag[i].width = info.xOff;
 		}
 		sect->text_width += frag[i].width;
-		frag[i].length = len;
 		i++;
 	}
+
 	sect->nfrags = i;
 }
 
