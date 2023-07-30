@@ -7,16 +7,16 @@ BUILDVERSION    = $(shell sh $(CURDIR)/../buildver.sh)
 
 # To use xquartz, uncomment the following three lines.
 INCFLAGS+= -I/opt/X11/include -I/opt/X11/include/freetype2/
-LDADD+=  -L/opt/X11/lib -lX11 -lXcursor -lXft
+LDADD+=  -L/opt/X11/lib -lX11 -lXcursor -lfontconfig -lXft
 
 # To use homebrew, uncomment the following three lines.
 #INCFLAGS+= -I/opt/X11/include
-#LDADD+=  -lX11 -lXcursor -lXft -L/opt/X11/lib
+#LDADD+=  -lX11 -lXcursor -lfontconfig -lXft -L/opt/X11/lib
 #INCFLAGS+= -I/usr/local/Cellar/freetype/2.5.0.1/include/freetype2
 
 # To use homebrew , comment out the following two lines.
 #INCFLAGS+= -I/opt/local/include/freetype2 -I/opt/local/include
-#LDADD+=  -L/opt/local/lib -lX11 -lXcursor -lXft
+#LDADD+=  -L/opt/local/lib -lX11 -lXcursor -lfontconfig -lXft
 
 LDADD+=  -lxcb-keysyms -lxcb-util -lxcb-randr -lX11-xcb -lxcb-xtest -lxcb -lxcb-icccm
 
