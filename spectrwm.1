@@ -569,12 +569,23 @@ Allocates a custom region, removing any autodetected regions which occupy the
 same space on the screen.
 Defined in the format
 .Li screen Ns Bo Ar idx Ns Bc : Ns Ar width Ns x Ns Ar height Ns + Ns Ar x Ns \
-+ Ns Ar y ,
-e.g. screen[1]:800x1200+0+0.
++ Ns Ar y Ns Bo , Ns Ar rotation Bc ,
+e.g. screen[1]:800x1200+0+0 or screen[1]:800x1200+0+0,inverted (with optional
+rotation).
 .Pp
 To make a region span multiple monitors, create a region big enough to cover
 them all, e.g. screen[1]:2048x768+0+0 makes the region span two monitors with
 1024x768 resolution sitting one next to the other.
+.Pp
+Possible values for the optional rotation argument are
+.Ar normal
+(default),
+.Ar left ,
+.Ar inverted
+and
+.Ar right .
+Note that rotation is used by
+.Ic workspace_autorotate .
 .It Ic region_padding
 Pixel width of empty space within region borders.
 Disable by setting to 0.
@@ -709,9 +720,10 @@ See the
 .Ic bar_format
 option for more details.
 .It Ic workspace_autorotate
-When moving workspaces across regions, auto-rotate vertical/horizontal layouts based on
-rotation data from
+When moving workspaces across regions, auto-rotate vertical/horizontal layouts
+based on rotation data from
 .Xr xrandr 1 .
+Enable by setting to 1.
 .It Ic workspace_clamp
 Prevents workspaces from being swapped when attempting to switch to a workspace
 that is mapped to another region.
