@@ -534,12 +534,18 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
   <dt id="region"><a class="permalink" href="#region"><code class="Ic">region</code></a></dt>
   <dd>Allocates a custom region, removing any autodetected regions which occupy
       the same space on the screen. Defined in the format
-      <code class="Li">screen</code>[<var class="Ar">idx</var>]:<var class="Ar">width</var>x<var class="Ar">height</var>+<var class="Ar">x</var>+<var class="Ar">y</var>,
-      e.g. screen[1]:800x1200+0+0.
+      <code class="Li">screen</code>[<var class="Ar">idx</var>]:<var class="Ar">width</var>x<var class="Ar">height</var>+<var class="Ar">x</var>+<var class="Ar">y</var>[,<var class="Ar">rotation</var>],
+      e.g. screen[1]:800x1200+0+0 or screen[1]:800x1200+0+0,inverted (with
+      optional rotation).
     <p class="Pp">To make a region span multiple monitors, create a region big
         enough to cover them all, e.g. screen[1]:2048x768+0+0 makes the region
         span two monitors with 1024x768 resolution sitting one next to the
         other.</p>
+    <p class="Pp">Possible values for the optional rotation argument are
+        <var class="Ar">normal</var> (default), <var class="Ar">left</var>,
+        <var class="Ar">inverted</var> and <var class="Ar">right</var>. Note
+        that rotation is used by
+      <code class="Ic">workspace_autorotate</code>.</p>
   </dd>
   <dt id="region_padding"><a class="permalink" href="#region_padding"><code class="Ic">region_padding</code></a></dt>
   <dd>Pixel width of empty space within region borders. Disable by setting to
@@ -629,6 +635,10 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
         remaining text off the bar, it is limited to 64 characters, by default.
         See the <code class="Ic">bar_format</code> option for more details.</p>
   </dd>
+  <dt id="workspace_autorotate"><a class="permalink" href="#workspace_autorotate"><code class="Ic">workspace_autorotate</code></a></dt>
+  <dd>When moving workspaces across regions, auto-rotate vertical/horizontal
+      layouts based on rotation data from <a class="Xr">xrandr(1)</a>. Enable by
+      setting to 1.</dd>
   <dt id="workspace_clamp"><a class="permalink" href="#workspace_clamp"><code class="Ic">workspace_clamp</code></a></dt>
   <dd>Prevents workspaces from being swapped when attempting to switch to a
       workspace that is mapped to another region. Use
