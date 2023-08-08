@@ -346,6 +346,7 @@ uint32_t		swm_debug = 0
 
 char			**start_argv;
 xcb_atom_t		a_state;
+xcb_atom_t		a_change_state;
 xcb_atom_t		a_prot;
 xcb_atom_t		a_delete;
 xcb_atom_t		a_net_frame_extents;
@@ -1929,8 +1930,6 @@ ewmh_apply_flags(struct ws_win *win, uint32_t pending)
 				load_float_geom(win);
 			else if (!MAXIMIZED(win))
 				store_float_geom(win);
-
-			raise_window(win);
 		} else {
 			/* Revert. */
 			win->ewmh_flags ^= EWMH_F_ABOVE & pending;
@@ -1947,7 +1946,6 @@ ewmh_apply_flags(struct ws_win *win, uint32_t pending)
 		}
 
 		draw_frame(win);
-		raise_window_related(win);
 	}
 
 	if (changed & EWMH_F_FULLSCREEN) {
@@ -1955,8 +1953,6 @@ ewmh_apply_flags(struct ws_win *win, uint32_t pending)
 			load_float_geom(win);
 
 		win->ewmh_flags &= ~EWMH_F_MAXIMIZED;
-		raise_window(win);
-		update_win_stacking(win);
 	}
 
 	DNPRINTF(SWM_D_PROP, "done\n");
@@ -4471,12 +4467,10 @@ map_window(struct ws_win *win)
 #ifdef SWM_DEBUG
 	if (win->debug != XCB_WINDOW_NONE)
 		xcb_map_window(conn, win->debug);
+	win->mapping += 2;
 #endif
-	set_win_state(win, XCB_ICCCM_WM_STATE_NORMAL);
 	win->mapped = true;
-#ifdef SWM_DEBUG
-	win->mapping++;
-#endif
+	set_win_state(win, XCB_ICCCM_WM_STATE_NORMAL);
 }
 
 void
@@ -4502,9 +4496,9 @@ unmap_window(struct ws_win *win)
 #endif
 	xcb_unmap_window(conn, win->id);
 	xcb_unmap_window(conn, win->frame);
-	set_win_state(win, XCB_ICCCM_WM_STATE_ICONIC);
+	win->unmapping += 2;
 	win->mapped = false;
-	win->unmapping++;
+	set_win_state(win, XCB_ICCCM_WM_STATE_ICONIC);
 }
 
 void
@@ -5564,6 +5558,7 @@ cyclews(struct binding *bp, struct swm_region *r, union arg *args)
 			/* Hot set new focus. */
 			set_focus_win(winfocus);
 			raise_window(winfocus);
+			draw_frame(nws->focus_prev);
 
 			if (rr)
 				stack(rr);
@@ -5572,7 +5567,6 @@ cyclews(struct binding *bp, struct swm_region *r, union arg *args)
 
 			if (nws->r != r) {
 				set_region(nws->r);
-				draw_frame(nws->focus);
 				draw_frame(ws->focus);
 			}
 
@@ -6858,10 +6852,6 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 
 		/* Set maximized flag for all maxed windows. */
 		if (!MAXIMIZED(w)) {
-			/* Preserve floating geometry. */
-			if (ABOVE(w))
-				store_float_geom(w);
-
 			ewmh_apply_flags(w, w->ewmh_flags | EWMH_F_MAXIMIZED);
 			ewmh_update_wm_state(w);
 		}
@@ -7021,8 +7011,7 @@ send_to_ws(struct binding *bp, struct swm_region *r, union arg *args)
 	/* Set new focus on target ws. */
 	if (!follow) {
 		set_focus_win(win);
-		if (win->ws->focus_prev)
-			draw_frame(win->ws->focus_prev);
+		draw_frame(win->ws->focus_prev);
 	}
 
 	DNPRINTF(SWM_D_STACK, "focus: %#x, focus_prev: %#x, first: %#x, "
@@ -7992,6 +7981,7 @@ clear_maximized(struct workspace *ws)
 	while (w) {
 		if (w->ws == ws && MAXIMIZED(w)) {
 			ewmh_apply_flags(w, w->ewmh_flags & ~EWMH_F_MAXIMIZED);
+			raise_window_related(w);
 			ewmh_update_wm_state(w);
 			++count;
 			/* Stacking may have changed; restart search. */
@@ -8022,6 +8012,7 @@ unmaximize_other(struct ws_win *win)
 		if (w->ws == win->ws && w != win &&
 		    find_main_window(w) != mainw && MAXIMIZED(w)) {
 			ewmh_apply_flags(w, w->ewmh_flags & ~EWMH_F_MAXIMIZED);
+			raise_window_related(w);
 			ewmh_update_wm_state(w);
 			++count;
 		}
@@ -8055,6 +8046,7 @@ maximize_toggle(struct binding *bp, struct swm_region *r, union arg *args)
 		return;
 
 	ewmh_apply_flags(win, win->ewmh_flags ^ EWMH_F_MAXIMIZED);
+	raise_window_related(win);
 	ewmh_update_wm_state(win);
 	unmaximize_other(win);
 
@@ -8100,6 +8092,7 @@ floating_toggle(struct binding *bp, struct swm_region *r, union arg *args)
 		return;
 
 	ewmh_apply_flags(w, (w->ewmh_flags ^ EWMH_F_ABOVE) & ~EWMH_F_MAXIMIZED);
+	raise_window_related(w);
 	ewmh_update_wm_state(w);
 
 	update_win_stacking(w);
@@ -8141,7 +8134,9 @@ fullscreen_toggle(struct binding *bp, struct swm_region *r, union arg *args)
 	DNPRINTF(SWM_D_MISC, "win %#x\n", w->id);
 
 	ewmh_apply_flags(w, w->ewmh_flags ^ EWMH_F_FULLSCREEN);
+	raise_window_related(w);
 	ewmh_update_wm_state(w);
+	update_stacking(w->s);
 
 	stack(r);
 
@@ -8455,8 +8450,10 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 
 	ewmh_apply_flags(win, (win->ewmh_flags | SWM_F_MANUAL | EWMH_F_ABOVE) &
 	    ~EWMH_F_MAXIMIZED);
+	raise_window_related(win);
 	ewmh_update_wm_state(win);
 
+	update_stacking(win->s);
 	stack(r);
 
 	flush();
@@ -8750,8 +8747,10 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 
 	ewmh_apply_flags(win, (win->ewmh_flags | SWM_F_MANUAL | EWMH_F_ABOVE) &
 	    ~EWMH_F_MAXIMIZED);
+	raise_window_related(win);
 	ewmh_update_wm_state(win);
 
+	update_stacking(win->s);
 	if (restack)
 		stack(r);
 
@@ -12174,6 +12173,9 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	ewmh_apply_flags(win, new_flags);
 	ewmh_update_wm_state(win);
 
+	if (FLOATING(win))
+		raise_window(win);
+
 	/* Set initial _NET_WM_ALLOWED_ACTIONS */
 	ewmh_update_actions(win);
 
@@ -12344,17 +12346,21 @@ focusin(xcb_focus_in_event_t *e)
 	    e->detail == XCB_NOTIFY_DETAIL_VIRTUAL)
 		return;
 
+	if (e->mode == XCB_NOTIFY_MODE_GRAB &&
+	    e->detail == XCB_NOTIFY_DETAIL_INFERIOR)
+		return;
+
+	if (e->mode == XCB_NOTIFY_MODE_WHILE_GRABBED &&
+	    e->detail == XCB_NOTIFY_DETAIL_NONLINEAR_VIRTUAL)
+		return;
+
 	/* Managed window. */
 	if ((win = find_window(e->event))) {
 		if (win != win->ws->focus) {
 			set_focus_win(win);
-
-			if (win->ws->focus_prev)
-				draw_frame(win->ws->focus_prev);
-
+			draw_frame(win->ws->focus_prev);
 			draw_frame(win);
-			raise_window(win);
-			update_win_stacking(win);
+			update_stacking(win->s);
 			flush();
 		}
 	} else {
@@ -13093,7 +13099,7 @@ mapnotify(xcb_map_notify_event_t *e)
 		return;
 	}
 
-	if (win->id != e->window) {
+	if (win->id != e->window && win->frame != e->window) {
 		DNPRINTF(SWM_D_EVENT, "ignore; not client window.\n");
 		return;
 	}
@@ -13228,13 +13234,15 @@ void
 maprequest(xcb_map_request_event_t *e)
 {
 	struct ws_win		*win, *w;
-	bool			follow;
+	bool			follow, setfocus = false;
 
 	DNPRINTF(SWM_D_EVENT, "win %#x, parent: %#x\n", e->window, e->parent);
 
 	win = manage_window(e->window, spawn_position, true);
 	if (win == NULL)
 		goto out;
+
+	win->mapped = false;
 
 	follow = follow_pointer(win->s);
 	/* Set new focus unless a quirk says otherwise. */
@@ -13257,16 +13265,20 @@ maprequest(xcb_map_request_event_t *e)
 					break;
 			}
 		}
-		if (w == NULL) {
-			set_focus_win(get_focus_magic(win));
-			unmaximize_other(win);
-			raise_window(win);
-		}
+		if (w == NULL)
+			setfocus = true;
 	}
 
+	if (setfocus) {
+		set_focus_win(get_focus_magic(win));
+		draw_frame(win->ws->focus_prev);
+	}
+	unmaximize_other(win);
+	if (setfocus)
+		raise_window(win);
+	update_stacking(win->s);
+
 	if (win->ws->r) {
-		unmaximize_other(win);
-		update_stacking(win->s);
 		stack(win->ws->r);
 
 		if (!follow) {
@@ -13419,7 +13431,7 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 	}
 
 	win = find_window(e->window);
-	if (win == NULL || win->id != e->window) {
+	if (win == NULL || (win->id != e->window && win->frame != e->window)) {
 		DNPRINTF(SWM_D_EVENT, "ignore; unmanaged.\n");
 		return;
 	}
@@ -13430,23 +13442,32 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 		return;
 	}
 
-	DNPRINTF(SWM_D_EVENT, "unexpected unmap; assuming withdrawn.\n");
-
 	s = win->s;
 	ws = win->ws;
 
 	follow = follow_pointer(s);
 
-	if (win == ws->focus)
-		nfw = get_focus_other(win);
+	if (win->frame == e->window) {
+		DNPRINTF(SWM_D_EVENT, "unexpected unmap of frame; fixing.\n");
 
-	win->mapped = false;
+		if (win == ws->focus)
+			nfw = win;
 
-	/* EWMH advises removal of _NET_WM_DESKTOP and _NET_WM_STATE. */
-	xcb_delete_property(conn, win->id, ewmh[_NET_WM_DESKTOP].atom);
-	xcb_delete_property(conn, win->id, ewmh[_NET_WM_STATE].atom);
-	set_win_state(win, XCB_ICCCM_WM_STATE_WITHDRAWN);
-	unmanage_window(win);
+		xcb_map_window(conn, win->frame);
+	} else {
+		DNPRINTF(SWM_D_EVENT, "unexpected unmap; unmanaging.\n");
+
+		if (win == ws->focus)
+			nfw = get_focus_other(win);
+
+		win->mapped = false;
+
+		/* EWMH advises removal of _NET_WM_DESKTOP and _NET_WM_STATE. */
+		xcb_delete_property(conn, win->id, ewmh[_NET_WM_DESKTOP].atom);
+		xcb_delete_property(conn, win->id, ewmh[_NET_WM_STATE].atom);
+		set_win_state(win, XCB_ICCCM_WM_STATE_WITHDRAWN);
+		unmanage_window(win);
+	}
 
 	if (!follow && nfw)
 		set_focus_win(get_focus_magic(nfw));
@@ -13507,6 +13528,7 @@ clientmessage(xcb_client_message_event_t *e)
 	uint32_t		vals[4];
 	int			num_screens, i;
 	xcb_map_request_event_t	mre;
+	bool			hidden;
 #ifdef SWM_DEBUG
 	char			*name;
 
@@ -13565,15 +13587,16 @@ clientmessage(xcb_client_message_event_t *e)
 		    win->quirks & SWM_Q_OBEYAPPFOCUSREQ) {
 			set_focus_win(win);
 
-			if (HIDDEN(win)) {
+			hidden = HIDDEN(win);
+			if (hidden) {
 				/* Uniconify */
 				ewmh_apply_flags(win,
 				    win->ewmh_flags & ~EWMH_F_HIDDEN);
 				ewmh_update_wm_state(win);
-				raise_window(win);
+				raise_window_related(win);
 			}
 
-			if (unmaximize_other(win) > 0 || HIDDEN(win)) {
+			if (unmaximize_other(win) > 0 || hidden) {
 				stack(win->ws->r);
 				update_stacking(win->s);
 			}
@@ -13648,6 +13671,16 @@ clientmessage(xcb_client_message_event_t *e)
 				stack(win->ws->r);
 				bar_draw(win->ws->r->bar);
 			}
+		}
+	} else if (e->type == a_change_state) {
+		DNPRINTF(SWM_D_EVENT, "WM_CHANGE_STATE state: %s\n",
+		    get_wm_state_label(e->data.data32[0]));
+		if (e->data.data32[0] == XCB_ICCCM_WM_STATE_ICONIC) {
+			/* Iconify. */
+			ewmh_apply_flags(win, win->ewmh_flags | EWMH_F_HIDDEN);
+			ewmh_update_wm_state(win);
+			update_win_stacking(win);
+			stack(win->ws->r);
 		}
 	}
 
@@ -14437,6 +14470,7 @@ setup_globals(void)
 		err(1, "workspace_mark_empty: strdup");
 
 	a_state = get_atom_from_string("WM_STATE");
+	a_change_state = get_atom_from_string("WM_CHANGE_STATE");
 	a_prot = get_atom_from_string("WM_PROTOCOLS");
 	a_delete = get_atom_from_string("WM_DELETE_WINDOW");
 	a_net_frame_extents = get_atom_from_string("_NET_FRAME_EXTENTS");
