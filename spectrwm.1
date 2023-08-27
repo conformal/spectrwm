@@ -491,6 +491,10 @@ and changes to layout.
 .It Ar manual
 Set window focus on window interaction only.
 .El
+.It Ic fullscreen_hide_other
+When a fullscreen window is focused, hide unrelated windows on the workspace.
+Useful for transparent windows.
+Defaults to 0.
 .It Ic iconic_enabled
 Display the number of iconic (minimized) windows in the status bar.
 Enable by setting to 1.
@@ -546,6 +550,10 @@ This setting is not retained at restart.
 When set to 1,
 .Ic maximize_toggle
 will also hide/restore the bar visibility of the affected workspace.
+Defaults to 0.
+.It Ic maximize_hide_other
+When a maximized window is focused, hide unrelated windows on the workspace.
+Useful for transparent windows.
 Defaults to 0.
 .It Ic modkey
 Change the current modifier value of
