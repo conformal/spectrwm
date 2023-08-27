@@ -459,7 +459,9 @@ bool		 bar_action_expand = false;
 bool		 stack_enabled = true;
 bool		 clock_enabled = true;
 bool		 iconic_enabled = false;
+bool		 fullscreen_hide_other = false;
 bool		 maximize_hide_bar = false;
+bool		 maximize_hide_other = false;
 bool		 urgent_enabled = false;
 bool		 urgent_collapse = false;
 char		*clock_format = NULL;
@@ -532,6 +534,7 @@ struct swm_bar {
 	xcb_pixmap_t		buffer;
 	struct swm_geometry	g;
 	struct swm_region	*r;	/* Associated region. */
+	bool			disabled;
 };
 
 /* virtual "screens" */
@@ -3554,12 +3557,12 @@ bar_draw(struct swm_bar *bar)
 
 	r = bar->r;
 
-	if (bar_enabled && r->ws->bar_enabled)
-		xcb_map_window(conn, bar->id);
-	else {
+	if (!bar_enabled || !r->ws->bar_enabled || r->bar->disabled) {
 		xcb_unmap_window(conn, bar->id);
 		return;
 	}
+
+	xcb_map_window(conn, bar->id);
 
 	if (startup_exception) {
 		snprintf(fmtexp, sizeof fmtexp,
@@ -3966,6 +3969,7 @@ bar_setup(struct swm_region *r)
 	Y(r->bar) = bar_at_bottom ? (Y(r) + HEIGHT(r) - bar_height) : Y(r);
 	WIDTH(r->bar) = WIDTH(r) - 2 * bar_border_width;
 	HEIGHT(r->bar) = bar_height - 2 * bar_border_width;
+	r->bar->disabled = false;
 
 	/* Assume region is unfocused when we create the bar. */
 	r->bar->id = xcb_generate_id(conn);
@@ -5059,7 +5063,8 @@ focus_win(struct ws_win *win)
 		goto out;
 
 	ws = win->ws;
-	if (!win->mapped && !MAPONFOCUS(ws))
+	if (!win->mapped && !MAPONFOCUS(ws) && !maximize_hide_other &&
+	    !fullscreen_hide_other)
 		goto out;
 
 	if (validate_ws(ws))
@@ -5115,6 +5120,10 @@ focus_win(struct ws_win *win)
 			update_win_stacking(win);
 			map_window(win);
 		}
+
+		if ((maximize_hide_other && !MAXIMIZED(win)) ||
+		    (fullscreen_hide_other && !FULLSCREEN(win)))
+			update_mapping(win->s);
 
 		if (cfw != win) {
 			if (NOINPUT(win) && TRANS(win))
@@ -6958,9 +6967,16 @@ update_mapping(struct swm_screen *s)
 		if (r->ws == NULL)
 			continue;
 
-		mof = MAPONFOCUS(r->ws);
+		w = get_region_focus(r);
+		r->bar->disabled = (w && ((MAXIMIZED(w) && maximize_hide_bar &&
+		    maximize_hide_other) || (FULLSCREEN(w) &&
+		    fullscreen_hide_other)));
+		mof = MAPONFOCUS(r->ws) ||
+		    (maximize_hide_other && w && MAXIMIZED(w)) ||
+		    (fullscreen_hide_other && w && FULLSCREEN(w));
 		if (mof)
-			mw = find_main_window(get_region_focus(r));
+			mw = find_main_window(w);
+
 		/* Map first, then unmap. */
 		TAILQ_FOREACH(w, &r->ws->winlist, entry)
 			if (!HIDDEN(w) && (!mof || (mof &&
@@ -10793,8 +10809,10 @@ enum {
 	SWM_S_FOCUS_CLOSE_WRAP,
 	SWM_S_FOCUS_DEFAULT,
 	SWM_S_FOCUS_MODE,
+	SWM_S_FULLSCREEN_HIDE_OTHER,
 	SWM_S_ICONIC_ENABLED,
 	SWM_S_MAXIMIZE_HIDE_BAR,
+	SWM_S_MAXIMIZE_HIDE_OTHER,
 	SWM_S_REGION_PADDING,
 	SWM_S_SPAWN_ORDER,
 	SWM_S_SPAWN_TERM,
@@ -10977,11 +10995,17 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 			return (1);
 		}
 		break;
+	case SWM_S_FULLSCREEN_HIDE_OTHER:
+		fullscreen_hide_other = atoi(value);
+		break;
 	case SWM_S_ICONIC_ENABLED:
 		iconic_enabled = (atoi(value) != 0);
 		break;
 	case SWM_S_MAXIMIZE_HIDE_BAR:
 		maximize_hide_bar = atoi(value);
+		break;
+	case SWM_S_MAXIMIZE_HIDE_OTHER:
+		maximize_hide_other = atoi(value);
 		break;
 	case SWM_S_REGION_PADDING:
 		region_padding = atoi(value);
@@ -11566,11 +11590,13 @@ struct config_option configopt[] = {
 	{ "focus_close_wrap",		setconfvalue,	SWM_S_FOCUS_CLOSE_WRAP },
 	{ "focus_default",		setconfvalue,	SWM_S_FOCUS_DEFAULT },
 	{ "focus_mode",			setconfvalue,	SWM_S_FOCUS_MODE },
+	{ "fullscreen_hide_other",	setconfvalue,	SWM_S_FULLSCREEN_HIDE_OTHER },
 	{ "iconic_enabled",		setconfvalue,	SWM_S_ICONIC_ENABLED },
 	{ "java_workaround",		NULL,		0 }, /* dummy */
 	{ "keyboard_mapping",		setkeymapping,	0 },
 	{ "layout",			setlayout,	0 },
 	{ "maximize_hide_bar",		setconfvalue,	SWM_S_MAXIMIZE_HIDE_BAR },
+	{ "maximize_hide_other",	setconfvalue,	SWM_S_MAXIMIZE_HIDE_OTHER },
 	{ "modkey",			setconfmodkey,	0 },
 	{ "program",			setconfspawn,	0 },
 	{ "quirk",			setconfquirk,	0 },
