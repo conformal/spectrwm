@@ -591,6 +591,15 @@ the
 option.
 .Pp
 This setting is not retained at restart.
+.It Ic max_layout_maximize
+Automatically maximize windows in max layout.
+Note that automatic maximize behavior is disabled for windows that are
+unmaximized in max layout.
+Maximizing the window or resetting the layout with
+.Ic stack_reset
+enables it again.
+Enabled by default.
+Disable by setting to 0.
 .It Ic maximize_hide_bar
 When set to 1,
 .Ic maximize_toggle

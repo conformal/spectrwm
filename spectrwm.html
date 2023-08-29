@@ -565,6 +565,12 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
         <code class="Ic">layout</code> option.</p>
     <p class="Pp">This setting is not retained at restart.</p>
   </dd>
+  <dt id="max_layout_maximize"><a class="permalink" href="#max_layout_maximize"><code class="Ic">max_layout_maximize</code></a></dt>
+  <dd>Automatically maximize windows in max layout. Note that automatic maximize
+      behavior is disabled for windows that are unmaximized in max layout.
+      Maximizing the window or resetting the layout with
+      <code class="Ic">stack_reset</code> enables it again. Enabled by default.
+      Disable by setting to 0.</dd>
   <dt id="maximize_hide_bar"><a class="permalink" href="#maximize_hide_bar"><code class="Ic">maximize_hide_bar</code></a></dt>
   <dd>When set to 1, <code class="Ic">maximize_toggle</code> will also
       hide/restore the bar visibility of the affected workspace. Defaults to
