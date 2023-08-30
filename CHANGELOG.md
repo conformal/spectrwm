@@ -1,7 +1,95 @@
+spectrwm 3.5.0
+==============
+
+Unreleased
+
+* Workaround application issues related to ICCCM 6.3 button grabs.
+  - If X Input Extension >= 2.1 is available, handle button bindings with the
+    `REPLAY` flag passively, without grabs. For other button bindings, establish
+    grabs on root.
+  - Otherwise, for compatibility, establish all button binding grabs directly on
+    client windows.
+* Improve bar fonts.
+  - Fallback to a "fail-safe" font if the default/user `bar_font` fails to load.
+  - Add fallback handling for missing glyphs when using multiple fonts with Xft.
+  - Add supplementary private-use code points to `bar_font_pua`.
+  - Fix `$bar_font` program variable substitution should not include fallbacks.
+* Improve window mapping.
+  - Fix window mapping issue when handling simultaneous screen changes.
+  - Improve reliability.
+* Improve window stacking.
+  - Stack by screen instead of by region/workspace.
+  - Fix `raise` and `always_raise` stacking issues.
+  - Fix follow mode stacking issues.
+* Improve (re)start handling.
+  - Set intial focus more reliably.
+  - Focus on fullscreen/maximized windows before main.
+  - Restore window floating geometry on shutdown.
+* Improve focus handling.
+  - Add `prior` setting to `focus_close`. When the focused window is closed,
+    fallback to the last focused window in the workspace.
+  - Add `focus_prior` action. Focus last focused window on workspace.
+    (Default binding: `M-S-a`.)
+  - Fix iconified window focus issue.
+  - Fix input focus fallback.
+  - Fix setting focus with EWMH should unmaximize other windows.
+  - Fix move/resize operation should abort on focus loss.
+  - Fix `focus_main` issue with iconified/floating windows.
+  - Fix max layout focus issue when closing transients.
+  - Improve previous focus fallback.
+* Improve focus follow mode.
+  - Fix handling of ConfigureWindow and EWMH requests.
+  - Fix workspace switching issues.
+* Improve status bar.
+  - Add character sequence for workspace list indicator (+L).
+  - Add workspace mark options for the workspace indicator (+L).
+  - Add stack mark options for the stacking indicator (+S).
+  - Add focus mark options for the focus status indicator (+F).
+  - Add character sequence for number of windows in workspace (+w) (lowercase).
+  - Fix `bar_action` piping deadlock issue.
+  - Fix `name_workspace` should clear on empty string.
+  - Fix refresh bar on `name_workspace`.
+  - Set WM_CLASS, WM_NAME and _NET_WM_NAME on the bar window.
+* Add `maximize_hide_other` and `fullscreen_hide_other` options. When a
+  maximized/fullscreen window is focused, hide unrelated windows on the same
+  workspace. Useful for transparent windows.
+* Add `prior_layout` action. Switch to the last used layout.
+  (Unbound by default.)
+* Add `workspace_autorotate` option. When moving workspaces across regions,
+  automatically "rotate" vertical/horizontal layouts based on RandR rotation
+  data.
+* Add optional rotation argument to `region` option.
+* Add support for ICCCM `WM_CHANGE_STATE` ClientMessage.
+* Disable border on maximized windows when `disable_border = always`.
+* Fix `warp_pointer` issues.
+* Fix maximize handling.
+* Fix ws cycle actions should skip visible workspaces.
+* Fix handling when a window is lost immediately after ReparentWindow.
+* Fix _NET_DESKTOP_VIEWPORT should update on workspace and region changes.
+* Fix X connection error handling.
+* Fix Java workaround.
+* Fix compile error when building against musl.
+* Fix build with clang 16 on Linux.
+* Add "wpath" pledge for sparc64 support
+* Simplify use of `pledge(2)` on OpenBSD.
+* Remove `-g` from CFLAGS in all Makefiles.
+* Improve Linux Makefile.
+* Fix `iostat(8)` issue in example baraction.sh script for OpenBSD.
+* Add `cycle_visible` option to the man page and example conf.
+* Add details to `modkey` option in man page.
+* Add stack modes and window states to man page.
+* Fix incorrect key binding for `ws_6` in spectrwm_fr.conf.
+* Fix man page `wmctrl(1)` examples.
+* Update man page note regarding `dmenu(1)` Xft support.
+* Update example spectrwm.conf.
+* Update `keyboard_mapping` example configuration files.
+* Update html manual.
+
+
 spectrwm 3.4.1
 ==============
 
-Release on Jun 25, 2020
+Released on Jun 25, 2020
 
 * Fix always_raise mapping issue.
 * Fix _NET_CURRENT_DESKTOP should be updated on ws_next_move/ws_prev_move.
@@ -15,7 +103,7 @@ Release on Jun 25, 2020
 spectrwm 3.4.0
 ==============
 
-Release on Jun 17, 2020
+Released on Jun 17, 2020
 
 * Add optional startup parameters:
   - -c file - Specify a configuration file to load instead of scanning for one.
@@ -198,7 +286,7 @@ Released on Oct 26, 2014
 * Man page fixes, mostly spacing related
 * Reorder LDFLAGS in Linux Makefile to work with --a
 * Fix warp_pointer centering
-* Add note to man page regarding autorun and LD_PREL
+* Add note to man page regarding autorun and LD_PRELOAD
 * Honour correctly "disable_border" in max_stack
 * Fix focus_urgent
 
