@@ -514,6 +514,23 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
   <dt id="fullscreen_hide_other"><a class="permalink" href="#fullscreen_hide_other"><code class="Ic">fullscreen_hide_other</code></a></dt>
   <dd>When a fullscreen window is focused, hide unrelated windows on the
       workspace. Useful for transparent windows. Defaults to 0.</dd>
+  <dt id="fullscreen_unfocus"><a class="permalink" href="#fullscreen_unfocus"><code class="Ic">fullscreen_unfocus</code></a></dt>
+  <dd>Set handling when a fullscreen window loses focus. Possible values:
+    <p class="Pp"></p>
+    <div class="Bd-indent">
+    <dl class="Bl-tag Bl-compact">
+      <dt><var class="Ar">none</var></dt>
+      <dd>Leave window fullscreen. (default)</dd>
+      <dt><var class="Ar">restore</var></dt>
+      <dd>Exit fullscreen.</dd>
+      <dt><var class="Ar">iconify</var></dt>
+      <dd>Minimize/hide the window.</dd>
+      <dt><var class="Ar">float</var></dt>
+      <dd>Exit fullscreen and float window.</dd>
+    </dl>
+    </div>
+    <p class="Pp">Note that this option is ignored in max layout.</p>
+  </dd>
   <dt id="iconic_enabled"><a class="permalink" href="#iconic_enabled"><code class="Ic">iconic_enabled</code></a></dt>
   <dd>Display the number of iconic (minimized) windows in the status bar. Enable
       by setting to 1.</dd>
@@ -555,6 +572,23 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
   <dt id="maximize_hide_other"><a class="permalink" href="#maximize_hide_other"><code class="Ic">maximize_hide_other</code></a></dt>
   <dd>When a maximized window is focused, hide unrelated windows on the
       workspace. Useful for transparent windows. Defaults to 0.</dd>
+  <dt id="maximized_unfocus"><a class="permalink" href="#maximized_unfocus"><code class="Ic">maximized_unfocus</code></a></dt>
+  <dd>Set handling when a maximized window loses focus. Possible values:
+    <p class="Pp"></p>
+    <div class="Bd-indent">
+    <dl class="Bl-tag Bl-compact">
+      <dt><var class="Ar">none</var></dt>
+      <dd>Leave window maximized.</dd>
+      <dt><var class="Ar">restore</var></dt>
+      <dd>Unmaximize window. (default)</dd>
+      <dt><var class="Ar">iconify</var></dt>
+      <dd>Minimize/hide the window.</dd>
+      <dt><var class="Ar">float</var></dt>
+      <dd>Unmaximize and float window.</dd>
+    </dl>
+    </div>
+    <p class="Pp">Note that this option is ignored in max layout.</p>
+  </dd>
   <dt id="modkey"><a class="permalink" href="#modkey"><code class="Ic">modkey</code></a></dt>
   <dd>Change the current modifier value of <code class="Ic">MOD</code> in
       <code class="Ic">bind</code> entries that come later in the configuration

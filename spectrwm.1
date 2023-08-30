@@ -523,6 +523,23 @@ Set window focus on window interaction only.
 When a fullscreen window is focused, hide unrelated windows on the workspace.
 Useful for transparent windows.
 Defaults to 0.
+.It Ic fullscreen_unfocus
+Set handling when a fullscreen window loses focus.
+Possible values:
+.Pp
+.Bl -tag -width "default" -offset indent -compact
+.It Ar none
+Leave window fullscreen.
+(default)
+.It Ar restore
+Exit fullscreen.
+.It Ar iconify
+Minimize/hide the window.
+.It Ar float
+Exit fullscreen and float window.
+.El
+.Pp
+Note that this option is ignored in max layout.
 .It Ic iconic_enabled
 Display the number of iconic (minimized) windows in the status bar.
 Enable by setting to 1.
@@ -583,6 +600,23 @@ Defaults to 0.
 When a maximized window is focused, hide unrelated windows on the workspace.
 Useful for transparent windows.
 Defaults to 0.
+.It Ic maximized_unfocus
+Set handling when a maximized window loses focus.
+Possible values:
+.Pp
+.Bl -tag -width "default" -offset indent -compact
+.It Ar none
+Leave window maximized.
+.It Ar restore
+Unmaximize window.
+(default)
+.It Ar iconify
+Minimize/hide the window.
+.It Ar float
+Unmaximize and float window.
+.El
+.Pp
+Note that this option is ignored in max layout.
 .It Ic modkey
 Change the current modifier value of
 .Ic MOD
