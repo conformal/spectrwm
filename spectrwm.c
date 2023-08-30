@@ -436,6 +436,13 @@ double			dialog_ratio = 0.6;
 #define TEXTEXTENTS(x...)	XmbTextExtents(x)
 #endif
 
+enum {
+	SWM_UNFOCUS_NONE,
+	SWM_UNFOCUS_RESTORE,
+	SWM_UNFOCUS_ICONIFY,
+	SWM_UNFOCUS_FLOAT,
+};
+
 char		*bar_argv[] = { NULL, NULL };
 char		 bar_ext[SWM_BAR_MAX];
 char		 bar_ext_buf[SWM_BAR_MAX];
@@ -452,7 +459,9 @@ bool		 bar_action_expand = false;
 bool		 stack_enabled = true;
 bool		 clock_enabled = true;
 bool		 iconic_enabled = false;
+int		 fullscreen_unfocus = SWM_UNFOCUS_NONE;
 bool		 fullscreen_hide_other = false;
+int		 maximized_unfocus = SWM_UNFOCUS_RESTORE;
 bool		 maximize_hide_bar = false;
 bool		 maximize_hide_other = false;
 bool		 urgent_enabled = false;
@@ -1164,6 +1173,7 @@ RB_HEAD(atom_name_tree, atom_name) atom_names = RB_INITIALIZER(&atom_names);
 
 /* function prototypes */
 void	 adjust_font(struct ws_win *);
+int	 apply_unfocus(struct workspace *, struct ws_win *);
 char	*argsep(char **);
 int	 atom_name_cmp(struct atom_name *, struct atom_name *);
 void	 atom_name_insert(xcb_atom_t, char *);
@@ -1210,7 +1220,6 @@ const struct xcb_setup_t	*get_setup(void);
 void	 clear_atom_names(void);
 void	 clear_bindings(void);
 void	 clear_keybindings(void);
-int	 clear_maximized(struct workspace *);
 void	 clear_quirks(void);
 void	 clear_spawns(void);
 void	 click_focus(struct swm_screen *, xcb_window_t, int, int);
@@ -1235,7 +1244,7 @@ int	 enable_wm(void);
 void	 enternotify(xcb_enter_notify_event_t *);
 void	 event_error(xcb_generic_error_t *);
 void	 event_handle(xcb_generic_event_t *);
-void	 ewmh_apply_flags(struct ws_win *, uint32_t);
+uint32_t	 ewmh_apply_flags(struct ws_win *, uint32_t);
 void	 ewmh_autoquirk(struct ws_win *);
 void	 ewmh_get_desktop_names(void);
 void	 ewmh_get_wm_state(struct ws_win *);
@@ -1451,7 +1460,6 @@ void	 unmanage_window(struct ws_win *);
 void	 unmap_window(struct ws_win *);
 void	 unmap_workspace(struct workspace *);
 void	 unmapnotify(xcb_unmap_notify_event_t *);
-int	 unmaximize_other(struct ws_win *);
 void	 unparent_window(struct ws_win *);
 void	 update_debug(struct swm_screen *);
 void	 update_floater(struct ws_win *);
@@ -2073,7 +2081,7 @@ out:
 	DNPRINTF(SWM_D_PROP, "done\n");
 }
 
-void
+uint32_t
 ewmh_apply_flags(struct ws_win *win, uint32_t pending)
 {
 	struct workspace	*ws;
@@ -2081,7 +2089,7 @@ ewmh_apply_flags(struct ws_win *win, uint32_t pending)
 
 	changed = win->ewmh_flags ^ pending;
 	if (changed == 0)
-		return;
+		return (changed);
 
 	DNPRINTF(SWM_D_PROP, "pending: %u\n", pending);
 
@@ -2129,7 +2137,8 @@ ewmh_apply_flags(struct ws_win *win, uint32_t pending)
 		win->ewmh_flags &= ~EWMH_F_MAXIMIZED;
 	}
 
-	DNPRINTF(SWM_D_PROP, "done\n");
+	DNPRINTF(SWM_D_PROP, "changed: %#x\n", changed);
+	return (changed);
 }
 
 void
@@ -5839,7 +5848,7 @@ cyclews(struct binding *bp, struct swm_region *r, union arg *args)
 				draw_frame(ws->focus);
 			}
 
-			clear_maximized(nws);
+			apply_unfocus(nws, NULL);
 			update_stacking(r->s);
 			stack(r);
 
@@ -6099,7 +6108,7 @@ swapwin(struct binding *bp, struct swm_region *r, union arg *args)
 	if (ws_maxstack(r->ws))
 		return;
 
-	if (clear_maximized(r->ws) > 0)
+	if (apply_unfocus(r->ws, NULL) > 0)
 		update_stacking(r->s);
 
 	wl = &sw->ws->winlist;
@@ -6482,7 +6491,7 @@ focus(struct binding *bp, struct swm_region *r, union arg *args)
 		goto out;
 	}
 
-	if (clear_maximized(ws) > 0) {
+	if (apply_unfocus(ws, NULL) > 0) {
 		update_stacking(r->s);
 		stack(r);
 	}
@@ -6556,7 +6565,7 @@ switchlayout(struct binding *bp, struct swm_region *r, union arg *args)
 
 	follow = follow_pointer(r->s);
 
-	clear_maximized(ws);
+	apply_unfocus(ws, NULL);
 	update_stacking(r->s);
 	stack(r);
 	bar_draw(r->bar);
@@ -6588,7 +6597,7 @@ stack_config(struct binding *bp, struct swm_region *r, union arg *args)
 
 	DNPRINTF(SWM_D_STACK, "id: %d workspace: %d\n", args->id, ws->idx);
 
-	if (clear_maximized(ws) > 0) {
+	if (apply_unfocus(ws, NULL) > 0) {
 		update_stacking(r->s);
 		stack(r);
 	}
@@ -7293,7 +7302,7 @@ send_to_ws(struct binding *bp, struct swm_region *r, union arg *args)
 	follow = follow_pointer(r->s);
 
 	win_to_ws(win, wsid, SWM_WIN_UNFOCUS);
-	clear_maximized(win->ws);
+	apply_unfocus(win->ws, NULL);
 
 	/* Set new focus on target ws. */
 	if (!follow) {
@@ -7874,7 +7883,7 @@ search_resp_uniconify(const char *resp, size_t len)
 			if (win_floating(win))
 				raise_window_related(win);
 
-			unmaximize_other(win);
+			apply_unfocus(win->ws, win);
 			stack(win->ws->r);
 			update_stacking(win->s);
 
@@ -8243,11 +8252,12 @@ wkill(struct binding *bp, struct swm_region *r, union arg *args)
 }
 
 int
-clear_maximized(struct workspace *ws)
+apply_unfocus(struct workspace *ws, struct ws_win *win)
 {
 	struct swm_screen	*s;
 	struct ws_win		*w;
 	int			count = 0;
+	uint32_t		changed = 0;
 
 	if (ws == NULL)
 		goto out;
@@ -8255,6 +8265,10 @@ clear_maximized(struct workspace *ws)
 	DNPRINTF(SWM_D_MISC, "ws: %d\n", ws->idx);
 
 	if (ws_maxstack(ws))
+		goto out;
+
+	if (maximized_unfocus == SWM_UNFOCUS_NONE &&
+	    fullscreen_unfocus == SWM_UNFOCUS_NONE)
 		goto out;
 
 	w = TAILQ_FIRST(&ws->winlist);
@@ -8265,43 +8279,63 @@ clear_maximized(struct workspace *ws)
 	/* Clear any maximized win(s) on ws, from bottom up. */
 	w = TAILQ_LAST(&s->stack, ws_win_stack);
 	while (w) {
-		if (w->ws == ws && MAXIMIZED(w)) {
-			ewmh_apply_flags(w, w->ewmh_flags & ~EWMH_F_MAXIMIZED);
-			raise_window_related(w);
-			ewmh_update_wm_state(w);
-			++count;
-			/* Stacking may have changed; restart search. */
-			w = TAILQ_LAST(&s->stack, ws_win_stack);
-		} else
-			w = TAILQ_PREV(w, ws_win_stack, stack_entry);
-	}
-out:
-	return (count);
-}
+		if (w->ws == ws && w != win) {
+			if (MAXIMIZED(w))
+				switch (maximized_unfocus) {
+				case SWM_UNFOCUS_RESTORE:
+					changed |= ewmh_apply_flags(w,
+					    w->ewmh_flags & ~EWMH_F_MAXIMIZED);
+					raise_window_related(w);
+					break;
+				case SWM_UNFOCUS_ICONIFY:
+					changed |= ewmh_apply_flags(w,
+					    w->ewmh_flags | EWMH_F_HIDDEN);
+					break;
+				case SWM_UNFOCUS_FLOAT:
+					changed |= ewmh_apply_flags(w,
+					    (w->ewmh_flags | EWMH_F_ABOVE) &
+					    ~EWMH_F_MAXIMIZED);
+					raise_window_related(w);
+					break;
+				default:
+					break;
+				}
 
-int
-unmaximize_other(struct ws_win *win)
-{
-	struct ws_win		*w, *mainw;
-	int			count = 0;
+			if (FULLSCREEN(w))
+				switch (fullscreen_unfocus) {
+				case SWM_UNFOCUS_RESTORE:
+					changed |= ewmh_apply_flags(w,
+					    w->ewmh_flags & ~EWMH_F_FULLSCREEN);
+					break;
+				case SWM_UNFOCUS_ICONIFY:
+					changed |= ewmh_apply_flags(w,
+					    w->ewmh_flags | EWMH_F_HIDDEN);
+					break;
+				case SWM_UNFOCUS_FLOAT:
+					changed |= ewmh_apply_flags(w,
+					    (w->ewmh_flags | EWMH_F_ABOVE) &
+					    ~EWMH_F_FULLSCREEN);
+					break;
+				default:
+					break;
+				}
 
-	if (win->ws == NULL)
-		goto out;
+			if (changed) {
+				if (changed & (EWMH_F_ABOVE | EWMH_F_MAXIMIZED |
+				    EWMH_F_FULLSCREEN))
+					raise_window_related(w);
+				ewmh_update_wm_state(w);
+				changed = 0;
+				++count;
 
-	DNPRINTF(SWM_D_MISC, "ws: %d\n", win->ws->idx);
-
-	if (ws_maxstack(win->ws))
-		goto out;
-
-	mainw = find_main_window(win);
-	TAILQ_FOREACH_REVERSE(w, &win->s->stack, ws_win_stack, stack_entry)
-		if (w->ws == win->ws && w != win &&
-		    find_main_window(w) != mainw && MAXIMIZED(w)) {
-			ewmh_apply_flags(w, w->ewmh_flags & ~EWMH_F_MAXIMIZED);
-			raise_window_related(w);
-			ewmh_update_wm_state(w);
-			++count;
+				/* Stacking may have changed; restart search. */
+				w = TAILQ_LAST(&s->stack, ws_win_stack);
+				continue;
+			}
 		}
+
+		w = TAILQ_PREV(w, ws_win_stack, stack_entry);
+	}
 out:
 	return (count);
 }
@@ -8334,7 +8368,7 @@ maximize_toggle(struct binding *bp, struct swm_region *r, union arg *args)
 	ewmh_apply_flags(win, win->ewmh_flags ^ EWMH_F_MAXIMIZED);
 	raise_window_related(win);
 	ewmh_update_wm_state(win);
-	unmaximize_other(win);
+	apply_unfocus(win->ws, win);
 
 	update_win_stacking(win);
 	stack(r);
@@ -8977,7 +9011,7 @@ regionize(struct ws_win *win, int x, int y)
 		    Y(win) + HEIGHT(win) / 2);
 
 	if (r && r != r_orig) {
-		clear_maximized(r->ws);
+		apply_unfocus(r->ws, NULL);
 		update_stacking(r->s);
 
 		win_to_ws(win, r->ws->idx, 0);
@@ -11040,9 +11074,11 @@ enum {
 	SWM_S_FOCUS_DEFAULT,
 	SWM_S_FOCUS_MODE,
 	SWM_S_FULLSCREEN_HIDE_OTHER,
+	SWM_S_FULLSCREEN_UNFOCUS,
 	SWM_S_ICONIC_ENABLED,
 	SWM_S_MAXIMIZE_HIDE_BAR,
 	SWM_S_MAXIMIZE_HIDE_OTHER,
+	SWM_S_MAXIMIZED_UNFOCUS,
 	SWM_S_REGION_PADDING,
 	SWM_S_SPAWN_ORDER,
 	SWM_S_SPAWN_TERM,
@@ -11229,6 +11265,20 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 	case SWM_S_FULLSCREEN_HIDE_OTHER:
 		fullscreen_hide_other = atoi(value);
 		break;
+	case SWM_S_FULLSCREEN_UNFOCUS:
+		if (strcmp(value, "none") == 0 || strcmp(value, "default") == 0)
+			fullscreen_unfocus = SWM_UNFOCUS_NONE;
+		else if (strcmp(value, "restore") == 0)
+			fullscreen_unfocus = SWM_UNFOCUS_RESTORE;
+		else if (strcmp(value, "iconify") == 0)
+			fullscreen_unfocus = SWM_UNFOCUS_ICONIFY;
+		else if (strcmp(value, "float") == 0)
+			fullscreen_unfocus = SWM_UNFOCUS_FLOAT;
+		else {
+			ALLOCSTR(emsg, "invalid value: %s", value);
+			return (1);
+		}
+		break;
 	case SWM_S_ICONIC_ENABLED:
 		iconic_enabled = (atoi(value) != 0);
 		break;
@@ -11237,6 +11287,21 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 		break;
 	case SWM_S_MAXIMIZE_HIDE_OTHER:
 		maximize_hide_other = atoi(value);
+		break;
+	case SWM_S_MAXIMIZED_UNFOCUS:
+		if (strcmp(value, "none") == 0)
+			maximized_unfocus = SWM_UNFOCUS_NONE;
+		else if (strcmp(value, "restore") == 0 ||
+		    strcmp(value, "default") == 0)
+			maximized_unfocus = SWM_UNFOCUS_RESTORE;
+		else if (strcmp(value, "iconify") == 0)
+			maximized_unfocus = SWM_UNFOCUS_ICONIFY;
+		else if (strcmp(value, "float") == 0)
+			maximized_unfocus = SWM_UNFOCUS_FLOAT;
+		else {
+			ALLOCSTR(emsg, "invalid value: %s", value);
+			return (1);
+		}
 		break;
 	case SWM_S_REGION_PADDING:
 		region_padding = atoi(value);
@@ -11846,12 +11911,14 @@ struct config_option configopt[] = {
 	{ "focus_default",		setconfvalue,	SWM_S_FOCUS_DEFAULT },
 	{ "focus_mode",			setconfvalue,	SWM_S_FOCUS_MODE },
 	{ "fullscreen_hide_other",	setconfvalue,	SWM_S_FULLSCREEN_HIDE_OTHER },
+	{ "fullscreen_unfocus",		setconfvalue,	SWM_S_FULLSCREEN_UNFOCUS },
 	{ "iconic_enabled",		setconfvalue,	SWM_S_ICONIC_ENABLED },
 	{ "java_workaround",		NULL,		0 }, /* dummy */
 	{ "keyboard_mapping",		setkeymapping,	0 },
 	{ "layout",			setlayout,	0 },
 	{ "maximize_hide_bar",		setconfvalue,	SWM_S_MAXIMIZE_HIDE_BAR },
 	{ "maximize_hide_other",	setconfvalue,	SWM_S_MAXIMIZE_HIDE_OTHER },
+	{ "maximized_unfocus",		setconfvalue,	SWM_S_MAXIMIZED_UNFOCUS },
 	{ "modkey",			setconfmodkey,	0 },
 	{ "program",			setconfspawn,	0 },
 	{ "quirk",			setconfquirk,	0 },
@@ -13571,7 +13638,7 @@ maprequest(xcb_map_request_event_t *e)
 		set_focus_win(get_focus_magic(win));
 		draw_frame(get_focus_prev(win->ws));
 	}
-	unmaximize_other(win);
+	apply_unfocus(win->ws, win);
 	if (setfocus)
 		raise_window(win);
 	update_stacking(win->s);
@@ -13847,7 +13914,7 @@ clientmessage(xcb_client_message_event_t *e)
 				raise_window_related(win);
 			}
 
-			if (unmaximize_other(win) > 0 || hidden) {
+			if (apply_unfocus(win->ws, win) > 0 || hidden) {
 				stack(win->ws->r);
 				update_stacking(win->s);
 			}
@@ -14438,7 +14505,7 @@ setup_focus(void)
 				w = get_main_window(r->ws);
 			if (w) {
 				set_focus_win(w);
-				if (unmaximize_other(w) > 0) {
+				if (apply_unfocus(w->ws, w) > 0) {
 					update_stacking(&screens[0]);
 					stack(r);
 				}
