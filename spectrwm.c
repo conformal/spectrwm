@@ -5373,17 +5373,21 @@ void
 rotatews_moverg(struct workspace *ws, struct swm_region *old_r,
     struct swm_region *new_r)
 {
-	if (ROTATION_AXIS(ROTATION(old_r)) != ROTATION_AXIS(ROTATION(new_r))) {
+	bool		new_flip;
+
+	new_flip = (ws->cur_layout == &layouts[SWM_V_STACK] ?
+	    ws->l_state.vertical_flip : ws->l_state.horizontal_flip);
+	if (ROTATION_FLIP(ROTATION(old_r)) != ROTATION_FLIP(ROTATION(new_r)))
+		new_flip = !new_flip;
+
+	if (ROTATION_AXIS(ROTATION(old_r)) != ROTATION_AXIS(ROTATION(new_r)))
 		ws->cur_layout = (ws->cur_layout == &layouts[SWM_H_STACK] ?
 		    &layouts[SWM_V_STACK] : &layouts[SWM_H_STACK]);
-	}
-	if (ROTATION_FLIP(ROTATION(old_r)) != ROTATION_FLIP(ROTATION(new_r))) {
-		if (ws->cur_layout == &layouts[SWM_H_STACK])
-			ws->l_state.horizontal_flip =
-			    !ws->l_state.horizontal_flip;
-		else
-			ws->l_state.vertical_flip = !ws->l_state.vertical_flip;
-	}
+
+	if (ws->cur_layout == &layouts[SWM_H_STACK])
+		ws->l_state.horizontal_flip = new_flip;
+	else
+		ws->l_state.vertical_flip = new_flip;
 }
 
 void
