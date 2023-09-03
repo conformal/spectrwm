@@ -494,6 +494,7 @@ int		font_pua_index;
 bool		 bar_font_legacy = true;
 char		*bar_fonts = NULL;
 XftColor	bar_fg_colors[SWM_BAR_MAX_COLORS];
+XftColor	bar_fg_colors_unfocus[SWM_BAR_MAX_COLORS];
 int		num_fg_colors = 1;
 int		num_bg_colors = 1;
 XftColor	search_font_color;
@@ -675,6 +676,16 @@ enum {
 	SWM_S_COLOR_BAR7,
 	SWM_S_COLOR_BAR8,
 	SWM_S_COLOR_BAR9,
+	SWM_S_COLOR_BAR_UNFOCUS,
+	SWM_S_COLOR_BAR_UNFOCUS1,
+	SWM_S_COLOR_BAR_UNFOCUS2,
+	SWM_S_COLOR_BAR_UNFOCUS3,
+	SWM_S_COLOR_BAR_UNFOCUS4,
+	SWM_S_COLOR_BAR_UNFOCUS5,
+	SWM_S_COLOR_BAR_UNFOCUS6,
+	SWM_S_COLOR_BAR_UNFOCUS7,
+	SWM_S_COLOR_BAR_UNFOCUS8,
+	SWM_S_COLOR_BAR_UNFOCUS9,
 	SWM_S_COLOR_BAR_SELECTED,
 	SWM_S_COLOR_BAR_BORDER,
 	SWM_S_COLOR_BAR_BORDER_UNFOCUS,
@@ -688,6 +699,16 @@ enum {
 	SWM_S_COLOR_BAR_FONT7,
 	SWM_S_COLOR_BAR_FONT8,
 	SWM_S_COLOR_BAR_FONT9,
+	SWM_S_COLOR_BAR_FONT_UNFOCUS,
+	SWM_S_COLOR_BAR_FONT_UNFOCUS1,
+	SWM_S_COLOR_BAR_FONT_UNFOCUS2,
+	SWM_S_COLOR_BAR_FONT_UNFOCUS3,
+	SWM_S_COLOR_BAR_FONT_UNFOCUS4,
+	SWM_S_COLOR_BAR_FONT_UNFOCUS5,
+	SWM_S_COLOR_BAR_FONT_UNFOCUS6,
+	SWM_S_COLOR_BAR_FONT_UNFOCUS7,
+	SWM_S_COLOR_BAR_FONT_UNFOCUS8,
+	SWM_S_COLOR_BAR_FONT_UNFOCUS9,
 	SWM_S_COLOR_BAR_FONT_SELECTED,
 	SWM_S_COLOR_FOCUS,
 	SWM_S_COLOR_FOCUS_MAXIMIZED,
@@ -2437,7 +2458,7 @@ bar_print_legacy(struct swm_region *r, const char *s)
 	xcb_rectangle_t		rect;
 	uint32_t		gcv[1];
 	XGCValues		gcvd;
-	int			x = 0;
+	int			x = 0, fg_type, bg_type;
 	size_t			len;
 	XRectangle		ibox, lbox;
 	GC			draw;
@@ -2460,20 +2481,29 @@ bar_print_legacy(struct swm_region *r, const char *s)
 	if (x < SWM_BAR_OFFSET)
 		x = SWM_BAR_OFFSET;
 
+	/* Setup default fg/bg index type */
+	if (WS_FOCUSED(r->ws)) {
+		fg_type = SWM_S_COLOR_BAR_FONT;
+		bg_type = SWM_S_COLOR_BAR;
+	} else {
+		fg_type = SWM_S_COLOR_BAR_FONT_UNFOCUS;
+		bg_type = SWM_S_COLOR_BAR_UNFOCUS;
+	}
+
 	/* clear back buffer */
 	rect.x = 0;
 	rect.y = 0;
 	rect.width = WIDTH(r->bar);
 	rect.height = HEIGHT(r->bar);
 
-	gcv[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
+	gcv[0] = r->s->c[bg_type].pixel;
 	xcb_change_gc(conn, r->s->gc, XCB_GC_FOREGROUND, gcv);
 	xcb_poly_fill_rectangle(conn, r->bar->buffer, r->s->gc, 1, &rect);
 
 	/* draw back buffer */
 	gcvd.graphics_exposures = 0;
 	draw = XCreateGC(display, r->bar->buffer, GCGraphicsExposures, &gcvd);
-	XSetForeground(display, draw, r->s->c[SWM_S_COLOR_BAR_FONT].pixel);
+	XSetForeground(display, draw, r->s->c[fg_type].pixel);
 	DRAWSTRING(display, r->bar->buffer, bar_fs, draw,
 	    x, (bar_fs_extents->max_logical_extent.height - lbox.height) / 2 -
 	    lbox.y, s, len);
@@ -2550,8 +2580,9 @@ bar_print_layout(struct swm_region *r)
 	XGCValues		gcvd;
 	uint32_t		gcv[1];
 	int			xpos, i, j;
-	int			bg, fg, fn, section_bg;
+	int			bg, bg_type, fg, fg_type, fn;
 	int 			space, remain, weight;
+	XftColor		*fg_colors;
 
 	space =  WIDTH(r) - 2 * bar_border_width;
 	weight = 0;
@@ -2617,12 +2648,23 @@ bar_print_layout(struct swm_region *r)
 		xft_draw = XftDrawCreate(display, r->bar->buffer, r->s->xvisual,
 		    r->s->colormap);
 
+	/* Setup default fg/bg index type */
+	if (WS_FOCUSED(r->ws)) {
+		fg_type = SWM_S_COLOR_BAR_FONT;
+		bg_type = SWM_S_COLOR_BAR;
+		fg_colors = bar_fg_colors;
+	} else {
+		fg_type = SWM_S_COLOR_BAR_FONT_UNFOCUS;
+		bg_type = SWM_S_COLOR_BAR_UNFOCUS;
+		fg_colors = bar_fg_colors_unfocus;
+	}
+
 	/* Paint entire bar with default background color */
 	rect.x = 0;
 	rect.y = 0;
 	rect.width = WIDTH(r->bar);
 	rect.height = HEIGHT(r->bar);
-	gcv[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
+	gcv[0] = r->s->c[bg_type].pixel;
 	xcb_change_gc(conn, r->s->gc, XCB_GC_FOREGROUND, gcv);
 	xcb_poly_fill_rectangle(conn, r->bar->buffer, r->s->gc, 1, &rect);
 
@@ -2636,13 +2678,6 @@ bar_print_layout(struct swm_region *r)
 		/* No space to draw that section */
 		if (rect.width < 1)
 			continue;
-
-		/* Paint background color of the section  */
-		section_bg = bsect[i].frag[0].bg;
-		gcv[0] = r->s->c[SWM_S_COLOR_BAR+section_bg].pixel;
-		xcb_change_gc(conn, r->s->gc, XCB_GC_FOREGROUND, gcv);
-		xcb_poly_fill_rectangle(conn, r->bar->buffer, r->s->gc, 1,
-		    &rect);
 
 		/* No space to draw anything else */
 		if (rect.width < SWM_BAR_OFFSET)
@@ -2658,10 +2693,10 @@ bar_print_layout(struct swm_region *r)
 			xf = r->s->bar_xftfonts[fn];
 
 			/* Paint background color of the text fragment  */
-			if (bg != section_bg) {
+			if (bg != 0) {
 				rect.x = xpos;
 				rect.width = frag->width;
-				gcv[0] = r->s->c[SWM_S_COLOR_BAR+bg].pixel;
+				gcv[0] = r->s->c[bg_type+bg].pixel;
 				xcb_change_gc(conn, r->s->gc, XCB_GC_FOREGROUND,
 				    gcv);
 				xcb_poly_fill_rectangle(conn, r->bar->buffer,
@@ -2671,14 +2706,14 @@ bar_print_layout(struct swm_region *r)
 			/* Draw text  */
 			if (bar_font_legacy) {
 				XSetForeground(display, draw,
-				    r->s->c[SWM_S_COLOR_BAR_FONT+fg].pixel);
+				    r->s->c[fg_type+fg].pixel);
 				DRAWSTRING(display, r->bar->buffer, bar_fs,
 				    draw, xpos,
 				    (bar_fs_extents->max_logical_extent.height
 				    - bsect[i].height) / 2 - bsect[i].ypos,
 				    frag->text, frag->length);
 			} else {
-				XftDrawStringUtf8(xft_draw, &bar_fg_colors[fg],
+				XftDrawStringUtf8(xft_draw, &fg_colors[fg],
 				    xf, xpos, (HEIGHT(r->bar) + xf->height) / 2
 				    - xf->descent, (FcChar8 *)frag->text,
 				    frag->length);
@@ -3842,10 +3877,18 @@ xft_init(struct swm_screen *s)
 	}
 
 	for (i = 0; i < num_fg_colors; i++) {
+		/* Focused */
 		PIXEL_TO_XRENDERCOLOR(s->c[SWM_S_COLOR_BAR_FONT+i].pixel,
 		    color);
 		if (!XftColorAllocValue(display, s->xvisual, s->colormap,
 		    &color, &bar_fg_colors[i]))
+			warn("Xft error: unable to allocate color.");
+
+		/* Unfocused */
+		PIXEL_TO_XRENDERCOLOR(s->c[SWM_S_COLOR_BAR_FONT_UNFOCUS+i].pixel,
+		    color);
+		if (!XftColorAllocValue(display, s->xvisual, s->colormap,
+		    &color, &bar_fg_colors_unfocus[i]))
 			warn("Xft error: unable to allocate color.");
 	}
 
@@ -3973,7 +4016,7 @@ bar_setup(struct swm_region *r)
 
 	/* Assume region is unfocused when we create the bar. */
 	r->bar->id = xcb_generate_id(conn);
-	wa[0] = s->c[SWM_S_COLOR_BAR].pixel;
+	wa[0] = s->c[SWM_S_COLOR_BAR_UNFOCUS].pixel;
 	wa[1] = s->c[SWM_S_COLOR_BAR_BORDER_UNFOCUS].pixel;
 	wa[2] = XCB_EVENT_MASK_BUTTON_PRESS |
 	    XCB_EVENT_MASK_BUTTON_RELEASE |
@@ -5300,6 +5343,7 @@ set_region(struct swm_region *r)
 {
 	struct swm_region	*rf;
 	int			vals[2];
+	uint32_t		wc[2];
 
 	if (r == NULL)
 		return;
@@ -5310,9 +5354,10 @@ set_region(struct swm_region *r)
 		if (rf == r)
 			return;
 
+		wc[0] = r->s->c[SWM_S_COLOR_BAR_UNFOCUS].pixel;
+		wc[1] = r->s->c[SWM_S_COLOR_BAR_BORDER_UNFOCUS].pixel;
 		xcb_change_window_attributes(conn, rf->bar->id,
-		    XCB_CW_BORDER_PIXEL,
-		    &r->s->c[SWM_S_COLOR_BAR_BORDER_UNFOCUS].pixel);
+		    XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wc);
 	}
 
 	if (rf != NULL && rf != r && (X(rf) != X(r) || Y(rf) != Y(r) ||
@@ -5325,9 +5370,11 @@ set_region(struct swm_region *r)
 		    &vals);
 	}
 
-	/* Set region bar border to focus_color. */
+	/* Set region bar border and back color to focused. */
+	wc[0] = r->s->c[SWM_S_COLOR_BAR].pixel;
+	wc[1] = r->s->c[SWM_S_COLOR_BAR_BORDER].pixel;
 	xcb_change_window_attributes(conn, r->bar->id,
-	    XCB_CW_BORDER_PIXEL, &r->s->c[SWM_S_COLOR_BAR_BORDER].pixel);
+	    XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL, wc);
 
 	r->s->r_focus = r;
 
@@ -11248,7 +11295,7 @@ setconfcolor(const char *selector, const char *value, int flags, char **emsg)
 		setscreencolor(value, i, flags);
 
 		/*
-		 * Need to sync 'maximized' and 'selected' colors with their
+		 * Need to sync 'maximized', 'selected' and 'unfocus' colors with their
 		 * respective colors if they haven't been customized.
 		 */
 		switch (flags) {
@@ -11266,11 +11313,19 @@ setconfcolor(const char *selector, const char *value, int flags, char **emsg)
 			if (!screens[i].c[SWM_S_COLOR_BAR_FONT_SELECTED].manual)
 				setscreencolor(value, i,
 				    SWM_S_COLOR_BAR_FONT_SELECTED);
+			if (!screens[i].c[SWM_S_COLOR_BAR_UNFOCUS].manual)
+				setscreencolor(value, i,
+				    SWM_S_COLOR_BAR_UNFOCUS);
 			break;
 		case SWM_S_COLOR_BAR_BORDER:
 			if (!screens[i].c[SWM_S_COLOR_BAR_SELECTED].manual)
 				setscreencolor(value, i,
 				    SWM_S_COLOR_BAR_SELECTED);
+			break;
+		case SWM_S_COLOR_BAR_FONT:
+			if (!screens[i].c[SWM_S_COLOR_BAR_FONT_UNFOCUS].manual)
+				setscreencolor(value, i,
+				    SWM_S_COLOR_BAR_FONT_UNFOCUS);
 			break;
 		}
 
@@ -11287,6 +11342,7 @@ setconfcolorlist(const char *selector, const char *value, int flags, char **emsg
 
 	switch (flags) {
 	case SWM_S_COLOR_BAR:
+	case SWM_S_COLOR_BAR_UNFOCUS:
 		/* Set list of background colors */
 		if ((sp = str = strdup(value)) == NULL)
 			err(1, "setconfvalue: strdup");
@@ -11296,8 +11352,7 @@ setconfcolorlist(const char *selector, const char *value, int flags, char **emsg
 			while (isblank(*b)) b++;
 			if (*b == '\0')
 				continue;
-			setconfcolor(selector, b, SWM_S_COLOR_BAR +
-			    num_bg_colors, emsg);
+			setconfcolor(selector, b, flags + num_bg_colors, emsg);
 			num_bg_colors++;
 			if (num_bg_colors == SWM_BAR_MAX_COLORS)
 				break;
@@ -11305,6 +11360,7 @@ setconfcolorlist(const char *selector, const char *value, int flags, char **emsg
 		free(str);
 		break;
 	case SWM_S_COLOR_BAR_FONT:
+	case SWM_S_COLOR_BAR_FONT_UNFOCUS:
 		/* Set list of foreground colors */
 		if ((sp = str = strdup(value)) == NULL)
 			err(1, "setconfvalue: strdup");
@@ -11314,8 +11370,7 @@ setconfcolorlist(const char *selector, const char *value, int flags, char **emsg
 			while (isblank(*b)) b++;
 			if (*b == '\0')
 				continue;
-			setconfcolor(selector, b, SWM_S_COLOR_BAR_FONT +
-			    num_fg_colors, emsg);
+			setconfcolor(selector, b, flags + num_fg_colors, emsg);
 			num_fg_colors++;
 			if (num_fg_colors == SWM_BAR_MAX_COLORS)
 				break;
@@ -11567,12 +11622,14 @@ struct config_option configopt[] = {
 	{ "bar_border_unfocus",		setconfcolor,	SWM_S_COLOR_BAR_BORDER_UNFOCUS },
 	{ "bar_border_width",		setconfvalue,	SWM_S_BAR_BORDER_WIDTH },
 	{ "bar_color",			setconfcolorlist,	SWM_S_COLOR_BAR },
+	{ "bar_color_unfocus",		setconfcolorlist,	SWM_S_COLOR_BAR_UNFOCUS },
 	{ "bar_color_selected",		setconfcolor,	SWM_S_COLOR_BAR_SELECTED },
 	{ "bar_delay",			NULL,		0 }, /* dummy */
 	{ "bar_enabled",		setconfvalue,	SWM_S_BAR_ENABLED },
 	{ "bar_enabled_ws",		setconfvalue,	SWM_S_BAR_ENABLED_WS },
 	{ "bar_font",			setconfvalue,	SWM_S_BAR_FONT },
 	{ "bar_font_color",		setconfcolorlist,	SWM_S_COLOR_BAR_FONT },
+	{ "bar_font_color_unfocus",	setconfcolorlist,	SWM_S_COLOR_BAR_FONT_UNFOCUS },
 	{ "bar_font_color_selected",	setconfcolor,	SWM_S_COLOR_BAR_FONT_SELECTED },
 	{ "bar_font_pua",		setconfvalue,	SWM_S_BAR_FONT_PUA },
 	{ "bar_format",			setconfvalue,	SWM_S_BAR_FORMAT },
@@ -14376,8 +14433,10 @@ setup_screens(void)
 		setscreencolor("rgb:00/40/40", i,
 		    SWM_S_COLOR_BAR_BORDER_UNFOCUS);
 		setscreencolor("black", i, SWM_S_COLOR_BAR);
+		setscreencolor("black", i, SWM_S_COLOR_BAR_UNFOCUS);
 		setscreencolor("rgb:00/80/80", i, SWM_S_COLOR_BAR_SELECTED);
 		setscreencolor("rgb:a0/a0/a0", i, SWM_S_COLOR_BAR_FONT);
+		setscreencolor("rgb:a0/a0/a0", i, SWM_S_COLOR_BAR_FONT_UNFOCUS);
 		setscreencolor("black", i, SWM_S_COLOR_BAR_FONT_SELECTED);
 
 		/* set default cursor */
