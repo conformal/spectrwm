@@ -2575,6 +2575,7 @@ bar_print_layout(struct swm_region *r)
 	struct text_fragment	*frag;
 	xcb_rectangle_t		rect;
 	XftDraw			*xft_draw = NULL;
+	XRectangle		x_rect;
 	XftFont			*xf;
 	GC			draw = 0;
 	XGCValues		gcvd;
@@ -2682,6 +2683,16 @@ bar_print_layout(struct swm_region *r)
 		/* No space to draw anything else */
 		if (rect.width < SWM_BAR_OFFSET)
 			continue;
+
+		/* Set the clip rectangle to avoid text overflow */
+		x_rect.x = rect.x;
+		x_rect.y = rect.y;
+		x_rect.width = rect.width;
+		x_rect.height = rect.height;
+		if (bar_font_legacy)
+			XSetClipRectangles(display, draw, 0, 0, &x_rect, 1, YXBanded);
+		else
+			XftDrawSetClipRectangles(xft_draw, 0, 0, &x_rect, 1);
 
 		/* Draw the text fragments in the current section */
 		xpos = bsect[i].text_start;
