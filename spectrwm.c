@@ -3465,11 +3465,16 @@ bar_parse_markup(struct swm_screen *s, struct bar_section *sect)
 		if (idx != frag[i].font || termfrag) {
 			/* Terminate current fragment. */
 			if (frag[i].length > 0) {
-				XftTextExtentsUtf8(display,
-				    s->bar_xftfonts[frag[i].font],
-				    (FcChar8 *)frag[i].text,
-				    frag[i].length, &info);
-				frag[i].width = info.xOff;
+				if (bar_font_legacy) {
+					TEXTEXTENTS(bar_fs, frag[i].text, frag[i].length, &ibox, &lbox);
+					frag[i].width = lbox.width;
+				} else {
+					XftTextExtentsUtf8(display,
+					    s->bar_xftfonts[frag[i].font],
+					    (FcChar8 *)frag[i].text,
+					    frag[i].length, &info);
+					frag[i].width = info.xOff;
+				}
 				sect->text_width += frag[i].width;
 				i++;
 				if (i == SWM_TEXTFRAGS_MAX)
