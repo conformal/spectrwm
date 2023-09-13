@@ -31,6 +31,8 @@
 .Bl -tag -width Ds
 .It Fl c Ar file
 Specify a configuration file to load instead of scanning for one.
+.It Fl d
+Enable debug mode and logging to stderr.
 .It Fl v
 Print version and exit.
 .El
@@ -1178,6 +1180,10 @@ name_workspace
 search_workspace
 .It Cm M-f
 search_win
+.It Cm M-d
+debug_toggle (debug mode only)
+.It Cm M-S-d
+dumpwins (debug mode only)
 .El
 .Pp
 The action names and descriptions are listed below:
@@ -1378,6 +1384,12 @@ Name the current workspace.
 Search for a workspace.
 .It Cm search_win
 Search the windows in the current workspace.
+.It Cm debug_toggle
+Toggles debug overlay.
+(debug mode only)
+.It Cm dumpwins
+Dump current window/focus/stacking state to debug log.
+(debug mode only)
 .El
 .Pp
 Custom bindings in the configuration file are specified as follows:
