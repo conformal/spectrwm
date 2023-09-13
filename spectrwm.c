@@ -158,8 +158,9 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #define xcb_icccm_wm_hints_t			xcb_wm_hints_t
 #endif
 
+/* Enable to turn on debug output by default. */
 /*#define SWM_DEBUG*/
-#ifdef SWM_DEBUG
+
 #define DPRINTF(x...) do {							\
 	if (swm_debug)								\
 		fprintf(stderr, x);						\
@@ -172,24 +173,29 @@ static const char	*buildstr = SPECTRWM_VERSION;
 
 #define YESNO(x)		((x) ? "yes" : "no")
 
-#define SWM_D_MISC		0x0001
-#define SWM_D_EVENT		0x0002
-#define SWM_D_WS		0x0004
-#define SWM_D_FOCUS		0x0008
-#define SWM_D_MOVE		0x0010
-#define SWM_D_STACK		0x0020
-#define SWM_D_MOUSE		0x0040
-#define SWM_D_PROP		0x0080
-#define SWM_D_CLASS		0x0100
-#define SWM_D_KEY		0x0200
-#define SWM_D_QUIRK		0x0400
-#define SWM_D_SPAWN		0x0800
-#define SWM_D_EVENTQ		0x1000
-#define SWM_D_CONF		0x2000
-#define SWM_D_BAR		0x4000
-#define SWM_D_INIT		0x8000
+#define SWM_D_MISC		(0x00001)
+#define SWM_D_EVENT		(0x00002)
+#define SWM_D_WS		(0x00004)
+#define SWM_D_FOCUS		(0x00008)
+#define SWM_D_MOVE		(0x00010)
+#define SWM_D_STACK		(0x00020)
+#define SWM_D_MOUSE		(0x00040)
+#define SWM_D_PROP		(0x00080)
+#define SWM_D_CLASS		(0x00100)
+#define SWM_D_KEY		(0x00200)
+#define SWM_D_QUIRK		(0x00400)
+#define SWM_D_SPAWN		(0x00800)
+#define SWM_D_EVENTQ		(0x01000)
+#define SWM_D_CONF		(0x02000)
+#define SWM_D_BAR		(0x04000)
+#define SWM_D_INIT		(0x08000)
+#define SWM_D_ATOM		(0x10000)
 
+#define SWM_D_ALL		(0x1ffff)
+
+/* Debug output is disabled by default unless SWM_DEBUG is set. */
 uint32_t		swm_debug = 0
+#ifdef SWM_DEBUG
 			    | SWM_D_MISC
 			    | SWM_D_EVENT
 			    | SWM_D_WS
@@ -206,11 +212,9 @@ uint32_t		swm_debug = 0
 			    | SWM_D_CONF
 			    | SWM_D_BAR
 			    | SWM_D_INIT
+			    | SWM_D_ATOM
+#endif /* SWM_DEBUG */
 			    ;
-#else
-#define DPRINTF(x...)
-#define DNPRINTF(n,x...)
-#endif
 
 #define ALLOCSTR(s, x...) do {							\
 	if (s && asprintf(s, x) == -1)						\
@@ -338,9 +342,11 @@ xcb_atom_t		a_prot;
 xcb_atom_t		a_delete;
 xcb_atom_t		a_net_frame_extents;
 xcb_atom_t		a_net_wm_check;
+xcb_atom_t		a_net_wm_pid;
 xcb_atom_t		a_net_supported;
 xcb_atom_t		a_takefocus;
 xcb_atom_t		a_utf8_string;
+xcb_atom_t		a_swm_pid;
 xcb_atom_t		a_swm_ws;
 volatile sig_atomic_t   running = 1;
 volatile sig_atomic_t   restart_wm = 0;
@@ -467,10 +473,8 @@ int		 border_width = 1;
 int		 region_padding = 0;
 int		 tile_gap = 0;
 bool		 verbose_layout = false;
-#ifdef SWM_DEBUG
 bool		 debug_enabled;
 time_t		 time_started;
-#endif
 pid_t		 bar_pid;
 XFontSet	 bar_fs = NULL;
 XFontSetExtents	*bar_fs_extents;
@@ -554,9 +558,7 @@ struct ws_win {
 	struct swm_geometry	g_float;	/* root coordinates */
 	struct swm_geometry	g_floatref;	/* reference coordinates */
 	bool			mapped;
-#ifdef SWM_DEBUG
 	uint32_t		mapping;	/* # of pending operations */
-#endif
 	uint32_t		unmapping;	/* # of pending operations */
 	uint32_t		state;		/* current ICCCM WM_STATE */
 	bool			bordered;
@@ -572,9 +574,7 @@ struct ws_win {
 	xcb_size_hints_t	sh;
 	xcb_icccm_get_wm_class_reply_t	ch;
 	xcb_icccm_wm_hints_t	hints;
-#ifdef SWM_DEBUG
-	xcb_window_t		debug;
-#endif
+	xcb_window_t		debug;	/* Debug overlay window. */
 };
 TAILQ_HEAD(ws_win_list, ws_win);
 TAILQ_HEAD(ws_win_focus, ws_win);
@@ -1129,7 +1129,6 @@ enum actionid {
 	FN_WS_PREV_ALL,
 	FN_WS_PREV_MOVE,
 	FN_WS_PRIOR,
-	/* SWM_DEBUG actions MUST be here: */
 	FN_DEBUG_TOGGLE,
 	FN_DUMPWINS,
 	/* ALWAYS last: */
@@ -1156,9 +1155,20 @@ struct binding {
 };
 RB_HEAD(binding_tree, binding) bindings = RB_INITIALIZER(&bindings);
 
+struct atom_name {
+	RB_ENTRY(atom_name)	entry;
+	xcb_atom_t		atom;
+	char			*name;
+};
+RB_HEAD(atom_name_tree, atom_name) atom_names = RB_INITIALIZER(&atom_names);
+
 /* function prototypes */
 void	 adjust_font(struct ws_win *);
 char	*argsep(char **);
+int	 atom_name_cmp(struct atom_name *, struct atom_name *);
+void	 atom_name_insert(xcb_atom_t, char *);
+struct atom_name	*atom_name_lookup(xcb_atom_t);
+void	 atom_name_remove(struct atom_name *);
 void	 bar_cleanup(struct swm_region *);
 void	 bar_draw(struct swm_bar *);
 void	 bar_extra_setup(void);
@@ -1197,6 +1207,7 @@ void	 buttonpress(xcb_button_press_event_t *);
 void	 buttonrelease(xcb_button_release_event_t *);
 void	 center_pointer(struct swm_region *);
 const struct xcb_setup_t	*get_setup(void);
+void	 clear_atom_names(void);
 void	 clear_bindings(void);
 void	 clear_keybindings(void);
 int	 clear_maximized(struct workspace *);
@@ -1215,9 +1226,7 @@ void	 cursors_cleanup(void);
 void	 cursors_load(void);
 void	 cyclerg(struct binding *, struct swm_region *, union arg *);
 void	 cyclews(struct binding *, struct swm_region *, union arg *);
-#ifdef SWM_DEBUG
 void	 debug_refresh(struct ws_win *);
-#endif
 void	 debug_toggle(struct binding *, struct swm_region *, union arg *);
 void	 destroynotify(xcb_destroy_notify_event_t *);
 void	 dumpwins(struct binding *, struct swm_region *, union arg *);
@@ -1255,66 +1264,50 @@ void	 focus_win(struct ws_win *);
 void	 focus_win_input(struct ws_win *, bool);
 void	 focus_window(xcb_window_t);
 void	 focusin(xcb_focus_in_event_t *);
-#ifdef SWM_DEBUG
-void	 focusout(xcb_focus_out_event_t *);
-#endif
+static void	 focusout(xcb_focus_out_event_t *);
 void	 focusrg(struct binding *, struct swm_region *, union arg *);
 static bool	 follow_pointer(struct swm_screen *);
 int	 fontset_init(void);
 void	 free_window(struct ws_win *);
 void	 fullscreen_toggle(struct binding *, struct swm_region *, union arg *);
 xcb_atom_t get_atom_from_string(const char *);
-#ifdef SWM_DEBUG
+const char	*get_atom_label(xcb_atom_t);
 char	*get_atom_name(xcb_atom_t);
-#endif
 xcb_keycode_t	 get_binding_keycode(struct binding *);
 int		 get_character_font(struct swm_screen *, FcChar32, int);
 struct swm_region	*get_current_region(struct swm_screen *);
-#ifdef SWM_DEBUG
 const char	*get_event_label(xcb_generic_event_t *);
-#endif
 struct ws_win   *get_focus_magic(struct ws_win *);
 struct ws_win   *get_focus_other(struct ws_win *);
 struct ws_win	*get_focus_prev(struct workspace *);
-#if defined(SWM_DEBUG) && defined(SWM_XCB_HAS_XINPUT)
+#ifdef SWM_XCB_HAS_XINPUT
 const char	*get_input_event_label(xcb_ge_generic_event_t *);
 #endif
 xcb_window_t	 get_input_focus(void);
+xcb_atom_t	 get_intern_atom(const char *);
 struct ws_win	*get_main_window(struct workspace *);
-#ifdef SWM_DEBUG
 const char	*get_mapping_notify_label(uint8_t);
-#endif
 xcb_generic_event_t	*get_next_event(bool);
-#ifdef SWM_DEBUG
 const char	*get_notify_detail_label(uint8_t);
 const char	*get_notify_mode_label(uint8_t);
-#endif
 struct swm_region	*get_pointer_region(struct swm_screen *);
 struct ws_win	*get_pointer_win(struct swm_screen *);
-#ifdef SWM_DEBUG
 const char	*get_randr_event_label(xcb_generic_event_t *);
 const char	*get_randr_rotation_label(int);
-#endif
 struct ws_win	*get_region_focus(struct swm_region *);
 int	 get_region_index(struct swm_region *);
 xcb_screen_t	*get_screen(int);
 int	 get_screen_count(void);
-#ifdef SWM_DEBUG
 const char	*get_source_type_label(uint32_t);
 const char	*get_stack_mode_label(uint8_t);
 const char	*get_state_mask_label(uint16_t);
-#endif
 int32_t	 get_swm_ws(xcb_window_t);
 bool	 get_urgent(struct ws_win *);
-#ifdef SWM_DEBUG
 const char	*get_win_input_model_label(struct ws_win *);
-#endif
 char	*get_win_name(xcb_window_t);
 uint32_t get_win_state(xcb_window_t);
 void	 get_wm_protocols(struct ws_win *);
-#ifdef SWM_DEBUG
 const char	*get_wm_state_label(uint32_t);
-#endif
 int	 get_ws_idx(struct ws_win *);
 void	 grab_buttons_win(xcb_window_t);
 void	 grab_windows(void);
@@ -1329,9 +1322,7 @@ void	 keyrelease(xcb_key_release_event_t *);
 bool	 keyrepeating(xcb_key_release_event_t *);
 void	 kill_bar_extra_atexit(void);
 void	 kill_refs(struct ws_win *);
-#ifdef SWM_DEBUG
 void	 leavenotify(xcb_leave_notify_event_t *);
-#endif
 void	 load_float_geom(struct ws_win *);
 void	 lower_window(struct ws_win *);
 struct ws_win	*manage_window(xcb_window_t, int, bool);
@@ -1353,10 +1344,8 @@ int	 parsebinding(const char *, uint16_t *, enum binding_type *, uint32_t *,
 int	 parsequirks(const char *, uint32_t *, int *, char **);
 int	 parse_workspace_indicator(const char *, uint32_t *, char **);
 void	 pressbutton(struct binding *, struct swm_region *, union arg *);
-#ifdef SWM_DEBUG
 void	 print_win_geom(xcb_window_t);
 void	 print_stacking(struct swm_screen *);
-#endif
 void	 priorws(struct binding *, struct swm_region *, union arg *);
 void	 propertynotify(xcb_property_notify_event_t *);
 void	 put_back_event(xcb_generic_event_t *);
@@ -1377,9 +1366,7 @@ void	 region_containment(struct ws_win *, struct swm_region *, int);
 struct swm_region	*region_under(struct swm_screen *, int, int);
 void	 regionize(struct ws_win *, int, int);
 int	 reparent_window(struct ws_win *);
-#ifdef SWM_DEBUG
 void	 reparentnotify(xcb_reparent_notify_event_t *);
-#endif
 void	 resize(struct binding *, struct swm_region *, union arg *);
 void	 resize_win(struct ws_win *, struct binding *, int);
 void	 rotatews(struct workspace *, uint16_t);
@@ -1466,9 +1453,7 @@ void	 unmap_workspace(struct workspace *);
 void	 unmapnotify(xcb_unmap_notify_event_t *);
 int	 unmaximize_other(struct ws_win *);
 void	 unparent_window(struct ws_win *);
-#ifdef SWM_DEBUG
 void	 update_debug(struct swm_screen *);
-#endif
 void	 update_floater(struct ws_win *);
 void	 update_focus(struct swm_screen *);
 void	 update_modkey(uint16_t);
@@ -1499,9 +1484,10 @@ void	 _add_startup_exception(const char *, va_list);
 void	 add_startup_exception(const char *, ...);
 
 RB_PROTOTYPE(binding_tree, binding, entry, binding_cmp);
-#ifndef __clang_analyzer__ /* Suppress false warnings. */
+RB_PROTOTYPE(atom_name_tree, atom_name, entry, atom_name_cmp);
+
 RB_GENERATE(binding_tree, binding, entry, binding_cmp);
-#endif
+RB_GENERATE(atom_name_tree, atom_name, entry, atom_name_cmp);
 
 static bool
 win_floating(struct ws_win *win)
@@ -1773,7 +1759,7 @@ flush(void)
 }
 
 xcb_atom_t
-get_atom_from_string(const char *str)
+get_intern_atom(const char *str)
 {
 	xcb_intern_atom_cookie_t	c;
 	xcb_intern_atom_reply_t		*r;
@@ -1789,6 +1775,124 @@ get_atom_from_string(const char *str)
 	}
 
 	return (XCB_ATOM_NONE);
+}
+
+char *
+get_atom_name(xcb_atom_t atom)
+{
+	xcb_get_atom_name_reply_t	*r;
+	size_t				len;
+	char				*name = NULL;
+
+	if (!(swm_debug & SWM_D_ATOM))
+		return (NULL);
+
+	r = xcb_get_atom_name_reply(conn,
+	    xcb_get_atom_name(conn, atom),
+	    NULL);
+	if (r) {
+		len = xcb_get_atom_name_name_length(r);
+		if (len > 0) {
+			name = malloc(len + 1);
+			if (name) {
+				memcpy(name, xcb_get_atom_name_name(r), len);
+				name[len] = '\0';
+			}
+		}
+		free(r);
+	}
+
+	return (name);
+}
+
+int
+atom_name_cmp(struct atom_name *ap1, struct atom_name *ap2)
+{
+	if (ap1->atom < ap2->atom)
+		return (-1);
+	if (ap1->atom > ap2->atom)
+		return (1);
+	return (0);
+}
+
+void
+atom_name_insert(xcb_atom_t atom, char *name)
+{
+	struct atom_name	*ap;
+
+	if ((ap = malloc(sizeof *ap)) == NULL)
+		err(1, "atom_name_insert: malloc");
+
+	ap->atom = atom;
+	ap->name = name;
+	if (RB_INSERT(atom_name_tree, &atom_names, ap))
+		err(1, "atom_name_insert: RB_INSERT");
+}
+
+void
+atom_name_remove(struct atom_name *ap)
+{
+	RB_REMOVE(atom_name_tree, &atom_names, ap);
+	free(ap->name);
+	free(ap);
+}
+
+void
+clear_atom_names(void)
+{
+	struct atom_name	*ap;
+
+#ifndef __clang_analyzer__ /* Suppress false warnings. */
+	while((ap = RB_ROOT(&atom_names)))
+		atom_name_remove(ap);
+#endif
+}
+
+struct atom_name *
+atom_name_lookup(xcb_atom_t atom)
+{
+	struct atom_name	ap;
+
+	ap.atom = atom;
+
+	return (RB_FIND(atom_name_tree, &atom_names, &ap));
+}
+
+xcb_atom_t
+get_atom_from_string(const char *str)
+{
+	xcb_atom_t		atom;
+	char			*name;
+
+	if (str == NULL)
+		return (XCB_ATOM_NONE);
+
+	atom = get_intern_atom(str);
+	if (atom != XCB_ATOM_NONE && atom_name_lookup(atom) == NULL) {
+		if ((name = strdup(str)) == NULL)
+			err(1, "get_atom_from_string: strdup");
+		atom_name_insert(atom, name);
+	}
+
+	return (atom);
+}
+
+const char *
+get_atom_label(xcb_atom_t atom)
+{
+	struct atom_name	*ap;
+	char			*name;
+
+	ap = atom_name_lookup(atom);
+	if (ap)
+		name = ap->name;
+	else if (swm_debug & SWM_D_ATOM) {
+		name = get_atom_name(atom);
+		atom_name_insert(atom, name);
+	} else
+		name = "";
+
+	return (name);
 }
 
 void
@@ -1922,14 +2026,10 @@ ewmh_change_wm_state(struct ws_win *win, xcb_atom_t state, long action)
 {
 	uint32_t		flag = 0;
 	uint32_t		new_flags;
-#ifdef SWM_DEBUG
-	char			*name;
 
-	name = get_atom_name(state);
-	DNPRINTF(SWM_D_PROP, "win %#x, state: %s, " "action: %ld\n",
-	    WINID(win), name, action);
-	free(name);
-#endif
+	DNPRINTF(SWM_D_PROP, "win %#x, state: %s(%u), " "action: %ld\n",
+	    WINID(win), get_atom_label(state), state, action);
+
 	if (win == NULL)
 		goto out;
 
@@ -2089,7 +2189,6 @@ ewmh_get_wm_state(struct ws_win *win)
 	free(r);
 }
 
-#ifdef SWM_DEBUG
 void
 dumpwins(struct binding *bp, struct swm_region *r, union arg *args)
 {
@@ -2103,6 +2202,9 @@ dumpwins(struct binding *bp, struct swm_region *r, union arg *args)
 	/* suppress unused warning since var is needed */
 	(void)bp;
 	(void)args;
+
+	if (swm_debug == 0)
+		return;
 
 	if (r == NULL)
 		return;
@@ -2163,6 +2265,9 @@ debug_toggle(struct binding *b, struct swm_region *r, union arg *s)
 	(void)b;
 	(void)r;
 	(void)s;
+
+	if (swm_debug == 0)
+		return;
 
 	debug_enabled = !debug_enabled;
 	DNPRINTF(SWM_D_MISC, "debug_enabled: %s\n", YESNO(debug_enabled));
@@ -2313,26 +2418,12 @@ update_debug(struct swm_screen *s)
 {
 	struct ws_win	*w;
 
+	if (swm_debug == 0)
+		return;
+
 	TAILQ_FOREACH(w, &s->stack, stack_entry)
 		debug_refresh(w);
 }
-#else
-void
-dumpwins(struct binding *b, struct swm_region *r, union arg *s)
-{
-	(void)b;
-	(void)r;
-	(void)s;
-}
-
-void
-debug_toggle(struct binding *b, struct swm_region *r, union arg *s)
-{
-	(void)b;
-	(void)r;
-	(void)s;
-}
-#endif /* SWM_DEBUG */
 
 void
 sighdlr(int sig)
@@ -2348,16 +2439,13 @@ sighdlr(int sig)
 			if (pid == -1) {
 				if (errno == EINTR)
 					continue;
-#ifdef SWM_DEBUG
 				if (errno != ECHILD)
 					warn("sighdlr: waitpid");
-#endif /* SWM_DEBUG */
 				break;
 			}
 			if (pid == searchpid)
 				search_resp = 1;
 
-#ifdef SWM_DEBUG
 			if (WIFEXITED(status)) {
 				if (WEXITSTATUS(status) != 0)
 					warnx("sighdlr: child exit status: %d",
@@ -2365,7 +2453,6 @@ sighdlr(int sig)
 			} else
 				warnx("sighdlr: child is terminated "
 				    "abnormally");
-#endif /* SWM_DEBUG */
 		}
 		break;
 
@@ -4252,18 +4339,12 @@ void
 client_msg(struct ws_win *win, xcb_atom_t a, xcb_timestamp_t t)
 {
 	xcb_client_message_event_t	ev;
-#ifdef SWM_DEBUG
-	char				*name;
-#endif
 
 	if (win == NULL)
 		return;
-#ifdef SWM_DEBUG
-	name = get_atom_name(a);
+
 	DNPRINTF(SWM_D_EVENT, "win %#x, atom: %s(%u), time: %#x\n",
-	    win->id, name, a, t);
-	free(name);
-#endif
+	    win->id, get_atom_label(a), a, t);
 
 	bzero(&ev, sizeof ev);
 	ev.response_type = XCB_CLIENT_MESSAGE;
@@ -4446,10 +4527,8 @@ lower_window(struct ws_win *win)
 	else
 		TAILQ_INSERT_TAIL(&win->s->stack, win, stack_entry);
 
-#ifdef SWM_DEBUG
 	if (swm_debug & SWM_D_STACK)
 		print_stacking(win->s);
-#endif
 	DNPRINTF(SWM_D_EVENT, "done\n");
 }
 
@@ -4519,10 +4598,8 @@ raise_window(struct ws_win *win)
 	else
 		TAILQ_INSERT_TAIL(&win->s->stack, win, stack_entry);
 
-#ifdef SWM_DEBUG
 	if (swm_debug & SWM_D_STACK)
 		print_stacking(win->s);
-#endif
 	DNPRINTF(SWM_D_EVENT, "done\n");
 }
 
@@ -4563,9 +4640,7 @@ update_win_stacking(struct ws_win *win)
 	xcb_configure_window(conn, win->frame, XCB_CONFIG_WINDOW_SIBLING |
 	    XCB_CONFIG_WINDOW_STACK_MODE, val);
 
-#ifdef SWM_DEBUG
 	update_debug(win->s);
-#endif
 }
 
 void
@@ -4588,11 +4663,9 @@ map_window(struct ws_win *win)
 
 	xcb_map_window(conn, win->frame);
 	xcb_map_window(conn, win->id);
-#ifdef SWM_DEBUG
 	if (win->debug != XCB_WINDOW_NONE)
 		xcb_map_window(conn, win->debug);
 	win->mapping += 2;
-#endif
 	win->mapped = true;
 	set_win_state(win, XCB_ICCCM_WM_STATE_NORMAL);
 }
@@ -4614,10 +4687,9 @@ unmap_window(struct ws_win *win)
 
 	if (!win->mapped)
 		return;
-#ifdef SWM_DEBUG
+
 	if (win->debug != XCB_WINDOW_NONE)
 		xcb_unmap_window(conn, win->debug);
-#endif
 	xcb_unmap_window(conn, win->id);
 	xcb_unmap_window(conn, win->frame);
 	win->unmapping += 2;
@@ -4908,18 +4980,16 @@ find_window(xcb_window_t id)
 		if (qtr->parent != XCB_WINDOW_NONE && qtr->parent != qtr->root)
 			win = find_window(qtr->parent);
 
-#ifdef SWM_DEBUG
 		if (win)
 			DNPRINTF(SWM_D_MISC, "%#x is decendent of %#x.\n",
 			    id, qtr->parent);
-#endif
+
 		free(qtr);
 	}
 
-#ifdef SWM_DEBUG
 	if (win == NULL)
 		DNPRINTF(SWM_D_MISC, "unmanaged.\n");
-#endif
+
 	return (win);
 }
 
@@ -7825,9 +7895,7 @@ search_resp_uniconify(const char *resp, size_t len)
 			}
 
 			draw_frame(win);
-#ifdef SWM_DEBUG
 			debug_refresh(win);
-#endif
 			free(s);
 			break;
 		}
@@ -9292,7 +9360,6 @@ struct action {
 	{ "ws_prev_all",	cyclews,	0, {.id = SWM_ARG_ID_CYCLEWS_DOWN_ALL} },
 	{ "ws_prev_move",	cyclews,	0, {.id = SWM_ARG_ID_CYCLEWS_MOVE_DOWN} },
 	{ "ws_prior",		priorws,	0, {0} },
-	/* SWM_DEBUG actions MUST be here: */
 	{ "debug_toggle",	debug_toggle,	0, {0} },
 	{ "dumpwins",		dumpwins,	0, {0} },
 	/* ALWAYS last: */
@@ -9412,12 +9479,13 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
 		++c;
 	}
 
-#ifdef SWM_DEBUG
-	DNPRINTF(SWM_D_SPAWN, "result: ");
-	for (i = 0; i < c; ++i)
-		DPRINTF("\"%s\" ", real_args[i]);
-	DPRINTF("\n");
-#endif
+	if (swm_debug & SWM_D_SPAWN) {
+		DPRINTF("result: ");
+		for (i = 0; i < c; ++i)
+			DPRINTF("\"%s\" ", real_args[i]);
+		DPRINTF("\n");
+	}
+
 	*ret_args = real_args;
 	return (c);
 }
@@ -9604,12 +9672,11 @@ spawn_insert(const char *name, const char *args, int flags)
 
 	sp->flags = flags;
 
-#ifdef SWM_DEBUG
 	if (sp->argv != NULL) {
 		DNPRINTF(SWM_D_SPAWN, "arg %d: [%s]\n", sp->argc,
 		    sp->argv[sp->argc-1]);
 	}
-#endif
+
 	TAILQ_INSERT_TAIL(&spawns, sp, entry);
 	DNPRINTF(SWM_D_SPAWN, "leave\n");
 }
@@ -9891,7 +9958,8 @@ binding_insert(uint16_t mod, enum binding_type type, uint32_t val,
 	bp->action = aid;
 	bp->flags = flags;
 	bp->spawn_name = strdupsafe(spawn_name);
-	RB_INSERT(binding_tree, &bindings, bp);
+	if (RB_INSERT(binding_tree, &bindings, bp))
+		err(1, "binding_insert: RB_INSERT");
 
 	DNPRINTF(SWM_D_KEY, "leave\n");
 }
@@ -9928,12 +9996,10 @@ setbinding(uint16_t mod, enum binding_type type, uint32_t val,
 {
 	struct binding		*bp;
 
-#ifdef SWM_DEBUG
 	if (spawn_name != NULL) {
 		DNPRINTF(SWM_D_KEY, "enter %s [%s]\n", actions[aid].name,
 		    spawn_name);
 	}
-#endif
 
 	/* Unbind any existing. Loop is to handle MOD_MASK_ANY. */
 	while ((bp = binding_lookup(mod, type, val)))
@@ -10125,10 +10191,10 @@ setup_keybindings(void)
 	BINDKEY(MODSHIFT,	XK_Up,			FN_WS_NEXT_MOVE);
 	BINDKEY(MODSHIFT,	XK_Down,		FN_WS_PREV_MOVE);
 	BINDKEY(MOD,		XK_a,			FN_WS_PRIOR);
-#ifdef SWM_DEBUG
-	BINDKEY(MOD,		XK_d,			FN_DEBUG_TOGGLE);
-	BINDKEY(MODSHIFT,	XK_d,			FN_DUMPWINS);
-#endif
+	if (swm_debug) {
+		BINDKEY(MOD,		XK_d,		FN_DEBUG_TOGGLE);
+		BINDKEY(MODSHIFT,	XK_d,		FN_DUMPWINS);
+	}
 #undef BINDKEY
 #undef BINDKEYSPAWN
 }
@@ -10345,7 +10411,7 @@ grabkeys(void)
 	DNPRINTF(SWM_D_MISC, "done\n");
 }
 
-#if defined(SWM_DEBUG) && defined(SWM_XCB_HAS_XINPUT)
+#ifdef SWM_XCB_HAS_XINPUT
 const char *
 get_input_event_label(xcb_ge_generic_event_t *ev)
 {
@@ -10466,7 +10532,6 @@ get_input_event_label(xcb_ge_generic_event_t *ev)
 
 	return (label);
 }
-#endif
 
 #if defined(SWM_XCB_HAS_XINPUT) && defined(XCB_INPUT_RAW_BUTTON_PRESS)
 void
@@ -11995,15 +12060,11 @@ window_get_pid(xcb_window_t win)
 {
 	pid_t				ret = 0;
 	const char			*errstr;
-	xcb_atom_t			apid;
 	xcb_get_property_cookie_t	pc;
 	xcb_get_property_reply_t	*pr;
 
-	apid = get_atom_from_string("_NET_WM_PID");
-	if (apid == XCB_ATOM_NONE)
-		goto tryharder;
-
-	pc = xcb_get_property(conn, 0, win, apid, XCB_ATOM_CARDINAL, 0, 1);
+	pc = xcb_get_property(conn, 0, win, a_net_wm_pid,
+	    XCB_ATOM_CARDINAL, 0, 1);
 	pr = xcb_get_property_reply(conn, pc, NULL);
 	if (pr == NULL)
 		goto tryharder;
@@ -12012,20 +12073,19 @@ window_get_pid(xcb_window_t win)
 		goto tryharder;
 	}
 
-	if (pr->type == apid && pr->format == 32)
+	if (pr->type == a_net_wm_pid && pr->format == 32)
 		ret = *((pid_t *)xcb_get_property_value(pr));
 	free(pr);
 
 	return (ret);
 
 tryharder:
-	apid = get_atom_from_string("_SWM_PID");
-	pc = xcb_get_property(conn, 0, win, apid, XCB_ATOM_STRING,
+	pc = xcb_get_property(conn, 0, win, a_swm_pid, XCB_ATOM_STRING,
 	    0, SWM_PROPLEN);
 	pr = xcb_get_property_reply(conn, pc, NULL);
 	if (pr == NULL)
 		return (0);
-	if (pr->type != apid) {
+	if (pr->type != a_swm_pid) {
 		free(pr);
 		return (0);
 	}
@@ -12134,9 +12194,7 @@ reparent_window(struct ws_win *win)
 	    XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
 	    XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY |
 	    XCB_EVENT_MASK_EXPOSURE;
-#ifdef SWM_DEBUG
 	wa[1] |= XCB_EVENT_MASK_LEAVE_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE;
-#endif
 	wa[2] = win->s->colormap;
 
 	xcb_create_window(conn, win->s->depth, win->frame, win->s->root, X(win),
@@ -12160,9 +12218,7 @@ reparent_window(struct ws_win *win)
 			xcb_map_window(conn, win->frame);
 			/* Remap will occur. */
 			win->unmapping++;
-#ifdef SWM_DEBUG
 			win->mapping++;
-#endif
 		}
 
 		xcb_change_save_set(conn, XCB_SET_MODE_INSERT, win->id);
@@ -12185,9 +12241,7 @@ unparent_window(struct ws_win *win)
 		if (win->mapped) {
 			/* Remap will occur. */
 			win->unmapping++;
-#ifdef SWM_DEBUG
 			win->mapping++;
-#endif
 		}
 
 		xcb_change_save_set(conn, XCB_SET_MODE_DELETE, win->id);
@@ -12270,9 +12324,7 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	win->g_float = win->g; /* Window is initially floating. */
 	win->bordered = false;
 	win->mapped = (war->map_state != XCB_MAP_STATE_UNMAPPED);
-#ifdef SWM_DEBUG
 	win->mapping = 0;
-#endif
 	win->unmapping = 0;
 
 	free(gr);
@@ -12304,11 +12356,9 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 
 	get_wm_protocols(win);
 
-#ifdef SWM_DEBUG
 	/* Must be after getting WM_HINTS and WM_PROTOCOLS. */
 	DNPRINTF(SWM_D_FOCUS, "input_model: %s\n",
 	    get_win_input_model_label(win));
-#endif
 
 	/* Set initial quirks based on EWMH. */
 	ewmh_autoquirk(win);
@@ -12498,7 +12548,6 @@ unmanage_window(struct ws_win *win)
 	ewmh_update_client_list();
 }
 
-#ifdef SWM_DEBUG
 const char *
 get_randr_event_label(xcb_generic_event_t *e)
 {
@@ -12565,7 +12614,6 @@ get_event_label(xcb_generic_event_t *e)
 
 	return (label);
 }
-#endif
 
 /* events */
 void
@@ -12584,9 +12632,7 @@ expose(xcb_expose_event_t *e)
 		xcb_flush(conn);
 	} else if ((w = find_window(e->window)) && w->frame == e->window) {
 		draw_frame(w);
-#ifdef SWM_DEBUG
 		debug_refresh(w);
-#endif
 		xcb_flush(conn);
 	}
 
@@ -12647,15 +12693,13 @@ focusin(xcb_focus_in_event_t *e)
 	DNPRINTF(SWM_D_EVENT, "done\n");
 }
 
-#ifdef SWM_DEBUG
-void
+static void
 focusout(xcb_focus_out_event_t *e)
 {
 	DNPRINTF(SWM_D_EVENT, "win %#x, mode: %s(%u), detail: %s(%u)\n",
 	    e->event, get_notify_mode_label(e->mode), e->mode,
 	    get_notify_detail_label(e->detail), e->detail);
 }
-#endif
 
 void
 keypress(xcb_key_press_event_t *e)
@@ -12856,7 +12900,6 @@ buttonrelease(xcb_button_release_event_t *e)
 	DNPRINTF(SWM_D_FOCUS, "done\n");
 }
 
-#ifdef SWM_DEBUG
 const char *
 get_win_input_model_label(struct ws_win *win)
 {
@@ -12894,9 +12937,7 @@ print_win_geom(xcb_window_t w)
 
 	free(wa);
 }
-#endif
 
-#ifdef SWM_DEBUG
 const char *
 get_stack_mode_label(uint8_t mode)
 {
@@ -12924,7 +12965,6 @@ get_stack_mode_label(uint8_t mode)
 
 	return (label);
 }
-#endif
 
 void
 configurerequest(xcb_configure_request_event_t *e)
@@ -12939,7 +12979,6 @@ configurerequest(xcb_configure_request_event_t *e)
 	if ((win = find_window(e->window)) == NULL)
 		new = true;
 
-#ifdef SWM_DEBUG
 	if (swm_debug & SWM_D_EVENT) {
 		print_win_geom(e->window);
 
@@ -12963,7 +13002,6 @@ configurerequest(xcb_configure_request_event_t *e)
 			    get_stack_mode_label(e->stack_mode), e->stack_mode);
 		DPRINTF("}\n");
 	}
-#endif
 
 	if (new) {
 		if (e->value_mask & XCB_CONFIG_WINDOW_X) {
@@ -13134,7 +13172,6 @@ destroynotify(xcb_destroy_notify_event_t *e)
 	DNPRINTF(SWM_D_EVENT, "done\n");
 }
 
-#ifdef SWM_DEBUG
 const char *
 get_notify_detail_label(uint8_t detail)
 {
@@ -13272,7 +13309,6 @@ get_wm_state_label(uint32_t state)
 
 	return (label);
 }
-#endif
 
 void
 enternotify(xcb_enter_notify_event_t *e)
@@ -13328,7 +13364,6 @@ enternotify(xcb_enter_notify_event_t *e)
 	DNPRINTF(SWM_D_EVENT, "done\n");
 }
 
-#ifdef SWM_DEBUG
 void
 leavenotify(xcb_leave_notify_event_t *e)
 {
@@ -13348,31 +13383,32 @@ mapnotify(xcb_map_notify_event_t *e)
 {
 	struct ws_win		*win;
 
+	if (!(swm_debug & SWM_D_EVENT))
+		return;
+
 	DNPRINTF(SWM_D_EVENT, "event: %#x, win %#x, override_redirect: %u\n",
 	    e->event, e->window, e->override_redirect);
 
 	if (e->event != e->window) {
-		DNPRINTF(SWM_D_EVENT, "ignore; not event window.\n");
+		DNPRINTF(SWM_D_EVENT, "not event window.\n");
 		return;
 	}
 
 	if ((win = manage_window(e->window, spawn_position, false)) == NULL) {
-		DNPRINTF(SWM_D_EVENT, "ignore; unmanaged.\n");
+		DNPRINTF(SWM_D_EVENT, "unmanaged.\n");
 		return;
 	}
 
 	if (win->id != e->window && win->frame != e->window) {
-		DNPRINTF(SWM_D_EVENT, "ignore; not client window.\n");
+		DNPRINTF(SWM_D_EVENT, "unknown window.\n");
 		return;
 	}
 
 	if (win->mapping > 0) {
-		DNPRINTF(SWM_D_EVENT, "ignore; mapping %d\n", win->mapping);
+		DNPRINTF(SWM_D_EVENT, "mapping %d\n", win->mapping);
 		win->mapping--;
 		return;
 	}
-
-	DNPRINTF(SWM_D_EVENT, "this shouldn't happen.\n");
 }
 
 const char *
@@ -13598,52 +13634,14 @@ motionnotify(xcb_motion_notify_event_t *e)
 	DNPRINTF(SWM_D_EVENT, "done\n");
 }
 
-#ifdef SWM_DEBUG
-char *
-get_atom_name(xcb_atom_t atom)
-{
-	char				*name = NULL;
-#ifdef SWM_DEBUG_ATOM_NAMES
-	/*
-	 * This should be disabled during most debugging since
-	 * xcb_get_* causes an xcb_flush.
-	 */
-	size_t				len;
-	xcb_get_atom_name_reply_t	*r;
-
-	r = xcb_get_atom_name_reply(conn,
-	    xcb_get_atom_name(conn, atom),
-	    NULL);
-	if (r) {
-		len = xcb_get_atom_name_name_length(r);
-		if (len > 0) {
-			name = malloc(len + 1);
-			if (name) {
-				memcpy(name, xcb_get_atom_name_name(r), len);
-				name[len] = '\0';
-			}
-		}
-		free(r);
-	}
-#else
-	(void)atom;
-#endif
-	return (name);
-}
-#endif
-
 void
 propertynotify(xcb_property_notify_event_t *e)
 {
 	struct ws_win		*win;
-#ifdef SWM_DEBUG
-	char			*name;
 
-	name = get_atom_name(e->atom);
 	DNPRINTF(SWM_D_EVENT, "win %#x, atom: %s(%u), time: %#x, state: %u\n",
-	    e->window, name, e->atom, e->time, e->state);
-	free(name);
-#endif
+	    e->window, get_atom_label(e->atom), e->atom, e->time, e->state);
+
 	event_time = e->time;
 
 	win = find_window(e->window);
@@ -13666,7 +13664,6 @@ propertynotify(xcb_property_notify_event_t *e)
 	DNPRINTF(SWM_D_EVENT, "done\n");
 }
 
-#ifdef SWM_DEBUG
 void
 reparentnotify(xcb_reparent_notify_event_t *e)
 {
@@ -13674,7 +13671,6 @@ reparentnotify(xcb_reparent_notify_event_t *e)
 	    "(x,y): (%u,%u), override_redirect: %u\n", e->event, e->window,
 	    e->parent, e->x, e->y, e->override_redirect);
 }
-#endif
 
 void
 unmapnotify(xcb_unmap_notify_event_t *e)
@@ -13757,7 +13753,6 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 	DNPRINTF(SWM_D_EVENT, "done\n");
 }
 
-#ifdef SWM_DEBUG
 const char *
 get_source_type_label(uint32_t type)
 {
@@ -13779,7 +13774,6 @@ get_source_type_label(uint32_t type)
 
 	return (label);
 }
-#endif
 
 void
 clientmessage(xcb_client_message_event_t *e)
@@ -13791,14 +13785,9 @@ clientmessage(xcb_client_message_event_t *e)
 	int			num_screens, i;
 	xcb_map_request_event_t	mre;
 	bool			hidden;
-#ifdef SWM_DEBUG
-	char			*name;
 
-	name = get_atom_name(e->type);
-	DNPRINTF(SWM_D_EVENT, "win %#x, atom: %s(%u)\n", e->window, name,
-	    e->type);
-	free(name);
-#endif
+	DNPRINTF(SWM_D_EVENT, "win %#x, atom: %s(%u)\n", e->window,
+	    get_atom_label(e->type), e->type);
 
 	if (e->type == ewmh[_NET_CURRENT_DESKTOP].atom) {
 		num_screens = get_screen_count();
@@ -14001,7 +13990,6 @@ enable_wm(void)
 	return (0);
 }
 
-#ifdef SWM_DEBUG
 const char *
 get_randr_rotation_label(int rot)
 {
@@ -14026,7 +14014,6 @@ get_randr_rotation_label(int rot)
 
 	return (label);
 }
-#endif
 
 void
 new_region(struct swm_screen *s, int16_t x, int16_t y, uint16_t w, uint16_t h,
@@ -14270,9 +14257,9 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 	/* brute force for now, just re-enumerate the regions */
 	scan_randr(s);
 
-#ifdef SWM_DEBUG
-	print_win_geom(e->root);
-#endif
+	if (swm_debug & SWM_D_EVENT)
+		print_win_geom(e->root);
+
 	/* add bars to all regions */
 	TAILQ_FOREACH(r, &s->rl, entry)
 		bar_setup(r);
@@ -14423,8 +14410,8 @@ grab_windows(void)
 
 			set_focus_win(w);
 
-			DNPRINTF(SWM_D_INIT, "ws %d: focus: %#x, prev: %#x\n",
-			    j, WINID(ws->focus), WINID(get_focus_prev(ws)));
+			DNPRINTF(SWM_D_INIT, "ws %d: focus: %#x\n",
+			    j, WINID(ws->focus));
 		}
 	}
 	DNPRINTF(SWM_D_INIT, "done\n");
@@ -14490,7 +14477,7 @@ setup_screens(void)
 
 	/* map physical screens */
 	for (i = 0; i < num_screens; i++) {
-		DNPRINTF(SWM_D_WS, "init screen: %d\n", i);
+		DNPRINTF(SWM_D_INIT, "init screen: %d\n", i);
 		s = &screens[i];
 		s->idx = i;
 
@@ -14738,8 +14725,10 @@ setup_globals(void)
 	a_net_frame_extents = get_atom_from_string("_NET_FRAME_EXTENTS");
 	a_net_supported = get_atom_from_string("_NET_SUPPORTED");
 	a_net_wm_check = get_atom_from_string("_NET_SUPPORTING_WM_CHECK");
+	a_net_wm_pid = get_atom_from_string("_NET_WM_PID");
 	a_takefocus = get_atom_from_string("WM_TAKE_FOCUS");
 	a_utf8_string = get_atom_from_string("UTF8_STRING");
+	a_swm_pid = get_atom_from_string("_SWM_PID");
 	a_swm_ws = get_atom_from_string("_SWM_WS");
 }
 
@@ -14749,7 +14738,7 @@ scan_config(void)
 	struct stat		sb;
 	struct passwd		*pwd;
 	char			conf[PATH_MAX];
-	char			*cfile = NULL, *str = NULL, *ret, *s;
+	char			*cfile = NULL, *str = NULL, *ret, *s, *sp;
 	int			i;
 
 	/* To get $HOME */
@@ -14791,7 +14780,8 @@ scan_config(void)
 			}
 
 			/* Try ./spectrwm/spectrwm.conf under each dir. */
-			while ((s = strsep(&str, ":")) != NULL) {
+			sp = str;
+			while ((s = strsep(&sp, ":")) != NULL) {
 				if (*s == '\0')
 					continue;
 				snprintf(conf, sizeof conf, "%s/spectrwm/%s", s,
@@ -14859,6 +14849,7 @@ shutdown_cleanup(void)
 	clear_quirks();
 	clear_spawns();
 	clear_bindings();
+	clear_atom_names();
 
 	teardown_ewmh();
 
@@ -14992,13 +14983,9 @@ event_handle(xcb_generic_event_t *evt)
 		EVENT(XCB_BUTTON_RELEASE, buttonrelease);
 		EVENT(XCB_MOTION_NOTIFY, motionnotify);
 		EVENT(XCB_ENTER_NOTIFY, enternotify);
-#ifdef SWM_DEBUG
 		EVENT(XCB_LEAVE_NOTIFY, leavenotify);
-#endif
 		EVENT(XCB_FOCUS_IN, focusin);
-#ifdef SWM_DEBUG
 		EVENT(XCB_FOCUS_OUT, focusout);
-#endif
 		/*EVENT(XCB_KEYMAP_NOTIFY, );*/
 		EVENT(XCB_EXPOSE, expose);
 		/*EVENT(XCB_GRAPHICS_EXPOSURE, );*/
@@ -15007,13 +14994,9 @@ event_handle(xcb_generic_event_t *evt)
 		/*EVENT(XCB_CREATE_NOTIFY, );*/
 		EVENT(XCB_DESTROY_NOTIFY, destroynotify);
 		EVENT(XCB_UNMAP_NOTIFY, unmapnotify);
-#ifdef SWM_DEBUG
 		EVENT(XCB_MAP_NOTIFY, mapnotify);
-#endif
 		EVENT(XCB_MAP_REQUEST, maprequest);
-#ifdef SWM_DEBUG
 		EVENT(XCB_REPARENT_NOTIFY, reparentnotify);
-#endif
 		EVENT(XCB_CONFIGURE_NOTIFY, configurenotify);
 		EVENT(XCB_CONFIGURE_REQUEST, configurerequest);
 		/*EVENT(XCB_GRAVITY_NOTIFY, );*/
@@ -15050,6 +15033,7 @@ usage(void)
 	fprintf(stderr,
 	    "usage: spectrwm [-c file] [-v]\n"
 	    "        -c FILE        load configuration file\n"
+	    "        -d             enable debug mode and logging to stderr\n"
 	    "        -v             display version information and exit\n");
 	exit(1);
 }
@@ -15066,10 +15050,13 @@ main(int argc, char *argv[])
 	int			ch, i, num_screens, num_readable;
 	bool			stdin_ready = false;
 
-	while ((ch = getopt(argc, argv, "c:hv")) != -1) {
+	while ((ch = getopt(argc, argv, "c:dhv")) != -1) {
 		switch (ch) {
 		case 'c':
 			cfile = optarg;
+			break;
+		case 'd':
+			swm_debug = SWM_D_ALL;
 			break;
 		case 'v':
 			fprintf(stderr, "spectrwm %s Build: %s\n",
@@ -15081,9 +15068,7 @@ main(int argc, char *argv[])
 		}
 	}
 
-#ifdef SWM_DEBUG
 	time_started = time(NULL);
-#endif
 
 	start_argv = argv;
 	warnx("Welcome to spectrwm V%s Build: %s", SPECTRWM_VERSION, buildstr);
@@ -15127,12 +15112,11 @@ main(int argc, char *argv[])
 			if (mne->request == XCB_MAPPING_KEYBOARD)
 				xcb_refresh_keyboard_mapping(syms, mne);
 			break;
-#ifdef SWM_DEBUG
 		case 0:
 			/* Display errors. */
-			event_handle(evt);
+			if (swm_debug & SWM_D_EVENT)
+				event_handle(evt);
 			break;
-#endif
 		}
 		free(evt);
 	}

@@ -66,6 +66,8 @@
   <dt id="c"><a class="permalink" href="#c"><code class="Fl">-c</code></a>
     <var class="Ar">file</var></dt>
   <dd>Specify a configuration file to load instead of scanning for one.</dd>
+  <dt id="d"><a class="permalink" href="#d"><code class="Fl">-d</code></a></dt>
+  <dd>Enable debug mode and logging to stderr.</dd>
   <dt id="v"><a class="permalink" href="#v"><code class="Fl">-v</code></a></dt>
   <dd>Print version and exit.</dd>
 </dl>
@@ -1073,6 +1075,10 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dd>search_workspace</dd>
   <dt id="M-f"><a class="permalink" href="#M-f"><code class="Cm">M-f</code></a></dt>
   <dd>search_win</dd>
+  <dt id="M-d"><a class="permalink" href="#M-d"><code class="Cm">M-d</code></a></dt>
+  <dd>debug_toggle (debug mode only)</dd>
+  <dt id="M-S-d"><a class="permalink" href="#M-S-d"><code class="Cm">M-S-d</code></a></dt>
+  <dd>dumpwins (debug mode only)</dd>
 </dl>
 </div>
 <p class="Pp">The action names and descriptions are listed below:</p>
@@ -1247,6 +1253,11 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dd>Search for a workspace.</dd>
   <dt id="search_win"><a class="permalink" href="#search_win"><code class="Cm">search_win</code></a></dt>
   <dd>Search the windows in the current workspace.</dd>
+  <dt id="debug_toggle"><a class="permalink" href="#debug_toggle"><code class="Cm">debug_toggle</code></a></dt>
+  <dd>Toggles debug overlay. (debug mode only)</dd>
+  <dt id="dumpwins"><a class="permalink" href="#dumpwins"><code class="Cm">dumpwins</code></a></dt>
+  <dd>Dump current window/focus/stacking state to debug log. (debug mode
+    only)</dd>
 </dl>
 </div>
 <p class="Pp">Custom bindings in the configuration file are specified as
