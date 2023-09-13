@@ -3498,7 +3498,7 @@ bar_parse_markup(struct swm_screen *s, struct bar_section *sect)
 	if ((frag[i].length > 0) && (i < SWM_TEXTFRAGS_MAX)) {
 		/* Process last text fragment */
 		if (bar_font_legacy) {
-			TEXTEXTENTS(bar_fs, frag[i].text, len, &ibox, &lbox);
+			TEXTEXTENTS(bar_fs, frag[i].text, frag[i].length, &ibox, &lbox);
 			frag[i].width = lbox.width;
 		} else {
 			XftTextExtentsUtf8(display,
