@@ -177,24 +177,34 @@ quirk[XTerm:ws2] = WS[2]</pre>
   <dt id="bar_at_bottom"><a class="permalink" href="#bar_at_bottom"><code class="Ic">bar_at_bottom</code></a></dt>
   <dd>Place the statusbar at the bottom of each region instead of the top.</dd>
   <dt id="bar_border"><a class="permalink" href="#bar_border"><code class="Ic">bar_border</code></a>[<var class="Ar">x</var>]</dt>
-  <dd>Border color of the status bar(s) in screen <var class="Ar">x</var>.</dd>
+  <dd>Border color of status bar(s) on screen number
+    <var class="Ar">x</var>.</dd>
   <dt id="bar_border_unfocus"><a class="permalink" href="#bar_border_unfocus"><code class="Ic">bar_border_unfocus</code></a>[<var class="Ar">x</var>]</dt>
-  <dd>Border color of the status bar(s) on unfocused region(s) in screen
+  <dd>Border color of status bar(s) for unfocused region(s) on screen number
       <var class="Ar">x</var>.</dd>
   <dt id="bar_border_width"><a class="permalink" href="#bar_border_width"><code class="Ic">bar_border_width</code></a></dt>
   <dd>Set status bar border thickness in pixels. Disable border by setting to
     0.</dd>
   <dt id="bar_color"><a class="permalink" href="#bar_color"><code class="Ic">bar_color</code></a>[<var class="Ar">x</var>]</dt>
-  <dd>Background color of the status bar(s) in screen <var class="Ar">x</var>.
+  <dd>Background color of status bar(s) on screen number
+      <var class="Ar">x</var>.
     <p class="Pp">A comma separated list of up to 10 colors can be specified.
         The first value is used as the default background color. Any of these
         colors can then be selected as a background color in the status bar
         through the use of the markup sequence <code class="Ic">+@bg=n;</code>
         where n is between 0 and 9.</p>
   </dd>
+  <dt id="bar_color_unfocus"><a class="permalink" href="#bar_color_unfocus"><code class="Ic">bar_color_unfocus</code></a>[<var class="Ar">x</var>]</dt>
+  <dd>Background color of status bar(s) for unfocused region(s) on screen number
+      <var class="Ar">x</var>.
+    <p class="Pp">A comma separated list of up to 10 colors can be specified,
+        with the same syntax and behavior as <code class="Ic">bar_color</code>
+        for unfocused bar(s). Defaults to the value of
+        <code class="Ic">bar_color</code>.</p>
+  </dd>
   <dt id="bar_color_selected"><a class="permalink" href="#bar_color_selected"><code class="Ic">bar_color_selected</code></a>[<var class="Ar">x</var>]</dt>
-  <dd>Background color for selections on the status bar(s) in screen
-      <var class="Ar">x</var>. Defaults to the value of
+  <dd>Background color for selected <code class="Cm">menu</code> items on screen
+      number <var class="Ar">x</var>. Defaults to the value of
       <code class="Ic">bar_border</code>.</dd>
   <dt id="bar_enabled"><a class="permalink" href="#bar_enabled"><code class="Ic">bar_enabled</code></a></dt>
   <dd>Set default <code class="Ic">bar_toggle</code> state; default is 1.</dd>
@@ -231,16 +241,25 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
         setting.</p>
   </dd>
   <dt id="bar_font_color"><a class="permalink" href="#bar_font_color"><code class="Ic">bar_font_color</code></a>[<var class="Ar">x</var>]</dt>
-  <dd>Foreground color of the status bar(s) in screen <var class="Ar">x</var>.
+  <dd>Foreground color of the status bar(s) on screen number
+      <var class="Ar">x</var>.
     <p class="Pp">A comma separated list of up to 10 colors can be specified.
         The first value is used as the default foreground color. Any of these
         colors can then be selected as a foreground color in the status bar
         through the use of the markup sequence <code class="Ic">+@fg=n;</code>
         where n is between 0 and 9.</p>
   </dd>
+  <dt id="bar_font_color_unfocus"><a class="permalink" href="#bar_font_color_unfocus"><code class="Ic">bar_font_color_unfocus</code></a>[<var class="Ar">x</var>]</dt>
+  <dd>Foreground color of status bar(s) for unfocused region(s) on screen number
+      <var class="Ar">x</var>.
+    <p class="Pp">A comma separated list of up to 10 colors can be specified,
+        with the same syntax and behavior as
+        <code class="Ic">bar_font_color</code> for unfocused bar(s). Defaults to
+        the value of <code class="Ic">bar_font_color</code>.</p>
+  </dd>
   <dt id="bar_font_color_selected"><a class="permalink" href="#bar_font_color_selected"><code class="Ic">bar_font_color_selected</code></a>[<var class="Ar">x</var>]</dt>
-  <dd>Foreground color for selections on the status bar(s) in screen
-      <var class="Ar">x</var>. Defaults to the value of
+  <dd>Foreground color for selected <code class="Cm">menu</code> items on screen
+      number <var class="Ar">x</var>. Defaults to the value of
       <code class="Ic">bar_color</code>.</dd>
   <dt id="bar_font_pua"><a class="permalink" href="#bar_font_pua"><code class="Ic">bar_font_pua</code></a></dt>
   <dd>Specify a font to override the Unicode Private Use Area code points
@@ -437,8 +456,9 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
   </dd>
   <dt id="dialog_ratio"><a class="permalink" href="#dialog_ratio"><code class="Ic">dialog_ratio</code></a></dt>
   <dd>Some applications have dialogue windows that are too small to be useful.
-      This ratio is the screen size to what they will be resized. For example,
-      0.6 is 60% of the physical screen size.</dd>
+      This ratio adjusts the window/region size ratio for transient windows
+      having the TRANSSZ quirk. For example, 0.6 is 60% of the the monitor size
+      if the current region spans the monitor.</dd>
   <dt id="disable_border"><a class="permalink" href="#disable_border"><code class="Ic">disable_border</code></a></dt>
   <dd>Remove border when bar is disabled and there is only one window on the
       region. Enable by setting to 1. Setting this to
@@ -559,8 +579,9 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
       <var class="Ar">n</var> (optional). See the
       <a class="Sx" href="#QUIRKS">QUIRKS</a> section below.</dd>
   <dt id="region"><a class="permalink" href="#region"><code class="Ic">region</code></a></dt>
-  <dd>Allocates a custom region, removing any autodetected regions which occupy
-      the same space on the screen. Defined in the format
+  <dd>Allocates a custom region, removing any autodetected regions that occupy
+      the same space on the specified logical X screen number. Defined in the
+      format
       <code class="Li">screen</code>[<var class="Ar">idx</var>]:<var class="Ar">width</var>x<var class="Ar">height</var>+<var class="Ar">x</var>+<var class="Ar">y</var>[,<var class="Ar">rotation</var>],
       e.g. screen[1]:800x1200+0+0 or screen[1]:800x1200+0+0,inverted (with
       optional rotation).
@@ -1171,9 +1192,9 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dt id="rg_prev"><a class="permalink" href="#rg_prev"><code class="Cm">rg_prev</code></a></dt>
   <dd>Switch to previous region.</dd>
   <dt id="rg_move_next"><a class="permalink" href="#rg_move_next"><code class="Cm">rg_move_next</code></a></dt>
-  <dd>Switch region to next screen.</dd>
+  <dd>Switch to next region and move current workspace.</dd>
   <dt id="rg_move_prev"><a class="permalink" href="#rg_move_prev"><code class="Cm">rg_move_prev</code></a></dt>
-  <dd>Switch region to previous screen.</dd>
+  <dd>Switch to previous region and move current workspace.</dd>
   <dt id="screenshot_all~2"><a class="permalink" href="#screenshot_all~2"><code class="Cm">screenshot_all</code></a></dt>
   <dd>Take screenshot of entire screen (if enabled) (see
       <a class="Sx" href="#PROGRAMS">PROGRAMS</a> above).</dd>
