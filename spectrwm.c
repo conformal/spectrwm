@@ -2690,7 +2690,8 @@ bar_print_layout(struct swm_region *r)
 		x_rect.width = rect.width;
 		x_rect.height = rect.height;
 		if (bar_font_legacy)
-			XSetClipRectangles(display, draw, 0, 0, &x_rect, 1, YXBanded);
+			XSetClipRectangles(display, draw, 0, 0, &x_rect, 1,
+			    YXBanded);
 		else
 			XftDrawSetClipRectangles(xft_draw, 0, 0, &x_rect, 1);
 
@@ -3512,7 +3513,8 @@ bar_parse_markup(struct swm_screen *s, struct bar_section *sect)
 			/* Terminate current fragment. */
 			if (frag[i].length > 0) {
 				if (bar_font_legacy) {
-					TEXTEXTENTS(bar_fs, frag[i].text, frag[i].length, &ibox, &lbox);
+					TEXTEXTENTS(bar_fs, frag[i].text,
+					    frag[i].length, &ibox, &lbox);
 					frag[i].width = lbox.width;
 				} else {
 					XftTextExtentsUtf8(display,
@@ -3544,7 +3546,8 @@ bar_parse_markup(struct swm_screen *s, struct bar_section *sect)
 	if ((frag[i].length > 0) && (i < SWM_TEXTFRAGS_MAX)) {
 		/* Process last text fragment */
 		if (bar_font_legacy) {
-			TEXTEXTENTS(bar_fs, frag[i].text, frag[i].length, &ibox, &lbox);
+			TEXTEXTENTS(bar_fs, frag[i].text, frag[i].length, &ibox,
+			    &lbox);
 			frag[i].width = lbox.width;
 		} else {
 			XftTextExtentsUtf8(display,
@@ -5111,6 +5114,7 @@ set_input_focus(xcb_window_t winid, bool force)
 void
 focus_win(struct ws_win *win)
 {
+	struct swm_region			*r = NULL;
 	struct ws_win				*cfw = NULL, *w;
 	struct workspace			*ws;
 	xcb_get_window_attributes_reply_t	*war = NULL;
@@ -5191,6 +5195,10 @@ focus_win(struct ws_win *win)
 				w = win;
 
 			focus_win_input(w, false);
+
+			if (ws->r != win->s->r_focus)
+				r = win->s->r_focus;
+
 			set_region(ws->r);
 
 			xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
@@ -5198,6 +5206,8 @@ focus_win(struct ws_win *win)
 			    XCB_ATOM_WINDOW, 32, 1, &w->id);
 
 			bar_draw(ws->r->bar);
+			if (r)
+				bar_draw(r->bar);
 		}
 	}
 
@@ -5411,13 +5421,13 @@ focus_region(struct swm_region *r)
 	if (r == NULL)
 		return;
 
-	old_r = r->s->r_focus;
-	set_region(r);
-
 	nfw = get_region_focus(r);
 	if (nfw) {
 		focus_win(nfw);
 	} else {
+		old_r = r->s->r_focus;
+		set_region(r);
+
 		/* New region is empty; need to manually unfocus win. */
 		if (old_r) {
 			unfocus_win(old_r->ws->focus);
