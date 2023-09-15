@@ -197,6 +197,11 @@ Any of these colors can then be selected as a background color in the status
 bar through the use of the markup sequence
 .Ic +@bg=n;\&
 where n is between 0 and 9.
+.It Ic bar_color_unfocus Ns Bq Ar x
+Background color of the status bar(s) on unfocused screen(s)
+.Ar x .
+Defaults to the value of
+.Ic bar_color .
 .It Ic bar_color_selected Ns Bq Ar x
 Background color for selections on the status bar(s) in screen
 .Ar x .
@@ -267,6 +272,15 @@ Any of these colors can then be selected as a foreground color in the status
 bar through the use of the markup sequence
 .Ic +@fg=n;\&
 where n is between 0 and 9.
+.It Ic bar_font_color_unfocus Ns Bq Ar x
+Foreground color of the status bar(s) on unfocused screen(s)
+.Ar x .
+.Pp
+A comma separated list of up to 10 colors can be specified, with the same
+syntax and behavior as
+.Ic bar_font_color
+for unfocused bar(s). Defaults to the value of
+.Ic bar_font_color .
 .It Ic bar_font_color_selected Ns Bq Ar x
 Foreground color for selections on the status bar(s) in screen
 .Ar x .
