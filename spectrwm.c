@@ -240,11 +240,12 @@ uint32_t		swm_debug = 0
 /* convert 8-bit to 16-bit */
 #define RGB_8_TO_16(col)	(((col) << 8) + (col))
 
-#define PIXEL_TO_XRENDERCOLOR(px, xrc)					\
-	xrc.red = RGB_8_TO_16((px) >> 16 & 0xff);			\
-	xrc.green = RGB_8_TO_16((px) >> 8 & 0xff);			\
-	xrc.blue = RGB_8_TO_16((px) & 0xff);				\
-	xrc.alpha = 0xffff;
+#define SWM_COLOR_TO_XRENDERCOLOR(sc, xrc) do {				\
+	xrc.red = sc.r;							\
+	xrc.green = sc.g;						\
+	xrc.blue = sc.b;						\
+	xrc.alpha = sc.a;						\
+} while (0);
 
 #define LENGTH(x)		(int)(sizeof (x) / sizeof (x)[0])
 #define MODKEY			XCB_MOD_MASK_1
@@ -743,10 +744,15 @@ struct swm_screen {
 	struct ws_win_stack	stack;	/* stacking order of managed windows */
 	int			managed_count;
 
-	/* colors */
-	struct {
+	struct swm_color {
+		uint16_t	r;
+		uint16_t	g;
+		uint16_t	b;
+		uint16_t	a;
+		uint16_t	r_orig;
+		uint16_t	g_orig;
+		uint16_t	b_orig;
 		uint32_t	pixel;
-		char		*name;
 		int		manual;
 	} c[SWM_S_COLOR_MAX];
 
@@ -1358,15 +1364,18 @@ void	 maximize_toggle(struct binding *, struct swm_region *, union arg *);
 void	 motionnotify(xcb_motion_notify_event_t *);
 void	 move(struct binding *, struct swm_region *, union arg *);
 void	 move_win(struct ws_win *, struct binding *, int);
-uint32_t name_to_pixel(struct swm_screen *, const char *);
 void	 name_workspace(struct binding *, struct swm_region *, union arg *);
 void	 new_region(struct swm_screen *, int16_t, int16_t, uint16_t, uint16_t,
 	     uint16_t);
+int	 parse_color(struct swm_screen *, const char *, struct swm_color *);
 int	 parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
+int	 parse_rgba(const char *, uint16_t *, uint16_t *, uint16_t *,
+	     uint16_t *);
 int	 parsebinding(const char *, uint16_t *, enum binding_type *, uint32_t *,
 	     uint32_t *, char **);
 int	 parsequirks(const char *, uint32_t *, int *, char **);
 int	 parse_workspace_indicator(const char *, uint32_t *, char **);
+static char	*color_to_rgb(struct swm_color *);
 void	 pressbutton(struct binding *, struct swm_region *, union arg *);
 void	 print_win_geom(xcb_window_t);
 void	 print_stacking(struct swm_screen *);
@@ -1432,7 +1441,7 @@ int	 setconfvalue(const char *, const char *, int, char **);
 int	 setkeymapping(const char *, const char *, int, char **);
 int	 setlayout(const char *, const char *, int, char **);
 void	 setquirk(const char *, const char *, const char *, uint32_t, int);
-void	 setscreencolor(const char *, int, int);
+void	 setscreencolor(struct swm_screen *, const char *, int);
 void	 setspawn(const char *, const char *, int);
 void	 setup_btnbindings(void);
 void	 setup_ewmh(void);
@@ -1667,6 +1676,23 @@ out:
 }
 
 int
+parse_rgba(const char *rgba, uint16_t *rr, uint16_t *gg, uint16_t *bb,
+    uint16_t *aa)
+{
+	unsigned int	tmpr, tmpg, tmpb, tmpa;
+
+	if (sscanf(rgba, "rgba:%x/%x/%x/%x", &tmpr, &tmpg, &tmpb, &tmpa) != 4)
+		return (-1);
+
+	*rr = tmpr;
+	*gg = tmpg;
+	*bb = tmpb;
+	*aa = tmpa;
+
+	return (0);
+}
+
+int
 parse_rgb(const char *rgb, uint16_t *rr, uint16_t *gg, uint16_t *bb)
 {
 	unsigned int	tmpr, tmpg, tmpb;
@@ -1674,9 +1700,9 @@ parse_rgb(const char *rgb, uint16_t *rr, uint16_t *gg, uint16_t *bb)
 	if (sscanf(rgb, "rgb:%x/%x/%x", &tmpr, &tmpg, &tmpb) != 3)
 		return (-1);
 
-	*rr = RGB_8_TO_16(tmpr);
-	*gg = RGB_8_TO_16(tmpg);
-	*bb = RGB_8_TO_16(tmpb);
+	*rr = tmpr;
+	*gg = tmpg;
+	*bb = tmpb;
 
 	return (0);
 }
@@ -2567,59 +2593,148 @@ find_pid(pid_t pid)
 	return (NULL);
 }
 
-uint32_t
-name_to_pixel(struct swm_screen *s, const char *colorname)
+static char *
+color_to_rgb(struct swm_color *color)
 {
-	uint32_t			result = 0;
-	char				cname[32] = "#";
-	xcb_alloc_color_reply_t		*cr;
-	xcb_alloc_named_color_reply_t	*nr;
-	uint16_t			rr, gg, bb;
+	char *name;
 
-	/* color is in format rgb://rr/gg/bb */
-	if (strncmp(colorname, "rgb:", 4) == 0) {
-		if (parse_rgb(colorname, &rr, &gg, &bb) == -1)
-			warnx("could not parse rgb %s", colorname);
-		else {
-			cr = xcb_alloc_color_reply(conn,
-			    xcb_alloc_color(conn, s->colormap, rr, gg, bb),
-			    NULL);
-			if (cr) {
-				result = cr->pixel;
-				free(cr);
-			} else
-				warnx("color '%s' not found", colorname);
-		}
-	} else {
-		nr = xcb_alloc_named_color_reply(conn,
-		    xcb_alloc_named_color(conn, s->colormap, strlen(colorname),
-		    colorname), NULL);
-		if (nr == NULL) {
-			strlcat(cname, colorname + 2, sizeof cname - 1);
-			nr = xcb_alloc_named_color_reply(conn,
-			    xcb_alloc_named_color(conn, s->colormap,
-			    strlen(cname), cname), NULL);
-		}
-		if (nr) {
-			result = nr->pixel;
-			free(nr);
+	if (asprintf(&name, "rgb:%04x/%04x/%04x",
+	    color->r_orig, color->g_orig, color->b_orig) == -1)
+		err(1, "asprintf");
+
+	return (name);
+}
+
+int
+parse_color(struct swm_screen *s, const char *name, struct swm_color *color)
+{
+	char				cname[32] = "#";
+	xcb_lookup_color_reply_t	*lcr;
+	uint16_t			rr, gg, bb, aa;
+	bool				valid = false;
+
+	if (s == NULL || name == NULL || color == NULL)
+		return (1);
+	/*
+	 * rgba color is in format rgba://rr/gg/bb/aa
+	 * rgb color is in format rgb://rr/gg/bb
+	 */
+	if (strncmp(name, "rgba:", 5) == 0) {
+		if (parse_rgba(name, &rr, &gg, &bb, &aa) != -1)
+			valid = true;
+		else
+			warnx("could not parse rgba %s", name);
+	} else if (strncmp(name, "rgb:", 4) == 0) {
+		if (parse_rgb(name, &rr, &gg, &bb) != -1) {
+			aa = 0xff;
+			valid = true;
 		} else
-			warnx("color '%s' not found", colorname);
+			warnx("could not parse rgb %s", name);
+	} else {
+		lcr = xcb_lookup_color_reply(conn, xcb_lookup_color(conn,
+		    s->colormap, strlen(name), name), NULL);
+		if (lcr == NULL) {
+			strlcat(cname, name + 2, sizeof cname - 1);
+			lcr = xcb_lookup_color_reply(conn,
+			    xcb_lookup_color(conn, s->colormap, strlen(cname),
+			    cname), NULL);
+		}
+		if (lcr) {
+			rr = lcr->visual_red;
+			gg = lcr->visual_green;
+			bb = lcr->visual_blue;
+			aa = 0xff;
+			valid = true;
+		} else
+			warnx("color '%s' not found", name);
 	}
 
-	return (result);
+	if (!valid)
+		return (1);
+
+	color->r = color->r_orig = RGB_8_TO_16(rr);
+	color->g = color->g_orig = RGB_8_TO_16(gg);
+	color->b = color->b_orig = RGB_8_TO_16(bb);
+	color->a = RGB_8_TO_16(aa);
+
+	return (0);
 }
 
 void
-setscreencolor(const char *val, int i, int c)
+setscreencolor(struct swm_screen *s, const char *val, int c)
 {
-	if (i < 0 || i >= get_screen_count())
+	xcb_screen_t			*scr;
+	xcb_visualtype_t		*vis;
+	xcb_alloc_color_reply_t		*cr;
+	uint32_t			mask;
+	int				rgbdepth = 0;
+
+	if (s == NULL || val == NULL || c < 0 || c >= SWM_S_COLOR_MAX)
 		return;
 
-	screens[i].c[c].pixel = name_to_pixel(&screens[i], val);
-	free(screens[i].c[c].name);
-	if ((screens[i].c[c].name = strdup(val)) == NULL)
-		err(1, "strdup");
+	if (parse_color(s, val, &s->c[c])) {
+		DNPRINTF(SWM_D_CONF, "failed to parse color: %s\n", val);
+		return;
+	}
+
+	if ((scr = get_screen(s->idx)) == NULL) {
+		DNPRINTF(SWM_D_CONF, "failed to get screen %d\n", s->idx);
+		return;
+	}
+
+	vis = xcb_aux_find_visual_by_id(scr, s->visual);
+	DNPRINTF(SWM_D_CONF, "vis %#x, class:%u, red_mask: %#x, "
+	    "green_mask %#x, blue_mask %#x\n", vis->visual_id, vis->_class,
+	    vis->red_mask, vis->green_mask, vis->blue_mask);
+
+	/* Count RGB bits. */
+	mask = vis->red_mask | vis->blue_mask | vis->green_mask;
+	while (mask) {
+		if (mask & 0x1)
+			rgbdepth++;
+		mask >>= 1;
+	}
+
+	if (s->depth <= rgbdepth)
+		/* No extra bits for alpha. */
+		s->c[c].a = 0xffff;
+
+	if (vis->_class == XCB_VISUAL_CLASS_TRUE_COLOR) {
+		/* Roll our own pixel. */
+
+		/* Premultiply alpha. */
+		s->c[c].r = (uint32_t)(s->c[c].r * (double)s->c[c].a / 0xffff);
+		s->c[c].g = (uint32_t)(s->c[c].g * (double)s->c[c].a / 0xffff);
+		s->c[c].b = (uint32_t)(s->c[c].b * (double)s->c[c].a / 0xffff);
+
+		/* Fit color values into pixel masks. */
+#define FITMASK(c, m)		((uint32_t)((double)(c)/0xffff * (m)) & (m))
+		s->c[c].pixel = FITMASK(s->c[c].r, vis->red_mask) |
+			FITMASK(s->c[c].g, vis->green_mask) |
+			FITMASK(s->c[c].b, vis->blue_mask);
+
+		if (s->depth > rgbdepth) {
+			/* Assume extra bits are for alpha. */
+			mask = ~(vis->red_mask | vis->blue_mask |
+			    vis->green_mask);
+			s->c[c].pixel |= FITMASK(s->c[c].a, mask);
+		}
+#undef FITMASK
+	} else {
+		/* Get pixel from server. */
+		cr = xcb_alloc_color_reply(conn, xcb_alloc_color(conn,
+		    s->colormap, s->c[c].r, s->c[c].g, s->c[c].b), NULL);
+		if (cr) {
+			s->c[c].pixel = cr->pixel;
+			free(cr);
+		} else {
+			warnx("color '%s' not found", val);
+			return;
+		}
+	}
+
+	DNPRINTF(SWM_D_CONF, "set c[%d] r:%#x g:%#x b:%#x a:%#x pixel:%#x\n",
+	    c, s->c[c].r, s->c[c].g, s->c[c].b, s->c[c].a, s->c[c].pixel);
 }
 
 void
@@ -4167,21 +4282,20 @@ xft_init(struct swm_screen *s)
 
 	for (i = 0; i < num_fg_colors; i++) {
 		/* Focused */
-		PIXEL_TO_XRENDERCOLOR(s->c[SWM_S_COLOR_BAR_FONT+i].pixel,
-		    color);
+		SWM_COLOR_TO_XRENDERCOLOR(s->c[SWM_S_COLOR_BAR_FONT+i], color);
 		if (!XftColorAllocValue(display, s->xvisual, s->colormap,
 		    &color, &bar_fg_colors[i]))
 			warn("Xft error: unable to allocate color.");
 
 		/* Unfocused */
-		PIXEL_TO_XRENDERCOLOR(s->c[SWM_S_COLOR_BAR_FONT_UNFOCUS+i].pixel,
+		SWM_COLOR_TO_XRENDERCOLOR(s->c[SWM_S_COLOR_BAR_FONT_UNFOCUS+i],
 		    color);
 		if (!XftColorAllocValue(display, s->xvisual, s->colormap,
 		    &color, &bar_fg_colors_unfocus[i]))
 			warn("Xft error: unable to allocate color.");
 	}
 
-	PIXEL_TO_XRENDERCOLOR(s->c[SWM_S_COLOR_BAR].pixel, color);
+	SWM_COLOR_TO_XRENDERCOLOR(s->c[SWM_S_COLOR_BAR], color);
 	if (!XftColorAllocValue(display, s->xvisual, s->colormap, &color,
 	    &search_font_color))
 		warn("Xft error: unable to allocate color.");
@@ -9585,54 +9699,34 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
 		ap = prog->argv[i];
 		DNPRINTF(SWM_D_SPAWN, "raw arg: %s\n", ap);
 		if (strcasecmp(ap, "$bar_border") == 0) {
-			if ((real_args[c] =
-			    strdup(r->s->c[SWM_S_COLOR_BAR_BORDER].name))
-			    == NULL)
-				err(1,  "spawn_custom border color");
+			real_args[c] =
+			    color_to_rgb(&r->s->c[SWM_S_COLOR_BAR_BORDER]);
 		} else if (strcasecmp(ap, "$bar_color") == 0) {
-			if ((real_args[c] =
-			    strdup(r->s->c[SWM_S_COLOR_BAR].name))
-			    == NULL)
-				err(1, "spawn_custom bar color");
+			real_args[c] = color_to_rgb(&r->s->c[SWM_S_COLOR_BAR]);
 		} else if (strcasecmp(ap, "$bar_color_selected") == 0) {
-			if ((real_args[c] =
-			    strdup(r->s->c[SWM_S_COLOR_BAR_SELECTED].name))
-			    == NULL)
-				err(1, "spawn_custom bar color selected");
+			real_args[c] =
+			    color_to_rgb(&r->s->c[SWM_S_COLOR_BAR_SELECTED]);
 		} else if (strcasecmp(ap, "$bar_font") == 0) {
-			if ((real_args[c] = strdup(bar_fonts))
-			    == NULL)
-				err(1, "spawn_custom bar fonts");
+			if ((real_args[c] = strdup(bar_fonts)) == NULL)
+				err(1, "spawn_custom: strdup");
 		} else if (strcasecmp(ap, "$bar_font_color") == 0) {
-			if ((real_args[c] =
-			    strdup(r->s->c[SWM_S_COLOR_BAR_FONT].name))
-			    == NULL)
-				err(1, "spawn_custom color font");
+			real_args[c] =
+			    color_to_rgb(&r->s->c[SWM_S_COLOR_BAR_FONT]);
 		} else if (strcasecmp(ap, "$bar_font_color_selected") == 0) {
-			if ((real_args[c] =
-			    strdup(r->s->c[SWM_S_COLOR_BAR_FONT_SELECTED].name))
-			    == NULL)
-				err(1, "spawn_custom bar font color selected");
+			real_args[c] = color_to_rgb(
+			    &r->s->c[SWM_S_COLOR_BAR_FONT_SELECTED]);
 		} else if (strcasecmp(ap, "$color_focus") == 0) {
-			if ((real_args[c] =
-			    strdup(r->s->c[SWM_S_COLOR_FOCUS].name))
-			    == NULL)
-				err(1, "spawn_custom color focus");
+			real_args[c] =
+			    color_to_rgb(&r->s->c[SWM_S_COLOR_FOCUS]);
 		} else if (strcasecmp(ap, "$color_focus_maximized") == 0) {
-			if ((real_args[c] =
-			    strdup(r->s->c[SWM_S_COLOR_FOCUS_MAXIMIZED].name))
-			    == NULL)
-				err(1, "spawn_custom color focus maximized");
+			real_args[c] = color_to_rgb(
+			    &r->s->c[SWM_S_COLOR_FOCUS_MAXIMIZED]);
 		} else if (strcasecmp(ap, "$color_unfocus") == 0) {
-			if ((real_args[c] =
-			    strdup(r->s->c[SWM_S_COLOR_UNFOCUS].name))
-			    == NULL)
-				err(1, "spawn_custom color unfocus");
+			real_args[c] =
+			    color_to_rgb(&r->s->c[SWM_S_COLOR_UNFOCUS]);
 		} else if (strcasecmp(ap, "$color_unfocus_maximized") == 0) {
-			if ((real_args[c] =
-			    strdup(r->s->c[SWM_S_COLOR_UNFOCUS_MAXIMIZED].name))
-			    == NULL)
-				err(1, "spawn_custom color unfocus maximized");
+			real_args[c] = color_to_rgb(
+			    &r->s->c[SWM_S_COLOR_UNFOCUS_MAXIMIZED]);
 		} else if (strcasecmp(ap, "$region_index") == 0) {
 			if (asprintf(&real_args[c], "%d",
 			    get_region_index(r) + 1) < 1)
@@ -11669,7 +11763,8 @@ setconfmodkey(const char *selector, const char *value, int flags, char **emsg)
 int
 setconfcolor(const char *selector, const char *value, int flags, char **emsg)
 {
-	int	first, last, i = 0, num_screens;
+	struct swm_screen	*s;
+	int			first, last, i = 0, num_screens;
 
 	num_screens = get_screen_count();
 
@@ -11688,7 +11783,9 @@ setconfcolor(const char *selector, const char *value, int flags, char **emsg)
 	}
 
 	for (i = first; i <= last; ++i) {
-		setscreencolor(value, i, flags);
+		s = &screens[i];
+
+		setscreencolor(s, value, flags);
 
 		/*
 		 * Need to sync 'maximized', 'selected' and 'unfocus' colors with their
@@ -11696,36 +11793,36 @@ setconfcolor(const char *selector, const char *value, int flags, char **emsg)
 		 */
 		switch (flags) {
 		case SWM_S_COLOR_FOCUS:
-			if (!screens[i].c[SWM_S_COLOR_FOCUS_MAXIMIZED].manual)
-				setscreencolor(value, i,
+			if (!s->c[SWM_S_COLOR_FOCUS_MAXIMIZED].manual)
+				setscreencolor(s, value,
 				    SWM_S_COLOR_FOCUS_MAXIMIZED);
 			break;
 		case SWM_S_COLOR_UNFOCUS:
-			if (!screens[i].c[SWM_S_COLOR_UNFOCUS_MAXIMIZED].manual)
-				setscreencolor(value, i,
+			if (!s->c[SWM_S_COLOR_UNFOCUS_MAXIMIZED].manual)
+				setscreencolor(s, value,
 				    SWM_S_COLOR_UNFOCUS_MAXIMIZED);
 			break;
 		case SWM_S_COLOR_BAR:
-			if (!screens[i].c[SWM_S_COLOR_BAR_FONT_SELECTED].manual)
-				setscreencolor(value, i,
+			if (!s->c[SWM_S_COLOR_BAR_FONT_SELECTED].manual)
+				setscreencolor(s, value,
 				    SWM_S_COLOR_BAR_FONT_SELECTED);
-			if (!screens[i].c[SWM_S_COLOR_BAR_UNFOCUS].manual)
-				setscreencolor(value, i,
+			if (!s->c[SWM_S_COLOR_BAR_UNFOCUS].manual)
+				setscreencolor(s, value,
 				    SWM_S_COLOR_BAR_UNFOCUS);
 			break;
 		case SWM_S_COLOR_BAR_BORDER:
-			if (!screens[i].c[SWM_S_COLOR_BAR_SELECTED].manual)
-				setscreencolor(value, i,
+			if (!s->c[SWM_S_COLOR_BAR_SELECTED].manual)
+				setscreencolor(s, value,
 				    SWM_S_COLOR_BAR_SELECTED);
 			break;
 		case SWM_S_COLOR_BAR_FONT:
-			if (!screens[i].c[SWM_S_COLOR_BAR_FONT_UNFOCUS].manual)
-				setscreencolor(value, i,
+			if (!s->c[SWM_S_COLOR_BAR_FONT_UNFOCUS].manual)
+				setscreencolor(s, value,
 				    SWM_S_COLOR_BAR_FONT_UNFOCUS);
 			break;
 		}
 
-		screens[i].c[flags].manual = 1;
+		s->c[flags].manual = 1;
 	}
 
 	return (0);
@@ -12458,6 +12555,11 @@ unparent_window(struct ws_win *win)
 		}
 
 		xcb_change_save_set(conn, XCB_SET_MODE_DELETE, win->id);
+	}
+
+	if (win->debug != XCB_WINDOW_NONE) {
+		xcb_destroy_window(conn, win->debug);
+		win->debug = XCB_WINDOW_NONE;
 	}
 
 	xcb_destroy_window(conn, win->frame);
@@ -14671,7 +14773,7 @@ setup_screens(void)
 	xcb_generic_error_t		*error;
 	XVisualInfo			vtmpl, *vlist;
 	int				i, j, k, num_screens, vcount;
-	uint32_t			wa[2];
+	uint32_t			wa[3];
 	xcb_screen_t			*screen;
 
 	num_screens = get_screen_count();
@@ -14708,12 +14810,13 @@ setup_screens(void)
 		    diter.rem; xcb_depth_next(&diter)) {
 			if (diter.data->depth > s->depth) {
 				viter = xcb_depth_visuals_iterator(diter.data);
-				if (viter.rem) {
+				if (viter.rem && viter.data->_class ==
+				    XCB_VISUAL_CLASS_TRUE_COLOR) {
 					s->depth = diter.data->depth;
 					s->visual = viter.data->visual_id;
-					DNPRINTF(SWM_D_INIT, "Found visual %#x,"
-					    " depth: %d.\n", s->visual,
-					    s->depth);
+					DNPRINTF(SWM_D_INIT, "Found TrueColor "
+					    "visual %#x, depth: %d.\n",
+					    s->visual, s->depth);
 				}
 			}
 		}
@@ -14743,20 +14846,20 @@ setup_screens(void)
 		    s->visual, xcb_aux_get_depth_of_visual(screen, s->visual));
 
 		/* set default colors */
-		setscreencolor("red", i, SWM_S_COLOR_FOCUS);
-		setscreencolor("red", i, SWM_S_COLOR_FOCUS_MAXIMIZED);
-		setscreencolor("rgb:88/88/88", i, SWM_S_COLOR_UNFOCUS);
-		setscreencolor("rgb:88/88/88", i,
+		setscreencolor(s, "red", SWM_S_COLOR_FOCUS);
+		setscreencolor(s, "red", SWM_S_COLOR_FOCUS_MAXIMIZED);
+		setscreencolor(s, "rgb:88/88/88", SWM_S_COLOR_UNFOCUS);
+		setscreencolor(s, "rgb:88/88/88",
 		    SWM_S_COLOR_UNFOCUS_MAXIMIZED);
-		setscreencolor("rgb:00/80/80", i, SWM_S_COLOR_BAR_BORDER);
-		setscreencolor("rgb:00/40/40", i,
+		setscreencolor(s, "rgb:00/80/80", SWM_S_COLOR_BAR_BORDER);
+		setscreencolor(s, "rgb:00/40/40",
 		    SWM_S_COLOR_BAR_BORDER_UNFOCUS);
-		setscreencolor("black", i, SWM_S_COLOR_BAR);
-		setscreencolor("black", i, SWM_S_COLOR_BAR_UNFOCUS);
-		setscreencolor("rgb:00/80/80", i, SWM_S_COLOR_BAR_SELECTED);
-		setscreencolor("rgb:a0/a0/a0", i, SWM_S_COLOR_BAR_FONT);
-		setscreencolor("rgb:a0/a0/a0", i, SWM_S_COLOR_BAR_FONT_UNFOCUS);
-		setscreencolor("black", i, SWM_S_COLOR_BAR_FONT_SELECTED);
+		setscreencolor(s, "black", SWM_S_COLOR_BAR);
+		setscreencolor(s, "black", SWM_S_COLOR_BAR_UNFOCUS);
+		setscreencolor(s, "rgb:00/80/80", SWM_S_COLOR_BAR_SELECTED);
+		setscreencolor(s, "rgb:a0/a0/a0", SWM_S_COLOR_BAR_FONT);
+		setscreencolor(s, "rgb:a0/a0/a0", SWM_S_COLOR_BAR_FONT_UNFOCUS);
+		setscreencolor(s, "black", SWM_S_COLOR_BAR_FONT_SELECTED);
 
 		/* set default cursor */
 		wa[0] = cursors[XC_LEFT_PTR].cid;
@@ -14769,8 +14872,10 @@ setup_screens(void)
 		xcb_create_pixmap(conn, s->depth, pmap, s->root, 10, 10);
 
 		s->gc = xcb_generate_id(conn);
-		wa[0] = 0;
-		xcb_create_gc(conn, s->gc, pmap, XCB_GC_GRAPHICS_EXPOSURES, wa);
+		wa[0] = wa[1] = screen->black_pixel;
+		wa[2] = 0;
+		xcb_create_gc(conn, s->gc, pmap, XCB_GC_FOREGROUND |
+		    XCB_GC_BACKGROUND | XCB_GC_GRAPHICS_EXPOSURES, wa);
 		xcb_free_pixmap(conn, pmap);
 
 		/* Create window for input fallback as well as EWMH support. */
@@ -15084,15 +15189,13 @@ shutdown_cleanup(void)
 				    s->bar_xftfonts[font_pua_index]);
 		}
 
-		for (j = 0; j < SWM_S_COLOR_MAX; ++j)
-			free(s->c[j].name);
-
 		/* Cleanup window state and memory. */
 		for (j = 0; j < SWM_WS_MAX; ++j) {
 			ws = &s->ws[j];
 			free(ws->name);
 			free(ws->stacker);
 
+#ifndef __clang_analyzer__ /* Suppress false warnings. */
 			while ((w = TAILQ_FIRST(&ws->winlist)) != NULL) {
 				unmap_window(w);
 				/* Load floating geometry and adjust to root. */
@@ -15109,6 +15212,7 @@ shutdown_cleanup(void)
 				TAILQ_REMOVE(&ws->winlist, w, entry);
 				free_window(w);
 			}
+#endif
 		}
 
 		/* Free region memory. */
