@@ -117,6 +117,14 @@ Enabling or disabling an option is done by using 1 or 0 respectively.
 Colors need to be specified per the
 .Xr XQueryColor 3
 specification.
+In addition, alpha transparency may be specified via the format
+.Li rbga: Ns Ar red Ns / Ns Ar green Ns / Ns Ar blue Ns / Ns Ar alpha
+(8-bit hex values)
+For example, to specify a 50% transparent blue status bar background:
+.Pp
+.Dl bar_color = rgba:00/00/ff/7f
+.Pp
+Note that a compositing manager is required for alpha transparency.
 .Pp
 Mark option values may be wrapped in single/double quotes to prevent
 whitespace trimming, specify empty strings, etc.

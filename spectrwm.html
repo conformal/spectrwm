@@ -134,7 +134,16 @@
 <p class="Pp">Enabling or disabling an option is done by using 1 or 0
     respectively.</p>
 <p class="Pp">Colors need to be specified per the
-    <a class="Xr">XQueryColor(3)</a> specification.</p>
+    <a class="Xr">XQueryColor(3)</a> specification. In addition, alpha
+    transparency may be specified via the format
+    <code class="Li">rbga:</code><var class="Ar">red</var>/<var class="Ar">green</var>/<var class="Ar">blue</var>/<var class="Ar">alpha</var>
+    (8-bit hex values) For example, to specify a 50% transparent blue status bar
+    background:</p>
+<p class="Pp"></p>
+<div class="Bd Bd-indent"><code class="Li">bar_color =
+  rgba:00/00/ff/7f</code></div>
+<p class="Pp">Note that a compositing manager is required for alpha
+    transparency.</p>
 <p class="Pp">Mark option values may be wrapped in single/double quotes to
     prevent whitespace trimming, specify empty strings, etc. Literal
     quote/backslash characters can be escaped with a backslash
