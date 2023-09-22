@@ -518,6 +518,7 @@ char		*focus_mark_none = NULL;
 char		*focus_mark_normal = NULL;
 char		*focus_mark_floating = NULL;
 char		*focus_mark_maximized = NULL;
+char		*stack_mark_floating = NULL;
 char		*stack_mark_max = NULL;
 char		*stack_mark_vertical = NULL;
 char		*stack_mark_vertical_flip = NULL;
@@ -574,6 +575,7 @@ struct ws_win {
 	struct swm_geometry	g;		/* current geometry */
 	struct swm_geometry	g_float;	/* root coordinates */
 	struct swm_geometry	g_floatref;	/* reference coordinates */
+	bool			g_float_xy_valid;
 	bool			mapped;
 	uint32_t		mapping;	/* # of pending operations */
 	uint32_t		unmapping;	/* # of pending operations */
@@ -615,6 +617,7 @@ void	horizontal_config(struct workspace *, int);
 void	horizontal_stack(struct workspace *, struct swm_geometry *);
 void	max_config(struct workspace *, int);
 void	max_stack(struct workspace *, struct swm_geometry *);
+void	floating_stack(struct workspace *, struct swm_geometry *);
 void	plain_stacker(struct workspace *);
 void	fancy_stacker(struct workspace *);
 
@@ -624,6 +627,7 @@ struct layout {
 	uint32_t	flags;
 #define SWM_L_FOCUSPREV		(1 << 0)
 #define SWM_L_MAPONFOCUS	(1 << 1)
+#define SWM_L_NOTILE		(1 << 2)
 	void		(*l_string)(struct workspace *);
 } layouts[] =  {
 	/* stack,		configure */
@@ -631,6 +635,7 @@ struct layout {
 	{ horizontal_stack,	horizontal_config,	0,	plain_stacker },
 	{ max_stack,		max_config,
 	  SWM_L_MAPONFOCUS | SWM_L_FOCUSPREV,			plain_stacker },
+	{ floating_stack,	NULL,		SWM_L_NOTILE,	plain_stacker },
 	{ NULL,			NULL,			0,	NULL  },
 };
 
@@ -638,6 +643,7 @@ struct layout {
 #define SWM_V_STACK		(0)
 #define SWM_H_STACK		(1)
 #define SWM_MAX_STACK		(2)
+#define SWM_FLOATING_STACK	(3)
 
 #define SWM_H_SLICE		(32)
 #define SWM_V_SLICE		(32)
@@ -801,6 +807,7 @@ union arg {
 #define SWM_ARG_ID_LAYOUT_HORIZONTAL	(62)
 #define SWM_ARG_ID_LAYOUT_MAX	(63)
 #define SWM_ARG_ID_PRIOR_LAYOUT	(64)
+#define SWM_ARG_ID_LAYOUT_FLOATING	(65)
 #define SWM_ARG_ID_DONTCENTER	(70)
 #define SWM_ARG_ID_CENTER	(71)
 #define SWM_ARG_ID_KILLWINDOW	(80)
@@ -1044,6 +1051,7 @@ enum actionid {
 	FN_LAYOUT_VERTICAL,
 	FN_LAYOUT_HORIZONTAL,
 	FN_LAYOUT_MAX,
+	FN_LAYOUT_FLOATING,
 	FN_MASTER_SHRINK,
 	FN_MASTER_GROW,
 	FN_MASTER_ADD,
@@ -1512,6 +1520,7 @@ static bool	 win_transient(struct ws_win *);
 static bool	 win_urgent(struct ws_win *);
 pid_t	 window_get_pid(xcb_window_t);
 void	 wkill(struct binding *, struct swm_region *, union arg *);
+static bool	 ws_floating(struct workspace *);
 static bool	 ws_focused(struct workspace *);
 static bool	 ws_maponfocus(struct workspace *);
 static bool	 ws_maxstack(struct workspace *);
@@ -1530,7 +1539,8 @@ RB_GENERATE(atom_name_tree, atom_name, entry, atom_name_cmp);
 static bool
 win_floating(struct ws_win *win)
 {
-	return (win_transient(win) || win->ewmh_flags & EWMH_F_UNTILED);
+	return (win_transient(win) || win->ewmh_flags & EWMH_F_UNTILED ||
+	    ws_floating(win->ws));
 }
 
 static bool
@@ -1591,6 +1601,12 @@ static bool
 ws_maxstack_prior(struct workspace *ws)
 {
 	return (ws->prev_layout == &layouts[SWM_MAX_STACK]);
+}
+
+static bool
+ws_floating(struct workspace *ws)
+{
+	return (ws && ws->cur_layout->flags & SWM_L_NOTILE);
 }
 
 void
@@ -2770,6 +2786,8 @@ fancy_stacker(struct workspace *ws)
 		snprintf(ws->stacker, ws->stacker_len,
 		    ws->l_state.horizontal_flip ? "[%dv%d]" : "[%d-%d]",
 		    ws->l_state.horizontal_mwin, ws->l_state.horizontal_stacks);
+	else if (ws->cur_layout->l_stack == floating_stack)
+		strlcpy(ws->stacker, "[ ~ ]", ws->stacker_len);
 	else
 		strlcpy(ws->stacker, "[   ]", ws->stacker_len);
 }
@@ -2785,6 +2803,8 @@ plain_stacker(struct workspace *ws)
 		strlcpy(ws->stacker, (ws->l_state.horizontal_flip ?
 		    stack_mark_horizontal_flip : stack_mark_horizontal),
 		    ws->stacker_len);
+	else if (ws->cur_layout->l_stack == floating_stack)
+		strlcpy(ws->stacker, stack_mark_floating, ws->stacker_len);
 	else
 		strlcpy(ws->stacker, stack_mark_max, ws->stacker_len);
 }
@@ -4784,7 +4804,7 @@ lower_window(struct ws_win *win)
 			continue;
 		if (ABOVE(target) || win_transient(target))
 			continue;
-		if (ABOVE(win) || win_transient(win))
+		if (win_floating(win))
 			break;
 	}
 
@@ -4850,7 +4870,7 @@ raise_window(struct ws_win *win)
 			break;
 		if (MAXIMIZED(target))
 			continue;
-		if (ABOVE(win) || win_transient(win) || alwaysraise)
+		if (win_floating(win) || alwaysraise)
 			break;
 		if (target->ws->always_raise && target->ws->focus == target)
 			continue;
@@ -6299,8 +6319,8 @@ swapwin(struct binding *bp, struct swm_region *r, union arg *args)
 	if (sw == NULL || FULLSCREEN(sw))
 		return;
 
-	/* Adjust stacking in floating layer. */
-	if (ABOVE(sw)) {
+	/* Adjust stacking for floating windows. */
+	if (win_floating(sw)) {
 		switch (args->id) {
 		case SWM_ARG_ID_SWAPPREV:
 			w = sw;
@@ -6757,6 +6777,9 @@ switchlayout(struct binding *bp, struct swm_region *r, union arg *args)
 	case SWM_ARG_ID_LAYOUT_MAX:
 		new_layout = &layouts[SWM_MAX_STACK];
 		break;
+	case SWM_ARG_ID_LAYOUT_FLOATING:
+		new_layout = &layouts[SWM_FLOATING_STACK];
+		break;
 	case SWM_ARG_ID_PRIOR_LAYOUT:
 		if (ws->prev_layout)
 			new_layout = ws->prev_layout;
@@ -6896,7 +6919,7 @@ store_float_geom(struct ws_win *win)
 
 	/* Exclude fullscreen/maximized/tiled. */
 	if (FULLSCREEN(win) || MAXIMIZED(win) || (!ABOVE(win) &&
-	    !win_transient(win)))
+	    !win_transient(win) && !ws_floating(win->ws)))
 		return;
 
 	/* Retain window geometry and update reference coordinates. */
@@ -6974,7 +6997,7 @@ update_floater(struct ws_win *win)
 	} else {
 		/* Normal floating window. */
 		/* Update geometry if new region. */
-		if (r != ws->old_r)
+		if (r != ws->old_r || ws_floating(ws))
 			load_float_geom(win);
 
 		if (((win->quirks & SWM_Q_FULLSCREEN) &&
@@ -6983,7 +7006,7 @@ update_floater(struct ws_win *win)
 		    (win->quirks & SWM_Q_MINIMALBORDER))) {
 			/* Remove border */
 			win->bordered = false;
-		} else if (!MANUAL(win)) {
+		} else if (!MANUAL(win) && !win->g_float_xy_valid) {
 			if (win_transient(win) && (win->quirks & SWM_Q_TRANSSZ)) {
 				/* Adjust size on TRANSSZ quirk. */
 				WIDTH(win) = (double)WIDTH(r) * dialog_ratio;
@@ -7357,6 +7380,23 @@ horizontal_stack(struct workspace *ws, struct swm_geometry *g)
 	DNPRINTF(SWM_D_STACK, "workspace: %d\n", ws->idx);
 
 	stack_master(ws, g, 1, ws->l_state.horizontal_flip);
+}
+
+void
+floating_stack(struct workspace *ws, struct swm_geometry *g)
+{
+	struct ws_win		*w;
+
+	/* Suppress warning. */
+	(void)g;
+
+	/* Update window geometry. */
+	TAILQ_FOREACH(w, &ws->winlist, entry) {
+		if (HIDDEN(w))
+			continue;
+
+		update_floater(w);
+	}
 }
 
 void
@@ -8675,7 +8715,7 @@ floating_toggle(struct binding *bp, struct swm_region *r, union arg *args)
 	w = r->ws->focus;
 	DNPRINTF(SWM_D_MISC, "win %#x\n", w->id);
 
-	if (FULLSCREEN(w) || win_transient(w))
+	if (ws_floating(w->ws) || FULLSCREEN(w) || win_transient(w))
 		return;
 
 	ewmh_apply_flags(w, (w->ewmh_flags ^ EWMH_F_ABOVE) & ~EWMH_F_MAXIMIZED);
@@ -9016,6 +9056,7 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 	xcb_query_pointer_reply_t	*xpr = NULL;
 	xcb_generic_event_t		*evt;
 	xcb_motion_notify_event_t	*mne;
+	uint32_t			newf;
 	bool			resizing, step = false;
 
 	if (win == NULL)
@@ -9029,14 +9070,17 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 	    win->id, YESNO(ABOVE(win)), win->transient_for);
 
 	/* Override floating geometry when resizing maximized windows. */
-	if (MAXIMIZED(win)) {
+	if (MAXIMIZED(win) || ws_floating(win->ws)) {
 		win->g_float = win->g;
 		win->g_floatref = r->g;
 	} else if (!(win_transient(win) || ABOVE(win)))
 		return;
 
-	ewmh_apply_flags(win, (win->ewmh_flags | SWM_F_MANUAL | EWMH_F_ABOVE) &
-	    ~EWMH_F_MAXIMIZED);
+	newf = ((win->ewmh_flags | SWM_F_MANUAL) & ~EWMH_F_MAXIMIZED);
+	if (!ws_floating(win->ws))
+		newf |= EWMH_F_ABOVE;
+
+	ewmh_apply_flags(win, newf);
 	raise_window_related(win);
 	ewmh_update_wm_state(win);
 
@@ -9281,6 +9325,11 @@ regionize(struct ws_win *win, int x, int y)
 		apply_unfocus(r->ws, NULL);
 		update_stacking(r->s);
 
+		if (ws_floating(r->ws))
+			win->g_floatref = r->g;
+		else
+			win->ewmh_flags |= EWMH_F_ABOVE;
+
 		win_to_ws(win, r->ws->idx, 0);
 
 		/* maponfocus needs focus set before stack() for mapping. */
@@ -9312,6 +9361,7 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 	xcb_query_pointer_reply_t	*qpr = NULL;
 	xcb_generic_event_t		*evt;
 	xcb_motion_notify_event_t	*mne;
+	uint32_t			newf;
 	bool				moving, restack = false, step = false;
 
 	if (win == NULL)
@@ -9333,8 +9383,11 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 		restack = true;
 	}
 
-	ewmh_apply_flags(win, (win->ewmh_flags | SWM_F_MANUAL | EWMH_F_ABOVE) &
-	    ~EWMH_F_MAXIMIZED);
+	newf = (win->ewmh_flags | SWM_F_MANUAL) & ~EWMH_F_MAXIMIZED;
+	if (!ws_floating(win->ws))
+		newf |= EWMH_F_ABOVE;
+
+	ewmh_apply_flags(win, newf);
 	raise_window_related(win);
 	ewmh_update_wm_state(win);
 
@@ -9494,7 +9547,8 @@ move(struct binding *bp, struct swm_region *r, union arg *args)
 			win = r->ws->focus;
 
 		/* Disallow move_ on tiled. */
-		if (win && !(win_transient(win) || ABOVE(win)))
+		if (win && !win_transient(win) && !ABOVE(win) &&
+		    !ws_floating(win->ws))
 			return;
 	} else
 		/* Mouse move uses the pointer window. */
@@ -9539,7 +9593,8 @@ struct action {
 	{ "iconify",		iconify,	0, {0} },
 	{ "layout_vertical",	switchlayout,	0, {.id = SWM_ARG_ID_LAYOUT_VERTICAL} },
 	{ "layout_horizontal",	switchlayout,	0, {.id = SWM_ARG_ID_LAYOUT_HORIZONTAL} },
-	{ "layout_max"	,	switchlayout,	0, {.id = SWM_ARG_ID_LAYOUT_MAX} },
+	{ "layout_max",		switchlayout,	0, {.id = SWM_ARG_ID_LAYOUT_MAX} },
+	{ "layout_floating",	switchlayout,	0, {.id = SWM_ARG_ID_LAYOUT_FLOATING} },
 	{ "master_shrink",	stack_config,	0, {.id = SWM_ARG_ID_MASTERSHRINK} },
 	{ "master_grow",	stack_config,	0, {.id = SWM_ARG_ID_MASTERGROW} },
 	{ "master_add",		stack_config,	0, {.id = SWM_ARG_ID_MASTERADD} },
@@ -11350,6 +11405,7 @@ enum {
 	SWM_S_WORKSPACE_MARK_ACTIVE_SUFFIX,
 	SWM_S_WORKSPACE_MARK_EMPTY,
 	SWM_S_WORKSPACE_MARK_EMPTY_SUFFIX,
+	SWM_S_STACK_MARK_FLOATING,
 	SWM_S_STACK_MARK_MAX,
 	SWM_S_STACK_MARK_VERTICAL,
 	SWM_S_STACK_MARK_VERTICAL_FLIP,
@@ -11713,6 +11769,10 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 		free(workspace_mark_empty_suffix);
 		workspace_mark_empty_suffix = unescape_value(value);
 		break;
+	case SWM_S_STACK_MARK_FLOATING:
+		free(stack_mark_floating);
+		stack_mark_floating = unescape_value(value);
+		break;
 	case SWM_S_STACK_MARK_MAX:
 		free(stack_mark_max);
 		stack_mark_max = unescape_value(value);
@@ -12062,6 +12122,8 @@ setlayout(const char *selector, const char *value, int flags, char **emsg)
 	    strcasecmp(value, "fullscreen") == 0)
 		/* Keep "fullscreen" for backwards compatibility. */
 		st = SWM_MAX_STACK;
+	else if (strcasecmp(value, "floating") == 0)
+		st = SWM_FLOATING_STACK;
 	else {
 		ALLOCSTR(emsg, "invalid layout: %s", value);
 		return (1);
@@ -12205,6 +12267,7 @@ struct config_option configopt[] = {
 	{ "workspace_mark_active_suffix",	setconfvalue,	SWM_S_WORKSPACE_MARK_ACTIVE_SUFFIX },
 	{ "workspace_mark_empty",	setconfvalue,	SWM_S_WORKSPACE_MARK_EMPTY },
 	{ "workspace_mark_empty_suffix",	setconfvalue,	SWM_S_WORKSPACE_MARK_EMPTY_SUFFIX },
+	{ "stack_mark_floating",	setconfvalue,	SWM_S_STACK_MARK_FLOATING },
 	{ "stack_mark_max",		setconfvalue,	SWM_S_STACK_MARK_MAX },
 	{ "stack_mark_vertical",	setconfvalue,	SWM_S_STACK_MARK_VERTICAL },
 	{ "stack_mark_vertical_flip",	setconfvalue,	SWM_S_STACK_MARK_VERTICAL_FLIP },
@@ -12642,6 +12705,7 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	X(win) = gr->x + gr->border_width;
 	Y(win) = gr->y + gr->border_width;
 	win->g_float = win->g; /* Window is initially floating. */
+	win->g_float_xy_valid = false;
 	win->bordered = false;
 	win->maxstackmax = max_layout_maximize;
 	win->mapped = (war->map_state != XCB_MAP_STATE_UNMAPPED);
@@ -13364,20 +13428,24 @@ configurerequest(xcb_configure_request_event_t *e)
 			xcb_configure_window(conn, e->window, mask, wc);
 			xcb_flush(conn);
 		}
-	} else if ((!MANUAL(win) || win->quirks & SWM_Q_ANYWHERE) &&
-	    !FULLSCREEN(win) && !MAXIMIZED(win)) {
+	} else if ((!MANUAL(win) || win->quirks & SWM_Q_ANYWHERE ||
+	    ws_floating(win->ws)) && !FULLSCREEN(win) && !MAXIMIZED(win)) {
 		if (win->ws->r)
 			r = win->ws->r;
 		else if (win->ws->old_r)
 			r = win->ws->old_r;
 
 		/* Windows are centered unless ANYWHERE quirk is set. */
-		if (win->quirks & SWM_Q_ANYWHERE) {
-			if (e->value_mask & XCB_CONFIG_WINDOW_X)
+		if (win->quirks & SWM_Q_ANYWHERE || ws_floating(win->ws)) {
+			if (e->value_mask & XCB_CONFIG_WINDOW_X) {
 				win->g_float.x = e->x;
+				win->g_float_xy_valid = true;
+			}
 
-			if (e->value_mask & XCB_CONFIG_WINDOW_Y)
+			if (e->value_mask & XCB_CONFIG_WINDOW_Y) {
 				win->g_float.y = e->y;
+				win->g_float_xy_valid = true;
+			}
 
 			/* Assume position is in reference to latest region. */
 			if (r)
@@ -13390,8 +13458,7 @@ configurerequest(xcb_configure_request_event_t *e)
 		if (e->value_mask & XCB_CONFIG_WINDOW_HEIGHT)
 			win->g_float.h = e->height;
 
-		if (!MAXIMIZED(win) && !FULLSCREEN(win) &&
-		    (win_transient(win) || ABOVE(win))) {
+		if (!MAXIMIZED(win) && !FULLSCREEN(win) && win_floating(win)) {
 			WIDTH(win) = win->g_float.w;
 			HEIGHT(win) = win->g_float.h;
 
@@ -15002,6 +15069,9 @@ setup_globals(void)
 	if ((focus_mark_maximized = strdup("(m)")) == NULL)
 		err(1, "focus_mark_maximized: strdup");
 
+	if ((stack_mark_floating = strdup("[~]")) == NULL)
+		err(1, "stack_mark_floating: strdup");
+
 	if ((stack_mark_max = strdup("[ ]")) == NULL)
 		err(1, "stack_mark_max: strdup");
 
@@ -15243,6 +15313,7 @@ shutdown_cleanup(void)
 	free(focus_mark_normal);
 	free(focus_mark_floating);
 	free(focus_mark_maximized);
+	free(stack_mark_floating);
 	free(stack_mark_max);
 	free(stack_mark_vertical);
 	free(stack_mark_vertical_flip);

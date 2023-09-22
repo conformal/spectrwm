@@ -561,8 +561,8 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
       while maintaining default floating window behavior. Possible
       <var class="Ar">stack_mode</var> values are
       <var class="Ar">vertical</var>, <var class="Ar">vertical_flip</var>,
-      <var class="Ar">horizontal</var>, <var class="Ar">horizontal_flip</var>
-      and <var class="Ar">max</var>.
+      <var class="Ar">horizontal</var>, <var class="Ar">horizontal_flip</var>,
+      <var class="Ar">max</var> and <var class="Ar">floating</var>.
     <p class="Pp">See <code class="Ic">master_grow</code>,
         <code class="Ic">master_shrink</code>,
         <code class="Ic">master_add</code>, <code class="Ic">master_del</code>,
@@ -658,6 +658,10 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
   <dt id="stack_enabled"><a class="permalink" href="#stack_enabled"><code class="Ic">stack_enabled</code></a></dt>
   <dd>Enable or disable displaying the current stacking algorithm in the status
       bar.</dd>
+  <dt id="stack_mark_floating"><a class="permalink" href="#stack_mark_floating"><code class="Ic">stack_mark_floating</code></a></dt>
+  <dd>Set the <var class="Ar">floating</var> layout mark for the
+      <code class="Ic">bar_format</code> stacking indicator (+S). Default is
+      '[~]'.</dd>
   <dt id="stack_mark_horizontal"><a class="permalink" href="#stack_mark_horizontal"><code class="Ic">stack_mark_horizontal</code></a></dt>
   <dd>Set the <var class="Ar">horizontal</var> layout mark for the
       <code class="Ic">bar_format</code> stacking indicator (+S). Default is
@@ -838,6 +842,8 @@ workspace_mark_current_suffix = '+@fg=0;'</pre>
   <dt id="max"><a class="permalink" href="#max"><code class="Ic">max</code></a></dt>
   <dd>The focused window occupies the whole region, except for the bar (if
       enabled).</dd>
+  <dt id="floating"><a class="permalink" href="#floating"><code class="Ic">floating</code></a></dt>
+  <dd>Windows are free to be resized and positioned, without being tiled.</dd>
 </dl>
 </section>
 <section class="Sh">
@@ -847,7 +853,7 @@ workspace_mark_current_suffix = '+@fg=0;'</pre>
     <code class="Ic">toggle</code> actions listed in the
     <a class="Sx" href="#BINDINGS">BINDINGS</a> section below.</p>
 <dl class="Bl-tag">
-  <dt id="floating"><a class="permalink" href="#floating"><code class="Ic">floating</code></a></dt>
+  <dt id="floating~2"><a class="permalink" href="#floating~2"><code class="Ic">floating</code></a></dt>
   <dd>The window is mapped above others and is not in a tile; it may be freely
       resized and positioned.</dd>
   <dt id="maximized"><a class="permalink" href="#maximized"><code class="Ic">maximized</code></a></dt>
@@ -994,6 +1000,8 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dd>layout_horizontal</dd>
   <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
   <dd>layout_max</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>layout_floating</dd>
   <dt id="M-S-~3"><a class="permalink" href="#M-S-~3"><code class="Cm">M-S-</code></a>&#x27E8;<code class="Cm">Space</code>&#x27E9;</dt>
   <dd>stack_reset</dd>
   <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
@@ -1166,6 +1174,8 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dd>Switch to horizontal layout.</dd>
   <dt id="layout_max"><a class="permalink" href="#layout_max"><code class="Cm">layout_max</code></a></dt>
   <dd>Switch to max layout.</dd>
+  <dt id="layout_floating"><a class="permalink" href="#layout_floating"><code class="Cm">layout_floating</code></a></dt>
+  <dd>Switch to floating layout.</dd>
   <dt id="stack_reset"><a class="permalink" href="#stack_reset"><code class="Cm">stack_reset</code></a></dt>
   <dd>Reset layout.</dd>
   <dt id="stack_balance"><a class="permalink" href="#stack_balance"><code class="Cm">stack_balance</code></a></dt>
