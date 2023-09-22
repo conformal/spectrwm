@@ -577,9 +577,10 @@ values are
 .Ar vertical ,
 .Ar vertical_flip ,
 .Ar horizontal ,
-.Ar horizontal_flip
+.Ar horizontal_flip ,
+.Ar max
 and
-.Ar max .
+.Ar floating .
 .Pp
 See
 .Ic master_grow ,
@@ -720,6 +721,13 @@ and
 are relative to the focused window.
 .It Ic stack_enabled
 Enable or disable displaying the current stacking algorithm in the status bar.
+.It Ic stack_mark_floating
+Set the
+.Ar floating
+layout mark for the
+.Ic bar_format
+stacking indicator (+S).
+Default is '[~]'.
 .It Ic stack_mark_horizontal
 Set the
 .Ar horizontal
@@ -942,6 +950,8 @@ Additional windows are horizontally tiled in stack area.
 Same as above but stack and master areas are swapped.
 .It Ic max
 The focused window occupies the whole region, except for the bar (if enabled).
+.It Ic floating
+Windows are free to be resized and positioned, without being tiled.
 .El
 .Sh WINDOW STATES
 These can be set/unset by the corresponding
@@ -1099,6 +1109,8 @@ layout_vertical
 layout_horizontal
 .It Aq Ar unbound
 layout_max
+.It Aq Ar unbound
+layout_floating
 .It Cm M-S- Ns Aq Cm Space
 stack_reset
 .It Aq Ar unbound
@@ -1280,6 +1292,8 @@ Switch to vertical layout.
 Switch to horizontal layout.
 .It Cm layout_max
 Switch to max layout.
+.It Cm layout_floating
+Switch to floating layout.
 .It Cm stack_reset
 Reset layout.
 .It Cm stack_balance
