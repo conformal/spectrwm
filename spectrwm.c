@@ -5699,7 +5699,7 @@ focus_region(struct swm_region *r)
 		set_region(r);
 
 		/* New region is empty; need to manually unfocus win. */
-		if (old_r != r) {
+		if (old_r && old_r != r) {
 			unfocus_win(old_r->ws->focus);
 			/* Clear bar since empty. */
 			bar_draw(old_r->bar);
