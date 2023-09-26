@@ -430,6 +430,17 @@ double			dialog_ratio = 0.6;
 #define TEXTEXTENTS(x...)	XmbTextExtents(x)
 #endif
 
+/* CSS like directions used for individual region_padding for each  side, */
+/* but could also be useful for other values, f.e. tile_gap? */
+enum {
+	SWM_BOX_TOP,			/*	     0 		*/
+	SWM_BOX_RIGHT, 			/*	   + -- +	*/
+	SWM_BOX_BOTTOM,			/*	 3 |   | 1	*/
+	SWM_BOX_LEFT,			/*	  + -- +	*/
+	SWM_BOX_N				/*	    2		*/
+};
+
+
 char		*bar_argv[] = { NULL, NULL };
 char		 bar_ext[SWM_BAR_MAX];
 char		 bar_ext_buf[SWM_BAR_MAX];
@@ -462,7 +473,10 @@ int		 spawn_position = SWM_STACK_TOP;
 bool		 disable_border = false;
 bool		 disable_border_always = false;
 int		 border_width = 1;
-int		 region_padding = 0;
+
+/* Padding can be defined like in CSS, eg.: a [b [c [d]]] */
+/* This also ensures backwards compatibility when only one value is given. */
+int		 region_padding[SWM_BOX_N] = { 0, 0, 0, 0};
 int		 tile_gap = 0;
 bool		 verbose_layout = false;
 #ifdef SWM_DEBUG
@@ -1118,6 +1132,7 @@ struct binding {
 	char			*spawn_name;
 };
 RB_HEAD(binding_tree, binding) bindings = RB_INITIALIZER(&bindings);
+
 
 /* function prototypes */
 void	 adjust_font(struct ws_win *);
@@ -6225,10 +6240,10 @@ stack(struct swm_region *r) {
 
 	/* Adjust stack area for region bar and padding. */
 	g = r->g;
-	g.x += region_padding;
-	g.y += region_padding;
-	g.w -= 2 * border_width + 2 * region_padding;
-	g.h -= 2 * border_width + 2 * region_padding;
+	g.x += region_padding[SWM_BOX_LEFT];
+	g.y += region_padding[SWM_BOX_TOP];
+	g.w -= 2 * border_width + region_padding[SWM_BOX_LEFT] + region_padding[SWM_BOX_RIGHT];
+	g.h -= 2 * border_width + region_padding[SWM_BOX_TOP] + region_padding[SWM_BOX_BOTTOM];
 	if (bar_enabled && r->ws->bar_enabled) {
 		if (!bar_at_bottom)
 			g.y += bar_height;
@@ -10822,9 +10837,31 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 		maximize_hide_bar = atoi(value);
 		break;
 	case SWM_S_REGION_PADDING:
-		region_padding = atoi(value);
-		if (region_padding < 0)
-			region_padding = 0;
+		char *token;
+		const char *delim = " \t";
+
+		token = strtok((char*)value, delim);
+		for (int j = 0; token != NULL && j < 4; j++) {
+			int pad_value = atoi(token);
+			if (pad_value < 0) {
+				pad_value = 0;
+			}
+			switch (j) {
+				case 0:
+					region_padding[SWM_BOX_TOP] = region_padding[SWM_BOX_RIGHT] = region_padding[SWM_BOX_BOTTOM] = region_padding[SWM_BOX_LEFT] = pad_value;
+					break;
+				case 1:
+					region_padding[SWM_BOX_RIGHT] = region_padding[SWM_BOX_LEFT] = pad_value;
+					break;
+				case 2:
+					region_padding[SWM_BOX_BOTTOM] = pad_value;
+					break;
+				case 3:
+					region_padding[SWM_BOX_LEFT] = pad_value;
+					break;
+			}
+			token = strtok(NULL, delim);
+		}
 		break;
 	case SWM_S_SPAWN_ORDER:
 		if (strcmp(value, "first") == 0)
