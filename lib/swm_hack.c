@@ -139,12 +139,13 @@ XOpenDisplay(register _Xconst char *_display)
 	}
 
 	display = (*func) (_display);
-
-	/* Preload atoms to prevent deadlock. */
-	if (swmws == None)
-		swmws = get_atom_from_string(display, "_SWM_WS");
-	if (swmpid == None)
-		swmpid = get_atom_from_string(display, "_SWM_PID");
+	if (display) {
+		/* Preload atoms to prevent deadlock. */
+		if (swmws == None)
+			swmws = get_atom_from_string(display, "_SWM_WS");
+		if (swmpid == None)
+			swmpid = get_atom_from_string(display, "_SWM_PID");
+	}
 
 	return (display);
 }
