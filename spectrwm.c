@@ -741,6 +741,7 @@ struct swm_screen {
 	xcb_window_t		swmwin;	/* ewmh wm check/default input */
 	struct workspace	ws[SWM_WS_MAX];
 	struct swm_region	*r_focus;
+	xcb_window_t		active_window; /* current _NET_ACTIVE_WINDOW */
 	struct ws_win_stack	stack;	/* stacking order of managed windows */
 	int			managed_count;
 
@@ -1268,6 +1269,7 @@ void	 ewmh_autoquirk(struct ws_win *);
 void	 ewmh_get_desktop_names(void);
 void	 ewmh_get_wm_state(struct ws_win *);
 void	 ewmh_update_actions(struct ws_win *);
+static void	 ewmh_update_active_window(struct swm_screen *);
 void	 ewmh_update_client_list(void);
 void	 ewmh_update_current_desktop(void);
 void	 ewmh_update_desktop_names(void);
@@ -2256,6 +2258,26 @@ ewmh_get_wm_state(struct ws_win *win)
 		ewmh_change_wm_state(win, states[i], _NET_WM_STATE_ADD);
 
 	free(r);
+}
+
+static void
+ewmh_update_active_window(struct swm_screen *s)
+{
+	xcb_window_t		awid;
+
+	if (s->r_focus && s->r_focus->ws && s->r_focus->ws->focus)
+		awid = s->r_focus->ws->focus->id;
+	else
+		awid = XCB_WINDOW_NONE;
+
+	if (awid != s->active_window) {
+		DNPRINTF(SWM_D_FOCUS, "root: %#x win: %#x\n", s->root,
+		    s->active_window);
+		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, s->root,
+		    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
+		    &awid);
+		s->active_window = awid;
+	}
 }
 
 void
@@ -5393,7 +5415,6 @@ validate_ws(struct workspace *testws)
 void
 unfocus_win(struct ws_win *win)
 {
-	xcb_window_t		none = XCB_WINDOW_NONE;
 	bool			raise = false;
 
 	DNPRINTF(SWM_D_FOCUS, "win %#x\n", WINID(win));
@@ -5449,9 +5470,6 @@ unfocus_win(struct ws_win *win)
 	}
 
 	draw_frame(win);
-	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->s->root,
-	    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1, &none);
-
 	DNPRINTF(SWM_D_FOCUS, "done\n");
 }
 
@@ -5579,10 +5597,6 @@ focus_win(struct ws_win *win)
 
 			set_region(ws->r);
 
-			xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
-			    win->s->root, ewmh[_NET_ACTIVE_WINDOW].atom,
-			    XCB_ATOM_WINDOW, 32, 1, &w->id);
-
 			if (DEMANDS_ATTENTION(win)) {
 				clear_attention(win);
 				update_bars(win->s);
@@ -5596,6 +5610,7 @@ focus_win(struct ws_win *win)
 
 	/* Update window border even if workspace is hidden. */
 	draw_frame(win);
+	ewmh_update_active_window(win->s);
 out:
 	free(war);
 	DNPRINTF(SWM_D_FOCUS, "done\n");
@@ -5729,7 +5744,6 @@ void
 update_focus(struct swm_screen *s)
 {
 	struct swm_region	*r;
-	uint32_t		none = XCB_WINDOW_NONE;
 
 	if (s == NULL)
 		return;
@@ -5742,9 +5756,7 @@ update_focus(struct swm_screen *s)
 			if (r->ws && r->ws->focus)
 				draw_frame(r->ws->focus);
 		set_input_focus((s->r_focus ? s->r_focus->id : s->swmwin), true);
-		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, s->root,
-		    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
-		    &none);
+		ewmh_update_active_window(s);
 	}
 }
 
@@ -5800,7 +5812,6 @@ focus_region(struct swm_region *r)
 {
 	struct ws_win		*nfw;
 	struct swm_region	*old_r;
-	xcb_window_t		none = XCB_WINDOW_NONE;
 
 	if (r == NULL)
 		return;
@@ -5820,9 +5831,7 @@ focus_region(struct swm_region *r)
 		}
 
 		set_input_focus(r->id, true);
-		xcb_change_property(conn, XCB_PROP_MODE_REPLACE,
-		    r->s->root, ewmh[_NET_ACTIVE_WINDOW].atom,
-		    XCB_ATOM_WINDOW, 32, 1, &none);
+		ewmh_update_active_window(r->s);
 	}
 }
 
@@ -5898,7 +5907,6 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 	struct swm_region	*this_r, *other_r;
 	struct ws_win		*win;
 	struct workspace	*new_ws, *old_ws;
-	xcb_window_t		none = XCB_WINDOW_NONE;
 	int			wsid = args->id;
 	bool			unmap_old = false;
 
@@ -5935,13 +5943,8 @@ switchws(struct binding *bp, struct swm_region *r, union arg *args)
 		return;
 	}
 
-	if ((win = old_ws->focus) != NULL) {
+	if ((win = old_ws->focus) != NULL)
 		draw_frame(win);
-
-		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, s->root,
-		    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
-		    &none);
-	}
 
 	if (other_r) {
 		/* the other ws is visible in another region, exchange them */
@@ -7824,6 +7827,7 @@ iconify(struct binding *bp, struct swm_region *r, union arg *args)
 	if ((win = r->ws->focus) == NULL)
 		return;
 
+	unfocus_win(win);
 	ewmh_apply_flags(win, win->ewmh_flags | EWMH_F_HIDDEN);
 	ewmh_update_wm_state(win);
 
@@ -14795,6 +14799,7 @@ setup_screens(void)
 		TAILQ_INIT(&s->stack);
 		s->rate = SWM_RATE_DEFAULT;
 		s->root = screen->root;
+		s->active_window = screen->root;
 		s->depth = screen->root_depth;
 		s->visual = screen->root_visual;
 		s->colormap = screen->default_colormap;
