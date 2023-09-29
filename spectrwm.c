@@ -6765,7 +6765,7 @@ switchlayout(struct binding *bp, struct swm_region *r, union arg *args)
 		goto out;
 	}
 
-	if (new_layout == ws->cur_layout)
+	if (new_layout == NULL || new_layout == ws->cur_layout)
 		goto out;
 
 	ws->prev_layout = ws->cur_layout;
