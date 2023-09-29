@@ -281,6 +281,7 @@ uint32_t		swm_debug = 0
 #define SH_INC(w)		((w)->sh.flags & XCB_ICCCM_SIZE_HINT_P_RESIZE_INC)
 #define SH_INC_W(w)		((w)->sh.width_inc)
 #define SH_INC_H(w)		((w)->sh.height_inc)
+#define SH_GRAVITY(w)		((w)->sh.flags & XCB_ICCCM_SIZE_HINT_P_WIN_GRAVITY)
 #define MAXIMIZED_VERT(w)	((w)->ewmh_flags & EWMH_F_MAXIMIZED_VERT)
 #define MAXIMIZED_HORZ(w)	((w)->ewmh_flags & EWMH_F_MAXIMIZED_HORZ)
 #define SKIP_TASKBAR(w)		((w)->ewmh_flags & EWMH_F_SKIP_TASKBAR)
@@ -573,9 +574,11 @@ struct ws_win {
 	struct ws_win		*parent;	/* WM_TRANSIENT_FOR ws_win. */
 	struct ws_win		*focus_redirect;/* focus on transient */
 	struct swm_geometry	g;		/* current geometry */
+	struct swm_geometry	g_grav;		/* win-gravity reference. */
 	struct swm_geometry	g_float;	/* root coordinates */
 	struct swm_geometry	g_floatref;	/* reference coordinates */
 	bool			g_float_xy_valid;
+	uint8_t			gravity;
 	bool			mapped;
 	uint32_t		mapping;	/* # of pending operations */
 	uint32_t		unmapping;	/* # of pending operations */
@@ -1200,6 +1203,7 @@ RB_HEAD(atom_name_tree, atom_name) atom_names = RB_INITIALIZER(&atom_names);
 
 /* function prototypes */
 void	 adjust_font(struct ws_win *);
+static void	 update_gravity(struct ws_win *);
 int	 apply_unfocus(struct workspace *, struct ws_win *);
 char	*argsep(char **);
 int	 atom_name_cmp(struct atom_name *, struct atom_name *);
@@ -1318,6 +1322,7 @@ const char	*get_event_label(xcb_generic_event_t *);
 struct ws_win   *get_focus_magic(struct ws_win *);
 struct ws_win   *get_focus_other(struct ws_win *);
 struct ws_win	*get_focus_prev(struct workspace *);
+static const char *get_gravity_label(uint8_t);
 #ifdef SWM_XCB_HAS_XINPUT
 const char	*get_input_event_label(xcb_ge_generic_event_t *);
 #endif
@@ -1510,8 +1515,10 @@ void	 validate_spawns(void);
 int	 validate_win(struct ws_win *);
 int	 validate_ws(struct workspace *);
 void	 version(struct binding *, struct swm_region *, union arg *);
+static uint16_t	 win_border(struct ws_win *);
 static bool	 win_floating(struct ws_win *);
 static bool	 win_focused(struct ws_win *);
+static uint8_t	 win_gravity(struct ws_win *);
 static bool	 win_main(struct ws_win *);
 static bool	 win_raised(struct ws_win *);
 static bool	 win_reparented(struct ws_win *);
@@ -1577,6 +1584,12 @@ static bool
 win_related(struct ws_win *w1, struct ws_win *w2)
 {
 	return (w1 && w2 && w1->main == w2->main);
+}
+
+static uint16_t
+win_border(struct ws_win *win)
+{
+	return (win->bordered ? border_width : 0);
 }
 
 static bool
@@ -2499,10 +2512,7 @@ debug_refresh(struct ws_win *win)
 
 		mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
 		    XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT;
-		if (win->bordered)
-			wc[0] = wc[1] = border_width;
-		else
-			wc[0] = wc[1] = 0;
+		wc[0] = wc[1] = win_border(win);
 
 		/* Add 1px pad for window. */
 		wc[2] = width + 2;
@@ -5483,7 +5493,8 @@ unfocus_win(struct ws_win *win)
 	/* Update border width */
 	if (win->bordered && (win->quirks & SWM_Q_MINIMALBORDER) &&
 	    win_floating(win)) {
-		win->bordered = 0;
+		win->bordered = false;
+		update_gravity(win);
 		X(win) += border_width;
 		Y(win) += border_width;
 		update_window(win);
@@ -6924,6 +6935,8 @@ store_float_geom(struct ws_win *win)
 
 	/* Retain window geometry and update reference coordinates. */
 	win->g_float = win->g;
+	win->g_float.x -= win->g_grav.x;
+	win->g_float.y -= win->g_grav.y;
 	if (win->ws->r)
 		win->g_floatref = win->ws->r->g;
 
@@ -6940,6 +6953,8 @@ load_float_geom(struct ws_win *win)
 		return;
 
 	win->g = win->g_float;
+	win->g.x += win->g_grav.x;
+	win->g.y += win->g_grav.y;
 	if (win->ws->r) {
 		/* Adjust position to current region. */
 		X(win) += X(win->ws->r) - win->g_floatref.x;
@@ -6954,6 +6969,7 @@ update_floater(struct ws_win *win)
 {
 	struct workspace	*ws;
 	struct swm_region	*r;
+	bool			bordered = true, constrained = false;
 
 	DNPRINTF(SWM_D_MISC, "win %#x\n", WINID(win));
 
@@ -6965,26 +6981,26 @@ update_floater(struct ws_win *win)
 	if ((r = ws->r) == NULL)
 		return;
 
-	win->bordered = true;
-
 	if (FULLSCREEN(win)) {
 		/* _NET_WM_FULLSCREEN: fullscreen without border. */
 		win->g = r->g;
-		win->bordered = false;
+		bordered = false;
+		constrained = true;
 	} else if (MAXIMIZED(win)) {
 		/* Maximize: like a single stacked window. */
 		win->g = r->g;
+		constrained = true;
 
 		if (bar_enabled && ws->bar_enabled && !maximize_hide_bar) {
 			if (!bar_at_bottom)
 				Y(win) += bar_height;
 			HEIGHT(win) -= bar_height;
 		} else if (disable_border) {
-			win->bordered = false;
+			bordered = false;
 		}
 
 		if (disable_border_always) {
-			win->bordered = false;
+			bordered = false;
 		}
 
 		if (win->bordered) {
@@ -7005,12 +7021,13 @@ update_floater(struct ws_win *win)
 		    ((!ws_focused(win->ws) || win->ws->focus != win) &&
 		    (win->quirks & SWM_Q_MINIMALBORDER))) {
 			/* Remove border */
-			win->bordered = false;
+			bordered = false;
 		} else if (!MANUAL(win) && !win->g_float_xy_valid) {
 			if (win_transient(win) && (win->quirks & SWM_Q_TRANSSZ)) {
 				/* Adjust size on TRANSSZ quirk. */
 				WIDTH(win) = (double)WIDTH(r) * dialog_ratio;
 				HEIGHT(win) = (double)HEIGHT(r) * dialog_ratio;
+				constrained = true;
 			}
 
 			if (!(win->quirks & SWM_Q_ANYWHERE)) {
@@ -7022,8 +7039,17 @@ update_floater(struct ws_win *win)
 				X(win) = X(r) + (WIDTH(r) - WIDTH(win)) / 2;
 				Y(win) = Y(r) + (HEIGHT(r) - HEIGHT(win)) / 2;
 				store_float_geom(win);
+				constrained = true;
 			}
 		}
+	}
+
+	if (win->bordered != bordered) {
+		win->bordered = bordered;
+		/* Recalculate gravity since border changed. */
+		update_gravity(win);
+		if (!constrained)
+			load_float_geom(win);
 	}
 
 	/* Ensure at least 1 pixel of the window is in the region. */
@@ -7259,6 +7285,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 		if (bordered != win->bordered) {
 			reconfigure = true;
 			win->bordered = bordered;
+			update_gravity(win);
 		}
 
 		if (reconfigure) {
@@ -7454,7 +7481,10 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 		    ws->bar_enabled && !disable_border_always));
 		if (bordered != w->bordered || X(w) != g->x || Y(w) != g->y ||
 		    WIDTH(w) != g->w || HEIGHT(w) != g->h) {
-			w->bordered = bordered;
+			if (w->bordered != bordered) {
+				w->bordered = bordered;
+				update_gravity(w);
+			}
 			w->g = *g;
 			if (bordered) {
 				X(w) += border_width;
@@ -8115,7 +8145,7 @@ search_win(struct binding *bp, struct swm_region *r, union arg *args)
 			height = r->s->bar_xftfonts[0]->height + 4;
 		}
 
-		offset = (win->bordered ? border_width : 0);
+		offset = win_border(win);
 
 		xcb_create_window(conn, win->s->depth, w, win->frame, offset,
 		    offset, width, height, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT,
@@ -8959,7 +8989,7 @@ update_window(struct ws_win *win)
 	xcb_configure_window(conn, win->frame, mask, wc);
 
 	/* Reconfigure client window. */
-	wc[0] = wc[1] = win->bordered ? border_width : 0;
+	wc[0] = wc[1] = win_border(win);
 	wc[2] = WIDTH(win);
 	wc[3] = HEIGHT(win);
 
@@ -9057,7 +9087,7 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 	xcb_generic_event_t		*evt;
 	xcb_motion_notify_event_t	*mne;
 	uint32_t			newf;
-	bool			resizing, step = false;
+	bool			resizing, restack = false, step = false;
 
 	if (win == NULL)
 		return;
@@ -9072,7 +9102,12 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 	/* Override floating geometry when resizing maximized windows. */
 	if (MAXIMIZED(win) || ws_floating(win->ws)) {
 		win->g_float = win->g;
+		update_gravity(win);
+		/* Maintain original position. */
+		win->g_float.x -= win->g_grav.x;
+		win->g_float.y -= win->g_grav.y;
 		win->g_floatref = r->g;
+		restack = true;
 	} else if (!(win_transient(win) || ABOVE(win)))
 		return;
 
@@ -9085,7 +9120,8 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 	ewmh_update_wm_state(win);
 
 	update_stacking(win->s);
-	stack(r);
+	if (restack)
+		stack(r);
 
 	flush();
 
@@ -9222,6 +9258,7 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 
 				WIDTH(win) = g.w + dx;
 			}
+			update_gravity(win);
 
 			/* Don't sync faster than the current rate limit. */
 			if ((mne->time - timestamp) > mintime) {
@@ -9379,6 +9416,10 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 	/* Override floating geometry when moving tiled or maximized windows. */
 	if (!(ABOVE(win) || win_transient(win)) || MAXIMIZED(win)) {
 		win->g_float = win->g;
+		update_gravity(win);
+		/* Maintain original position. */
+		win->g_float.x -= win->g_grav.x;
+		win->g_float.y -= win->g_grav.y;
 		win->g_floatref = r->g;
 		restack = true;
 	}
@@ -12723,6 +12764,8 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 
 	/* Get WM_SIZE_HINTS. */
 	get_wm_normal_hints(win);
+	win->gravity = win_gravity(win);
+	update_gravity(win);
 
 	/* Get WM_HINTS. */
 	get_wm_hints(win);
@@ -12811,6 +12854,10 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	/* Remove any _SWM_WS now that we set _NET_WM_DESKTOP. */
 	xcb_delete_property(conn, win->id, a_swm_ws);
 
+	/* Assume a non-zero initial position is valid. */
+	if (ws_floating(win->ws) && (X(win) || Y(win)))
+		win->g_float_xy_valid = true;
+
 	if (win->ws->r) {
 		/* On MapRequest, region is the reference instead of root. */
 		if (mapping)
@@ -12897,6 +12944,100 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 out:
 	free(war);
 	return (win);
+}
+
+static const char *
+get_gravity_label(uint8_t val)
+{
+	const char	*label = NULL;
+
+	switch(val) {
+	case XCB_GRAVITY_NORTH_WEST:
+		label = "NorthWest";
+		break;
+	case XCB_GRAVITY_NORTH:
+		label = "North";
+		break;
+	case XCB_GRAVITY_NORTH_EAST:
+		label = "NorthEast";
+		break;
+	case XCB_GRAVITY_WEST:
+		label = "West";
+		break;
+	case XCB_GRAVITY_CENTER:
+		label = "Center";
+		break;
+	case XCB_GRAVITY_EAST:
+		label = "East";
+		break;
+	case XCB_GRAVITY_SOUTH_WEST:
+		label = "SouthWest";
+		break;
+	case XCB_GRAVITY_SOUTH:
+		label = "South";
+		break;
+	case XCB_GRAVITY_SOUTH_EAST:
+		label = "SouthEast";
+		break;
+	case XCB_GRAVITY_STATIC:
+		label = "Static";
+		break;
+	default:
+		label = "Unknown";
+		break;
+	}
+
+	return (label);
+}
+
+static void
+update_gravity(struct ws_win *win)
+{
+	switch (win->gravity) {
+	case XCB_GRAVITY_NORTH_WEST:
+		win->g_grav.x = win->g_grav.y = win_border(win);
+		break;
+	case XCB_GRAVITY_NORTH:
+		win->g_grav.x = -win->g_float.w / 2;
+		win->g_grav.y = win_border(win);
+		break;
+	case XCB_GRAVITY_NORTH_EAST:
+		win->g_grav.x = -win->g_float.w - win_border(win);
+		win->g_grav.y = win_border(win);
+		break;
+	case XCB_GRAVITY_WEST:
+		win->g_grav.x = win_border(win);
+		win->g_grav.y = -win->g_float.h / 2;
+		break;
+	case XCB_GRAVITY_CENTER:
+		win->g_grav.x = -win->g_float.w / 2;
+		win->g_grav.y = -win->g_float.h / 2;
+		break;
+	case XCB_GRAVITY_EAST:
+		win->g_grav.x = -win->g_float.w - win_border(win);
+		win->g_grav.y = -win->g_float.h / 2;
+		break;
+	case XCB_GRAVITY_SOUTH_WEST:
+		win->g_grav.x = win_border(win);
+		win->g_grav.y = -win->g_float.h - win_border(win);
+		break;
+	case XCB_GRAVITY_SOUTH:
+		win->g_grav.x = -win->g_float.w / 2;
+		win->g_grav.y = -win->g_float.h - win_border(win);
+		break;
+	case XCB_GRAVITY_SOUTH_EAST:
+		win->g_grav.x = -win->g_float.w - win_border(win);
+		win->g_grav.y = -win->g_float.h - win_border(win);
+		break;
+	case XCB_GRAVITY_STATIC:
+	default:
+		win->g_grav.x = win->g_grav.y = 0;
+		break;
+	}
+
+	DNPRINTF(SWM_D_MISC, "win %#x, g_grav (x,y): (%d,%d) gravity: %s\n",
+	    win->id, win->g_grav.x, win->g_grav.y,
+	    get_gravity_label(win->gravity));
 }
 
 void
@@ -13430,39 +13571,36 @@ configurerequest(xcb_configure_request_event_t *e)
 		}
 	} else if ((!MANUAL(win) || win->quirks & SWM_Q_ANYWHERE ||
 	    ws_floating(win->ws)) && !FULLSCREEN(win) && !MAXIMIZED(win)) {
+		/* Update floating geometry. */
 		if (win->ws->r)
 			r = win->ws->r;
 		else if (win->ws->old_r)
 			r = win->ws->old_r;
 
-		/* Windows are centered unless ANYWHERE quirk is set. */
-		if (win->quirks & SWM_Q_ANYWHERE || ws_floating(win->ws)) {
-			if (e->value_mask & XCB_CONFIG_WINDOW_X) {
-				win->g_float.x = e->x;
-				win->g_float_xy_valid = true;
-			}
+		/* Assume position is in reference to latest region. */
+		if (r)
+			win->g_floatref = r->g;
 
-			if (e->value_mask & XCB_CONFIG_WINDOW_Y) {
-				win->g_float.y = e->y;
-				win->g_float_xy_valid = true;
-			}
-
-			/* Assume position is in reference to latest region. */
-			if (r)
-				win->g_floatref = r->g;
+		if (e->value_mask & XCB_CONFIG_WINDOW_X) {
+			win->g_float.x = e->x;
+			win->g_float_xy_valid = true;
 		}
-
+		if (e->value_mask & XCB_CONFIG_WINDOW_Y) {
+			win->g_float.y = e->y;
+			win->g_float_xy_valid = true;
+		}
 		if (e->value_mask & XCB_CONFIG_WINDOW_WIDTH)
 			win->g_float.w = e->width;
-
 		if (e->value_mask & XCB_CONFIG_WINDOW_HEIGHT)
 			win->g_float.h = e->height;
 
-		if (!MAXIMIZED(win) && !FULLSCREEN(win) && win_floating(win)) {
-			WIDTH(win) = win->g_float.w;
-			HEIGHT(win) = win->g_float.h;
+		if (e->value_mask &
+		    (XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT))
+			update_gravity(win);
 
-			if (r != NULL) {
+		if (!MAXIMIZED(win) && !FULLSCREEN(win) && win_floating(win)) {
+			/* Immediately apply new geometry if mapped. */
+			if (win->mapped) {
 				xcb_window_t wid = pointer_window;
 				update_floater(win);
 				flush();
@@ -14051,6 +14189,7 @@ propertynotify(xcb_property_notify_event_t *e)
 		get_wm_hints(win);
 	} else if (e->atom == XCB_ATOM_WM_NORMAL_HINTS) {
 		get_wm_normal_hints(win);
+		win->gravity = win_gravity(win);
 	} else if (e->atom == XCB_ATOM_WM_TRANSIENT_FOR) {
 		if (get_wm_transient_for(win))
 			update_win_refs(win);
@@ -14176,6 +14315,15 @@ get_source_type_label(uint32_t type)
 	return (label);
 }
 
+static uint8_t
+win_gravity(struct ws_win *win)
+{
+	if (SH_GRAVITY(win))
+		return (win->sh.win_gravity);
+	else
+		return (XCB_GRAVITY_NORTH_WEST);
+}
+
 void
 clientmessage(xcb_client_message_event_t *e)
 {
@@ -14270,22 +14418,40 @@ clientmessage(xcb_client_message_event_t *e)
 			xcb_kill_client(conn, win->id);
 	} else if (e->type == ewmh[_NET_MOVERESIZE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_MOVERESIZE_WINDOW\n");
-		if (ABOVE(win)) {
-			if (e->data.data32[0] & (1 << 8)) /* x */
-				X(win) = e->data.data32[1];
-			if (e->data.data32[0] & (1 << 9)) /* y */
-				Y(win) = e->data.data32[2];
-			if (e->data.data32[0] & (1 << 10)) /* width */
-				WIDTH(win) = e->data.data32[3];
-			if (e->data.data32[0] & (1 << 11)) /* height */
-				HEIGHT(win) = e->data.data32[4];
+		if ((!MANUAL(win) || win->quirks & SWM_Q_ANYWHERE ||
+		    ws_floating(win->ws)) && !FULLSCREEN(win) &&
+		    !MAXIMIZED(win)) {
+			uint8_t grav;
 
-			update_window(win);
-		} else {
-			/* Notify no change was made. */
+			/* Update floating geometry. */
+			if (e->data.data32[0] & (1 << 8)) { /* x */
+				win->g_float.x = e->data.data32[1];
+				win->g_float_xy_valid = true;
+			}
+			if (e->data.data32[0] & (1 << 9)) {/* y */
+				win->g_float.y = e->data.data32[2];
+				win->g_float_xy_valid = true;
+			}
+			if (e->data.data32[0] & (1 << 10)) /* width */
+				win->g_float.w = e->data.data32[3];
+			if (e->data.data32[0] & (1 << 11)) /* height */
+				win->g_float.h = e->data.data32[4];
+
+			/* Use specified gravity just this once. */
+			grav = win->gravity;
+			if (e->data.data32[0] & 0xff)
+				win->gravity = e->data.data32[0] & 0xff;
+			update_gravity(win);
+
+			if (win_floating(win)) {
+				load_float_geom(win);
+				update_floater(win);
+			} else
+				config_win(win, NULL);
+
+			win->gravity = grav;
+		} else
 			config_win(win, NULL);
-			/* TODO: Change stack sizes */
-		}
 	} else if (e->type == ewmh[_NET_RESTACK_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_RESTACK_WINDOW\n");
 		vals[0] = e->data.data32[1]; /* Sibling window. */
