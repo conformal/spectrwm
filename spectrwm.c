@@ -5550,11 +5550,11 @@ set_input_focus(xcb_window_t winid, bool force)
 void
 focus_win(struct ws_win *win)
 {
-	struct swm_region			*r = NULL;
 	struct ws_win				*cfw = NULL, *w;
 	struct workspace			*ws;
 	xcb_get_window_attributes_reply_t	*war = NULL;
 	xcb_window_t				cfid;
+	bool					refresh_bars = false;
 
 	DNPRINTF(SWM_D_FOCUS, "win %#x\n", WINID(win));
 
@@ -5615,33 +5615,28 @@ focus_win(struct ws_win *win)
 		update_mapping(win->s);
 		update_stacking(win->s);
 
+		if (DEMANDS_ATTENTION(win)) {
+			clear_attention(win);
+			refresh_bars = true;
+		}
+
 		if (cfw != win) {
 			if (win_noinput(win) && win_transient(win))
 				w = win->main;
 			else
 				w = win;
-
 			focus_win_input(w, false);
-
-			if (ws->r != win->s->r_focus)
-				r = win->s->r_focus;
-
 			set_region(ws->r);
-
-			if (DEMANDS_ATTENTION(win)) {
-				clear_attention(win);
-				update_bars(win->s);
-			} else {
-				bar_draw(ws->r->bar);
-				if (r)
-					bar_draw(r->bar);
-			}
+			refresh_bars = true;
 		}
 	}
 
 	/* Update window border even if workspace is hidden. */
 	draw_frame(win);
 	ewmh_update_active_window(win->s);
+
+	if (refresh_bars)
+		update_bars(win->s);
 out:
 	free(war);
 	DNPRINTF(SWM_D_FOCUS, "done\n");
@@ -6400,10 +6395,13 @@ swapwin(struct binding *bp, struct swm_region *r, union arg *args)
 	case SWM_ARG_ID_SWAPMAIN:
 		sw = sw->main;
 		w = get_main_window(r->ws);
-		w = w->main;
-		if (w == sw) {
-			sw = get_focus_prev(r->ws);
-			sw = sw->main;
+		if (w) {
+			w = w->main;
+			if (w == sw) {
+				sw = get_focus_prev(r->ws);
+				if (sw)
+					sw = sw->main;
+			}
 		}
 		if (w == NULL || sw == NULL)
 			return;
