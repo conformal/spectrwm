@@ -3,7 +3,7 @@
 <!-- This is an automatically generated file.  Do not edit.
    Copyright (c) 2009-2012 Marco Peereboom <marco@peereboom.us>
    Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
-   Copyright (c) 2011-2022 Reginald Kennedy <rk@rejii.com>
+   Copyright (c) 2011-2023 Reginald Kennedy <rk@rejii.com>
    Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
    Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
    Copyright (c) 2012 David Hill <dhill@mindcry.org>
@@ -136,7 +136,7 @@
 <p class="Pp">Colors need to be specified per the
     <a class="Xr">XQueryColor(3)</a> specification. In addition, alpha
     transparency may be specified via the format
-    <code class="Li">rbga:</code><var class="Ar">red</var>/<var class="Ar">green</var>/<var class="Ar">blue</var>/<var class="Ar">alpha</var>
+    <code class="Li">rbga</code>:<var class="Ar">red</var>/<var class="Ar">green</var>/<var class="Ar">blue</var>/<var class="Ar">alpha</var>
     (8-bit hex values) For example, to specify a 50% transparent blue status bar
     background:</p>
 <p class="Pp"></p>
@@ -190,6 +190,9 @@ quirk[XTerm:ws2] = WS[2]</pre>
   <dt id="bar_border"><a class="permalink" href="#bar_border"><code class="Ic">bar_border</code></a>[<var class="Ar">x</var>]</dt>
   <dd>Border color of status bar(s) on screen number
     <var class="Ar">x</var>.</dd>
+  <dt id="bar_border_free"><a class="permalink" href="#bar_border_free"><code class="Ic">bar_border_free</code></a>[<var class="Ar">x</var>]</dt>
+  <dd>Border color of a status bar for a focused region on screen number
+      <var class="Ar">x</var> when a workspace-free window is focused.</dd>
   <dt id="bar_border_unfocus"><a class="permalink" href="#bar_border_unfocus"><code class="Ic">bar_border_unfocus</code></a>[<var class="Ar">x</var>]</dt>
   <dd>Border color of status bar(s) for unfocused region(s) on screen number
       <var class="Ar">x</var>.</dd>
@@ -204,6 +207,13 @@ quirk[XTerm:ws2] = WS[2]</pre>
         colors can then be selected as a background color in the status bar
         through the use of the markup sequence <code class="Ic">+@bg=n;</code>
         where n is between 0 and 9.</p>
+  </dd>
+  <dt id="bar_color_free"><a class="permalink" href="#bar_color_free"><code class="Ic">bar_color_free</code></a>[<var class="Ar">x</var>]</dt>
+  <dd>Background color of a status bar for a focused region on screen number
+      <var class="Ar">x</var> when a workspace-free window is focused.
+    <p class="Pp">A comma separated list of up to 10 colors can be specified,
+        with the same syntax and behavior as
+      <code class="Ic">bar_color</code>.</p>
   </dd>
   <dt id="bar_color_unfocus"><a class="permalink" href="#bar_color_unfocus"><code class="Ic">bar_color_unfocus</code></a>[<var class="Ar">x</var>]</dt>
   <dd>Background color of status bar(s) for unfocused region(s) on screen number
@@ -444,6 +454,19 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
   <dd>Enable or disable displaying the clock in the status bar. Disable by
       setting to 0 so a custom clock could be used in the
       <code class="Ic">bar_action</code> script.</dd>
+  <dt id="color_free_focus"><a class="permalink" href="#color_free_focus"><code class="Ic">color_free_focus</code></a></dt>
+  <dd>Border color of the currently focused window that is in free mode. Default
+      is yellow.</dd>
+  <dt id="color_free_focus_maximized"><a class="permalink" href="#color_free_focus_maximized"><code class="Ic">color_free_focus_maximized</code></a></dt>
+  <dd>Border color of the currently focused maximized window that is in free
+      mode. Defaults to the value of
+    <code class="Ic">color_free_focus</code>.</dd>
+  <dt id="color_free_unfocus"><a class="permalink" href="#color_free_unfocus"><code class="Ic">color_free_unfocus</code></a></dt>
+  <dd>Border color of unfocused windows that are in free mode, default is
+      rgb:88/88/00.</dd>
+  <dt id="color_free_unfocus_maximized"><a class="permalink" href="#color_free_unfocus_maximized"><code class="Ic">color_free_unfocus_maximized</code></a></dt>
+  <dd>Border color of unfocused maximized windows that are in free mode.
+      Defaults to the value of <code class="Ic">color_free_unfocus</code>.</dd>
   <dt id="color_focus"><a class="permalink" href="#color_focus"><code class="Ic">color_focus</code></a></dt>
   <dd>Border color of the currently focused window. Default is red.</dd>
   <dt id="color_focus_maximized"><a class="permalink" href="#color_focus_maximized"><code class="Ic">color_focus_maximized</code></a></dt>
@@ -494,12 +517,16 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
       string to substitute when no window is focused. Default is ''.</dd>
   <dt id="focus_mark_normal"><a class="permalink" href="#focus_mark_normal"><code class="Ic">focus_mark_normal</code></a></dt>
   <dd>Set the <code class="Ic">bar_format</code> focus status indicator (+F)
-      string to substitute when a normal (not floating or maximized) window is
-      focused. Default is ''.</dd>
+      string to substitute when a normal (not floating, maximized or free)
+      window is focused. Default is ''.</dd>
   <dt id="focus_mark_floating"><a class="permalink" href="#focus_mark_floating"><code class="Ic">focus_mark_floating</code></a></dt>
   <dd>Set the <code class="Ic">bar_format</code> focus status indicator (+F)
       string to substitute when a floating window is focused. Default is
     '(f)'.</dd>
+  <dt id="focus_mark_free"><a class="permalink" href="#focus_mark_free"><code class="Ic">focus_mark_free</code></a></dt>
+  <dd>Set the <code class="Ic">bar_format</code> focus status indicator (+F)
+      string to substitute when a window that is in free mode is focused.
+      Default is '(*)'.</dd>
   <dt id="focus_mark_maximized"><a class="permalink" href="#focus_mark_maximized"><code class="Ic">focus_mark_maximized</code></a></dt>
   <dd>Set the <code class="Ic">bar_format</code> focus status indicator (+F)
       string to substitute when a maximized window is focused. Default is
@@ -521,7 +548,8 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
     </div>
   </dd>
   <dt id="fullscreen_hide_other"><a class="permalink" href="#fullscreen_hide_other"><code class="Ic">fullscreen_hide_other</code></a></dt>
-  <dd>When a fullscreen window is focused, hide unrelated windows on the
+  <dd>When a fullscreen window is focused and not in
+      <code class="Ic">below</code> state, hide unrelated windows in the same
       workspace. Useful for transparent windows. Defaults to 0.</dd>
   <dt id="fullscreen_unfocus"><a class="permalink" href="#fullscreen_unfocus"><code class="Ic">fullscreen_unfocus</code></a></dt>
   <dd>Set handling when a fullscreen window loses focus. Possible values:
@@ -536,6 +564,11 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
       <dd>Minimize/hide the window.</dd>
       <dt><var class="Ar">float</var></dt>
       <dd>Exit fullscreen and float window.</dd>
+      <dt><var class="Ar">below</var></dt>
+      <dd>Set <code class="Ic">below</code> state on the window.</dd>
+      <dt><var class="Ar">quick_below</var></dt>
+      <dd>Set <code class="Ic">below</code> state on the window, unset when
+          refocused.</dd>
     </dl>
     </div>
     <p class="Pp">Note that this option is ignored in max layout.</p>
@@ -585,7 +618,8 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
       hide/restore the bar visibility of the affected workspace. Defaults to
     0.</dd>
   <dt id="maximize_hide_other"><a class="permalink" href="#maximize_hide_other"><code class="Ic">maximize_hide_other</code></a></dt>
-  <dd>When a maximized window is focused, hide unrelated windows on the
+  <dd>When a maximized window is focused and not in
+      <code class="Ic">below</code> state, hide unrelated windows in the same
       workspace. Useful for transparent windows. Defaults to 0.</dd>
   <dt id="maximized_unfocus"><a class="permalink" href="#maximized_unfocus"><code class="Ic">maximized_unfocus</code></a></dt>
   <dd>Set handling when a maximized window loses focus. Possible values:
@@ -600,6 +634,11 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
       <dd>Minimize/hide the window.</dd>
       <dt><var class="Ar">float</var></dt>
       <dd>Unmaximize and float window.</dd>
+      <dt><var class="Ar">below</var></dt>
+      <dd>Set <code class="Ic">below</code> state on the window.</dd>
+      <dt><var class="Ar">quick_below</var></dt>
+      <dd>Set <code class="Ic">below</code> state on the window, unset when
+          refocused.</dd>
     </dl>
     </div>
     <p class="Pp">Note that this option is ignored in max layout.</p>
@@ -843,7 +882,7 @@ workspace_mark_current_suffix = '+@fg=0;'</pre>
   <dd>The focused window occupies the whole region, except for the bar (if
       enabled).</dd>
   <dt id="floating"><a class="permalink" href="#floating"><code class="Ic">floating</code></a></dt>
-  <dd>Windows are free to be resized and positioned, without being tiled.</dd>
+  <dd>Windows are untiled and can be resized and positioned.</dd>
 </dl>
 </section>
 <section class="Sh">
@@ -854,15 +893,25 @@ workspace_mark_current_suffix = '+@fg=0;'</pre>
     <a class="Sx" href="#BINDINGS">BINDINGS</a> section below.</p>
 <dl class="Bl-tag">
   <dt id="floating~2"><a class="permalink" href="#floating~2"><code class="Ic">floating</code></a></dt>
-  <dd>The window is mapped above others and is not in a tile; it may be freely
+  <dd>The window is stacked above others and is not in a tile; it may be freely
       resized and positioned.</dd>
+  <dt id="below"><a class="permalink" href="#below"><code class="Ic">below</code></a></dt>
+  <dd>The window is floating, but stacked below others.</dd>
   <dt id="maximized"><a class="permalink" href="#maximized"><code class="Ic">maximized</code></a></dt>
-  <dd>The window occupies the whole region, except for the bar (if enabled and
-      <code class="Ic">maximize_hide_bar</code> is 0). Focusing another window
-      removes the maximized state of the window.</dd>
+  <dd>The window occupies the work area of the region (area that excludes space
+      reserved by the bar, docks/panels, etc.) By default, focusing another
+      window removes the maximized state of the window. See
+      <code class="Ic">maximized_unfocus</code> to configure unfocused
+    behavior.</dd>
   <dt id="fullscreen"><a class="permalink" href="#fullscreen"><code class="Ic">fullscreen</code></a></dt>
-  <dd>The window occupies the whole region. Focusing another window does not
-      remove the fullscreen state of the window.</dd>
+  <dd>The window occupies the whole region. By default, focusing another window
+      does not remove the fullscreen state of the window. See
+      <code class="Ic">fullscreen_unfocus</code> to configure unfocused
+      behavior.</dd>
+  <dt id="free"><a class="permalink" href="#free"><code class="Ic">free</code></a></dt>
+  <dd>The window is floating, but not bound by regions, workspaces or their
+      layouts. It is always mapped, unless iconified, and may be resized and
+      positioned anywhere.</dd>
 </dl>
 </section>
 <section class="Sh">
@@ -1028,6 +1077,8 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dd>focus_prev</dd>
   <dt id="M-m"><a class="permalink" href="#M-m"><code class="Cm">M-m</code></a></dt>
   <dd>focus_main</dd>
+  <dt><code class="Cm">M-`</code></dt>
+  <dd>focus_free</dd>
   <dt id="M-S-a"><a class="permalink" href="#M-S-a"><code class="Cm">M-S-a</code></a></dt>
   <dd>focus_prior</dd>
   <dt id="M-u"><a class="permalink" href="#M-u"><code class="Cm">M-u</code></a></dt>
@@ -1092,6 +1143,10 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dd>version</dd>
   <dt id="M-t"><a class="permalink" href="#M-t"><code class="Cm">M-t</code></a></dt>
   <dd>float_toggle</dd>
+  <dt id="M-S-t"><a class="permalink" href="#M-S-t"><code class="Cm">M-S-t</code></a></dt>
+  <dd>below_toggle</dd>
+  <dt><code class="Cm">M-S-`</code></dt>
+  <dd>free_toggle</dd>
   <dt id="M-S-~10"><a class="permalink" href="#M-S-~10"><code class="Cm">M-S-</code></a>&#x27E8;<code class="Cm">Delete</code>&#x27E9;</dt>
   <dd>lock</dd>
   <dt id="M-S-i"><a class="permalink" href="#M-S-i"><code class="Cm">M-S-i</code></a></dt>
@@ -1202,6 +1257,8 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dd>Focus on main window in workspace.</dd>
   <dt id="focus_prior"><a class="permalink" href="#focus_prior"><code class="Cm">focus_prior</code></a></dt>
   <dd>Focus last focused window in workspace.</dd>
+  <dt id="focus_free"><a class="permalink" href="#focus_free"><code class="Cm">focus_free</code></a></dt>
+  <dd>Focus on a window in free mode, if any.</dd>
   <dt id="focus_urgent"><a class="permalink" href="#focus_urgent"><code class="Cm">focus_urgent</code></a></dt>
   <dd>Focus on next window with the urgency hint flag set. The workspace is
       switched if needed.</dd>
@@ -1270,6 +1327,10 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dd>Toggle version in status bar.</dd>
   <dt id="float_toggle"><a class="permalink" href="#float_toggle"><code class="Cm">float_toggle</code></a></dt>
   <dd>Toggle focused window between tiled and floating.</dd>
+  <dt id="below_toggle"><a class="permalink" href="#below_toggle"><code class="Cm">below_toggle</code></a></dt>
+  <dd>Toggle <code class="Ic">below</code> state on current window.</dd>
+  <dt id="free_toggle"><a class="permalink" href="#free_toggle"><code class="Cm">free_toggle</code></a></dt>
+  <dd>Toggle focused window between workspace mode and free mode.</dd>
   <dt id="lock~2"><a class="permalink" href="#lock~2"><code class="Cm">lock</code></a></dt>
   <dd>Lock screen (see <a class="Sx" href="#PROGRAMS">PROGRAMS</a> above).</dd>
   <dt id="initscr~2"><a class="permalink" href="#initscr~2"><code class="Cm">initscr</code></a></dt>
@@ -1497,7 +1558,9 @@ bind[move] = MOD+Button3</pre>
       <code class="Ic">dialog_ratio</code> (see
       <a class="Sx" href="#CONFIGURATION_FILES">CONFIGURATION FILES</a>).</dd>
   <dt>WS[<var class="Ar">n</var>]</dt>
-  <dd>Force a new window to appear on workspace <var class="Ar">n</var>.</dd>
+  <dd>Force a new window to appear on workspace <var class="Ar">n</var>. Specify
+      -1 to put the window into free mode so that it is mapped independent of
+      workspaces and regions.</dd>
   <dt>XTERM_FONTADJ</dt>
   <dd>Adjust <a class="Xr">xterm(1)</a> fonts when resizing.</dd>
 </dl>
@@ -1684,7 +1747,7 @@ $ xprop -id $WINDOWID _NET_WM_NAME | grep -o &quot;\&quot;.*\&quot;&quot;</pre>
 </div>
 <table class="foot">
   <tr>
-    <td class="foot-date">April 21, 2023</td>
+    <td class="foot-date">October 15, 2023</td>
   </tr>
 </table>
 </body>
