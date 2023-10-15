@@ -1,6 +1,6 @@
 .\" Copyright (c) 2009-2012 Marco Peereboom <marco@peereboom.us>
 .\" Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
-.\" Copyright (c) 2011-2022 Reginald Kennedy <rk@rejii.com>
+.\" Copyright (c) 2011-2023 Reginald Kennedy <rk@rejii.com>
 .\" Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
 .\" Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
 .\" Copyright (c) 2012 David Hill <dhill@mindcry.org>
@@ -17,7 +17,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: April 21 2023 $
+.Dd $Mdocdate: October 15 2023 $
 .Dt SPECTRWM 1
 .Os
 .Sh NAME
@@ -118,7 +118,7 @@ Colors need to be specified per the
 .Xr XQueryColor 3
 specification.
 In addition, alpha transparency may be specified via the format
-.Li rbga: Ns Ar red Ns / Ns Ar green Ns / Ns Ar blue Ns / Ns Ar alpha
+.Li rbga : Ns Ar red Ns / Ns Ar green Ns / Ns Ar blue Ns / Ns Ar alpha
 (8-bit hex values)
 For example, to specify a 50% transparent blue status bar background:
 .Pp
@@ -146,6 +146,10 @@ Defined in the format
 e.g. ws[2]:xterm launches an
 .Xr xterm 1
 in workspace 2.
+Specify
+.Sq ws[-1]
+to launch applications such as desktop managers and panels in free mode to keep
+them always mapped.
 .Pp
 Note that workspace mapping is handled via
 .Pa libswmhack.so .
@@ -188,12 +192,20 @@ character sequences in
 output; default is 0.
 .It Ic bar_at_bottom
 Place the statusbar at the bottom of each region instead of the top.
+Default is 0.
 .It Ic bar_border Ns Bq Ar x
 Border color of status bar(s) on screen number
 .Ar x .
+Default is rgb:00/80/80.
+.It Ic bar_border_free Ns Bq Ar x
+Border color of a status bar for a focused region on screen number
+.Ar x
+when a workspace-free window is focused.
+Default is rgb:80/80/00.
 .It Ic bar_border_unfocus Ns Bq Ar x
 Border color of status bar(s) for unfocused region(s) on screen number
 .Ar x .
+Default is rgb:00/40/40.
 .It Ic bar_border_width
 Set status bar border thickness in pixels.
 Disable border by setting to 0.
@@ -207,6 +219,15 @@ Any of these colors can then be selected as a background color in the status
 bar through the use of the markup sequence
 .Ic +@bg=n;\&
 where n is between 0 and 9.
+.It Ic bar_color_free Ns Bq Ar x
+Background color of a status bar for a focused region on screen number
+.Ar x
+when a workspace-free window is focused.
+.Pp
+A comma separated list of up to 10 colors can be specified, with the same
+syntax and behavior as
+.Ic bar_color .
+Default is rgb:40/40/00.
 .It Ic bar_color_unfocus Ns Bq Ar x
 Background color of status bar(s) for unfocused region(s) on screen number
 .Ar x .
@@ -415,11 +436,27 @@ Set region containment boundary width in pixels.
 This is how far a window must be dragged/resized (with the pointer) beyond the
 region edge before it is allowed outside the region.
 Disable the window containment effect by setting to 0.
+.It Ic click_to_raise
+Enable or disable raising stacking priority when clicking on a window.
+Default is 1.
 .It Ic clock_enabled
 Enable or disable displaying the clock in the status bar.
 Disable by setting to 0 so a custom clock could be used in the
 .Ic bar_action
 script.
+.It Ic color_free_focus
+Border color of the currently focused window that is in free mode.
+Default is yellow.
+.It Ic color_free_focus_maximized
+Border color of the currently focused maximized window that is in free mode.
+Defaults to the value of
+.Ic color_free_focus .
+.It Ic color_free_unfocus
+Border color of unfocused windows that are in free mode, default is rgb:88/88/00.
+.It Ic color_free_unfocus_maximized
+Border color of unfocused maximized windows that are in free mode.
+Defaults to the value of
+.Ic color_free_unfocus .
 .It Ic color_focus
 Border color of the currently focused window.
 Default is red.
@@ -498,8 +535,8 @@ Default is ''.
 .It Ic focus_mark_normal
 Set the
 .Ic bar_format
-focus status indicator (+F) string to substitute when a normal (not floating or
-maximized) window is focused.
+focus status indicator (+F) string to substitute when a normal (not floating,
+maximized or free) window is focused.
 Default is ''.
 .It Ic focus_mark_floating
 Set the
@@ -507,6 +544,12 @@ Set the
 focus status indicator (+F) string to substitute when a floating window is
 focused.
 Default is '(f)'.
+.It Ic focus_mark_free
+Set the
+.Ic bar_format
+focus status indicator (+F) string to substitute when a window that is in
+free mode is focused.
+Default is '(*)'.
 .It Ic focus_mark_maximized
 Set the
 .Ic bar_format
@@ -528,14 +571,16 @@ and changes to layout.
 Set window focus on window interaction only.
 .El
 .It Ic fullscreen_hide_other
-When a fullscreen window is focused, hide unrelated windows on the workspace.
+When a fullscreen window is focused and not in
+.Ic below
+state, hide unrelated windows in the same workspace.
 Useful for transparent windows.
 Defaults to 0.
 .It Ic fullscreen_unfocus
 Set handling when a fullscreen window loses focus.
 Possible values:
 .Pp
-.Bl -tag -width "default" -offset indent -compact
+.Bl -tag -width "quick_belowXXX" -offset indent -compact
 .It Ar none
 Leave window fullscreen.
 (default)
@@ -545,6 +590,14 @@ Exit fullscreen.
 Minimize/hide the window.
 .It Ar float
 Exit fullscreen and float window.
+.It Ar below
+Set
+.Ic below
+state on the window.
+.It Ar quick_below
+Set
+.Ic below
+state on the window, unset when refocused.
 .El
 .Pp
 Note that this option is ignored in max layout.
@@ -615,14 +668,16 @@ When set to 1,
 will also hide/restore the bar visibility of the affected workspace.
 Defaults to 0.
 .It Ic maximize_hide_other
-When a maximized window is focused, hide unrelated windows on the workspace.
+When a maximized window is focused and not in
+.Ic below
+state, hide unrelated windows in the same workspace.
 Useful for transparent windows.
 Defaults to 0.
 .It Ic maximized_unfocus
 Set handling when a maximized window loses focus.
 Possible values:
 .Pp
-.Bl -tag -width "default" -offset indent -compact
+.Bl -tag -width "quick_belowXXX" -offset indent -compact
 .It Ar none
 Leave window maximized.
 .It Ar restore
@@ -632,6 +687,14 @@ Unmaximize window.
 Minimize/hide the window.
 .It Ar float
 Unmaximize and float window.
+.It Ar below
+Set
+.Ic below
+state on the window.
+.It Ar quick_below
+Set
+.Ic below
+state on the window, unset when refocused.
 .El
 .Pp
 Note that this option is ignored in max layout.
@@ -951,7 +1014,7 @@ Same as above but stack and master areas are swapped.
 .It Ic max
 The focused window occupies the whole region, except for the bar (if enabled).
 .It Ic floating
-Windows are free to be resized and positioned, without being tiled.
+Windows are untiled and can be resized and positioned.
 .El
 .Sh WINDOW STATES
 These can be set/unset by the corresponding
@@ -961,16 +1024,28 @@ actions listed in the
 section below.
 .Bl -tag -width "fullscreen"
 .It Ic floating
-The window is mapped above others and is not in a tile;
+The window is stacked above others and is not in a tile;
 it may be freely resized and positioned.
+.It Ic below
+The window is floating, but stacked below others.
 .It Ic maximized
-The window occupies the whole region, except for the bar
-(if enabled and
-.Ic maximize_hide_bar
-is 0). Focusing another window removes the maximized state of the window.
+The window occupies the work area of the region (area that excludes space
+reserved by the bar, docks/panels, etc.)
+By default, focusing another window removes the maximized state of the window.
+See
+.Ic maximized_unfocus
+to configure unfocused behavior.
 .It Ic fullscreen
 The window occupies the whole region.
-Focusing another window does not remove the fullscreen state of the window.
+By default, focusing another window does not remove the fullscreen state of the
+window.
+See
+.Ic fullscreen_unfocus
+to configure unfocused behavior.
+.It Ic free
+The window is floating, but not bound by regions, workspaces or their layouts.
+It is always mapped, unless iconified, and may be resized and positioned
+anywhere.
 .El
 .Sh PROGRAMS
 .Nm
@@ -1141,6 +1216,8 @@ focus_next
 focus_prev
 .It Cm M-m
 focus_main
+.It Cm M-\(ga
+focus_free
 .It Cm M-S-a
 focus_prior
 .It Cm M-u
@@ -1203,6 +1280,10 @@ screenshot_wind
 version
 .It Cm M-t
 float_toggle
+.It Cm M-S-t
+below_toggle
+.It Cm M-S-\(ga
+free_toggle
 .It Cm M-S- Ns Aq Cm Delete
 lock
 .It Cm M-S-i
@@ -1320,6 +1401,8 @@ Focus previous window in workspace.
 Focus on main window in workspace.
 .It Cm focus_prior
 Focus last focused window in workspace.
+.It Cm focus_free
+Focus on a window in free mode, if any.
 .It Cm focus_urgent
 Focus on next window with the urgency hint flag set.
 The workspace is switched if needed.
@@ -1403,6 +1486,12 @@ above).
 Toggle version in status bar.
 .It Cm float_toggle
 Toggle focused window between tiled and floating.
+.It Cm below_toggle
+Toggle
+.Ic below
+state on current window.
+.It Cm free_toggle
+Toggle focused window between workspace mode and free mode.
 .It Cm lock
 Lock screen (see
 .Sx PROGRAMS
@@ -1656,6 +1745,8 @@ Adjusts size on transient windows that are too small using
 .It WS Ns Bq Ar n
 Force a new window to appear on workspace
 .Ar n .
+Specify -1 to put the window into free mode so that it is mapped independent
+of workspaces and regions.
 .It XTERM_FONTADJ
 Adjust
 .Xr xterm 1
