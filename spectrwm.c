@@ -3151,9 +3151,8 @@ debug_refresh(struct ws_win *win)
 			for (i = 0; i < rows; i++)
 				DRAWSTRING(display,
 				    win->debug, bar_fs, l_draw, 2,
-				    (bar_fs_extents->max_logical_extent.height -
-				    l_lbox.height) / 2 - l_lbox.y + height * i,
-				    s[i], len[i]);
+				    (height - l_lbox.height) / 2 - l_lbox.y +
+				    height * i + 1, s[i], len[i]);
 
 			XFreeGC(display, l_draw);
 		} else {
@@ -3162,10 +3161,10 @@ debug_refresh(struct ws_win *win)
 
 			for (i = 0; i < rows; i++)
 				XftDrawStringUtf8(draw, &bar_fg_colors[0],
-				    win->s->bar_xftfonts[0], 2, (bar_height +
+				    win->s->bar_xftfonts[0], 2, (height +
 				    win->s->bar_xftfonts[0]->height) / 2 -
 				    win->s->bar_xftfonts[0]->descent +
-				    height * i, (FcChar8 *)s[i], len[i]);
+				    height * i + 1, (FcChar8 *)s[i], len[i]);
 
 			XftDrawDestroy(draw);
 		}
@@ -8861,7 +8860,7 @@ create_search_win(struct ws_win *win, int index)
 
 		DRAWSTRING(display, w, bar_fs, l_draw, 2,
 		    (bar_fs_extents->max_logical_extent.height -
-		    l_lbox.height) / 2 - l_lbox.y, str, len);
+		    l_lbox.height) / 2 - l_lbox.y + 2, str, len);
 
 		XFreeGC(display, l_draw);
 	} else {
@@ -8869,8 +8868,7 @@ create_search_win(struct ws_win *win, int index)
 		    win->s->colormap);
 
 		XftDrawStringUtf8(draw, &search_font_color,
-		    win->s->bar_xftfonts[0], 2, (bar_height +
-		    win->s->bar_xftfonts[0]->height) / 2 -
+		    win->s->bar_xftfonts[0], 2, height - 2 -
 		    win->s->bar_xftfonts[0]->descent,
 		    (FcChar8 *)str, len);
 
@@ -8889,6 +8887,7 @@ search_win(struct swm_screen *s, struct binding *bp, union arg *args)
 	struct ws_win		*win = NULL;
 	int			i;
 	FILE			*lfile;
+	char			*title;
 
 	/* Suppress warning. */
 	(void)bp;
@@ -8917,7 +8916,10 @@ search_win(struct swm_screen *s, struct binding *bp, union arg *args)
 			return;
 		}
 
-		fprintf(lfile, "%d\n", i);
+		title = get_win_name(win->id);
+		fprintf(lfile, "%d%s%s\n", i, (title ? ":" : ""),
+		    (title ? title : ""));
+		free(title);
 		i++;
 	}
 	/* Tack on 'free' wins. */
@@ -8931,7 +8933,10 @@ search_win(struct swm_screen *s, struct binding *bp, union arg *args)
 			return;
 		}
 
-		fprintf(lfile, "%d\n", i);
+		title = get_win_name(win->id);
+		fprintf(lfile, "%d%s%s\n", i, (title ? ":" : ""),
+		    (title ? title : ""));
+		free(title);
 		i++;
 	}
 
@@ -9267,7 +9272,7 @@ search_resp_search_workspace(const char *resp)
 void
 search_resp_search_window(const char *resp)
 {
-	char			*s;
+	char			*s, *p;
 	int			idx;
 	const char		*errstr;
 	struct search_window	*sw;
@@ -9279,7 +9284,9 @@ search_resp_search_window(const char *resp)
 		DNPRINTF(SWM_D_MISC, "strdup: %s", strerror(errno));
 		return;
 	}
-
+	p = strchr(s, ':');
+	if (p != NULL)
+		*p = '\0';
 	idx = (int)strtonum(s, 1, INT_MAX, &errstr);
 	if (errstr) {
 		DNPRINTF(SWM_D_MISC, "window idx is %s: %s", errstr, s);
