@@ -158,6 +158,8 @@
       the format
       <code class="Li">ws</code>[<var class="Ar">idx</var>]:<var class="Ar">application</var>,
       e.g. ws[2]:xterm launches an <a class="Xr">xterm(1)</a> in workspace 2.
+      Specify &#x2018;ws[-1]&#x2019; to launch applications such as desktop
+      managers and panels in free mode to keep them always mapped.
     <p class="Pp">Note that workspace mapping is handled via
         <span class="Pa">libswmhack.so</span>. When
         <code class="Ic">autorun</code> spawns windows via a daemon, ensure the
@@ -186,16 +188,18 @@ quirk[XTerm:ws2] = WS[2]</pre>
   <dd>Process <code class="Ic">bar_format</code> character sequences in
       <code class="Ic">bar_action</code> output; default is 0.</dd>
   <dt id="bar_at_bottom"><a class="permalink" href="#bar_at_bottom"><code class="Ic">bar_at_bottom</code></a></dt>
-  <dd>Place the statusbar at the bottom of each region instead of the top.</dd>
+  <dd>Place the statusbar at the bottom of each region instead of the top.
+      Default is 0.</dd>
   <dt id="bar_border"><a class="permalink" href="#bar_border"><code class="Ic">bar_border</code></a>[<var class="Ar">x</var>]</dt>
-  <dd>Border color of status bar(s) on screen number
-    <var class="Ar">x</var>.</dd>
+  <dd>Border color of status bar(s) on screen number <var class="Ar">x</var>.
+      Default is rgb:00/80/80.</dd>
   <dt id="bar_border_free"><a class="permalink" href="#bar_border_free"><code class="Ic">bar_border_free</code></a>[<var class="Ar">x</var>]</dt>
   <dd>Border color of a status bar for a focused region on screen number
-      <var class="Ar">x</var> when a workspace-free window is focused.</dd>
+      <var class="Ar">x</var> when a workspace-free window is focused. Default
+      is rgb:80/80/00.</dd>
   <dt id="bar_border_unfocus"><a class="permalink" href="#bar_border_unfocus"><code class="Ic">bar_border_unfocus</code></a>[<var class="Ar">x</var>]</dt>
   <dd>Border color of status bar(s) for unfocused region(s) on screen number
-      <var class="Ar">x</var>.</dd>
+      <var class="Ar">x</var>. Default is rgb:00/40/40.</dd>
   <dt id="bar_border_width"><a class="permalink" href="#bar_border_width"><code class="Ic">bar_border_width</code></a></dt>
   <dd>Set status bar border thickness in pixels. Disable border by setting to
     0.</dd>
@@ -212,8 +216,8 @@ quirk[XTerm:ws2] = WS[2]</pre>
   <dd>Background color of a status bar for a focused region on screen number
       <var class="Ar">x</var> when a workspace-free window is focused.
     <p class="Pp">A comma separated list of up to 10 colors can be specified,
-        with the same syntax and behavior as
-      <code class="Ic">bar_color</code>.</p>
+        with the same syntax and behavior as <code class="Ic">bar_color</code>.
+        Default is rgb:40/40/00.</p>
   </dd>
   <dt id="bar_color_unfocus"><a class="permalink" href="#bar_color_unfocus"><code class="Ic">bar_color_unfocus</code></a>[<var class="Ar">x</var>]</dt>
   <dd>Background color of status bar(s) for unfocused region(s) on screen number
@@ -450,6 +454,15 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
       must be dragged/resized (with the pointer) beyond the region edge before
       it is allowed outside the region. Disable the window containment effect by
       setting to 0.</dd>
+  <dt id="cancelkey"><a class="permalink" href="#cancelkey"><code class="Ic">cancelkey</code></a></dt>
+  <dd>Change the key used as an alternative means of terminating move/resize
+      operations. Default is Escape.
+    <p class="Pp">See the <a class="Sx" href="#BINDINGS">BINDINGS</a> section
+        below for details on how to find key names.</p>
+  </dd>
+  <dt id="click_to_raise"><a class="permalink" href="#click_to_raise"><code class="Ic">click_to_raise</code></a></dt>
+  <dd>Enable or disable raising stacking priority when clicking on a window.
+      Default is 1.</dd>
   <dt id="clock_enabled"><a class="permalink" href="#clock_enabled"><code class="Ic">clock_enabled</code></a></dt>
   <dd>Enable or disable displaying the clock in the status bar. Disable by
       setting to 0 so a custom clock could be used in the
