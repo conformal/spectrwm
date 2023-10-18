@@ -297,6 +297,8 @@ uint32_t		swm_debug = 0
 #define MAX_X(r)		(X(r) + WIDTH(r))
 #define MAX_Y(r)		(Y(r) + HEIGHT(r))
 
+#define SH_POS(w)		((w)->sh.flags & XCB_ICCCM_SIZE_HINT_P_POSITION)
+#define SH_UPOS(w)		((w)->sh.flags & XCB_ICCCM_SIZE_HINT_US_POSITION)
 #define SH_MIN(w)		((w)->sh.flags & XCB_ICCCM_SIZE_HINT_P_MIN_SIZE)
 #define SH_MIN_W(w)		((w)->sh.min_width)
 #define SH_MIN_H(w)		((w)->sh.min_height)
@@ -6577,6 +6579,9 @@ switch_workspace(struct swm_region *r, struct workspace *ws, bool noclamp)
 	if (r == NULL || ws == NULL)
 		return;
 
+	if (rg_root(r) || ws_root(ws))
+		return;
+
 	s = r->s;
 	old_ws = r->ws;
 	if (old_ws == ws) {
@@ -7224,7 +7229,7 @@ focus(struct swm_screen *s, struct binding *bp, union arg *args)
 	struct ws_win		*head, *cur_focus = NULL, *winfocus = NULL;
 	struct ws_win_list	*wl = NULL;
 	struct workspace	*ws, *cws, *wws;
-	int			i, wincount;
+	int			i, d, wincount;
 
 	if ((r = get_current_region(s)) == NULL)
 		return;
@@ -7311,11 +7316,12 @@ focus(struct swm_screen *s, struct binding *bp, union arg *args)
 		/* Search forward for the next urgent window. */
 		winfocus = NULL;
 		head = cur_focus;
+		d = cws ? cws->idx : ws->idx;
 
 		for (i = 0; i <= workspace_limit; ++i) {
 			if (head == NULL) {
-				wws = workspace_lookup(s, (ws->idx + i) %
-				    workspace_limit);
+				wws = workspace_lookup(s,
+				    (d + i + 1) % (workspace_limit + 1) - 1);
 				if (wws)
 					head = TAILQ_FIRST(&wws->winlist);
 			}
@@ -7323,7 +7329,7 @@ focus(struct swm_screen *s, struct binding *bp, union arg *args)
 			while (head) {
 				if (head == cur_focus) {
 					if (i > 0) {
-						winfocus = cur_focus;
+						winfocus = NULL;
 						break;
 					}
 				} else if (win_urgent(head)) {
@@ -7339,7 +7345,7 @@ focus(struct swm_screen *s, struct binding *bp, union arg *args)
 		}
 
 		/* Switch ws if new focus is on a different ws. */
-		if (winfocus && winfocus->ws != ws)
+		if (winfocus && winfocus->ws != ws && !ws_root(winfocus->ws))
 			switch_workspace(r, winfocus->ws,
 			    (bp && bp->flags & FN_F_NOCLAMP));
 		break;
@@ -7696,7 +7702,8 @@ update_floater(struct ws_win *win)
 				constrained = true;
 			}
 
-			if (!(win->quirks & SWM_Q_ANYWHERE) && !WINDOCK(win)) {
+			if (!(win->quirks & SWM_Q_ANYWHERE) && !WINDOCK(win)
+			    && !WINDESKTOP(win)) {
 				/*
 				 * Floaters and transients are auto-centred
 				 * unless manually moved, resized or ANYWHERE
@@ -10267,7 +10274,7 @@ regionize(struct ws_win *win, int x, int y)
 		win->g_float.y -= win->g_grav.y;
 		win->g_floatref = r->g;
 
-		if (ws_floating(r->ws))
+		if (!ws_floating(r->ws))
 			win->ewmh_flags |= EWMH_F_ABOVE;
 
 		r_orig = win->ws->r;
@@ -13830,8 +13837,9 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	/* Remove any _SWM_WS now that we set _NET_WM_DESKTOP. */
 	xcb_delete_property(conn, win->id, a_swm_ws);
 
-	/* Assume a non-zero initial position is valid. */
-	if (ws_floating(win->ws) && (X(win) || Y(win)))
+	/* Initial position was specified by the program/user. */
+	if ((SH_POS(win) && (win->quirks & SWM_Q_ANYWHERE || WINDOCK(win) ||
+	    WINDESKTOP(win) || ws_floating(win->ws))) || SH_UPOS(win))
 		win->g_float_xy_valid = true;
 
 	if (win->ws->r) {
