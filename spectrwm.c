@@ -9804,7 +9804,7 @@ void
 draw_frame(struct ws_win *win)
 {
 	xcb_point_t		points[5];
-	uint32_t		*pixel;
+	uint32_t		gcv[2];
 
 	if (win == NULL)
 		return;
@@ -9820,22 +9820,22 @@ draw_frame(struct ws_win *win)
 
 	if (win_focused(win)) {
 		if (win_free(win))
-			pixel = MAXIMIZED(win) ?
-			    &win->s->c[SWM_S_COLOR_FOCUS_MAXIMIZED_FREE].pixel
-			    : &win->s->c[SWM_S_COLOR_FOCUS_FREE].pixel;
+			gcv[0] = MAXIMIZED(win) ?
+			    win->s->c[SWM_S_COLOR_FOCUS_MAXIMIZED_FREE].pixel
+			    : win->s->c[SWM_S_COLOR_FOCUS_FREE].pixel;
 		else
-			pixel = MAXIMIZED(win) ?
-			    &win->s->c[SWM_S_COLOR_FOCUS_MAXIMIZED].pixel :
-			    &win->s->c[SWM_S_COLOR_FOCUS].pixel;
+			gcv[0] = MAXIMIZED(win) ?
+			    win->s->c[SWM_S_COLOR_FOCUS_MAXIMIZED].pixel :
+			    win->s->c[SWM_S_COLOR_FOCUS].pixel;
 	} else {
 		if (win_free(win))
-			pixel = MAXIMIZED(win) ?
-			    &win->s->c[SWM_S_COLOR_UNFOCUS_MAXIMIZED_FREE].pixel
-			    : &win->s->c[SWM_S_COLOR_UNFOCUS_FREE].pixel;
+			gcv[0] = MAXIMIZED(win) ?
+			    win->s->c[SWM_S_COLOR_UNFOCUS_MAXIMIZED_FREE].pixel
+			    : win->s->c[SWM_S_COLOR_UNFOCUS_FREE].pixel;
 		else
-			pixel = MAXIMIZED(win) ?
-			    &win->s->c[SWM_S_COLOR_UNFOCUS_MAXIMIZED].pixel
-			    : &win->s->c[SWM_S_COLOR_UNFOCUS].pixel;
+			gcv[0] = MAXIMIZED(win) ?
+			    win->s->c[SWM_S_COLOR_UNFOCUS_MAXIMIZED].pixel
+			    : win->s->c[SWM_S_COLOR_UNFOCUS].pixel;
 	}
 
 	points[0].x = points[0].y = border_width / 2;
@@ -9846,8 +9846,10 @@ draw_frame(struct ws_win *win)
 	points[3].x = points[0].x;
 	points[3].y = points[2].y;
 	points[4] = points[0];
+	gcv[1] = border_width;
 
-	xcb_change_gc(conn, win->s->gc, XCB_GC_FOREGROUND, pixel);
+	xcb_change_gc(conn, win->s->gc, XCB_GC_FOREGROUND | XCB_GC_LINE_WIDTH,
+	    gcv);
 	xcb_poly_line(conn, XCB_COORD_MODE_ORIGIN, win->frame, win->s->gc, 5,
 	    points);
 }
