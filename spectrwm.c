@@ -282,6 +282,8 @@ uint32_t		swm_debug = 0
 #define BUTTONMASK		(XCB_EVENT_MASK_BUTTON_PRESS |		\
     XCB_EVENT_MASK_BUTTON_RELEASE)
 #define MOUSEMASK		(BUTTONMASK|XCB_EVENT_MASK_POINTER_MOTION)
+#define CANCELKEY		XK_Escape
+
 #define SWM_PROPLEN		(16)
 #define SWM_FUNCNAME_LEN	(32)
 #define SWM_QUIRK_LEN		(64)
@@ -367,6 +369,8 @@ uint32_t		swm_debug = 0
 
 #define SWM_CONF_DEFAULT	(0)
 #define SWM_CONF_KEYMAPPING	(1)
+#define SWM_CONF_DELIMLIST	","
+#define SWM_CONF_WHITESPACE	" \t\n"
 
 #ifndef SWM_LIB
 #define SWM_LIB			"/usr/local/lib/libswmhack.so"
@@ -407,6 +411,8 @@ bool			cycle_visible = false;
 int			term_width = 0;
 int			font_adjusted = 0;
 uint16_t		mod_key = MODKEY;
+xcb_keysym_t		cancel_key = CANCELKEY;
+xcb_keycode_t		cancel_keycode = XCB_NO_SYMBOL;
 bool			warp_focus = false;
 bool			warp_pointer = false;
 bool			workspace_autorotate = false;
@@ -1016,6 +1022,7 @@ enum {
 	_NET_WM_ALLOWED_ACTIONS,
 	_NET_WM_DESKTOP,
 	_NET_WM_FULL_PLACEMENT,
+	_NET_WM_MOVERESIZE,
 	_NET_WM_NAME,
 	_NET_WM_STATE,
 	_NET_WM_STATE_MAXIMIZED_VERT,
@@ -1073,6 +1080,7 @@ struct ewmh_hint {
     {"_NET_WM_ALLOWED_ACTIONS", XCB_ATOM_NONE},
     {"_NET_WM_DESKTOP", XCB_ATOM_NONE},
     {"_NET_WM_FULL_PLACEMENT", XCB_ATOM_NONE},
+    {"_NET_WM_MOVERESIZE", XCB_ATOM_NONE},
     {"_NET_WM_NAME", XCB_ATOM_NONE},
     {"_NET_WM_STATE", XCB_ATOM_NONE},
     {"_NET_WM_STATE_MAXIMIZED_VERT", XCB_ATOM_NONE},
@@ -1112,15 +1120,34 @@ enum {
 	EWMH_SOURCE_TYPE_OTHER = 2,
 };
 
+enum {
+	EWMH_WM_MOVERESIZE_SIZE_TOPLEFT = 0,
+	EWMH_WM_MOVERESIZE_SIZE_TOP = 1,
+	EWMH_WM_MOVERESIZE_SIZE_TOPRIGHT = 2,
+	EWMH_WM_MOVERESIZE_SIZE_RIGHT = 3,
+	EWMH_WM_MOVERESIZE_SIZE_BOTTOMRIGHT = 4,
+	EWMH_WM_MOVERESIZE_SIZE_BOTTOM = 5,
+	EWMH_WM_MOVERESIZE_SIZE_BOTTOMLEFT = 6,
+	EWMH_WM_MOVERESIZE_SIZE_LEFT = 7,
+	EWMH_WM_MOVERESIZE_MOVE = 8,
+	EWMH_WM_MOVERESIZE_SIZE_KEYBOARD = 9,
+	EWMH_WM_MOVERESIZE_MOVE_KEYBOARD = 10,
+	EWMH_WM_MOVERESIZE_CANCEL = 11,
+};
+
 /* Cursors */
 enum {
 	XC_FLEUR,
-	XC_LEFT_PTR,
 	XC_BOTTOM_LEFT_CORNER,
 	XC_BOTTOM_RIGHT_CORNER,
+	XC_BOTTOM_SIDE,
+	XC_LEFT_PTR,
+	XC_LEFT_SIDE,
+	XC_RIGHT_SIDE,
 	XC_SIZING,
 	XC_TOP_LEFT_CORNER,
 	XC_TOP_RIGHT_CORNER,
+	XC_TOP_SIDE,
 	XC_MAX
 };
 
@@ -1130,12 +1157,16 @@ struct cursors {
 	xcb_cursor_t	cid;
 } cursors[XC_MAX] =	{
 	{"fleur", XC_fleur, XCB_CURSOR_NONE},
-	{"left_ptr", XC_left_ptr, XCB_CURSOR_NONE},
 	{"bottom_left_corner", XC_bottom_left_corner, XCB_CURSOR_NONE},
 	{"bottom_right_corner", XC_bottom_right_corner, XCB_CURSOR_NONE},
+	{"bottom_side", XC_bottom_side, XCB_CURSOR_NONE},
+	{"left_ptr", XC_left_ptr, XCB_CURSOR_NONE},
+	{"left_side", XC_left_side, XCB_CURSOR_NONE},
+	{"right_side", XC_right_side, XCB_CURSOR_NONE},
 	{"sizing", XC_sizing, XCB_CURSOR_NONE},
 	{"top_left_corner", XC_top_left_corner, XCB_CURSOR_NONE},
 	{"top_right_corner", XC_top_right_corner, XCB_CURSOR_NONE},
+	{"top_side", XC_top_side, XCB_CURSOR_NONE},
 };
 
 #define SWM_TEXTFRAGS_MAX		(SWM_BAR_MAX/4)
@@ -1337,9 +1368,7 @@ enum binding_type {
 	BTNBIND
 };
 
-enum {
-	BINDING_F_REPLAY = 0x1,
-};
+#define BINDING_F_REPLAY	(0x1)
 
 struct binding {
 	RB_ENTRY(binding)	entry;
@@ -1481,7 +1510,6 @@ void	 fullscreen_toggle(struct swm_screen *, struct binding *, union arg *);
 xcb_atom_t	 get_atom_from_string(const char *);
 const char	*get_atom_label(xcb_atom_t);
 char	*get_atom_name(xcb_atom_t);
-xcb_keycode_t	 get_binding_keycode(struct binding *);
 int		 get_character_font(struct swm_screen *, FcChar32, int);
 struct swm_geometry	 get_boundary(struct ws_win *);
 struct swm_region	*get_current_region(struct swm_screen *);
@@ -1494,8 +1522,10 @@ const char	*get_input_event_label(xcb_ge_generic_event_t *);
 #endif
 xcb_window_t	 get_input_focus(void);
 xcb_atom_t	 get_intern_atom(const char *);
+xcb_keycode_t	 get_keysym_keycode(xcb_keysym_t);
 struct ws_win	*get_main_window(struct workspace *);
 const char	*get_mapping_notify_label(uint8_t);
+const char	*get_moveresize_direction_label(uint32_t);
 xcb_generic_event_t	*get_next_event(bool);
 const char	*get_notify_detail_label(uint8_t);
 const char	*get_notify_mode_label(uint8_t);
@@ -1511,6 +1541,7 @@ const struct xcb_setup_t	*get_setup(void);
 const char	*get_source_type_label(uint32_t);
 const char	*get_stack_mode_label(uint8_t);
 const char	*get_state_mask_label(uint16_t);
+xcb_keysym_t	 get_string_keysym(const char *);
 int32_t	 get_swm_ws(xcb_window_t);
 const char	*get_win_input_model_label(struct ws_win *);
 char	*get_win_name(xcb_window_t);
@@ -1548,6 +1579,9 @@ void	 maximize_toggle(struct swm_screen *, struct binding *, union arg *);
 void	 motionnotify(xcb_motion_notify_event_t *);
 void	 move(struct swm_screen *, struct binding *, union arg *);
 void	 move_win(struct ws_win *, struct binding *, int);
+void	 move_win_pointer(struct ws_win *, struct binding *, uint32_t,
+	     uint32_t);
+void	 moveresize_win(struct ws_win *, xcb_client_message_event_t *);
 void	 name_workspace(struct swm_screen *, struct binding *, union arg *);
 void	 new_region(struct swm_screen *, int16_t, int16_t, uint16_t, uint16_t,
 	     uint16_t);
@@ -1588,6 +1622,8 @@ int	 reparent_window(struct ws_win *);
 void	 reparentnotify(xcb_reparent_notify_event_t *);
 void	 resize(struct swm_screen *, struct binding *, union arg *);
 void	 resize_win(struct ws_win *, struct binding *, int);
+void	 resize_win_pointer(struct ws_win *, struct binding *, uint32_t,
+	     uint32_t, uint32_t, bool);
 void	 restart(struct swm_screen *, struct binding *, union arg *);
 static bool	 rg_root(struct swm_region *);
 void	 rotatews(struct workspace *, uint16_t);
@@ -1616,6 +1652,7 @@ int	 setautorun(const char *, const char *, int, char **);
 void	 setbinding(uint16_t, enum binding_type, uint32_t, enum actionid,
 	     uint32_t, const char *);
 int	 setconfbinding(const char *, const char *, int, char **);
+int	 setconfcancelkey(const char *, const char *, int, char **);
 int	 setconfcolor(const char *, const char *, int, char **);
 int	 setconfcolorlist(const char *, const char *, int, char **);
 int	 setconfmodkey(const char *, const char *, int, char **);
@@ -1682,6 +1719,7 @@ void	 update_debug(struct swm_screen *);
 void	 update_floater(struct ws_win *);
 void	 update_focus(struct swm_screen *);
 static void	 update_gravity(struct ws_win *);
+void	 update_keycodes(void);
 void	 update_modkey(uint16_t);
 void	 update_stackable(struct swm_stackable *, struct swm_stackable *);
 void	 update_win_layer(struct ws_win *);
@@ -5051,7 +5089,7 @@ setup_fonts(void)
 	memcpy(buf, bar_fonts, len);
 	bar_font_legacy = true;
 	sp = buf;
-	while ((b = strsep(&sp, ",")) != NULL) {
+	while ((b = strsep(&sp, SWM_CONF_DELIMLIST)) != NULL) {
 		if (*b == '\0')
 			continue;
 		if (!isxlfd(b)) {
@@ -5064,7 +5102,7 @@ setup_fonts(void)
 	if (!bar_font_legacy) {
 		memcpy(buf, bar_fonts, len);
 		sp = buf;
-		while ((b = strsep(&sp, ",")) != NULL) {
+		while ((b = strsep(&sp, SWM_CONF_DELIMLIST)) != NULL) {
 			if (*b == '\0')
 				continue;
 			if ((bar_fontnames[num_xftfonts] = strdup(b)) == NULL)
@@ -7700,7 +7738,8 @@ update_floater(struct ws_win *win)
 	} else {
 		/* Normal floating window. */
 		/* Update geometry if new region. */
-		if (rf != ws->old_r || ws_floating(ws))
+		if (rf != ws->old_r || ws_floating(ws) ||
+		    win->quirks & SWM_Q_ANYWHERE)
 			load_float_geom(win);
 
 		if (((win->quirks & SWM_Q_FULLSCREEN) &&
@@ -9685,7 +9724,7 @@ below_toggle(struct swm_screen *s, struct binding *bp, union arg *args)
 {
 	struct ws_win		*win;
 
-	/* suppress unused warning since var is needed */
+	/* Suppress warning. */
 	(void)bp;
 	(void)args;
 
@@ -9996,17 +10035,11 @@ keybindreleased(struct binding *bp, xcb_key_release_event_t *kre)
 void
 resize_win(struct ws_win *win, struct binding *bp, int opt)
 {
-	xcb_timestamp_t		timestamp = 0, mintime;
-	struct swm_region	*r = NULL;
-	struct swm_geometry	g, b;
-	int			top = 0, left = 0;
-	int			dx, dy;
-	xcb_cursor_t			cursor;
+	struct swm_region		*r = NULL;
+	struct swm_geometry		b;
 	xcb_query_pointer_reply_t	*xpr = NULL;
-	xcb_generic_event_t		*evt;
-	xcb_motion_notify_event_t	*mne;
-	uint32_t			newf;
-	bool			resizing, restack = false, step = false;
+	uint32_t			newf, dir;
+	bool				restack = false, step = false;
 
 	if (win == NULL)
 		return;
@@ -10050,7 +10083,7 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 	/* It's possible for win to have been freed during flush(). */
 	if (validate_win(win)) {
 		DNPRINTF(SWM_D_EVENT, "invalid win\n");
-		goto out;
+		return;
 	}
 
 	switch (opt) {
@@ -10091,24 +10124,88 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 	if (xpr == NULL)
 		return;
 
-	mintime = 1000 / r->s->rate;
+	if (xpr->win_x < WIDTH(win) / 2) {
+		if (xpr->win_y < HEIGHT(win) / 2)
+			dir = EWMH_WM_MOVERESIZE_SIZE_TOPLEFT;
+		else
+			dir = EWMH_WM_MOVERESIZE_SIZE_BOTTOMLEFT;
+	} else {
+		if (xpr->win_y < HEIGHT(win) / 2)
+			dir = EWMH_WM_MOVERESIZE_SIZE_TOPRIGHT;
+		else
+			dir = EWMH_WM_MOVERESIZE_SIZE_BOTTOMRIGHT;
+	}
 
-	g = win->g;
+	resize_win_pointer(win, bp, xpr->root_x, xpr->root_y, dir,
+	    (opt == SWM_ARG_ID_CENTER));
+	free(xpr);
+	DNPRINTF(SWM_D_EVENT, "done\n");
+}
 
-	if (xpr->win_x < WIDTH(win) / 2)
-		left = 1;
+void
+resize_win_pointer(struct ws_win *win, struct binding *bp,
+    uint32_t x_root, uint32_t y_root, uint32_t dir, bool center)
+{
+	struct swm_geometry		g, b;
+	xcb_cursor_t			cursor;
+	xcb_generic_event_t		*evt;
+	xcb_motion_notify_event_t	*mne;
+	xcb_client_message_event_t	*cme;
+	xcb_timestamp_t			timestamp = 0, mintime;
+	int				dx, dy;
+	bool				resizing, horz = false, vert = false;
+	bool				left = false, top = false;
 
-	if (xpr->win_y < HEIGHT(win) / 2)
-		top = 1;
-
-	if (opt == SWM_ARG_ID_CENTER)
+	switch (dir) {
+	case EWMH_WM_MOVERESIZE_SIZE_TOPLEFT:
+		cursor = cursors[XC_TOP_LEFT_CORNER].cid;
+		horz = true;
+		vert = true;
+		left = true;
+		top = true;
+		break;
+	case EWMH_WM_MOVERESIZE_SIZE_TOP:
+		cursor = cursors[XC_TOP_SIDE].cid;
+		vert = true;
+		top = true;
+		break;
+	case EWMH_WM_MOVERESIZE_SIZE_TOPRIGHT:
+		cursor = cursors[XC_TOP_RIGHT_CORNER].cid;
+		horz = true;
+		vert = true;
+		top = true;
+		break;
+	case EWMH_WM_MOVERESIZE_SIZE_RIGHT:
+		cursor = cursors[XC_RIGHT_SIDE].cid;
+		horz = true;
+		break;
+	case EWMH_WM_MOVERESIZE_SIZE_BOTTOMRIGHT:
+		cursor = cursors[XC_BOTTOM_RIGHT_CORNER].cid;
+		horz = true;
+		vert = true;
+		break;
+	case EWMH_WM_MOVERESIZE_SIZE_BOTTOM:
+		cursor = cursors[XC_BOTTOM_SIDE].cid;
+		vert = true;
+		break;
+	case EWMH_WM_MOVERESIZE_SIZE_BOTTOMLEFT:
+		cursor = cursors[XC_BOTTOM_LEFT_CORNER].cid;
+		horz = true;
+		vert = true;
+		left = true;
+		break;
+	case EWMH_WM_MOVERESIZE_SIZE_LEFT:
+		cursor = cursors[XC_LEFT_SIDE].cid;
+		horz = true;
+		left = true;
+		break;
+	default:
 		cursor = cursors[XC_SIZING].cid;
-	else if (top)
-		cursor = cursors[left ? XC_TOP_LEFT_CORNER :
-		    XC_TOP_RIGHT_CORNER].cid;
-	else
-		cursor = cursors[left ? XC_BOTTOM_LEFT_CORNER :
-		    XC_BOTTOM_RIGHT_CORNER].cid;
+		break;
+	}
+
+	if (center)
+		cursor = cursors[XC_SIZING].cid;
 
 	xcb_grab_pointer(conn, 0, win->id, MOUSEMASK,
 	    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, XCB_WINDOW_NONE, cursor,
@@ -10119,13 +10216,21 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 		xcb_allow_events(conn, XCB_ALLOW_ASYNC_KEYBOARD,
 		    XCB_CURRENT_TIME);
 
+	/* Offer another means of termination, as recommended by the spec. */
+	xcb_grab_key(conn, 0, win->id, XCB_MOD_MASK_ANY, cancel_keycode,
+	    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_SYNC);
+
 	xcb_flush(conn);
+
+	mintime = 1000 / win->s->rate;
+	g = win->g;
 	resizing = true;
 	while (resizing && (evt = get_next_event(true))) {
 		switch (XCB_EVENT_RESPONSE_TYPE(evt)) {
 		case XCB_BUTTON_RELEASE:
-			if (bp->type == BTNBIND && bp->value ==
-			    ((xcb_button_release_event_t *)evt)->detail)
+			if (bp->type == BTNBIND && (bp->value ==
+			    ((xcb_button_release_event_t *)evt)->detail ||
+			    bp->value == XCB_BUTTON_INDEX_ANY))
 				resizing = false;
 			break;
 		case XCB_KEY_RELEASE:
@@ -10138,54 +10243,61 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 			    mne->root);
 
 			/* cursor offset/delta from start of the operation */
-			dx = mne->root_x - xpr->root_x;
-			dy = mne->root_y - xpr->root_y;
+			dx = mne->root_x - x_root;
+			dy = mne->root_y - y_root;
 
 			/* vertical */
-			if (top)
-				dy = -dy;
-
-			if (opt == SWM_ARG_ID_CENTER) {
-				if (g.h / 2 + dy < 1)
-					dy = 1 - g.h / 2;
-
-				Y(win) = g.y - dy;
-				HEIGHT(win) = g.h + 2 * dy;
-			} else {
-				if (g.h + dy < 1)
-					dy = 1 - g.h;
-
+			if (vert) {
 				if (top)
-					Y(win) = g.y - dy;
+					dy = -dy;
 
-				HEIGHT(win) = g.h + dy;
+				if (center) {
+					if (g.h / 2 + dy < 1)
+						dy = 1 - g.h / 2;
+
+					Y(win) = g.y - dy;
+					HEIGHT(win) = g.h + 2 * dy;
+				} else {
+					if (g.h + dy < 1)
+						dy = 1 - g.h;
+
+					if (top)
+						Y(win) = g.y - dy;
+
+					HEIGHT(win) = g.h + dy;
+				}
 			}
 
 			/* horizontal */
-			if (left)
-				dx = -dx;
-
-			if (opt == SWM_ARG_ID_CENTER) {
-				if (g.w / 2 + dx < 1)
-					dx = 1 - g.w / 2;
-
-				X(win) = g.x - dx;
-				WIDTH(win) = g.w + 2 * dx;
-			} else {
-				if (g.w + dx < 1)
-					dx = 1 - g.w;
-
+			if (horz) {
 				if (left)
-					X(win) = g.x - dx;
+					dx = -dx;
 
-				WIDTH(win) = g.w + dx;
+				if (center) {
+					if (g.w / 2 + dx < 1)
+						dx = 1 - g.w / 2;
+
+					X(win) = g.x - dx;
+					WIDTH(win) = g.w + 2 * dx;
+				} else {
+					if (g.w + dx < 1)
+						dx = 1 - g.w;
+
+					if (left)
+						X(win) = g.x - dx;
+
+					WIDTH(win) = g.w + dx;
+				}
 			}
 			update_gravity(win);
 
 			/* Don't sync faster than the current rate limit. */
 			if ((mne->time - timestamp) > mintime) {
+				store_float_geom(win);
 				timestamp = mne->time;
 				regionize(win, mne->root_x, mne->root_y);
+
+				b = get_boundary(win);
 				region_containment(win, b, SWM_CW_ALLSIDES |
 				    SWM_CW_RESIZABLE | SWM_CW_HARDBOUNDARY |
 				    SWM_CW_SOFTBOUNDARY);
@@ -10201,11 +10313,26 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 			xcb_flush(conn);
 			break;
 		case XCB_KEY_PRESS:
+			/* Handle cancel_key. */
+			if ((xcb_key_press_lookup_keysym(syms,
+			    (xcb_key_press_event_t *)evt, 0)) == cancel_key)
+				resizing = false;
+
 			/* Ignore. */
 			DNPRINTF(SWM_D_EVENT, "KEY_PRESS ignored\n");
 			xcb_allow_events(conn, XCB_ALLOW_ASYNC_KEYBOARD,
 			    ((xcb_key_press_event_t *)evt)->time);
 			xcb_flush(conn);
+			break;
+		case XCB_CLIENT_MESSAGE:
+			cme = (xcb_client_message_event_t *)evt;
+			if (cme->type == ewmh[_NET_WM_MOVERESIZE].atom) {
+				DNPRINTF(SWM_D_EVENT, "_NET_WM_MOVERESIZE\n");
+				if (cme->data.data32[2] ==
+				    EWMH_WM_MOVERESIZE_CANCEL)
+					resizing = false;
+			} else
+				clientmessage(cme);
 			break;
 		default:
 			/* Window can be freed or lose focus here. */
@@ -10232,7 +10359,6 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 	store_float_geom(win);
 out:
 	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
-	free(xpr);
 	DNPRINTF(SWM_D_EVENT, "done\n");
 }
 
@@ -10320,13 +10446,9 @@ void
 move_win(struct ws_win *win, struct binding *bp, int opt)
 {
 	struct swm_region		*r;
-	struct swm_geometry		b;
-	xcb_timestamp_t			timestamp = 0, mintime;
 	xcb_query_pointer_reply_t	*qpr = NULL;
-	xcb_generic_event_t		*evt;
-	xcb_motion_notify_event_t	*mne;
 	uint32_t			newf;
-	bool				moving, restack = false, step = false;
+	bool				restack = false, step = false;
 
 	if (win == NULL)
 		return;
@@ -10395,43 +10517,64 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 	}
 	if (step) {
 		regionize(win, -1, -1);
-		b = get_boundary(win);
-		region_containment(win, b, SWM_CW_ALLSIDES);
+		region_containment(win, get_boundary(win), SWM_CW_ALLSIDES);
 		update_window(win);
 		store_float_geom(win);
 		return;
 	}
 
+	/* get cursor offset from window root */
+	qpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn, win->id),
+		NULL);
+	if (qpr == NULL)
+		return;
+
+	move_win_pointer(win, bp, qpr->root_x, qpr->root_y);
+	free(qpr);
+out:
+	DNPRINTF(SWM_D_EVENT, "done\n");
+}
+
+void
+move_win_pointer(struct ws_win *win, struct binding *bp, uint32_t x_root,
+    uint32_t y_root)
+{
+	struct swm_geometry		b;
+	xcb_generic_event_t		*evt;
+	xcb_motion_notify_event_t	*mne;
+	xcb_client_message_event_t	*cme;
+	xcb_timestamp_t			timestamp = 0, mintime;
+	int				dx, dy;
+	bool				moving;
+
 	xcb_grab_pointer(conn, 0, win->id, MOUSEMASK,
 	    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC,
 	    XCB_WINDOW_NONE, cursors[XC_FLEUR].cid, XCB_CURRENT_TIME);
 
-	/* get cursor offset from window root */
-	qpr = xcb_query_pointer_reply(conn, xcb_query_pointer(conn, win->id),
-		NULL);
-	if (qpr == NULL) {
-		xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
-		return;
-	}
-
 	/* Release keyboard freeze if called via keybind. */
 	if (bp->type == KEYBIND)
 		xcb_allow_events(conn, XCB_ALLOW_ASYNC_KEYBOARD,
-		    XCB_CURRENT_TIME);
+		     XCB_CURRENT_TIME);
 
-	mintime = 1000 / r->s->rate;
+	/* Offer another means of termination, as recommended by the spec. */
+	xcb_grab_key(conn, 0, win->id, XCB_MOD_MASK_ANY, cancel_keycode,
+	    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_SYNC);
 
-	regionize(win, qpr->root_x, qpr->root_y);
+	regionize(win, x_root, y_root);
 	b = get_boundary(win);
 	region_containment(win, b, SWM_CW_ALLSIDES | SWM_CW_SOFTBOUNDARY);
 	update_window(win);
 	xcb_flush(conn);
+	dx = x_root - X(win);
+	dy = y_root - Y(win);
+	mintime = 1000 / win->s->rate;
 	moving = true;
 	while (moving && (evt = get_next_event(true))) {
 		switch (XCB_EVENT_RESPONSE_TYPE(evt)) {
 		case XCB_BUTTON_RELEASE:
-			if (bp->type == BTNBIND && bp->value ==
-			    ((xcb_button_release_event_t *)evt)->detail)
+			if (bp->type == BTNBIND && (bp->value ==
+			    ((xcb_button_release_event_t *)evt)->detail ||
+			    bp->value == XCB_BUTTON_INDEX_ANY))
 				moving = false;
 
 			xcb_allow_events(conn, XCB_ALLOW_ASYNC_POINTER,
@@ -10449,9 +10592,10 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 		case XCB_MOTION_NOTIFY:
 			mne = (xcb_motion_notify_event_t *)evt;
 			DNPRINTF(SWM_D_EVENT, "MOTION_NOTIFY: root: %#x time: "
-			    "%#x\n", mne->root, mne->time);
-			X(win) = mne->root_x - qpr->win_x;
-			Y(win) = mne->root_y - qpr->win_y;
+			    "%#x, root_x: %d, root_y: %d\n", mne->root,
+			    mne->time, mne->root_x, mne->root_y);
+			X(win) = mne->root_x - dx;
+			Y(win) = mne->root_y - dy;
 
 			/* Don't sync faster than the current rate limit. */
 			if ((mne->time - timestamp) > mintime) {
@@ -10472,10 +10616,25 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 			xcb_flush(conn);
 			break;
 		case XCB_KEY_PRESS:
+			/* Handle cancel_key. */
+			if ((xcb_key_press_lookup_keysym(syms,
+			    (xcb_key_press_event_t *)evt, 0)) == cancel_key)
+				moving = false;
+
 			/* Ignore. */
 			xcb_allow_events(conn, XCB_ALLOW_ASYNC_KEYBOARD,
 			    ((xcb_key_press_event_t *)evt)->time);
 			xcb_flush(conn);
+			break;
+		case XCB_CLIENT_MESSAGE:
+			cme = (xcb_client_message_event_t *)evt;
+			if (cme->type == ewmh[_NET_WM_MOVERESIZE].atom) {
+				DNPRINTF(SWM_D_EVENT, "_NET_WM_MOVERESIZE\n");
+				if (cme->data.data32[2] ==
+				    EWMH_WM_MOVERESIZE_CANCEL)
+					moving = false;
+			} else
+				clientmessage(cme);
 			break;
 		default:
 			/* Window can be freed or lose focus here. */
@@ -10501,7 +10660,6 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 	}
 	store_float_geom(win);
 out:
-	free(qpr);
 	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
 	DNPRINTF(SWM_D_EVENT, "done\n");
 }
@@ -10698,6 +10856,13 @@ update_modkey(uint16_t mod)
 	mod_key = mod;
 }
 
+void
+update_keycodes(void)
+{
+	if ((cancel_keycode = get_keysym_keycode(cancel_key)) == XCB_NO_SYMBOL)
+		cancel_keycode = get_keysym_keycode(CANCELKEY);
+}
+
 int
 spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
     char ***ret_args)
@@ -10706,7 +10871,7 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
 	int			i, c;
 	char			*ap, **real_args;
 
-	/* suppress unused warning since var is needed */
+	/* Suppress warning. */
 	(void)args;
 
 	DNPRINTF(SWM_D_SPAWN, "%s\n", spawn_name);
@@ -11145,7 +11310,7 @@ parsebinding(const char *bindstr, uint16_t *mod, enum binding_type *type,
     uint32_t *val, uint32_t *flags, char **emsg)
 {
 	char			*str, *cp, *name;
-	KeySym			ks, lks, uks;
+	xcb_keysym_t		ks;
 
 	DNPRINTF(SWM_D_KEY, "enter [%s]\n", bindstr);
 	if (mod == NULL || val == NULL) {
@@ -11198,17 +11363,13 @@ parsebinding(const char *bindstr, uint16_t *mod, enum binding_type *type,
 				return (1);
 			}
 		} else {
-			/* TODO: do this without Xlib. */
-			ks = XStringToKeysym(name);
-			if (ks == NoSymbol) {
-				DNPRINTF(SWM_D_KEY, "invalid key %s\n", name);
+			if ((ks = get_string_keysym(name)) == XCB_NO_SYMBOL) {
 				ALLOCSTR(emsg, "invalid key: %s", name);
 				free(str);
 				return (1);
 			}
 
-			XConvertCase(ks, &lks, &uks);
-			*val = (uint32_t)lks;
+			*val = ks;
 		}
 	}
 
@@ -11332,7 +11493,7 @@ setconfbinding(const char *selector, const char *value, int flags, char **emsg)
 	enum actionid		aid;
 	enum binding_type	type;
 
-	/* suppress unused warning since var is needed */
+	/* Suppress warning. */
 	(void)flags;
 
 	DNPRINTF(SWM_D_KEY, "selector: [%s], value: [%s]\n", selector, value);
@@ -11623,8 +11784,25 @@ updatenumlockmask(void)
 	DNPRINTF(SWM_D_MISC, "numlockmask: %#x\n", numlockmask);
 }
 
+xcb_keysym_t
+get_string_keysym(const char *name)
+{
+	KeySym					ks, lks, uks;
+
+	/* TODO: do this without Xlib. */
+	ks = XStringToKeysym(name);
+	if (ks == NoSymbol) {
+		DNPRINTF(SWM_D_KEY, "invalid key %s\n", name);
+		return (XCB_NO_SYMBOL);
+	}
+
+	XConvertCase(ks, &lks, &uks);
+
+	return ((xcb_keysym_t)lks);
+}
+
 xcb_keycode_t
-get_binding_keycode(struct binding *bp)
+get_keysym_keycode(xcb_keysym_t ks)
 {
 	const xcb_setup_t			*s;
 	xcb_get_keyboard_mapping_reply_t	*kmr;
@@ -11644,8 +11822,7 @@ get_binding_keycode(struct binding *bp)
 	for (col = 0; col < kmr->keysyms_per_keycode; col++) {
 		/* Keycodes are unsigned, bail if kc++ is reduced to 0. */
 		for (kc = min; kc > 0 && kc <= max; kc++) {
-			if (xcb_key_symbols_get_keysym(syms, kc, col) ==
-			    bp->value) {
+			if (xcb_key_symbols_get_keysym(syms, kc, col) == ks) {
 				free(kmr);
 				return (kc);
 			}
@@ -11666,6 +11843,7 @@ grabkeys(void)
 
 	DNPRINTF(SWM_D_MISC, "begin\n");
 	updatenumlockmask();
+	update_keycodes();
 
 	modifiers[0] = 0;
 	modifiers[1] = numlockmask;
@@ -11698,7 +11876,7 @@ grabkeys(void)
 				continue;
 
 			/* Try to get keycode for the grab. */
-			keycode = get_binding_keycode(bp);
+			keycode = get_keysym_keycode(bp->value);
 			if (keycode == XCB_NO_SYMBOL)
 				continue;
 
@@ -11973,8 +12151,6 @@ struct wsi_flag {
 	{"noindexes", SWM_WSI_NOINDEXES},
 };
 
-#define SWM_FLAGS_DELIM		","
-#define SWM_FLAGS_WHITESPACE	" \t\n"
 int
 parse_workspace_indicator(const char *str, uint32_t *mode, char **emsg)
 {
@@ -11989,11 +12165,11 @@ parse_workspace_indicator(const char *str, uint32_t *mode, char **emsg)
 		err(1, "parse_workspace_indicator: strdup");
 
 	*mode = 0;
-	while ((name = strsep(&cp, SWM_FLAGS_DELIM)) != NULL) {
+	while ((name = strsep(&cp, SWM_CONF_DELIMLIST)) != NULL) {
 		if (cp)
-			cp += (long)strspn(cp, SWM_FLAGS_WHITESPACE);
-		name += strspn(name, SWM_FLAGS_WHITESPACE);
-		len = strcspn(name, SWM_FLAGS_WHITESPACE);
+			cp += (long)strspn(cp, SWM_CONF_WHITESPACE);
+		name += strspn(name, SWM_CONF_WHITESPACE);
+		len = strcspn(name, SWM_CONF_WHITESPACE);
 
 		for (i = 0; i < LENGTH(wsiflags); i++) {
 			if (strncasecmp(name, wsiflags[i].name, len) == 0) {
@@ -12246,7 +12422,7 @@ setconfquirk(const char *selector, const char *value, int flags, char **emsg)
 	int			retval, count = 0, ws = -2;
 	uint32_t		qrks;
 
-	/* suppress unused warning since var is needed */
+	/* Suppress warning. */
 	(void)flags;
 
 	if (selector == NULL || strlen(selector) == 0)
@@ -12808,7 +12984,7 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 int
 setconfmodkey(const char *selector, const char *value, int flags, char **emsg)
 {
-	/* suppress unused warnings since vars are needed */
+	/* Suppress warning. */
 	(void)selector;
 	(void)flags;
 
@@ -12826,6 +13002,35 @@ setconfmodkey(const char *selector, const char *value, int flags, char **emsg)
 		ALLOCSTR(emsg, "invalid value: %s", value);
 		return (1);
 	}
+	return (0);
+}
+
+int
+setconfcancelkey(const char *selector, const char *value, int flags, char **emsg)
+{
+	xcb_keysym_t	ks;
+	char		*name, *cp;
+
+	/* Suppress warning. */
+	(void)selector;
+	(void)flags;
+
+	if ((cp = name = strdup(value)) == NULL)
+		err(1, "setconfcancelkey: strdup");
+
+	cp += strcspn(cp, SWM_CONF_WHITESPACE) + 1;
+	*cp = '\0';
+
+	if ((ks = get_string_keysym(name)) == XCB_NO_SYMBOL) {
+		ALLOCSTR(emsg, "invalid key");
+		free(name);
+		return (1);
+	}
+	free(name);
+
+	cancel_key = ks;
+	DNPRINTF(SWM_D_KEY, "cancel_key = %u\n", cancel_key);
+
 	return (0);
 }
 
@@ -12920,7 +13125,7 @@ setconfcolorlist(const char *selector, const char *value, int flags, char **emsg
 			err(1, "setconfvalue: strdup");
 
 		num_bg_colors = 0;
-		while ((b = strsep(&sp, ",")) != NULL) {
+		while ((b = strsep(&sp, SWM_CONF_DELIMLIST)) != NULL) {
 			while (isblank(*b)) b++;
 			if (*b == '\0')
 				continue;
@@ -12938,7 +13143,7 @@ setconfcolorlist(const char *selector, const char *value, int flags, char **emsg
 			err(1, "setconfvalue: strdup");
 
 		num_fg_colors = 0;
-		while ((b = strsep(&sp, ",")) != NULL) {
+		while ((b = strsep(&sp, SWM_CONF_DELIMLIST)) != NULL) {
 			while (isblank(*b)) b++;
 			if (*b == '\0')
 				continue;
@@ -13219,6 +13424,7 @@ struct config_option configopt[] = {
 	{ "bind",			setconfbinding,	0 },
 	{ "border_width",		setconfvalue,	SWM_S_BORDER_WIDTH },
 	{ "boundary_width",		setconfvalue,	SWM_S_BOUNDARY_WIDTH },
+	{ "cancelkey",			setconfcancelkey,	0 },
 	{ "click_to_raise",		setconfvalue,	SWM_S_CLICK_TO_RAISE },
 	{ "clock_enabled",		setconfvalue,	SWM_S_CLOCK_ENABLED },
 	{ "clock_format",		setconfvalue,	SWM_S_CLOCK_FORMAT },
@@ -15594,6 +15800,9 @@ clientmessage(xcb_client_message_event_t *e)
 				stack(win->ws->r);
 			update_mapping(s);
 		}
+	} else if (e->type == ewmh[_NET_WM_MOVERESIZE].atom) {
+		DNPRINTF(SWM_D_EVENT, "_NET_WM_MOVERESIZE\n");
+		moveresize_win(win, e);
 	}
 
 	if (focus_mode != SWM_FOCUS_FOLLOW) {
@@ -15605,6 +15814,120 @@ clientmessage(xcb_client_message_event_t *e)
 	focus_follow(s, s->r_focus, win);
 
 	DNPRINTF(SWM_D_EVENT, "done\n");
+}
+
+const char *
+get_moveresize_direction_label(uint32_t type)
+{
+	switch (type) {
+#define RETSTR(c,l) case c: return l
+	RETSTR(EWMH_WM_MOVERESIZE_SIZE_TOPLEFT,		"SIZE_TOPLEFT");
+	RETSTR(EWMH_WM_MOVERESIZE_SIZE_TOP,		"SIZE_TOP");
+	RETSTR(EWMH_WM_MOVERESIZE_SIZE_TOPRIGHT,	"SIZE_TOPRIGHT");
+	RETSTR(EWMH_WM_MOVERESIZE_SIZE_RIGHT,		"SIZE_RIGHT");
+	RETSTR(EWMH_WM_MOVERESIZE_SIZE_BOTTOMRIGHT,	"SIZE_BOTTOMRIGHT");
+	RETSTR(EWMH_WM_MOVERESIZE_SIZE_BOTTOM,		"SIZE_BOTTOM");
+	RETSTR(EWMH_WM_MOVERESIZE_SIZE_BOTTOMLEFT,	"SIZE_BOTTOMLEFT");
+	RETSTR(EWMH_WM_MOVERESIZE_SIZE_LEFT,		"SIZE_LEFT");
+	RETSTR(EWMH_WM_MOVERESIZE_MOVE,			"MOVE");
+	RETSTR(EWMH_WM_MOVERESIZE_SIZE_KEYBOARD,	"SIZE_KEYBOARD");
+	RETSTR(EWMH_WM_MOVERESIZE_MOVE_KEYBOARD,	"MOVE_KEYBOARD");
+	RETSTR(EWMH_WM_MOVERESIZE_CANCEL,		"CANCEL");
+#undef RETSTR
+	}
+
+	return "Invalid";
+}
+
+void
+moveresize_win(struct ws_win *win, xcb_client_message_event_t *e)
+{
+	struct binding		b;
+	uint32_t		newf;
+	bool			inplace = false, resize = false;
+
+	/*
+	 * _NET_WM_MOVERESIZE
+	 * window = window to be moved or resized
+	 * message_type = _NET_WM_MOVERESIZE
+	 * format = 32
+	 * data.l[0] = x_root
+	 * data.l[1] = y_root
+	 * data.l[2] = direction
+	 * data.l[3] = button
+	 * data.l[4] = source indication
+	 */
+	DNPRINTF(SWM_D_EVENT, "win %#x, event win: %#x, x_root: %d, y_root: %d,"
+	    " direction: %s (%u), button: %#x, source type: %s\n",
+	    win->id, e->window, e->data.data32[0], e->data.data32[1],
+	    get_moveresize_direction_label(e->data.data32[2]),
+	    e->data.data32[2], e->data.data32[3],
+	    get_source_type_label(e->data.data32[4]));
+
+	switch (e->data.data32[2]) {
+	case EWMH_WM_MOVERESIZE_SIZE_TOPLEFT:
+	case EWMH_WM_MOVERESIZE_SIZE_TOP:
+	case EWMH_WM_MOVERESIZE_SIZE_TOPRIGHT:
+	case EWMH_WM_MOVERESIZE_SIZE_RIGHT:
+	case EWMH_WM_MOVERESIZE_SIZE_BOTTOMRIGHT:
+	case EWMH_WM_MOVERESIZE_SIZE_BOTTOM:
+	case EWMH_WM_MOVERESIZE_SIZE_BOTTOMLEFT:
+	case EWMH_WM_MOVERESIZE_SIZE_LEFT:
+		if (MAXIMIZED(win) || ws_floating(win->ws))
+			inplace = true;
+		else if (!(win_transient(win) || ABOVE(win)))
+			return;
+		resize = true;
+		break;
+	case EWMH_WM_MOVERESIZE_MOVE:
+		if (!win_floating(win) || MAXIMIZED(win))
+			inplace = true;
+		break;
+	case EWMH_WM_MOVERESIZE_SIZE_KEYBOARD:
+	case EWMH_WM_MOVERESIZE_MOVE_KEYBOARD:
+		DNPRINTF(SWM_D_EVENT, "ignore; keyboard move/resize.\n");
+		return;
+	case EWMH_WM_MOVERESIZE_CANCEL:
+		DNPRINTF(SWM_D_EVENT, "ignore; cancel.\n");
+		return;
+	default:
+		DNPRINTF(SWM_D_EVENT, "invalid direction.\n");
+		return;
+	};
+
+	if (inplace) {
+		win->g_float = win->g;
+		update_gravity(win);
+		/* Maintain original position. */
+		win->g_float.x -= win->g_grav.x;
+		win->g_float.y -= win->g_grav.y;
+		win->g_floatref = get_boundary(win);
+	}
+
+	newf = ((win->ewmh_flags | SWM_F_MANUAL) & ~EWMH_F_MAXIMIZED);
+	if (!ws_floating(win->ws) || win_free(win))
+		newf |= EWMH_F_ABOVE;
+	ewmh_apply_flags(win, newf);
+	ewmh_update_wm_state(win);
+	update_win_layer_related(win);
+
+	refresh_stack(win->s);
+	update_stacking(win->s);
+	if (inplace) {
+		stack(win->ws->r);
+		update_mapping(win->s);
+	}
+	flush();
+
+	b.type = BTNBIND;
+	b.value = e->data.data32[3];
+
+	if (resize)
+		resize_win_pointer(win, &b, e->data.data32[0],
+		    e->data.data32[1], e->data.data32[2], false);
+	else
+		move_win_pointer(win, &b, e->data.data32[0], e->data.data32[1]);
+	DNPRINTF(SWM_D_EVENT, "done.\n");
 }
 
 int
