@@ -3672,20 +3672,22 @@ bar_print_layout(struct swm_region *r)
 	xcb_poly_fill_rectangle(conn, r->bar->buffer, r->s->gc, 1, &rect);
 
 	/* Draw border. */
-	points[0].x = points[0].y = bar_border_width / 2;
-	points[1].x = bar_border_width + WIDTH(r->bar) + points[0].x;
-	points[1].y = points[0].y;
-	points[2].x = points[1].x;
-	points[2].y = bar_border_width + HEIGHT(r->bar) + points[0].y;
-	points[3].x = points[0].x;
-	points[3].y = points[2].y;
-	points[4] = points[0];
-	gcv[0] = r->s->c[bd_type].pixel;
-	gcv[1] = bar_border_width;
-	xcb_change_gc(conn, r->s->gc, XCB_GC_FOREGROUND | XCB_GC_LINE_WIDTH,
-	    gcv);
-	xcb_poly_line(conn, XCB_COORD_MODE_ORIGIN, r->bar->buffer, r->s->gc,
-	    5, points);
+	if (bar_border_width > 0) {
+	        points[0].x = points[0].y = bar_border_width / 2;
+	        points[1].x = bar_border_width + WIDTH(r->bar) + points[0].x;
+	        points[1].y = points[0].y;
+	        points[2].x = points[1].x;
+	        points[2].y = bar_border_width + HEIGHT(r->bar) + points[0].y;
+	        points[3].x = points[0].x;
+	        points[3].y = points[2].y;
+	        points[4] = points[0];
+	        gcv[0] = r->s->c[bd_type].pixel;
+	        gcv[1] = bar_border_width;
+	        xcb_change_gc(conn, r->s->gc,
+		    XCB_GC_FOREGROUND | XCB_GC_LINE_WIDTH, gcv);
+	        xcb_poly_line(conn, XCB_COORD_MODE_ORIGIN, r->bar->buffer,
+		    r->s->gc, 5, points);
+	}
 
 	/* Display the text for each section */
 	for (i = 0; i < numsect; i++) {
@@ -9806,7 +9808,7 @@ draw_frame(struct ws_win *win)
 	xcb_point_t		points[5];
 	uint32_t		gcv[2];
 
-	if (win == NULL)
+	if (win == NULL || border_width == 0)
 		return;
 
 	if (!win_reparented(win)) {
