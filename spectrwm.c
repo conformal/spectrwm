@@ -1186,7 +1186,6 @@ TAILQ_HEAD(spawn_list, spawn_prog) spawns = TAILQ_HEAD_INITIALIZER(spawns);
 
 /* Action callback flags. */
 #define FN_F_NOREPLAY	(0x1)
-#define	FN_F_NOCLAMP	(0x2)
 
 /* User callable function IDs. */
 enum actionid {
@@ -6680,12 +6679,15 @@ switchws(struct swm_screen *s, struct binding *bp, union arg *args)
 	struct swm_region	*r;
 	struct workspace	*ws;
 
+	/* Suppress warning. */
+	(void)bp;
+
 	ws = get_workspace(s, args->id);
 	if (ws == NULL)
 		return;
 
 	r = get_current_region(s);
-	switch_workspace(r, ws, (bp && bp->flags & FN_F_NOCLAMP));
+	switch_workspace(r, ws, false);
 	DNPRINTF(SWM_D_WS, "done\n");
 }
 
@@ -6697,6 +6699,9 @@ cyclews(struct swm_screen *s, struct binding *bp, union arg *args)
 	struct ws_win		*winfocus;
 	int			i;
 	bool			allowempty = false, mv = false;
+
+	/* Suppress warning. */
+	(void)bp;
 
 	if ((r = get_current_region(s)) == NULL)
 		return;
@@ -6795,8 +6800,7 @@ cyclews(struct swm_screen *s, struct binding *bp, union arg *args)
 			center_pointer(nws->r);
 			flush();
 		} else {
-			switch_workspace(r, nws,
-			    (bp && bp->flags & FN_F_NOCLAMP));
+			switch_workspace(r, nws, false);
 		}
 	}
 
@@ -6823,6 +6827,9 @@ emptyws(struct swm_screen *s, struct binding *bp, union arg *args)
 	struct ws_win		*win;
 	int			i;
 
+	/* Suppress warning. */
+	(void)bp;
+
 	if ((r = get_current_region(s)) == NULL)
 		return;
 
@@ -6848,7 +6855,7 @@ emptyws(struct swm_screen *s, struct binding *bp, union arg *args)
 		transfer_win(win, ws);
 		/* FALLTHROUGH */
 	case SWM_ARG_ID_WS_EMPTY:
-		switch_workspace(r, ws, (bp && bp->flags & FN_F_NOCLAMP));
+		switch_workspace(r, ws, false);
 		break;
 	default:
 		DNPRINTF(SWM_D_FOCUS, "invalid id: %d\n", args->id);
@@ -6863,7 +6870,9 @@ priorws(struct swm_screen *s, struct binding *bp, union arg *args)
 	struct swm_region	*r;
 
 	/* Suppress warning. */
+	(void)bp;
 	(void)args;
+
 
 	if ((r = get_current_region(s)) == NULL)
 		return;
@@ -6874,7 +6883,7 @@ priorws(struct swm_screen *s, struct binding *bp, union arg *args)
 	if (r->ws_prior == NULL)
 		return;
 
-	switch_workspace(r, r->ws_prior, (bp && bp->flags & FN_F_NOCLAMP));
+	switch_workspace(r, r->ws_prior, false);
 	DNPRINTF(SWM_D_FOCUS, "done\n");
 }
 
@@ -6901,6 +6910,9 @@ cyclerg(struct swm_screen *s, struct binding *bp, union arg *args)
 {
 	struct swm_region	*r, *rr = NULL;
 	int			num_screens;
+
+	/* Suppress warning. */
+	(void)bp;
 
 	if ((r = get_current_region(s)) == NULL)
 		return;
@@ -6941,7 +6953,7 @@ cyclerg(struct swm_screen *s, struct binding *bp, union arg *args)
 		break;
 	case SWM_ARG_ID_CYCLERG_MOVE_UP:
 	case SWM_ARG_ID_CYCLERG_MOVE_DOWN:
-		switch_workspace(r, rr->ws, (bp && bp->flags & FN_F_NOCLAMP));
+		switch_workspace(r, rr->ws, true);
 		break;
 	default:
 		return;
@@ -7233,6 +7245,9 @@ focus(struct swm_screen *s, struct binding *bp, union arg *args)
 	struct workspace	*ws, *cws, *wws;
 	int			i, d, wincount;
 
+	/* Suppress warning. */
+	(void)bp;
+
 	if ((r = get_current_region(s)) == NULL)
 		return;
 
@@ -7348,8 +7363,7 @@ focus(struct swm_screen *s, struct binding *bp, union arg *args)
 
 		/* Switch ws if new focus is on a different ws. */
 		if (winfocus && winfocus->ws != ws && !ws_root(winfocus->ws))
-			switch_workspace(r, winfocus->ws,
-			    (bp && bp->flags & FN_F_NOCLAMP));
+			switch_workspace(r, winfocus->ws, false);
 		break;
 	case SWM_ARG_ID_FOCUSFREE:
 		if (s->focus && win_free(s->focus)) {
@@ -10613,8 +10627,8 @@ struct action {
 	{ "rg_7",		focusrg,	0, {.id = 7} },
 	{ "rg_8",		focusrg,	0, {.id = 8} },
 	{ "rg_9",		focusrg,	0, {.id = 9} },
-	{ "rg_move_next",	cyclerg,	FN_F_NOCLAMP, {.id = SWM_ARG_ID_CYCLERG_MOVE_UP} },
-	{ "rg_move_prev",	cyclerg,	FN_F_NOCLAMP, {.id = SWM_ARG_ID_CYCLERG_MOVE_DOWN} },
+	{ "rg_move_next",	cyclerg,	0, {.id = SWM_ARG_ID_CYCLERG_MOVE_UP} },
+	{ "rg_move_prev",	cyclerg,	0, {.id = SWM_ARG_ID_CYCLERG_MOVE_DOWN} },
 	{ "rg_next",		cyclerg,	0, {.id = SWM_ARG_ID_CYCLERG_UP} },
 	{ "rg_prev",		cyclerg,	0, {.id = SWM_ARG_ID_CYCLERG_DOWN} },
 	{ "screen_next",	cyclerg,	0, {.id = SWM_ARG_ID_CYCLERG_UP} },
