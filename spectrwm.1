@@ -17,7 +17,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: October 15 2023 $
+.Dd $Mdocdate: October 21 2023 $
 .Dt SPECTRWM 1
 .Os
 .Sh NAME
@@ -777,6 +777,10 @@ Note that rotation is used by
 .It Ic region_padding
 Pixel width of empty space within region borders.
 Disable by setting to 0.
+.It Ic snap_range
+Set the distance in pixels a tiled/maximized window must be moved (with the
+pointer) to unsnap and float freely.
+Set to 0 to unsnap immediately. Default is 25.
 .It Ic spawn_position
 Position in stack to place newly spawned windows.
 Possible values are

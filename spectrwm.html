@@ -701,6 +701,10 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
   <dt id="region_padding"><a class="permalink" href="#region_padding"><code class="Ic">region_padding</code></a></dt>
   <dd>Pixel width of empty space within region borders. Disable by setting to
     0.</dd>
+  <dt id="snap_range"><a class="permalink" href="#snap_range"><code class="Ic">snap_range</code></a></dt>
+  <dd>Set the distance in pixels a tiled/maximized window must be moved (with
+      the pointer) to unsnap and float freely. Set to 0 to unsnap immediately.
+      Default is 25.</dd>
   <dt id="spawn_position"><a class="permalink" href="#spawn_position"><code class="Ic">spawn_position</code></a></dt>
   <dd>Position in stack to place newly spawned windows. Possible values are
       <var class="Ar">first</var>, <var class="Ar">next</var>,
@@ -1760,7 +1764,7 @@ $ xprop -id $WINDOWID _NET_WM_NAME | grep -o &quot;\&quot;.*\&quot;&quot;</pre>
 </div>
 <table class="foot">
   <tr>
-    <td class="foot-date">October 15, 2023</td>
+    <td class="foot-date">October 21, 2023</td>
   </tr>
 </table>
 </body>

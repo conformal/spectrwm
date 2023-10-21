@@ -406,6 +406,7 @@ xcb_connection_t	*conn;
 xcb_key_symbols_t	*syms;
 
 int			boundary_width = 50;
+int			snap_range = 25;
 bool			cycle_empty = false;
 bool			cycle_visible = false;
 int			term_width = 0;
@@ -1135,6 +1136,20 @@ enum {
 	EWMH_WM_MOVERESIZE_CANCEL = 11,
 };
 
+#define SWM_SIZE_VFLIP		(0x1)
+#define SWM_SIZE_HFLIP		(0x2)
+#define SWM_SIZE_VERT		(0x4)
+#define SWM_SIZE_HORZ		(0x8)
+
+#define SWM_SIZE_TOP		(SWM_SIZE_VERT | SWM_SIZE_VFLIP)
+#define SWM_SIZE_BOTTOM		(SWM_SIZE_VERT)
+#define SWM_SIZE_RIGHT		(SWM_SIZE_HORZ)
+#define SWM_SIZE_LEFT		(SWM_SIZE_HORZ | SWM_SIZE_HFLIP)
+#define SWM_SIZE_TOPLEFT	(SWM_SIZE_TOP | SWM_SIZE_LEFT)
+#define SWM_SIZE_TOPRIGHT	(SWM_SIZE_TOP | SWM_SIZE_RIGHT)
+#define SWM_SIZE_BOTTOMLEFT	(SWM_SIZE_BOTTOM | SWM_SIZE_LEFT)
+#define SWM_SIZE_BOTTOMRIGHT	(SWM_SIZE_BOTTOM | SWM_SIZE_RIGHT)
+
 /* Cursors */
 enum {
 	XC_FLEUR,
@@ -1447,7 +1462,10 @@ int	 conf_load(const char *, int);
 void	 config_win(struct ws_win *, xcb_configure_request_event_t *);
 void	 configurenotify(xcb_configure_notify_event_t *);
 void	 configurerequest(xcb_configure_request_event_t *);
-void	 constrain_window(struct ws_win *, struct swm_geometry *, int *);
+static void	 constrain_window(struct ws_win *, struct swm_geometry *,
+		     uint32_t *);
+static bool	 contain_window(struct ws_win *, struct swm_geometry, int,
+		     uint32_t);
 int	 count_win(struct workspace *, uint32_t);
 int	 create_search_win(struct ws_win *, int);
 void	 cursors_cleanup(void);
@@ -1615,7 +1633,6 @@ void	 rawbuttonpress(xcb_input_raw_button_press_event_t *);
 #endif
 void	 refresh_stack(struct swm_screen *);
 int	 refresh_strut(struct swm_screen *);
-void	 region_containment(struct ws_win *, struct swm_geometry, int);
 struct swm_region	*region_under(struct swm_screen *, int, int);
 void	 regionize(struct ws_win *, int, int);
 int	 reparent_window(struct ws_win *);
@@ -1714,6 +1731,7 @@ void	 unmap_window(struct ws_win *);
 void	 unmap_workspace(struct workspace *);
 void	 unmapnotify(xcb_unmap_notify_event_t *);
 void	 unparent_window(struct ws_win *);
+static void	 unsnap_win(struct ws_win *, bool);
 static void	 update_bars(struct swm_screen *);
 void	 update_debug(struct swm_screen *);
 void	 update_floater(struct ws_win *);
@@ -7782,7 +7800,7 @@ update_floater(struct ws_win *win)
 	}
 
 	/* Ensure at least 1 pixel of the window is in the region. */
-	region_containment(win, r->g, SWM_CW_ALLSIDES);
+	contain_window(win, r->g, boundary_width, SWM_CW_ALLSIDES);
 
 	update_window(win);
 }
@@ -9767,15 +9785,18 @@ get_boundary(struct ws_win *win)
 	return (win->s->r->g);
 }
 
-void
-region_containment(struct ws_win *win, struct swm_geometry g, int opts)
+/* Try to keep window within a boundary. Return true if window was contained, */
+static bool
+contain_window(struct ws_win *win, struct swm_geometry g, int bw, uint32_t opts)
 {
-	int				rt, lt, tp, bm, bw;
+	int				rt, lt, tp, bm;
+	bool				contained = true;
 
 	if (win == NULL)
-		return;
+		return (contained);
 
-	bw = (opts & SWM_CW_SOFTBOUNDARY) ? boundary_width : 0;
+	if (!(opts & SWM_CW_SOFTBOUNDARY))
+		bw = 0;
 
 	/*
 	 * Perpendicular distance of each side of the window to the respective
@@ -9803,14 +9824,17 @@ region_containment(struct ws_win *win, struct swm_geometry g, int opts)
 		g.y += 1 - HEIGHT(win);
 		g.w += 2 * WIDTH(win) - 2;
 		g.h += 2 * HEIGHT(win) - 2;
+		contained = false;
 	}
 
 	constrain_window(win, &g, &opts);
+
+	return (contained);
 }
 
 /* Move or resize a window so that flagged side(s) fit into the supplied box. */
-void
-constrain_window(struct ws_win *win, struct swm_geometry *b, int *opts)
+static void
+constrain_window(struct ws_win *win, struct swm_geometry *b, uint32_t *opts)
 {
 	DNPRINTF(SWM_D_MISC, "win %#x, (x,y) w x h: (%d,%d) %d x %d, "
 	    "box: (x,y) w x h: (%d,%d) %d x %d, rt: %s, lt: %s, bt: %s, "
@@ -10035,56 +10059,27 @@ keybindreleased(struct binding *bp, xcb_key_release_event_t *kre)
 void
 resize_win(struct ws_win *win, struct binding *bp, int opt)
 {
-	struct swm_region		*r = NULL;
 	struct swm_geometry		b;
 	xcb_query_pointer_reply_t	*xpr = NULL;
-	uint32_t			newf, dir;
-	bool				restack = false, step = false;
+	uint32_t			dir;
+	bool				inplace = false, step = false;
 
 	if (win == NULL)
 		return;
-	r = win->ws->r;
 
-	if (r == NULL || FULLSCREEN(win) || WINDESKTOP(win) || WINDOCK(win))
+	if (FULLSCREEN(win) || WINDESKTOP(win) || WINDOCK(win))
 		return;
 
 	b = get_boundary(win);
 
 	DNPRINTF(SWM_D_EVENT, "win %#x, floating: %s, transient: %#x\n",
 	    win->id, YESNO(ABOVE(win)), win->transient_for);
+
 	/* Override floating geometry when resizing maximized windows. */
 	if (MAXIMIZED(win) || ws_floating(win->ws)) {
-		win->g_float = win->g;
-		update_gravity(win);
-		/* Maintain original position. */
-		win->g_float.x -= win->g_grav.x;
-		win->g_float.y -= win->g_grav.y;
-		win->g_floatref = b;
-		restack = true;
+		inplace = true;
 	} else if (!(win_transient(win) || ABOVE(win)))
 		return;
-
-	newf = ((win->ewmh_flags | SWM_F_MANUAL) & ~EWMH_F_MAXIMIZED);
-	if (!ws_floating(win->ws) || win_free(win))
-		newf |= EWMH_F_ABOVE;
-	ewmh_apply_flags(win, newf);
-	ewmh_update_wm_state(win);
-	update_win_layer_related(win);
-
-	refresh_stack(win->s);
-	update_stacking(win->s);
-	if (restack) {
-		stack(r);
-		update_mapping(win->s);
-	}
-
-	flush();
-
-	/* It's possible for win to have been freed during flush(). */
-	if (validate_win(win)) {
-		DNPRINTF(SWM_D_EVENT, "invalid win\n");
-		return;
-	}
 
 	switch (opt) {
 	case SWM_ARG_ID_WIDTHSHRINK:
@@ -10107,15 +10102,24 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 		break;
 	}
 	if (step) {
-		region_containment(win, b, SWM_CW_ALLSIDES | SWM_CW_RESIZABLE |
-		    SWM_CW_HARDBOUNDARY);
+		unsnap_win(win, inplace);
+		flush();
+
+		/* It's possible for win to have been freed during flush(). */
+		if (validate_win(win)) {
+			DNPRINTF(SWM_D_EVENT, "invalid win\n");
+			return;
+		}
+
+		contain_window(win, b, boundary_width,
+		    SWM_CW_ALLSIDES | SWM_CW_RESIZABLE | SWM_CW_HARDBOUNDARY);
 		update_window(win);
 		store_float_geom(win);
 		return;
 	}
 
-	region_containment(win, b, SWM_CW_ALLSIDES | SWM_CW_RESIZABLE |
-	    SWM_CW_SOFTBOUNDARY);
+	contain_window(win, b, boundary_width,
+	    SWM_CW_ALLSIDES | SWM_CW_RESIZABLE | SWM_CW_SOFTBOUNDARY);
 	update_window(win);
 
 	/* get cursor offset from window root */
@@ -10124,17 +10128,11 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 	if (xpr == NULL)
 		return;
 
-	if (xpr->win_x < WIDTH(win) / 2) {
-		if (xpr->win_y < HEIGHT(win) / 2)
-			dir = EWMH_WM_MOVERESIZE_SIZE_TOPLEFT;
-		else
-			dir = EWMH_WM_MOVERESIZE_SIZE_BOTTOMLEFT;
-	} else {
-		if (xpr->win_y < HEIGHT(win) / 2)
-			dir = EWMH_WM_MOVERESIZE_SIZE_TOPRIGHT;
-		else
-			dir = EWMH_WM_MOVERESIZE_SIZE_BOTTOMRIGHT;
-	}
+	dir = SWM_SIZE_HORZ | SWM_SIZE_VERT;
+	if (xpr->win_x < WIDTH(win) / 2)
+		dir |= SWM_SIZE_HFLIP;
+	if (xpr->win_y < HEIGHT(win) / 2)
+		dir |= SWM_SIZE_VFLIP;
 
 	resize_win_pointer(win, bp, xpr->root_x, xpr->root_y, dir,
 	    (opt == SWM_ARG_ID_CENTER));
@@ -10150,62 +10148,51 @@ resize_win_pointer(struct ws_win *win, struct binding *bp,
 	xcb_cursor_t			cursor;
 	xcb_generic_event_t		*evt;
 	xcb_motion_notify_event_t	*mne;
+	xcb_button_press_event_t	*bpe;
+	xcb_key_press_event_t		*kpe;
 	xcb_client_message_event_t	*cme;
 	xcb_timestamp_t			timestamp = 0, mintime;
 	int				dx, dy;
-	bool				resizing, horz = false, vert = false;
-	bool				left = false, top = false;
+	bool				resizing;
+	bool				inplace = false;
 
-	switch (dir) {
-	case EWMH_WM_MOVERESIZE_SIZE_TOPLEFT:
-		cursor = cursors[XC_TOP_LEFT_CORNER].cid;
-		horz = true;
-		vert = true;
-		left = true;
-		top = true;
-		break;
-	case EWMH_WM_MOVERESIZE_SIZE_TOP:
-		cursor = cursors[XC_TOP_SIDE].cid;
-		vert = true;
-		top = true;
-		break;
-	case EWMH_WM_MOVERESIZE_SIZE_TOPRIGHT:
-		cursor = cursors[XC_TOP_RIGHT_CORNER].cid;
-		horz = true;
-		vert = true;
-		top = true;
-		break;
-	case EWMH_WM_MOVERESIZE_SIZE_RIGHT:
-		cursor = cursors[XC_RIGHT_SIDE].cid;
-		horz = true;
-		break;
-	case EWMH_WM_MOVERESIZE_SIZE_BOTTOMRIGHT:
-		cursor = cursors[XC_BOTTOM_RIGHT_CORNER].cid;
-		horz = true;
-		vert = true;
-		break;
-	case EWMH_WM_MOVERESIZE_SIZE_BOTTOM:
-		cursor = cursors[XC_BOTTOM_SIDE].cid;
-		vert = true;
-		break;
-	case EWMH_WM_MOVERESIZE_SIZE_BOTTOMLEFT:
-		cursor = cursors[XC_BOTTOM_LEFT_CORNER].cid;
-		horz = true;
-		vert = true;
-		left = true;
-		break;
-	case EWMH_WM_MOVERESIZE_SIZE_LEFT:
-		cursor = cursors[XC_LEFT_SIDE].cid;
-		horz = true;
-		left = true;
-		break;
-	default:
-		cursor = cursors[XC_SIZING].cid;
-		break;
-	}
+	if (MAXIMIZED(win) || ws_floating(win->ws))
+		inplace = true;
+	else if (!(win_transient(win) || ABOVE(win)))
+		return;
 
 	if (center)
 		cursor = cursors[XC_SIZING].cid;
+	else
+		switch (dir) {
+		case SWM_SIZE_TOPLEFT:
+			cursor = cursors[XC_TOP_LEFT_CORNER].cid;
+			break;
+		case SWM_SIZE_TOP:
+			cursor = cursors[XC_TOP_SIDE].cid;
+			break;
+		case SWM_SIZE_TOPRIGHT:
+			cursor = cursors[XC_TOP_RIGHT_CORNER].cid;
+			break;
+		case SWM_SIZE_RIGHT:
+			cursor = cursors[XC_RIGHT_SIDE].cid;
+			break;
+		case SWM_SIZE_BOTTOMRIGHT:
+			cursor = cursors[XC_BOTTOM_RIGHT_CORNER].cid;
+			break;
+		case SWM_SIZE_BOTTOM:
+			cursor = cursors[XC_BOTTOM_SIDE].cid;
+			break;
+		case SWM_SIZE_BOTTOMLEFT:
+			cursor = cursors[XC_BOTTOM_LEFT_CORNER].cid;
+			break;
+		case SWM_SIZE_LEFT:
+			cursor = cursors[XC_LEFT_SIDE].cid;
+			break;
+		default:
+			cursor = cursors[XC_SIZING].cid;
+			break;
+		}
 
 	xcb_grab_pointer(conn, 0, win->id, MOUSEMASK,
 	    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, XCB_WINDOW_NONE, cursor,
@@ -10220,6 +10207,7 @@ resize_win_pointer(struct ws_win *win, struct binding *bp,
 	xcb_grab_key(conn, 0, win->id, XCB_MOD_MASK_ANY, cancel_keycode,
 	    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_SYNC);
 
+	unsnap_win(win, inplace);
 	xcb_flush(conn);
 
 	mintime = 1000 / win->s->rate;
@@ -10228,17 +10216,21 @@ resize_win_pointer(struct ws_win *win, struct binding *bp,
 	while (resizing && (evt = get_next_event(true))) {
 		switch (XCB_EVENT_RESPONSE_TYPE(evt)) {
 		case XCB_BUTTON_RELEASE:
-			if (bp->type == BTNBIND && (bp->value ==
-			    ((xcb_button_release_event_t *)evt)->detail ||
+			bpe = (xcb_button_press_event_t *)evt;
+			event_time = bpe->time;
+			if (bp->type == BTNBIND && (bp->value == bpe->detail ||
 			    bp->value == XCB_BUTTON_INDEX_ANY))
 				resizing = false;
 			break;
 		case XCB_KEY_RELEASE:
-			if (keybindreleased(bp, (xcb_key_release_event_t *)evt))
+			kpe = (xcb_key_press_event_t *)evt;
+			event_time = kpe->time;
+			if (keybindreleased(bp, kpe))
 				resizing = false;
 			break;
 		case XCB_MOTION_NOTIFY:
 			mne = (xcb_motion_notify_event_t *)evt;
+			event_time = mne->time;
 			DNPRINTF(SWM_D_EVENT, "MOTION_NOTIFY: root: %#x\n",
 			    mne->root);
 
@@ -10246,46 +10238,35 @@ resize_win_pointer(struct ws_win *win, struct binding *bp,
 			dx = mne->root_x - x_root;
 			dy = mne->root_y - y_root;
 
-			/* vertical */
-			if (vert) {
-				if (top)
+			if (dir & SWM_SIZE_VERT) {
+				if (dir & SWM_SIZE_VFLIP)
 					dy = -dy;
-
 				if (center) {
 					if (g.h / 2 + dy < 1)
 						dy = 1 - g.h / 2;
-
 					Y(win) = g.y - dy;
 					HEIGHT(win) = g.h + 2 * dy;
 				} else {
 					if (g.h + dy < 1)
 						dy = 1 - g.h;
-
-					if (top)
+					if (dir & SWM_SIZE_VFLIP)
 						Y(win) = g.y - dy;
-
 					HEIGHT(win) = g.h + dy;
 				}
 			}
-
-			/* horizontal */
-			if (horz) {
-				if (left)
+			if (dir & SWM_SIZE_HORZ) {
+				if (dir & SWM_SIZE_HFLIP)
 					dx = -dx;
-
 				if (center) {
 					if (g.w / 2 + dx < 1)
 						dx = 1 - g.w / 2;
-
 					X(win) = g.x - dx;
 					WIDTH(win) = g.w + 2 * dx;
 				} else {
 					if (g.w + dx < 1)
 						dx = 1 - g.w;
-
-					if (left)
+					if (dir & SWM_SIZE_HFLIP)
 						X(win) = g.x - dx;
-
 					WIDTH(win) = g.w + dx;
 				}
 			}
@@ -10298,30 +10279,34 @@ resize_win_pointer(struct ws_win *win, struct binding *bp,
 				regionize(win, mne->root_x, mne->root_y);
 
 				b = get_boundary(win);
-				region_containment(win, b, SWM_CW_ALLSIDES |
-				    SWM_CW_RESIZABLE | SWM_CW_HARDBOUNDARY |
-				    SWM_CW_SOFTBOUNDARY);
+				contain_window(win, b, boundary_width,
+				    SWM_CW_ALLSIDES | SWM_CW_RESIZABLE |
+				    SWM_CW_HARDBOUNDARY | SWM_CW_SOFTBOUNDARY);
 				update_window(win);
 				xcb_flush(conn);
 			}
 			break;
 		case XCB_BUTTON_PRESS:
+			bpe = (xcb_button_press_event_t *)evt;
+			event_time = bpe->time;
 			/* Ignore. */
 			DNPRINTF(SWM_D_EVENT, "BUTTON_PRESS ignored\n");
 			xcb_allow_events(conn, XCB_ALLOW_ASYNC_POINTER,
-			    ((xcb_button_press_event_t *)evt)->time);
+			    bpe->time);
 			xcb_flush(conn);
 			break;
 		case XCB_KEY_PRESS:
+			kpe = (xcb_key_press_event_t *)evt;
+			event_time = kpe->time;
 			/* Handle cancel_key. */
-			if ((xcb_key_press_lookup_keysym(syms,
-			    (xcb_key_press_event_t *)evt, 0)) == cancel_key)
+			if ((xcb_key_press_lookup_keysym(syms, kpe, 0)) ==
+			    cancel_key)
 				resizing = false;
 
 			/* Ignore. */
 			DNPRINTF(SWM_D_EVENT, "KEY_PRESS ignored\n");
 			xcb_allow_events(conn, XCB_ALLOW_ASYNC_KEYBOARD,
-			    ((xcb_key_press_event_t *)evt)->time);
+			    kpe->time);
 			xcb_flush(conn);
 			break;
 		case XCB_CLIENT_MESSAGE:
@@ -10351,14 +10336,15 @@ resize_win_pointer(struct ws_win *win, struct binding *bp,
 		free(evt);
 	}
 	if (timestamp) {
-		region_containment(win, b, SWM_CW_ALLSIDES | SWM_CW_RESIZABLE |
-		    SWM_CW_HARDBOUNDARY | SWM_CW_SOFTBOUNDARY);
+		contain_window(win, b, boundary_width, SWM_CW_ALLSIDES |
+		    SWM_CW_RESIZABLE | SWM_CW_HARDBOUNDARY |
+		    SWM_CW_SOFTBOUNDARY);
 		update_window(win);
-		xcb_flush(conn);
 	}
 	store_float_geom(win);
 out:
 	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
+	xcb_flush(conn);
 	DNPRINTF(SWM_D_EVENT, "done\n");
 }
 
@@ -10440,37 +10426,21 @@ regionize(struct ws_win *win, int x, int y)
 	}
 }
 
-#define SWM_MOVE_STEPS	(50)
-
-void
-move_win(struct ws_win *win, struct binding *bp, int opt)
+static void
+unsnap_win(struct ws_win *win, bool inplace)
 {
-	struct swm_region		*r;
-	xcb_query_pointer_reply_t	*qpr = NULL;
-	uint32_t			newf;
-	bool				restack = false, step = false;
+	uint32_t	newf;
 
-	if (win == NULL)
-		return;
+	DNPRINTF(SWM_D_MISC, "win %#x inplace: %s\n", WINID(win),
+	    YESNO(inplace));
 
-	if ((r = win->ws->r) == NULL)
-		return;
-
-	if (FULLSCREEN(win) || WINDESKTOP(win) || WINDOCK(win))
-		return;
-
-	DNPRINTF(SWM_D_EVENT, "win %#x, floating: %s, transient: %#x\n",
-	    win->id, YESNO(ABOVE(win)), win->transient_for);
-
-	/* Override floating geometry when moving tiled or maximized windows. */
-	if (!win_floating(win) || MAXIMIZED(win)) {
+	if (inplace) {
 		win->g_float = win->g;
 		update_gravity(win);
 		/* Maintain original position. */
 		win->g_float.x -= win->g_grav.x;
 		win->g_float.y -= win->g_grav.y;
-		win->g_floatref = r->g;
-		restack = true;
+		win->g_floatref = get_boundary(win);
 	}
 
 	newf = (win->ewmh_flags | SWM_F_MANUAL) & ~EWMH_F_MAXIMIZED;
@@ -10482,18 +10452,28 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 
 	refresh_stack(win->s);
 	update_stacking(win->s);
-	if (restack) {
-		stack(r);
+	if (inplace) {
+		stack(win->ws->r);
 		update_mapping(win->s);
 	}
+}
 
-	flush();
+#define SWM_MOVE_STEPS	(50)
 
-	/* It's possible for win to have been freed during flush(). */
-	if (validate_win(win)) {
-		DNPRINTF(SWM_D_EVENT, "invalid win.\n");
-		goto out;
-	}
+void
+move_win(struct ws_win *win, struct binding *bp, int opt)
+{
+	xcb_query_pointer_reply_t	*qpr = NULL;
+	bool				step = false, inplace;
+
+	if (win == NULL)
+		return;
+
+	if (FULLSCREEN(win) || WINDESKTOP(win) || WINDOCK(win))
+		return;
+
+	DNPRINTF(SWM_D_EVENT, "win %#x, floating: %s, transient: %#x\n",
+	    win->id, YESNO(ABOVE(win)), win->transient_for);
 
 	switch (opt) {
 	case SWM_ARG_ID_MOVELEFT:
@@ -10516,8 +10496,19 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 		break;
 	}
 	if (step) {
+		inplace = (!win_floating(win) || MAXIMIZED(win));
+		unsnap_win(win, inplace);
+		flush();
+
+		/* It's possible for win to have been freed during flush(). */
+		if (validate_win(win)) {
+			DNPRINTF(SWM_D_EVENT, "invalid win.\n");
+			goto out;
+		}
+
 		regionize(win, -1, -1);
-		region_containment(win, get_boundary(win), SWM_CW_ALLSIDES);
+		contain_window(win, get_boundary(win), boundary_width,
+		    SWM_CW_ALLSIDES);
 		update_window(win);
 		store_float_geom(win);
 		return;
@@ -10539,13 +10530,15 @@ void
 move_win_pointer(struct ws_win *win, struct binding *bp, uint32_t x_root,
     uint32_t y_root)
 {
-	struct swm_geometry		b;
+	struct swm_geometry		g_orig, b;
 	xcb_generic_event_t		*evt;
 	xcb_motion_notify_event_t	*mne;
+	xcb_button_press_event_t	*bpe;
+	xcb_key_press_event_t		*kpe;
 	xcb_client_message_event_t	*cme;
 	xcb_timestamp_t			timestamp = 0, mintime;
 	int				dx, dy;
-	bool				moving;
+	bool				moving, snapped, inplace;
 
 	xcb_grab_pointer(conn, 0, win->id, MOUSEMASK,
 	    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC,
@@ -10560,10 +10553,17 @@ move_win_pointer(struct ws_win *win, struct binding *bp, uint32_t x_root,
 	xcb_grab_key(conn, 0, win->id, XCB_MOD_MASK_ANY, cancel_keycode,
 	    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_SYNC);
 
-	regionize(win, x_root, y_root);
+	g_orig = win->g;
 	b = get_boundary(win);
-	region_containment(win, b, SWM_CW_ALLSIDES | SWM_CW_SOFTBOUNDARY);
-	update_window(win);
+	inplace = (!win_floating(win) || MAXIMIZED(win));
+	snapped = (snap_range && inplace);
+	if (!snapped) {
+		unsnap_win(win, inplace);
+		regionize(win, x_root, y_root);
+		contain_window(win, b, boundary_width,
+		    SWM_CW_ALLSIDES | SWM_CW_SOFTBOUNDARY);
+		update_window(win);
+	}
 	xcb_flush(conn);
 	dx = x_root - X(win);
 	dy = y_root - Y(win);
@@ -10572,25 +10572,27 @@ move_win_pointer(struct ws_win *win, struct binding *bp, uint32_t x_root,
 	while (moving && (evt = get_next_event(true))) {
 		switch (XCB_EVENT_RESPONSE_TYPE(evt)) {
 		case XCB_BUTTON_RELEASE:
-			if (bp->type == BTNBIND && (bp->value ==
-			    ((xcb_button_release_event_t *)evt)->detail ||
+			bpe = (xcb_button_press_event_t *)evt;
+			event_time = bpe->time;
+			if (bp->type == BTNBIND && (bp->value == bpe->detail ||
 			    bp->value == XCB_BUTTON_INDEX_ANY))
 				moving = false;
-
 			xcb_allow_events(conn, XCB_ALLOW_ASYNC_POINTER,
-			    ((xcb_button_release_event_t *)evt)->time);
+			    bpe->time);
 			xcb_flush(conn);
 			break;
 		case XCB_KEY_RELEASE:
-			if (keybindreleased(bp, (xcb_key_release_event_t *)evt))
+			kpe = (xcb_key_press_event_t *)evt;
+			event_time = kpe->time;
+			if (keybindreleased(bp, kpe))
 				moving = false;
-
 			xcb_allow_events(conn, XCB_ALLOW_ASYNC_KEYBOARD,
-			    ((xcb_key_release_event_t *)evt)->time);
+			    kpe->time);
 			xcb_flush(conn);
 			break;
 		case XCB_MOTION_NOTIFY:
 			mne = (xcb_motion_notify_event_t *)evt;
+			event_time = mne->time;
 			DNPRINTF(SWM_D_EVENT, "MOTION_NOTIFY: root: %#x time: "
 			    "%#x, root_x: %d, root_y: %d\n", mne->root,
 			    mne->time, mne->root_x, mne->root_y);
@@ -10600,30 +10602,44 @@ move_win_pointer(struct ws_win *win, struct binding *bp, uint32_t x_root,
 			/* Don't sync faster than the current rate limit. */
 			if ((mne->time - timestamp) > mintime) {
 				timestamp = mne->time;
-				regionize(win, mne->root_x, mne->root_y);
 
-				b = get_boundary(win);
-				region_containment(win, b, SWM_CW_ALLSIDES |
-				    SWM_CW_SOFTBOUNDARY);
+				if (snapped &&
+				    !contain_window(win, g_orig, snap_range,
+				    SWM_CW_ALLSIDES | SWM_CW_SOFTBOUNDARY)) {
+					unsnap_win(win, inplace);
+					snapped = false;
+				} else {
+					regionize(win, mne->root_x,
+							mne->root_y);
+					b = get_boundary(win);
+					contain_window(win, b, boundary_width,
+					    SWM_CW_ALLSIDES |
+					    SWM_CW_SOFTBOUNDARY);
+				}
+
 				update_window(win);
 				xcb_flush(conn);
 			}
 			break;
 		case XCB_BUTTON_PRESS:
+			bpe = (xcb_button_press_event_t *)evt;
+			event_time = bpe->time;
 			/* Thaw and ignore. */
 			xcb_allow_events(conn, XCB_ALLOW_ASYNC_POINTER,
-			    ((xcb_button_press_event_t *)evt)->time);
+			    bpe->time);
 			xcb_flush(conn);
 			break;
 		case XCB_KEY_PRESS:
+			kpe = (xcb_key_press_event_t *)evt;
+			event_time = kpe->time;
 			/* Handle cancel_key. */
-			if ((xcb_key_press_lookup_keysym(syms,
-			    (xcb_key_press_event_t *)evt, 0)) == cancel_key)
+			if ((xcb_key_press_lookup_keysym(syms, kpe, 0)) ==
+			    cancel_key)
 				moving = false;
 
 			/* Ignore. */
 			xcb_allow_events(conn, XCB_ALLOW_ASYNC_KEYBOARD,
-			    ((xcb_key_press_event_t *)evt)->time);
+			    kpe->time);
 			xcb_flush(conn);
 			break;
 		case XCB_CLIENT_MESSAGE:
@@ -10652,15 +10668,20 @@ move_win_pointer(struct ws_win *win, struct binding *bp, uint32_t x_root,
 		}
 		free(evt);
 	}
-	if (timestamp) {
-		region_containment(win, b, SWM_CW_ALLSIDES |
+	if (snapped) {
+		contain_window(win, g_orig, snap_range, SWM_CW_ALLSIDES |
 		    SWM_CW_SOFTBOUNDARY);
 		update_window(win);
-		xcb_flush(conn);
+	} else if (timestamp) {
+		b = get_boundary(win);
+		contain_window(win, b, boundary_width,
+		    SWM_CW_ALLSIDES | SWM_CW_SOFTBOUNDARY);
+		update_window(win);
 	}
 	store_float_geom(win);
 out:
 	xcb_ungrab_pointer(conn, XCB_CURRENT_TIME);
+	xcb_flush(conn);
 	DNPRINTF(SWM_D_EVENT, "done\n");
 }
 
@@ -12537,6 +12558,7 @@ enum {
 	SWM_S_MAXIMIZE_HIDE_OTHER,
 	SWM_S_MAXIMIZED_UNFOCUS,
 	SWM_S_REGION_PADDING,
+	SWM_S_SNAP_RANGE,
 	SWM_S_SPAWN_ORDER,
 	SWM_S_SPAWN_TERM,
 	SWM_S_STACK_ENABLED,
@@ -12780,6 +12802,11 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 		region_padding = atoi(value);
 		if (region_padding < 0)
 			region_padding = 0;
+		break;
+	case SWM_S_SNAP_RANGE:
+		snap_range = atoi(value);
+		if (snap_range < 0)
+			snap_range = 0;
 		break;
 	case SWM_S_SPAWN_ORDER:
 		if (strcmp(value, "first") == 0)
@@ -13461,6 +13488,7 @@ struct config_option configopt[] = {
 	{ "region_padding",		setconfvalue,	SWM_S_REGION_PADDING },
 	{ "screenshot_app",		NULL,		0 }, /* dummy */
 	{ "screenshot_enabled",		NULL,		0 }, /* dummy */
+	{ "snap_range",			setconfvalue,	SWM_S_SNAP_RANGE },
 	{ "spawn_position",		setconfvalue,	SWM_S_SPAWN_ORDER },
 	{ "spawn_term",			setconfvalue,	SWM_S_SPAWN_TERM },
 	{ "stack_enabled",		setconfvalue,	SWM_S_STACK_ENABLED },
@@ -13796,11 +13824,12 @@ reparent_window(struct ws_win *win)
 	wa[1] = XCB_EVENT_MASK_BUTTON_PRESS |
 	    XCB_EVENT_MASK_BUTTON_RELEASE |
 	    XCB_EVENT_MASK_ENTER_WINDOW |
+	    XCB_EVENT_MASK_LEAVE_WINDOW |
+	    XCB_EVENT_MASK_EXPOSURE |
 	    XCB_EVENT_MASK_STRUCTURE_NOTIFY |
-	    XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
 	    XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY |
-	    XCB_EVENT_MASK_EXPOSURE;
-	wa[1] |= XCB_EVENT_MASK_LEAVE_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE;
+	    XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
+	    XCB_EVENT_MASK_FOCUS_CHANGE;
 	wa[2] = win->s->colormap;
 
 	xcb_create_window(conn, win->s->depth, win->frame, win->s->root, X(win),
@@ -14072,8 +14101,8 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 			win->g_floatref = win->ws->r->g;
 
 		/* Make sure window has at least 1px inside its region. */
-		region_containment(win, get_boundary(win), SWM_CW_ALLSIDES |
-		    SWM_CW_HARDBOUNDARY);
+		contain_window(win, get_boundary(win), boundary_width,
+		    SWM_CW_ALLSIDES | SWM_CW_HARDBOUNDARY);
 		update_window(win);
 	}
 
@@ -15843,8 +15872,8 @@ void
 moveresize_win(struct ws_win *win, xcb_client_message_event_t *e)
 {
 	struct binding		b;
-	uint32_t		newf;
-	bool			inplace = false, resize = false;
+	uint32_t		dir = 0;
+	bool			move;
 
 	/*
 	 * _NET_WM_MOVERESIZE
@@ -15864,24 +15893,34 @@ moveresize_win(struct ws_win *win, xcb_client_message_event_t *e)
 	    e->data.data32[2], e->data.data32[3],
 	    get_source_type_label(e->data.data32[4]));
 
+	move = false;
 	switch (e->data.data32[2]) {
 	case EWMH_WM_MOVERESIZE_SIZE_TOPLEFT:
+		dir = SWM_SIZE_TOPLEFT;
+		break;
 	case EWMH_WM_MOVERESIZE_SIZE_TOP:
+		dir = SWM_SIZE_TOP;
+		break;
 	case EWMH_WM_MOVERESIZE_SIZE_TOPRIGHT:
+		dir = SWM_SIZE_TOPRIGHT;
+		break;
 	case EWMH_WM_MOVERESIZE_SIZE_RIGHT:
+		dir = SWM_SIZE_RIGHT;
+		break;
 	case EWMH_WM_MOVERESIZE_SIZE_BOTTOMRIGHT:
+		dir = SWM_SIZE_BOTTOMRIGHT;
+		break;
 	case EWMH_WM_MOVERESIZE_SIZE_BOTTOM:
+		dir = SWM_SIZE_BOTTOM;
+		break;
 	case EWMH_WM_MOVERESIZE_SIZE_BOTTOMLEFT:
+		dir = SWM_SIZE_BOTTOMLEFT;
+		break;
 	case EWMH_WM_MOVERESIZE_SIZE_LEFT:
-		if (MAXIMIZED(win) || ws_floating(win->ws))
-			inplace = true;
-		else if (!(win_transient(win) || ABOVE(win)))
-			return;
-		resize = true;
+		dir = SWM_SIZE_LEFT;
 		break;
 	case EWMH_WM_MOVERESIZE_MOVE:
-		if (!win_floating(win) || MAXIMIZED(win))
-			inplace = true;
+		move = true;
 		break;
 	case EWMH_WM_MOVERESIZE_SIZE_KEYBOARD:
 	case EWMH_WM_MOVERESIZE_MOVE_KEYBOARD:
@@ -15895,38 +15934,14 @@ moveresize_win(struct ws_win *win, xcb_client_message_event_t *e)
 		return;
 	};
 
-	if (inplace) {
-		win->g_float = win->g;
-		update_gravity(win);
-		/* Maintain original position. */
-		win->g_float.x -= win->g_grav.x;
-		win->g_float.y -= win->g_grav.y;
-		win->g_floatref = get_boundary(win);
-	}
-
-	newf = ((win->ewmh_flags | SWM_F_MANUAL) & ~EWMH_F_MAXIMIZED);
-	if (!ws_floating(win->ws) || win_free(win))
-		newf |= EWMH_F_ABOVE;
-	ewmh_apply_flags(win, newf);
-	ewmh_update_wm_state(win);
-	update_win_layer_related(win);
-
-	refresh_stack(win->s);
-	update_stacking(win->s);
-	if (inplace) {
-		stack(win->ws->r);
-		update_mapping(win->s);
-	}
-	flush();
-
 	b.type = BTNBIND;
 	b.value = e->data.data32[3];
 
-	if (resize)
-		resize_win_pointer(win, &b, e->data.data32[0],
-		    e->data.data32[1], e->data.data32[2], false);
-	else
+	if (move)
 		move_win_pointer(win, &b, e->data.data32[0], e->data.data32[1]);
+	else
+		resize_win_pointer(win, &b, e->data.data32[0],
+		    e->data.data32[1], dir, false);
 	DNPRINTF(SWM_D_EVENT, "done.\n");
 }
 
