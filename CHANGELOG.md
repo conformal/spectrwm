@@ -1,26 +1,67 @@
 spectrwm 3.5.0
 ==============
 
-Unreleased
+Released on Oct 22, 2023
 
+Includes a bunch of major new features and improvements, such as dock/panel
+support, an always mapped window mode, floating workspace layout, transparent
+color support, tons of fixes, and more!
+
+* Add *free* window mode.
+  - *free* windows are floating windows that are not in a workspace. They remain
+    mapped and may be resized, positioned and stacked anywhere. When iconified,
+    they appear at the end of the uniconify menu. Note that free windows can be
+    stacked above/below workspace windows but must be put into a workspace and
+    unfloated to be part of its tiling layout. `float_toggle` is convenient for
+    this purpose.
+  - Add `free_toggle` action (default: `M-S-grave`). Toggle focused window
+    between workspace mode and free mode.
+  - Add `focus_free` action (default: `M-grave`). Switch focus to/from windows in
+    free mode, if any.
+  - Add related color and focus mark options.
+* Improve EWMH (Extended Window Manager Hints) support.
+  - Add support for docks/panels and desktop managers.
+  - Add strut support for windows (e.g. panels) to automatically reserve screen
+    real estate.
+  - Add support for applications to initiate move/resize operations.
+  - Add *demands attention* support to urgency features to include windows that
+    request focus but are denied.
+  - Add support for *below* state to keep windows stacked below others.
+  - Improve _NET_ACTIVE_WINDOW handling.
+  - Fix _NET_DESKTOP_VIEWPORT should update on workspace and region changes.
+* Improve window stacking.
+  - Overhaul window stacking for improved reliability and flexibility required
+    for new features/fixes. Windows are now stacked as a whole instead of per
+    region/workspace.
+  - Add `click_to_raise` option (default: `1` (enabled)). Raises stacking
+    priority when clicking on a window.
+  - Add `below_toggle` action (default: `M-S-t`). Toggles *below* state on a
+    focused window to keep it below other windows. `raise` can be used to
+    temporarily bring a window above all others.
+  - Fix `raise` and `always_raise` stacking issues.
+  - Fix follow mode stacking issues.
+  - Fix stacking order issues.
+  - Restore stacking order after leaving fullscreen/maximized state.
 * Workaround application issues related to ICCCM 6.3 button grabs.
   - If X Input Extension >= 2.1 is available, handle button bindings with the
     `REPLAY` flag passively, without grabs. For other button bindings, establish
     grabs on root.
   - Otherwise, for compatibility, establish all button binding grabs directly on
     client windows.
+* Add alpha transparent color support for use with compositing managers. Colors
+  can now be specified with an alpha component via the format
+  `rbga:rr/gg/bb/aa` (values in hex.)
 * Improve bar fonts.
   - Fallback to a "fail-safe" font if the default/user `bar_font` fails to load.
   - Add fallback handling for missing glyphs when using multiple fonts with Xft.
   - Add supplementary private-use code points to `bar_font_pua`.
   - Fix `$bar_font` program variable substitution should not include fallbacks.
 * Improve window mapping.
+  - Add `maximize_hide_other` and `fullscreen_hide_other` options. When a
+    maximized/fullscreen window is focused, hide unrelated windows on the same
+    workspace. Useful for transparent windows.
   - Fix window mapping issue when handling simultaneous screen changes.
   - Improve reliability.
-* Improve window stacking.
-  - Stack by screen instead of by region/workspace.
-  - Fix `raise` and `always_raise` stacking issues.
-  - Fix follow mode stacking issues.
 * Improve (re)start handling.
   - Set intial focus more reliably.
   - Focus on fullscreen/maximized windows before main.
@@ -30,13 +71,14 @@ Unreleased
     fallback to the last focused window in the workspace.
   - Add `focus_prior` action. Focus last focused window on workspace.
     (Default binding: `M-S-a`.)
+  - Improve previous focus fallback.
   - Fix iconified window focus issue.
   - Fix input focus fallback.
   - Fix setting focus with EWMH should unmaximize other windows.
   - Fix move/resize operation should abort on focus loss.
   - Fix `focus_main` issue with iconified/floating windows.
   - Fix max layout focus issue when closing transients.
-  - Improve previous focus fallback.
+  - Fix `warp_pointer` issues.
 * Improve focus follow mode.
   - Fix handling of ConfigureWindow and EWMH requests.
   - Fix workspace switching issues.
@@ -46,44 +88,75 @@ Unreleased
   - Add stack mark options for the stacking indicator (+S).
   - Add focus mark options for the focus status indicator (+F).
   - Add character sequence for number of windows in workspace (+w) (lowercase).
+  - Add unfocused options to color bar text and background.
+  - Add color options for when a window in free mode is focused.
   - Fix `bar_action` piping deadlock issue.
   - Fix `name_workspace` should clear on empty string.
   - Fix refresh bar on `name_workspace`.
   - Set WM_CLASS, WM_NAME and _NET_WM_NAME on the bar window.
-* Add `maximize_hide_other` and `fullscreen_hide_other` options. When a
-  maximized/fullscreen window is focused, hide unrelated windows on the same
-  workspace. Useful for transparent windows.
-* Add `prior_layout` action. Switch to the last used layout.
-  (Unbound by default.)
-* Add `workspace_autorotate` option. When moving workspaces across regions,
-  automatically "rotate" vertical/horizontal layouts based on RandR rotation
-  data.
-* Add optional rotation argument to `region` option.
-* Add support for ICCCM `WM_CHANGE_STATE` ClientMessage.
-* Disable border on maximized windows when `disable_border = always`.
-* Fix `warp_pointer` issues.
-* Fix maximize handling.
-* Fix ws cycle actions should skip visible workspaces.
-* Fix handling when a window is lost immediately after ReparentWindow.
-* Fix _NET_DESKTOP_VIEWPORT should update on workspace and region changes.
-* Fix X connection error handling.
-* Fix Java workaround.
-* Fix compile error when building against musl.
-* Fix build with clang 16 on Linux.
-* Add "wpath" pledge for sparc64 support
-* Simplify use of `pledge(2)` on OpenBSD.
-* Remove `-g` from CFLAGS in all Makefiles.
+* Add `floating` workspace layout stacking mode.
+  - In floating layout, windows are not tiled and may be freely moved around
+    and resized.
+  - Add `stack_mark_floating` option for the stacking indicator
+    (default:` '[~]'`).
+  - Add `layout_floating` action (default: unbound). Directly switch to floating
+    layout.
+  - Add `floating` `stack_mode` to the `layout` option.
+* Improve max layout.
+  - Allow windows to be unmaximized/floated in max layout.
+  - Add `max_layout_maximize` option to configure default maximized state.
+  - Allow floating windows to remain floating when dragged between regions into
+    a max layout workspace.
+* Improve window handling.
+  - Add *snap* behavior when dragging tiled/maximized windows. Prevents
+    accidentally floating tiled windows.
+  - Add `snap_distance` option (default 25). Sets the pixel distance a
+    tiled/maximized window must be dragged (with the pointer) to make it
+    float and move freely. Set to 0 to unsnap/float immediately.
+  - Add `maximized_unfocus` and `fullscreen_unfocus` options. Configures
+    handling of maximized/fullscreen windows that lose focus.
+  - Add support for ICCCM `WM_CHANGE_STATE` ClientMessage. Enables applications
+    to iconify their own windows.
+  - Add support for window gravity. Improves floating window positioning by
+    applications.
+  - Disable border on maximized windows when `disable_border = always`.
+  - Add window titles to `search_win`.
+  - Fix maximize handling.
+  - Fix handling when a window is lost immediately after ReparentWindow.
+  - Fix Java workaround.
+* Improve workspace handling.
+  - Add `workspace_autorotate` option. When switching workspaces between regions,
+    automatically "rotate" vertical/horizontal layouts based on RandR rotation
+    data.
+  - Add `prior_layout` action. Switch to the last used layout.
+    (Unbound by default.)
+  - Add optional rotation argument to `region` option.
+  - Fix ws cycle actions should skip visible workspaces.
+  - Add `cycle_visible` option to the man page and example conf.
+* Improve debugging.
+  - Add `-d` command-line option to enable debug mode. Enables debug mode
+    actions and logging to *stderr* without the need to rebuild with
+    `-DSWM_DEBUG`.
+  - Add multi-line support to `debug_toggle` overlay (default: M-d).
+  - Add atom name cache to avoid redundant requests/syncs when printing output.
+* Fix X connection error handling to exit on a failed connection.
+* Fix build issues.
+  - Fix compile error when building against musl.
+  - Fix build with clang 16 on Linux.
+* Improve OpenBSD `pledge(2)` support.
+  - Add "wpath" pledge for sparc64 support
+  - Simplify usage.
 * Improve Linux Makefile.
-* Fix `iostat(8)` issue in example baraction.sh script for OpenBSD.
-* Add `cycle_visible` option to the man page and example conf.
-* Add details to `modkey` option in man page.
-* Add stack modes and window states to man page.
-* Fix incorrect key binding for `ws_6` in spectrwm_fr.conf.
-* Fix man page `wmctrl(1)` examples.
-* Update man page note regarding `dmenu(1)` Xft support.
-* Update example spectrwm.conf.
-* Update `keyboard_mapping` example configuration files.
-* Update html manual.
+* Improve manual and examples.
+  - Add details to `modkey` option in man page.
+  - Add stack modes and window states to man page.
+  - Fix incorrect key binding for `ws_6` in spectrwm_fr.conf.
+  - Fix man page `wmctrl(1)` examples.
+  - Fix `iostat(8)` issue in example baraction.sh script for OpenBSD.
+  - Update man page note regarding `dmenu(1)` Xft support.
+  - Update example spectrwm.conf.
+  - Update `keyboard_mapping` example configuration files.
+  - Update html manual.
 
 
 spectrwm 3.4.1
