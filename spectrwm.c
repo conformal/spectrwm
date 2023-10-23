@@ -5188,7 +5188,7 @@ bar_setup(struct swm_region *r)
 
 	r->bar->r = r;
 	X(r->bar) = X(r) + bar_border_width;
-	Y(r->bar) = bar_at_bottom ? (Y(r) + HEIGHT(r) - bar_height -
+	Y(r->bar) = bar_at_bottom ? (Y(r) + HEIGHT(r) - bar_height +
 	    bar_border_width) : Y(r) + bar_border_width;
 	WIDTH(r->bar) = WIDTH(r) - 2 * bar_border_width;
 	HEIGHT(r->bar) = bar_height - 2 * bar_border_width;

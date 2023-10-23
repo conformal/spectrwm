@@ -110,7 +110,7 @@ color support, tons of fixes, and more!
 * Improve window handling.
   - Add *snap* behavior when dragging tiled/maximized windows. Prevents
     accidentally floating tiled windows.
-  - Add `snap_distance` option (default 25). Sets the pixel distance a
+  - Add `snap_range` option (default 25). Sets the pixel distance a
     tiled/maximized window must be dragged (with the pointer) to make it
     float and move freely. Set to 0 to unsnap/float immediately.
   - Add `maximized_unfocus` and `fullscreen_unfocus` options. Configures
