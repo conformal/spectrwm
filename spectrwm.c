@@ -12227,6 +12227,7 @@ const char *quirkname[] = {
 	"IGNORESPAWNWS",
 	"NOFOCUSCYCLE",
 	"MINIMALBORDER",
+	"NORESIZE",
 };
 
 /* SWM_Q_DELIM: retain '|' for back compat for now (2009-08-11) */
