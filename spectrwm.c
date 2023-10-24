@@ -996,7 +996,7 @@ struct quirk {
 #define SWM_Q_IGNORESPAWNWS	(1 << 10)/* Ignore _SWM_WS when managing win. */
 #define SWM_Q_NOFOCUSCYCLE	(1 << 11)/* Remove from normal focus cycle. */
 #define SWM_Q_MINIMALBORDER	(1 << 12)/* No border when floating/unfocused.*/
-#define SWM_Q_NOSIZEREQ 	(1 << 13)/* Don't obey resize requests. */
+#define SWM_Q_NORESIZE 	(1 << 13)/* Don't obey resize requests. */
 };
 TAILQ_HEAD(quirk_list, quirk) quirks = TAILQ_HEAD_INITIALIZER(quirks);
 
@@ -2700,9 +2700,9 @@ ewmh_update_wm_state(struct  ws_win *win) {
 	xcb_atom_t		vals[SWM_EWMH_ACTION_COUNT_MAX];
 	int			n = 0;
 
-	if (MAXIMIZED_VERT(win))
+	if (MAXIMIZED_VERT(win) && !(win->quirks & SWM_Q_NORESIZE))
 		vals[n++] = ewmh[_NET_WM_STATE_MAXIMIZED_VERT].atom;
-	if (MAXIMIZED_HORZ(win))
+	if (MAXIMIZED_HORZ(win) && !(win->quirks & SWM_Q_NORESIZE))
 		vals[n++] = ewmh[_NET_WM_STATE_MAXIMIZED_HORZ].atom;
 	if (SKIP_TASKBAR(win))
 		vals[n++] = ewmh[_NET_WM_STATE_SKIP_TASKBAR].atom;
@@ -2710,10 +2710,8 @@ ewmh_update_wm_state(struct  ws_win *win) {
 		vals[n++] = ewmh[_NET_WM_STATE_SKIP_PAGER].atom;
 	if (HIDDEN(win))
 		vals[n++] = ewmh[_NET_WM_STATE_HIDDEN].atom;
-	if (FULLSCREEN(win))
-		if (!(win->quirks & SWM_Q_NOSIZEREQ)) {
+	if (FULLSCREEN(win) && !(win->quirks & SWM_Q_NORESIZE))
 			vals[n++] = ewmh[_NET_WM_STATE_FULLSCREEN].atom;
-		}
 	if (ABOVE(win))
 		vals[n++] = ewmh[_NET_WM_STATE_ABOVE].atom;
 	if (BELOW(win))
