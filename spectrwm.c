@@ -194,7 +194,7 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #define SWM_D_ALL		(0x1ffff)
 
 /* Debug output is disabled by default unless SWM_DEBUG is set. */
-uint32_t		swm_debug = 0
+uint32_t		swm_debug = 1
 #ifdef SWM_DEBUG
 			    | SWM_D_MISC
 			    | SWM_D_EVENT
@@ -996,6 +996,7 @@ struct quirk {
 #define SWM_Q_IGNORESPAWNWS	(1 << 10)/* Ignore _SWM_WS when managing win. */
 #define SWM_Q_NOFOCUSCYCLE	(1 << 11)/* Remove from normal focus cycle. */
 #define SWM_Q_MINIMALBORDER	(1 << 12)/* No border when floating/unfocused.*/
+#define SWM_Q_NORESIZE 	(1 << 13)/* Don't obey resize requests. */
 };
 TAILQ_HEAD(quirk_list, quirk) quirks = TAILQ_HEAD_INITIALIZER(quirks);
 
@@ -2699,18 +2700,12 @@ ewmh_update_wm_state(struct  ws_win *win) {
 	xcb_atom_t		vals[SWM_EWMH_ACTION_COUNT_MAX];
 	int			n = 0;
 
-	if (MAXIMIZED_VERT(win))
-		vals[n++] = ewmh[_NET_WM_STATE_MAXIMIZED_VERT].atom;
-	if (MAXIMIZED_HORZ(win))
-		vals[n++] = ewmh[_NET_WM_STATE_MAXIMIZED_HORZ].atom;
 	if (SKIP_TASKBAR(win))
 		vals[n++] = ewmh[_NET_WM_STATE_SKIP_TASKBAR].atom;
 	if (SKIP_PAGER(win))
 		vals[n++] = ewmh[_NET_WM_STATE_SKIP_PAGER].atom;
 	if (HIDDEN(win))
 		vals[n++] = ewmh[_NET_WM_STATE_HIDDEN].atom;
-	if (FULLSCREEN(win))
-		vals[n++] = ewmh[_NET_WM_STATE_FULLSCREEN].atom;
 	if (ABOVE(win))
 		vals[n++] = ewmh[_NET_WM_STATE_ABOVE].atom;
 	if (BELOW(win))
@@ -2719,6 +2714,15 @@ ewmh_update_wm_state(struct  ws_win *win) {
 		vals[n++] = ewmh[_NET_WM_STATE_DEMANDS_ATTENTION].atom;
 	if (MANUAL(win))
 		vals[n++] = ewmh[_SWM_WM_STATE_MANUAL].atom;
+
+	if(!(win->quirks & SWM_Q_NORESIZE)) {
+		if (MAXIMIZED_VERT(win))
+			vals[n++] = ewmh[_NET_WM_STATE_MAXIMIZED_VERT].atom;
+		if (MAXIMIZED_HORZ(win))
+			vals[n++] = ewmh[_NET_WM_STATE_MAXIMIZED_HORZ].atom;
+		if (FULLSCREEN(win))
+			vals[n++] = ewmh[_NET_WM_STATE_FULLSCREEN].atom;
+	}
 
 	if (n > 0)
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id,
@@ -12226,6 +12230,7 @@ const char *quirkname[] = {
 	"IGNORESPAWNWS",
 	"NOFOCUSCYCLE",
 	"MINIMALBORDER",
+	"NORESIZE",
 };
 
 /* SWM_Q_DELIM: retain '|' for back compat for now (2009-08-11) */
