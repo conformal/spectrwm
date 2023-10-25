@@ -13977,9 +13977,6 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 
 	free(gr);
 
-	TAILQ_INSERT_TAIL(&s->managed, win, manage_entry);
-	s->managed_count++;
-
 	/* Select which X events to monitor and set border pixel color. */
 	wa[0] = XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_PROPERTY_CHANGE |
 	    XCB_EVENT_MASK_STRUCTURE_NOTIFY;
@@ -14080,6 +14077,10 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 
 	if (win->ws == NULL)
 		win->ws = s->r->ws; /* Failsafe. */
+
+	/* WS must be valid before adding to managed list. */
+	TAILQ_INSERT_TAIL(&s->managed, win, manage_entry);
+	s->managed_count++;
 
 	/* Set the _NET_WM_DESKTOP atom. */
 	DNPRINTF(SWM_D_PROP, "set _NET_WM_DESKTOP: %d\n", win->ws->idx);
@@ -15477,7 +15478,7 @@ propertynotify(xcb_property_notify_event_t *e)
 
 	if (e->atom == XCB_ATOM_WM_CLASS ||
 	    e->atom == XCB_ATOM_WM_NAME) {
-		if (win->ws && win->ws->r)
+		if (win->ws->r)
 			bar_draw(win->ws->r->bar);
 	} else if (e->atom == XCB_ATOM_WM_HINTS) {
 		get_wm_hints(win);
