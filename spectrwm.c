@@ -14155,6 +14155,9 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	if (win->quirks & SWM_Q_ANYWHERE)
 		new_flags |= SWM_F_MANUAL;
 
+	if (win->maxstackmax && ws_maxstack(win->ws))
+		new_flags |= EWMH_F_MAXIMIZED;
+
 	ewmh_apply_flags(win, new_flags);
 	ewmh_update_wm_state(win);
 
