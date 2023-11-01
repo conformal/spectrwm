@@ -14028,7 +14028,7 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 			    "mask: %#x, ws: %d\n", qp->class, qp->instance,
 			    qp->name, qp->quirk, qp->ws);
 			win->quirks = qp->quirk;
-			if (qp->ws >= 0 && qp->ws < workspace_limit)
+			if (qp->ws >= -1 && qp->ws < workspace_limit)
 				force_ws = qp->ws;
 		}
 	}
