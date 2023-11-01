@@ -71,16 +71,18 @@
 #include <X11/Xcursor/Xcursor.h>
 #include <X11/Xft/Xft.h>
 #include <X11/Xlib-xcb.h>
+#if !defined(SWM_XCB_HAS_XINPUT) && (defined(__linux__) || defined(__FreeBSD__)	\
+    || defined(__OpenBSD__) || defined(__NetBSD__))
+#define SWM_XCB_HAS_XINPUT
+#endif
 #include <xcb/xcb.h>
 #include <xcb/xcb_atom.h>
 #include <xcb/xcb_aux.h>
 #include <xcb/xcb_event.h>
 #include <xcb/xcb_icccm.h>
 #include <xcb/xcb_keysyms.h>
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) ||	\
-    defined(__NetBSD__)
+#ifdef SWM_XCB_HAS_XINPUT
 #include <xcb/xinput.h>
-#define SWM_XCB_HAS_XINPUT
 #endif
 #include <xcb/xtest.h>
 #include <xcb/randr.h>
