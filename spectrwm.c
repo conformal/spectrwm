@@ -13153,6 +13153,7 @@ setconfcolorlist(const char *selector, const char *value, int flags, char **emsg
 	switch (flags) {
 	case SWM_S_COLOR_BAR:
 	case SWM_S_COLOR_BAR_UNFOCUS:
+	case SWM_S_COLOR_BAR_FREE:
 		/* Set list of background colors */
 		if ((sp = str = strdup(value)) == NULL)
 			err(1, "setconfvalue: strdup");
@@ -13171,6 +13172,7 @@ setconfcolorlist(const char *selector, const char *value, int flags, char **emsg
 		break;
 	case SWM_S_COLOR_BAR_FONT:
 	case SWM_S_COLOR_BAR_FONT_UNFOCUS:
+	case SWM_S_COLOR_BAR_FONT_FREE:
 		/* Set list of foreground colors */
 		if ((sp = str = strdup(value)) == NULL)
 			err(1, "setconfvalue: strdup");
