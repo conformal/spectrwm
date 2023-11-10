@@ -13281,8 +13281,9 @@ setautorun(const char *selector, const char *value, int flags, char **emsg)
 		return (1);
 	}
 	value += n;
-	ws_id--;
-	if (ws_id < 0 || ws_id >= workspace_limit) {
+	if (ws_id > 0)
+		ws_id--;
+	if (ws_id < -1 || ws_id >= workspace_limit) {
 		ALLOCSTR(emsg, "invalid workspace: %d", ws_id + 1);
 		return (1);
 	}
