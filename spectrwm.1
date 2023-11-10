@@ -151,36 +151,13 @@ Specify
 to launch applications such as desktop managers and panels in free mode to keep
 them always mapped.
 .Pp
-Note that workspace mapping is handled via
-.Pa libswmhack.so .
-When
-.Ic autorun
-spawns windows via a daemon, ensure the daemon is started with the correct
-.Pa LD_PRELOAD
-in its environment.
-.Pp
-For example, starting
-.Xr urxvtd 1
-via
-.Xr xinit 1 :
-.Bd -literal -offset indent
-LD_PRELOAD=/usr/lib/libswmhack.so.0.0 urxvtd -q -o -f
-.Ed
-.Pp
-Spawned programs automatically have
-.Pa LD_PRELOAD
-set when executed.
-.Pp
-It is advised to check the man page of
-.Pa ld.so
-as
-.Pa LD_PRELOAD
-is sometimes ignored by some operating systems.
-A workaround is available, e.g. launch an xterm(1) in workspace 2:
-.Bd -literal -offset indent
-autorun = ws[2]:xterm -name ws2
-quirk[XTerm:ws2] = WS[2]
-.Ed
+Note that
+.Pa libswmhack.so
+is required for "spawn-in-workspace" behavior.
+See the
+.Sx SWMHACK
+section below for more information, tips, and workarounds if a program fails to
+spawn in the specified workspace.
 .It Ic bar_action
 External script that populates additional information in the status bar,
 such as battery life.
@@ -228,6 +205,13 @@ A comma separated list of up to 10 colors can be specified, with the same
 syntax and behavior as
 .Ic bar_color .
 Default is rgb:40/40/00.
+.It Ic bar_color_selected Ns Bq Ar x
+Background color for selected
+.Cm menu
+items on screen number
+.Ar x .
+Defaults to the value of
+.Ic bar_border .
 .It Ic bar_color_unfocus Ns Bq Ar x
 Background color of status bar(s) for unfocused region(s) on screen number
 .Ar x .
@@ -238,13 +222,6 @@ syntax and behavior as
 for unfocused bar(s).
 Defaults to the value of
 .Ic bar_color .
-.It Ic bar_color_selected Ns Bq Ar x
-Background color for selected
-.Cm menu
-items on screen number
-.Ar x .
-Defaults to the value of
-.Ic bar_border .
 .It Ic bar_enabled
 Set default
 .Ic bar_toggle
@@ -975,6 +952,9 @@ For example, to change the color of the current workspace:
 workspace_mark_current = '+@fg=1;'
 workspace_mark_current_suffix = '+@fg=0;'
 .Ed
+.It Ic workspace_limit
+Set the total number of workspaces available.
+Minimum is 1, maximum is 22, default is 10.
 .It Ic workspace_mark_active
 Set the string inserted before active workspaces in the
 .Ic workspace_indicator .
@@ -1007,9 +987,6 @@ Default is '!'.
 Set the string inserted after urgent workspaces in the
 .Ic workspace_indicator .
 Default is '' (empty string).
-.It Ic workspace_limit
-Set the total number of workspaces available.
-Minimum is 1, maximum is 22, default is 10.
 .El
 .Sh STACK MODES
 .Bl -tag -width "horizontal flipped"
@@ -1158,6 +1135,14 @@ and prevent it from being validated:
 .Bd -literal -offset indent
 bind[] = MOD+Shift+Delete
 .Ed
+.Pp
+Note that when a program is spawned,
+.Nm
+aims to place its windows in its spawn workspace.
+See the
+.Sx SWMHACK
+section below for more information, tips, and workarounds if a program fails to
+spawn in the correct workspace.
 .Sh BINDINGS
 .Nm
 provides many functions (or actions) accessed via key or pointer button
@@ -1834,8 +1819,6 @@ also automatically assigns quirks to windows based on the value of the window's
 _NET_WM_WINDOW_TYPE property as follows:
 .Pp
 .Bl -tag -width "_NET_WM_WINDOW_TYPE_TOOLBAR<TAB>XXX" -offset indent -compact
-.It _NET_WM_WINDOW_TYPE_DOCK
-FLOAT + ANYWHERE
 .It _NET_WM_WINDOW_TYPE_TOOLBAR
 FLOAT + ANYWHERE
 .It _NET_WM_WINDOW_TYPE_UTILITY
@@ -1927,6 +1910,108 @@ $ wmctrl \-i \-r 0x4a0000b \-e 0,100,50,640,480
 This moves the window to (100,50) and resizes it to 640x480.
 .Pp
 Any _NET_MOVERESIZE_WINDOW events received for stacked windows are ignored.
+.Sh SWMHACK
+When spawning a program via
+.Ic autorun
+or a binding,
+.Nm
+aims to place the program's windows (if any) in its spawn workspace.
+To accomplish this "spawn-in-workspace" behavior,
+.Nm
+must determine the intended spawn workspace when managing a new window.
+Since it cannot be done with X11 alone,
+.Pa libswmhack.so
+is included to make this feature possible.
+.Pp
+When a program is spawned,
+.Nm
+automatically sets
+.Pa LD_PRELOAD
+and
+.Pa _SWM_WS
+in the program's spawn environment to enable
+.Pa libswmhack.so
+when it is executed.
+Note that
+.Pa LD_PRELOAD
+is the path to
+.Pa libswmhack.so
+and
+.Pa _SWM_WS
+is the spawn workspace for any windows created by the program.
+.Pp
+When running programs from terminals, scripts, etc, the inherited environment
+may need to be configured.
+It is possible to override the spawn workspace by setting
+.Pa _SWM_WS
+to a different value.
+Alternatively,
+.Pa _SWM_WS
+can be
+.Xr unset 1
+or set to a blank value to disable
+"spawn-in-workspace" behavior.
+Note that workspaces are counted from 0.
+.Sq -1
+can be specified to put windows into workspace-free mode.
+.Pp
+For example, to play a video with
+.Xr mpv 1
+on workspace 10 without changing the spawn workspace in the environment:
+.Bd -literal -offset indent
+$ _SWM_WS=9 mpv video.mkv
+.Ed
+.Pp
+Play the video in free mode so that it remains mapped when switching workspaces.
+.Bd -literal -offset indent
+$ _SWM_WS=-1 mpv video.mkv
+.Ed
+.Pp
+Disable "spawn-in-workspace" in the environment so that new windows map on
+whichever workspace happens to be focused.
+.Bd -literal -offset indent
+$ unset _SWM_WS
+.Ed
+.Pp
+Change the environment to spawn programs in free mode.
+.Bd -literal -offset indent
+$ export _SWM_WS=-1
+.Ed
+.Pp
+When spawning a program that creates windows via a daemon, ensure the daemon is
+started with the correct
+.Pa LD_PRELOAD
+in its environment.
+.Pp
+For example, when starting
+.Xr urxvtd 1
+via
+.Xr xinit 1 ,
+.Pa LD_PRELOAD
+must be specified.
+.Bd -literal -offset indent
+LD_PRELOAD=/usr/lib/libswmhack.so.0.0 urxvtd -q -o -f
+.Ed
+.Pp
+Note that some operating systems may ignore
+.Pa LD_PRELOAD
+if certain conditions are not met.
+It is advised to check the man page of
+.Pa ld.so .
+.Pp
+In situations where
+.Pa libswmhack.so
+cannot be used, it is possible to use a quirk to spawn a program in a specific
+workspace.
+.Pp
+e.g. launch an xterm(1) in workspace 2 on startup:
+.Bd -literal -offset indent
+autorun = ws[2]:xterm -name ws2
+quirk[XTerm:ws2] = WS[2]
+.Ed
+.Pp
+Note that XCB programs are currently unsupported by
+.Pa libswmhack.so .
 .Sh SIGNALS
 Sending
 .Nm

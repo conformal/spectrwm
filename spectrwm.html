@@ -160,26 +160,11 @@
       e.g. ws[2]:xterm launches an <a class="Xr">xterm(1)</a> in workspace 2.
       Specify &#x2018;ws[-1]&#x2019; to launch applications such as desktop
       managers and panels in free mode to keep them always mapped.
-    <p class="Pp">Note that workspace mapping is handled via
-        <span class="Pa">libswmhack.so</span>. When
-        <code class="Ic">autorun</code> spawns windows via a daemon, ensure the
-        daemon is started with the correct <span class="Pa">LD_PRELOAD</span> in
-        its environment.</p>
-    <p class="Pp">For example, starting <a class="Xr">urxvtd(1)</a> via
-        <a class="Xr">xinit(1)</a>:</p>
-    <div class="Bd Pp Bd-indent Li">
-    <pre>LD_PRELOAD=/usr/lib/libswmhack.so.0.0 urxvtd -q -o -f</pre>
-    </div>
-    <p class="Pp">Spawned programs automatically have
-        <span class="Pa">LD_PRELOAD</span> set when executed.</p>
-    <p class="Pp">It is advised to check the man page of
-        <span class="Pa">ld.so</span> as <span class="Pa">LD_PRELOAD</span> is
-        sometimes ignored by some operating systems. A workaround is available,
-        e.g. launch an xterm(1) in workspace 2:</p>
-    <div class="Bd Pp Bd-indent Li">
-    <pre>autorun = ws[2]:xterm -name ws2
-quirk[XTerm:ws2] = WS[2]</pre>
-    </div>
+    <p class="Pp">Note that <span class="Pa">libswmhack.so</span> is required
+        for &quot;spawn-in-workspace&quot; behavior. See the
+        <a class="Sx" href="#SWMHACK">SWMHACK</a> section below for more
+        information, tips, and workarounds if a program fails to spawn in the
+        specified workspace.</p>
   </dd>
   <dt id="bar_action"><a class="permalink" href="#bar_action"><code class="Ic">bar_action</code></a></dt>
   <dd>External script that populates additional information in the status bar,
@@ -219,6 +204,10 @@ quirk[XTerm:ws2] = WS[2]</pre>
         with the same syntax and behavior as <code class="Ic">bar_color</code>.
         Default is rgb:40/40/00.</p>
   </dd>
+  <dt id="bar_color_selected"><a class="permalink" href="#bar_color_selected"><code class="Ic">bar_color_selected</code></a>[<var class="Ar">x</var>]</dt>
+  <dd>Background color for selected <code class="Cm">menu</code> items on screen
+      number <var class="Ar">x</var>. Defaults to the value of
+      <code class="Ic">bar_border</code>.</dd>
   <dt id="bar_color_unfocus"><a class="permalink" href="#bar_color_unfocus"><code class="Ic">bar_color_unfocus</code></a>[<var class="Ar">x</var>]</dt>
   <dd>Background color of status bar(s) for unfocused region(s) on screen number
       <var class="Ar">x</var>.
@@ -227,10 +216,6 @@ quirk[XTerm:ws2] = WS[2]</pre>
         for unfocused bar(s). Defaults to the value of
         <code class="Ic">bar_color</code>.</p>
   </dd>
-  <dt id="bar_color_selected"><a class="permalink" href="#bar_color_selected"><code class="Ic">bar_color_selected</code></a>[<var class="Ar">x</var>]</dt>
-  <dd>Background color for selected <code class="Cm">menu</code> items on screen
-      number <var class="Ar">x</var>. Defaults to the value of
-      <code class="Ic">bar_border</code>.</dd>
   <dt id="bar_enabled"><a class="permalink" href="#bar_enabled"><code class="Ic">bar_enabled</code></a></dt>
   <dd>Set default <code class="Ic">bar_toggle</code> state; default is 1.</dd>
   <dt id="bar_enabled_ws"><a class="permalink" href="#bar_enabled_ws"><code class="Ic">bar_enabled_ws</code></a>[<var class="Ar">x</var>]</dt>
@@ -848,6 +833,9 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
 workspace_mark_current_suffix = '+@fg=0;'</pre>
     </div>
   </dd>
+  <dt id="workspace_limit"><a class="permalink" href="#workspace_limit"><code class="Ic">workspace_limit</code></a></dt>
+  <dd>Set the total number of workspaces available. Minimum is 1, maximum is 22,
+      default is 10.</dd>
   <dt id="workspace_mark_active"><a class="permalink" href="#workspace_mark_active"><code class="Ic">workspace_mark_active</code></a></dt>
   <dd>Set the string inserted before active workspaces in the
       <code class="Ic">workspace_indicator</code>. Default is '^'.</dd>
@@ -876,9 +864,6 @@ workspace_mark_current_suffix = '+@fg=0;'</pre>
   <dd>Set the string inserted after urgent workspaces in the
       <code class="Ic">workspace_indicator</code>. Default is '' (empty
     string).</dd>
-  <dt id="workspace_limit"><a class="permalink" href="#workspace_limit"><code class="Ic">workspace_limit</code></a></dt>
-  <dd>Set the total number of workspaces available. Minimum is 1, maximum is 22,
-      default is 10.</dd>
 </dl>
 </section>
 <section class="Sh">
@@ -1027,6 +1012,11 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
 <div class="Bd Pp Bd-indent Li">
 <pre>bind[] = MOD+Shift+Delete</pre>
 </div>
+<p class="Pp">Note that when a program is spawned,
+    <code class="Nm">spectrwm</code> aims to place its windows in its spawn
+    workspace. See the <a class="Sx" href="#SWMHACK">SWMHACK</a> section below
+    for more information, tips, and workarounds if a program fails to spawn in
+    the correct workspace.</p>
 </section>
 <section class="Sh">
 <h1 class="Sh" id="BINDINGS"><a class="permalink" href="#BINDINGS">BINDINGS</a></h1>
@@ -1630,8 +1620,6 @@ _NET_WM_NAME(UTF8_STRING) = &quot;spectrwm - ConformalOpenSource&quot;</pre>
 <p class="Pp"></p>
 <div class="Bd-indent">
 <dl class="Bl-tag Bl-compact">
-  <dt>_NET_WM_WINDOW_TYPE_DOCK</dt>
-  <dd>FLOAT + ANYWHERE</dd>
   <dt>_NET_WM_WINDOW_TYPE_TOOLBAR</dt>
   <dd>FLOAT + ANYWHERE</dd>
   <dt>_NET_WM_WINDOW_TYPE_UTILITY</dt>
@@ -1702,6 +1690,73 @@ $ xprop -id $WINDOWID _NET_WM_NAME | grep -o &quot;\&quot;.*\&quot;&quot;</pre>
 <p class="Pp">This moves the window to (100,50) and resizes it to 640x480.</p>
 <p class="Pp">Any _NET_MOVERESIZE_WINDOW events received for stacked windows are
     ignored.</p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="SWMHACK"><a class="permalink" href="#SWMHACK">SWMHACK</a></h1>
+<p class="Pp">When spawning a program via <code class="Ic">autorun</code> or a
+    binding, <code class="Nm">spectrwm</code> aims to place the program's
+    windows (if any) in its spawn workspace. To accomplish this
+    &quot;spawn-in-workspace&quot; behavior, <code class="Nm">spectrwm</code>
+    must determine the intended spawn workspace when managing a new window.
+    Since it cannot be done with X11 alone,
+    <span class="Pa">libswmhack.so</span> is included to make this feature
+    possible.</p>
+<p class="Pp">When a program is spawned, <code class="Nm">spectrwm</code>
+    automatically sets <span class="Pa">LD_PRELOAD</span> and
+    <span class="Pa">_SWM_WS</span> in the program's spawn environment to enable
+    <span class="Pa">libswmhack.so</span> when it is executed. Note that
+    <span class="Pa">LD_PRELOAD</span> is the path to
+    <span class="Pa">libswmhack.so</span> and <span class="Pa">_SWM_WS</span> is
+    the spawn workspace for any windows created by the program.</p>
+<p class="Pp">When running programs from terminals, scripts, etc, the inherited
+    environment may need to be configured. It is possible to override the spawn
+    workspace by setting <span class="Pa">_SWM_WS</span> to a different value.
+    Alternatively, <span class="Pa">_SWM_WS</span> can be
+    <a class="Xr">unset(1)</a> or set to a blank value to disable
+    &quot;spawn-in-workspace&quot; behavior. Note that workspaces are counted
+    from 0. &#x2018;-1&#x2019; can be specified to put windows into
+    workspace-free mode.</p>
+<p class="Pp">For example, to play a video with <a class="Xr">mpv(1)</a> on
+    workspace 10 without changing the spawn workspace in the environment:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>$ _SWM_WS=9 mpv video.mkv</pre>
+</div>
+<p class="Pp">Play the video in free mode so that it remains mapped when
+    switching workspaces.</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>$ _SWM_WS=-1 mpv video.mkv</pre>
+</div>
+<p class="Pp">Disable &quot;spawn-in-workspace&quot; in the environment so that
+    new windows map on whichever workspace happens to be focused.</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>$ unset _SWM_WS</pre>
+</div>
+<p class="Pp">Change the environment to spawn programs in free mode.</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>$ export _SWM_WS=-1</pre>
+</div>
+<p class="Pp">When spawning a program that creates windows via a daemon, ensure
+    the daemon is started with the correct <span class="Pa">LD_PRELOAD</span> in
+    its environment.</p>
+<p class="Pp">For example, when starting <a class="Xr">urxvtd(1)</a> via
+    <a class="Xr">xinit(1)</a>, <span class="Pa">LD_PRELOAD</span> must be
+    specified.</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>LD_PRELOAD=/usr/lib/libswmhack.so.0.0 urxvtd -q -o -f</pre>
+</div>
+<p class="Pp">Note that some operating systems may ignore
+    <span class="Pa">LD_PRELOAD</span> if certain conditions are not met. It is
+    advised to check the man page of <span class="Pa">ld.so</span>.</p>
+<p class="Pp">In situations where <span class="Pa">libswmhack.so</span> cannot
+    be used, it is possible to use a quirk to spawn a program in a specific
+    workspace.</p>
+<p class="Pp">e.g. launch an xterm(1) in workspace 2 on startup:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>autorun = ws[2]:xterm -name ws2
+quirk[XTerm:ws2] = WS[2]</pre>
+</div>
+<p class="Pp">Note that XCB programs are currently unsupported by
+    <span class="Pa">libswmhack.so</span>.</p>
 </section>
 <section class="Sh">
 <h1 class="Sh" id="SIGNALS"><a class="permalink" href="#SIGNALS">SIGNALS</a></h1>
