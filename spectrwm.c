@@ -3969,7 +3969,7 @@ bar_urgent(struct swm_screen *s, char *str, size_t sz)
 	struct workspace	*ws;
 	struct ws_win		*win;
 	bool			urgent;
-	char			b[8];
+	char			b[13];
 
 	RB_FOREACH(ws, workspace_tree, &s->workspaces) {
 		if (ws_root(ws))
@@ -3983,7 +3983,7 @@ bar_urgent(struct swm_screen *s, char *str, size_t sz)
 			}
 
 		if (urgent) {
-			snprintf(b, sizeof b, "%d ", ws->idx);
+			snprintf(b, sizeof b, "%d ", ws->idx + 1);
 			strlcat(str, b, sz);
 		} else if (!urgent_collapse)
 			strlcat(str, "- ", sz);
