@@ -8687,11 +8687,11 @@ iconify(struct swm_screen *s, struct binding *bp, union arg *args)
 	if (win == NULL)
 		return;
 
+	nfw = get_focus_other(win);
 	unfocus_win(win);
 	ewmh_apply_flags(win, win->ewmh_flags | EWMH_F_HIDDEN);
 	ewmh_update_wm_state(win);
 
-	nfw = get_focus_other(win);
 	if (nfw == NULL && win_free(win)) {
 		if ((r = get_current_region(s)) == NULL)
 			return;
@@ -15787,11 +15787,13 @@ clientmessage(xcb_client_message_event_t *e)
 			ewmh_change_wm_state(win, e->data.data32[2],
 			    e->data.data32[0]);
 
+		if (s->focus == win && HIDDEN(win))
+			set_focus(s, get_focus_other(win));
+
 		if (ws_maxstack(win->ws) && origmax != MAXIMIZED(win))
 			win->maxstackmax = MAXIMIZED(win);
 
 		ewmh_update_wm_state(win);
-		/* TODO need to adjust position in stack. */
 		update_win_layer_related(win);
 		refresh_stack(s);
 		update_stacking(s);
@@ -15838,6 +15840,8 @@ clientmessage(xcb_client_message_event_t *e)
 			ewmh_apply_flags(win, win->ewmh_flags | EWMH_F_HIDDEN);
 			ewmh_update_wm_state(win);
 			update_stacking(s);
+			if (s->focus == win)
+				set_focus(s, get_focus_other(win));
 			if (refresh_strut(s))
 				update_layout(s);
 			else
