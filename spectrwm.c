@@ -15400,6 +15400,9 @@ maprequest(xcb_map_request_event_t *e)
 			setfocus = true;
 	}
 
+	if (ewmh_apply_flags(win, win->ewmh_flags & ~EWMH_F_HIDDEN))
+		ewmh_update_wm_state(win);
+
 	if (setfocus) {
 		set_focus(s, get_focus_magic(win));
 		draw_frame(get_ws_focus_prev(ws));
