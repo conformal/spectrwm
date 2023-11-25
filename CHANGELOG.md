@@ -1,3 +1,26 @@
+spectrwm 3.5.1
+==============
+Released on Nov 25, 2023
+
+Fixes NetBSD support and a few minor issues.
+
+* Fix `bar_at_bottom` bottom gap when `bar_border_width` > 0.
+* Fix maximize new windows in max layout when `max_layout_maximize = 1`.
+* Fix `autorun` option and `WS` quirk should accept a value of `-1` as stated
+  in the manual.
+* Fix `bar_color_free` and `bar_font_color_free` options.
+* Fix bar urgency hint (+U) workspaces should begin at 1.
+* Fix iconified windows should uniconify on MapRequest.
+* Fix focus fallback issue when iconifying windows.
+* Improve handling when programs try to position their own windows.
+* Fix NetBSD build issues.
+* Add NetBSD to list of OSes that have the XCB XInput Extension.
+* Fix build failure when building without the XCB XInput Extension.
+* Fix possible segfault at startup.
+* Add SWMHACK section to manual.
+* Fix typos in manual.
+
+
 spectrwm 3.5.0
 ==============
 
