@@ -1430,21 +1430,23 @@ void	 bar_print(struct swm_region *, const char *);
 void	 bar_print_layout(struct swm_region *);
 void	 bar_print_legacy(struct swm_region *, const char *);
 void	 bar_split_format(char *);
-void	 bar_strlcat_esc(char *, char *, size_t);
+static void	 bar_strlcat_esc(char *, char *, size_t, size_t *);
 void	 bar_replace(char *, char *, struct swm_region *, size_t);
 void	 bar_replace_action(char *, char *, struct swm_region *, size_t);
-void	 bar_replace_pad(char *, int *, size_t);
+static void	 bar_replace_pad(char *, size_t *, size_t);
 char	*bar_replace_seq(char *, char *, struct swm_region *, size_t *, size_t);
 void	 bar_setup(struct swm_region *);
 void	 bar_toggle(struct swm_screen *, struct binding *, union arg *);
-void	 bar_urgent(struct swm_screen *, char *, size_t);
-void	 bar_window_class(char *, size_t, struct ws_win *);
-void	 bar_window_class_instance(char *, size_t, struct ws_win *);
-void	 bar_window_instance(char *, size_t, struct ws_win *);
-void	 bar_window_name(char *, size_t, struct ws_win *);
-void	 bar_window_state(char *, size_t, struct ws_win *);
-void	 bar_workspace_indicator(char *, size_t, struct swm_region *);
-void	 bar_workspace_name(char *, size_t, struct workspace *);
+static void	 bar_urgent(struct swm_screen *, char *, size_t);
+static void	 bar_window_class(char *, size_t, struct ws_win *, size_t *);
+static void	 bar_window_class_instance(char *, size_t, struct ws_win *,
+		     size_t *);
+static void	 bar_window_instance(char *, size_t, struct ws_win *, size_t *);
+static void	 bar_window_name(char *, size_t, struct ws_win *, size_t *);
+static void	 bar_window_state(char *, size_t, struct ws_win *);
+static void	 bar_workspace_indicator(char *, size_t, struct swm_region *);
+static void	 bar_workspace_name(char *, size_t, struct workspace *,
+		     size_t *);
 void	 below_toggle(struct swm_screen *, struct binding *, union arg *);
 int	 binding_cmp(struct binding *, struct binding *);
 void	 binding_insert(uint16_t, enum binding_type, uint32_t, enum actionid,
@@ -3842,32 +3844,31 @@ bar_extra_stop(void)
 	bar_extra = false;
 }
 
-void
-bar_window_class(char *s, size_t sz, struct ws_win *win)
+static void
+bar_window_class(char *s, size_t sz, struct ws_win *win, size_t *n)
 {
 	if (win && win->ch.class_name)
-		bar_strlcat_esc(s, win->ch.class_name, sz);
+		bar_strlcat_esc(s, win->ch.class_name, sz, n);
 }
 
-void
-bar_window_instance(char *s, size_t sz, struct ws_win *win)
+static void
+bar_window_instance(char *s, size_t sz, struct ws_win *win, size_t *n)
 {
 	if (win && win->ch.instance_name)
-		bar_strlcat_esc(s, win->ch.instance_name, sz);
+		bar_strlcat_esc(s, win->ch.instance_name, sz, n);
 }
 
-void
-bar_window_class_instance(char *s, size_t sz, struct ws_win *win)
+static void
+bar_window_class_instance(char *s, size_t sz, struct ws_win *win, size_t *n)
 {
-	if (win == NULL)
-		return;
-
-	bar_window_class(s, sz, win);
-	strlcat(s, ":", sz);
-	bar_window_instance(s, sz, win);
+	if (win) {
+		bar_window_class(s, sz, win, n);
+		strlcat(s, ":", sz);
+		bar_window_instance(s, sz, win, n);
+	}
 }
 
-void
+static void
 bar_window_state(char *s, size_t sz, struct ws_win *win)
 {
 	if (win) {
@@ -3883,17 +3884,14 @@ bar_window_state(char *s, size_t sz, struct ws_win *win)
 		strlcpy(s, focus_mark_none, sz);
 }
 
-void
-bar_window_name(char *s, size_t sz, struct ws_win *win)
+static void
+bar_window_name(char *s, size_t sz, struct ws_win *win, size_t *n)
 {
 	char		*title;
 
-	if (win == NULL)
-		return;
-
-	if (win->mapped) {
+	if (win && win->mapped) {
 		title = get_win_name(win->id);
-		bar_strlcat_esc(s, title, sz);
+		bar_strlcat_esc(s, title, sz, n);
 		free(title);
 	}
 }
@@ -3965,7 +3963,7 @@ win_urgent(struct ws_win *win)
 	    DEMANDS_ATTENTION(win));
 }
 
-void
+static void
 bar_urgent(struct swm_screen *s, char *str, size_t sz)
 {
 	struct workspace	*ws;
@@ -4081,14 +4079,11 @@ bar_workspace_indicator(char *s, size_t sz, struct swm_region *r)
 	}
 }
 
-void
-bar_workspace_name(char *s, size_t sz, struct workspace *ws)
+static void
+bar_workspace_name(char *s, size_t sz, struct workspace *ws, size_t *n)
 {
-	if (ws == NULL)
-		return;
-
-	if (ws->name)
-		bar_strlcat_esc(s, ws->name, sz);
+	if (ws && ws->name)
+		bar_strlcat_esc(s, ws->name, sz, n);
 }
 
 /* build the default bar format according to the defined enabled options */
@@ -4158,13 +4153,13 @@ bar_fmt(const char *fmtexp, char *fmtnew, struct swm_region *r, size_t sz)
 	strlcat(fmtnew, "+4<+A+4<+V", sz);
 }
 
-void
-bar_replace_pad(char *tmp, int *limit, size_t sz)
+static void
+bar_replace_pad(char *tmp, size_t *limit, size_t sz)
 {
 	/* special case; no limit given, pad one space, instead */
-	if (*limit == (int)sz - 1)
+	if (*limit == sz - 1)
 		*limit = 1;
-	snprintf(tmp, sz, "%*s", *limit, " ");
+	snprintf(tmp, sz, "%*s", *(int *)limit, " ");
 }
 
 /* replaces the bar format character sequences (like in tmux(1)) */
@@ -4175,8 +4170,8 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 	struct ws_win		*w, *cfw;
 	char			*ptr, *cur = fmt;
 	char			tmp[SWM_BAR_MAX];
-	int			limit, size, count;
-	size_t			len;
+	int			size, num;
+	size_t			len, limit;
 	int			pre_padding = 0;
 	int			post_padding = 0;
 	int			padding_len = 0;
@@ -4193,9 +4188,10 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 
 	/* get number, if any */
 	size = 0;
-	if (sscanf(cur, "%d%n", &limit, &size) != 1)
-		limit = sizeof tmp - 1;
-	if (limit <= 0 || limit >= (int)sizeof tmp)
+	if (sscanf(cur, "%d%n", &num, &size) == 1 && num > 0 &&
+	    (size_t)num < sizeof tmp)
+		limit = num;
+	else
 		limit = sizeof tmp - 1;
 
 	cur += size;
@@ -4214,7 +4210,8 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 	/* character sequence */
 	switch (*cur) {
 	case '+':
-		strlcpy(tmp, "+", sizeof tmp);
+		strlcpy(tmp, "++", sizeof tmp);
+		limit++;
 		break;
 	case '<':
 		bar_replace_pad(tmp, &limit, sizeof tmp);
@@ -4223,13 +4220,13 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		if (bar_action_expand)
 			snprintf(tmp, sizeof tmp, "%s", bar_ext);
 		else
-			bar_strlcat_esc(tmp, bar_ext, sizeof tmp);
+			bar_strlcat_esc(tmp, bar_ext, sizeof tmp, &limit);
 		break;
 	case 'C':
-		bar_window_class(tmp, sizeof tmp, cfw);
+		bar_window_class(tmp, sizeof tmp, cfw, &limit);
 		break;
 	case 'D':
-		bar_workspace_name(tmp, sizeof tmp, r->ws);
+		bar_workspace_name(tmp, sizeof tmp, r->ws, &limit);
 		break;
 	case 'F':
 		bar_window_state(tmp, sizeof tmp, cfw);
@@ -4241,17 +4238,17 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		bar_workspace_indicator(tmp, sizeof tmp, r);
 		break;
 	case 'M':
-		count = 0;
+		num = 0;
 		TAILQ_FOREACH(w, &r->ws->winlist, entry)
 			if (HIDDEN(w))
-				++count;
-		snprintf(tmp, sizeof tmp, "%d", count);
+				++num;
+		snprintf(tmp, sizeof tmp, "%d", num);
 		break;
 	case 'N':
 		snprintf(tmp, sizeof tmp, "%d", r->s->idx + 1);
 		break;
 	case 'P':
-		bar_window_class_instance(tmp, sizeof tmp, cfw);
+		bar_window_class_instance(tmp, sizeof tmp, cfw, &limit);
 		break;
 	case 'R':
 		snprintf(tmp, sizeof tmp, "%d", get_region_index(r));
@@ -4260,7 +4257,7 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		snprintf(tmp, sizeof tmp, "%s", r->ws->stacker);
 		break;
 	case 'T':
-		bar_window_instance(tmp, sizeof tmp, cfw);
+		bar_window_instance(tmp, sizeof tmp, cfw, &limit);
 		break;
 	case 'U':
 		bar_urgent(r->s, tmp, sizeof tmp);
@@ -4269,13 +4266,13 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 		snprintf(tmp, sizeof tmp, "%s", bar_vertext);
 		break;
 	case 'w':
-		count = 0;
+		num = 0;
 		TAILQ_FOREACH(w, &r->ws->winlist, entry)
-				++count;
-		snprintf(tmp, sizeof tmp, "%d", count);
+			++num;
+		snprintf(tmp, sizeof tmp, "%d", num);
 		break;
 	case 'W':
-		bar_window_name(tmp, sizeof tmp, cfw);
+		bar_window_name(tmp, sizeof tmp, cfw, &limit);
 		break;
 	default:
 		/* Unknown character sequence or EOL; copy as-is. */
@@ -4286,7 +4283,7 @@ bar_replace_seq(char *fmt, char *fmtrep, struct swm_region *r, size_t *offrep,
 	len = strlen(tmp);
 
 	/* calculate the padding lengths */
-	padding_len = limit - (int)len;
+	padding_len = limit - len;
 	if (padding_len > 0) {
 		limit = len;
 
@@ -4364,8 +4361,8 @@ bar_replace_action(char *fmt, char *fmtact, struct swm_region *r, size_t sz)
 	fmtact[off] = '\0';
 }
 
-void
-bar_strlcat_esc(char *dst, char *src, size_t sz)
+static void
+bar_strlcat_esc(char *dst, char *src, size_t sz, size_t *n)
 {
 	/* Find end of destination string */
 	while (*dst != '\0' && sz != 0) {
@@ -4377,6 +4374,7 @@ bar_strlcat_esc(char *dst, char *src, size_t sz)
 	while (*src != '\0' && sz > 1) {
 		if ((*src == '+') && (sz > 2)) {
 			*dst++ = '+';
+			(*n)++;
 			sz--;
 		}
 		*dst++ = *src++;
@@ -4644,6 +4642,7 @@ bar_parse_markup(struct swm_screen *s, struct bar_section *sect)
 				/* Eat escape. */
 				fmt++;
 				fmtlen--;
+				termfrag = 1;
 			}
 		}
 
