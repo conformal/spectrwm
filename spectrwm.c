@@ -3968,28 +3968,32 @@ bar_urgent(struct swm_screen *s, char *str, size_t sz)
 {
 	struct workspace	*ws;
 	struct ws_win		*win;
+	int			i;
 	bool			urgent;
 	char			b[13];
 
-	RB_FOREACH(ws, workspace_tree, &s->workspaces) {
-		if (ws_root(ws))
-			continue;
+	ws = RB_MIN(workspace_tree, &s->workspaces);
+	for (i = 0; i < workspace_limit; i++) {
+		while (ws && ws->idx < i)
+			ws = RB_NEXT(workspace_tree, &s->workspaces, ws);
 
 		urgent = false;
-		TAILQ_FOREACH(win, &ws->winlist, entry)
-			if (win_urgent(win)) {
-				urgent = true;
-				break;
-			}
+		if (ws && ws->idx == i) {
+			TAILQ_FOREACH(win, &ws->winlist, entry)
+				if (win_urgent(win)) {
+					urgent = true;
+					break;
+				}
+		}
 
 		if (urgent) {
-			snprintf(b, sizeof b, "%d ", ws->idx + 1);
+			snprintf(b, sizeof b, "%d ", i + 1);
 			strlcat(str, b, sz);
 		} else if (!urgent_collapse)
 			strlcat(str, "- ", sz);
 	}
 	if (urgent_collapse && str[0])
-		str[strlen(str) - 1] = 0;
+		str[strlen(str) - 1] = '\0';
 }
 
 void
@@ -3997,28 +4001,36 @@ bar_workspace_indicator(char *s, size_t sz, struct swm_region *r)
 {
 	struct ws_win		*w;
 	struct workspace	*ws;
-	int		 	 count = 0;
-	char			 tmp[SWM_BAR_MAX], *mark, *suffix;
-	bool			 current, active, named, urgent, collapse;
+	int		 	 count = 0, i;
+	char			 tmp[SWM_BAR_MAX], *mark, *suffix, *name;
+	bool			 current, active, urgent, collapse;
 
 	if (r == NULL)
 		return;
 
-	RB_FOREACH(ws, workspace_tree, &r->s->workspaces) {
-		if (ws_root(ws))
-			continue;
+	ws = RB_MIN(workspace_tree, &r->s->workspaces);
+	for (i = 0; i < workspace_limit; i++) {
+		while (ws && ws->idx < i)
+			ws = RB_NEXT(workspace_tree, &s->workspaces, ws);
 
-		current = (ws == r->ws);
-		named = (ws->name != NULL);
 		urgent = false;
-		active = (TAILQ_FIRST(&ws->winlist) != NULL);
 
-		/* Get urgency status if needed. */
-		if (workspace_indicator & SWM_WSI_LISTURGENT ||
-		    workspace_indicator & SWM_WSI_MARKURGENT)
-			TAILQ_FOREACH(w, &ws->winlist, entry)
-				if ((urgent = win_urgent(w)))
-					break;
+		if (ws && ws->idx == i) {
+			current = (ws == r->ws);
+			active = (TAILQ_FIRST(&ws->winlist) != NULL);
+			name = ws->name;
+
+			/* Get urgency status if needed. */
+			if (workspace_indicator & SWM_WSI_LISTURGENT ||
+			    workspace_indicator & SWM_WSI_MARKURGENT)
+				TAILQ_FOREACH(w, &ws->winlist, entry)
+					if ((urgent = win_urgent(w)))
+						break;
+		} else {
+			current = false;
+			active = false;
+			name = NULL;
+		}
 
 		collapse = !(workspace_indicator & SWM_WSI_MARKCURRENT ||
 		    workspace_indicator & SWM_WSI_MARKURGENT);
@@ -4028,7 +4040,7 @@ bar_workspace_indicator(char *s, size_t sz, struct swm_region *r)
 		    (active && workspace_indicator & SWM_WSI_LISTACTIVE) ||
 		    (!active && workspace_indicator & SWM_WSI_LISTEMPTY) ||
 		    (urgent && workspace_indicator & SWM_WSI_LISTURGENT) ||
-		    (named && workspace_indicator & SWM_WSI_LISTNAMED))) {
+		    (name && workspace_indicator & SWM_WSI_LISTNAMED))) {
 			if (count > 0)
 				strlcat(s, " ", sz);
 
@@ -4060,17 +4072,16 @@ bar_workspace_indicator(char *s, size_t sz, struct swm_region *r)
 				strlcat(s, mark, sz);
 
 			*tmp = '\0';
-			if (named && workspace_indicator & SWM_WSI_PRINTNAMES) {
+			if (name && workspace_indicator & SWM_WSI_PRINTNAMES) {
 				if (workspace_indicator & SWM_WSI_NOINDEXES)
-					snprintf(tmp, sizeof tmp, "%s",
-					    ws->name);
+					snprintf(tmp, sizeof tmp, "%s", name);
 				else
 					snprintf(tmp, sizeof tmp, "%d:%s",
-					    ws->idx + 1, ws->name);
+					    i + 1, name);
 			} else if (workspace_indicator & SWM_WSI_NOINDEXES)
 				snprintf(tmp, sizeof tmp, "%s", " ");
 			else
-				snprintf(tmp, sizeof tmp, "%d", ws->idx + 1);
+				snprintf(tmp, sizeof tmp, "%d", i + 1);
 			strlcat(s, tmp, sz);
 			if (suffix)
 				strlcat(s, suffix, sz);
