@@ -4010,6 +4010,9 @@ bar_workspace_indicator(char *s, size_t sz, struct swm_region *r)
 		if (ws_root(ws))
 			continue;
 
+		if(ws->idx >= workspace_limit)
+			continue;
+
 		current = (ws == r->ws);
 		named = (ws->name != NULL);
 		urgent = false;
