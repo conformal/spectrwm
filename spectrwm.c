@@ -15820,30 +15820,30 @@ clientmessage(xcb_client_message_event_t *e)
 		    "source_type: %s(%d)\n", e->data.data32[0],
 		    get_source_type_label(e->data.data32[1]),
 		    e->data.data32[1]);
-		DNPRINTF(SWM_D_EVENT, "_NET_WM_DESKTOP\n");
 
-		r = win->ws->r;
+		if ((int)e->data.data32[0] < workspace_limit) {
+			r = win->ws->r;
+			win_to_ws(win, get_workspace(s, e->data.data32[0]),
+			    SWM_WIN_UNFOCUS);
 
-		win_to_ws(win, get_workspace(s, e->data.data32[0]),
-		    SWM_WIN_UNFOCUS);
+			/* Stack source and destination ws, if mapped. */
+			if (r != win->ws->r) {
+				if (refresh_strut(s))
+					update_layout(s);
+				else if (r) {
+					stack(r);
+					bar_draw(r->bar);
+				}
 
-		/* Stack source and destination ws, if mapped. */
-		if (r != win->ws->r) {
-			if (refresh_strut(s))
-				update_layout(s);
-			else if (r) {
-				stack(r);
-				bar_draw(r->bar);
+				if (win->ws->r) {
+					if (win_floating(win))
+						load_float_geom(win);
+
+					stack(win->ws->r);
+					bar_draw(win->ws->r->bar);
+				}
+				update_mapping(s);
 			}
-
-			if (win->ws->r) {
-				if (win_floating(win))
-					load_float_geom(win);
-
-				stack(win->ws->r);
-				bar_draw(win->ws->r->bar);
-			}
-			update_mapping(s);
 		}
 	} else if (e->type == a_change_state) {
 		DNPRINTF(SWM_D_EVENT, "WM_CHANGE_STATE state: %s\n",
