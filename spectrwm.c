@@ -67,7 +67,6 @@
 #include <inttypes.h>
 #endif
 #include <X11/cursorfont.h>
-#include <X11/extensions/Xrandr.h>
 #include <X11/Xcursor/Xcursor.h>
 #include <X11/Xft/Xft.h>
 #include <X11/Xlib-xcb.h>
