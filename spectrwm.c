@@ -122,11 +122,11 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #endif
 
 #if !defined(__CYGWIN__) /* cygwin chokes on randr stuff */
-#  if RANDR_MAJOR < 1
+#  if XCB_RANDR_MAJOR_VERSION < 1
 #    error RandR versions less than 1.0 are not supported
 #  endif
-#  if RANDR_MAJOR >= 1
-#    if RANDR_MINOR >= 2
+#  if XCB_RANDR_MAJOR_VERSION >= 1
+#    if XCB_RANDR_MINOR_VERSION >= 2
 #      define SWM_XRR_HAS_CRTC
 #    endif
 #  endif
