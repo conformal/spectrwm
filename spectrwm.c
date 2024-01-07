@@ -130,7 +130,7 @@ static const char	*buildstr = SPECTRWM_VERSION;
 #      define SWM_XRR_HAS_CRTC
 #    endif
 #  endif
-#endif /* __CYGWIN__ */
+#endif /* !__CYGWIN__ */
 
 #ifndef XCB_ICCCM_NUM_WM_HINTS_ELEMENTS
 #define XCB_ICCCM_SIZE_HINT_P_MIN_SIZE		XCB_SIZE_HINT_P_MIN_SIZE
