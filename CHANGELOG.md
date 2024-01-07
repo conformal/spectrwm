@@ -1,5 +1,6 @@
 spectrwm 3.5.1
 ==============
+
 Released on Nov 25, 2023
 
 Fixes NetBSD support and a few minor issues.
@@ -50,8 +51,8 @@ color support, tons of fixes, and more!
   - Add *demands attention* support to urgency features to include windows that
     request focus but are denied.
   - Add support for *below* state to keep windows stacked below others.
-  - Improve _NET_ACTIVE_WINDOW handling.
-  - Fix _NET_DESKTOP_VIEWPORT should update on workspace and region changes.
+  - Improve `_NET_ACTIVE_WINDOW` handling.
+  - Fix `_NET_DESKTOP_VIEWPORT` should update on workspace and region changes.
 * Improve window stacking.
   - Overhaul window stacking for improved reliability and flexibility required
     for new features/fixes. Windows are now stacked as a whole instead of per
@@ -106,17 +107,17 @@ color support, tons of fixes, and more!
   - Fix handling of ConfigureWindow and EWMH requests.
   - Fix workspace switching issues.
 * Improve status bar.
-  - Add character sequence for workspace list indicator (+L).
-  - Add workspace mark options for the workspace indicator (+L).
-  - Add stack mark options for the stacking indicator (+S).
-  - Add focus mark options for the focus status indicator (+F).
-  - Add character sequence for number of windows in workspace (+w) (lowercase).
+  - Add character sequence for workspace list indicator (`+L`).
+  - Add workspace mark options for the workspace indicator (`+L`).
+  - Add stack mark options for the stacking indicator (`+S`).
+  - Add focus mark options for the focus status indicator (`+F`).
+  - Add character sequence for number of windows in workspace (`+w`) (lowercase).
   - Add unfocused options to color bar text and background.
   - Add color options for when a window in free mode is focused.
   - Fix `bar_action` piping deadlock issue.
   - Fix `name_workspace` should clear on empty string.
   - Fix refresh bar on `name_workspace`.
-  - Set WM_CLASS, WM_NAME and _NET_WM_NAME on the bar window.
+  - Set `WM_CLASS`, `WM_NAME` and `_NET_WM_NAME` on the bar window.
 * Add `floating` workspace layout stacking mode.
   - In floating layout, windows are not tiled and may be freely moved around
     and resized.
@@ -160,7 +161,7 @@ color support, tons of fixes, and more!
   - Add `-d` command-line option to enable debug mode. Enables debug mode
     actions and logging to *stderr* without the need to rebuild with
     `-DSWM_DEBUG`.
-  - Add multi-line support to `debug_toggle` overlay (default: M-d).
+  - Add multi-line support to `debug_toggle` overlay (default: `M-d`).
   - Add atom name cache to avoid redundant requests/syncs when printing output.
 * Fix X connection error handling to exit on a failed connection.
 * Fix build issues.
@@ -187,12 +188,12 @@ spectrwm 3.4.1
 
 Released on Jun 25, 2020
 
-* Fix always_raise mapping issue.
-* Fix _NET_CURRENT_DESKTOP should be updated on ws_next_move/ws_prev_move.
+* Fix `always_raise` mapping issue.
+* Fix `_NET_CURRENT_DESKTOP` should be updated on `ws_next_move`/`ws_prev_move`.
 * Fix focus redirect for transient windows that are about to map.
 * Fix manual focus should not be affected by pointer on (un)grab.
 * Add java detection for JetBrains windows.
-* Remove _NET_WM_STATE on withdrawn windows as advised by EWMH spec.
+* Remove `_NET_WM_STATE` on withdrawn windows as advised by EWMH spec.
 * Add information to man page about program call execution.
 
 
@@ -202,8 +203,8 @@ spectrwm 3.4.0
 Released on Jun 17, 2020
 
 * Add optional startup parameters:
-  - -c file - Specify a configuration file to load instead of scanning for one.
-  - -v - Print version and exit.
+  - `-c file` - Specify a configuration file to load instead of scanning for one.
+  - `-v` - Print version and exit.
 * Add new `restart_of_day` action. (Unbound by default.)
   (Same as restart but configuration file is loaded in full.)
 * Improve startup error handling.
@@ -239,7 +240,7 @@ Released on Dec 19, 2019
   to the Unicode Private Use Area (U+E000 -> U+F8FF).
 * Extend `disable_border` option with `always`.
 * Add support for XDG Base Directory Specification.
-* Add OpenBSD pledge(2) support.
+* Add OpenBSD `pledge(2)` support.
 * Enable xinput2 on OpenBSD.
 * Enable travis.
 * Fix keysym binding issue with multiple keyboard layouts.
