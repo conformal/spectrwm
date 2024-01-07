@@ -22,7 +22,7 @@ right size-ish or having just about any relevant key combination be eaten
 by some task one never performs. The path of agony is too long to quote, and, in
 classic [OpenBSD](http://www.openbsd.org) fashion (put up, or hack up), a
 brand new window manager was whooped up to serve no other purpose than to obey
-its masters. 
+its masters.
 
 spectrwm is released under the ISC license. Patches can be accepted, provided that they are also licensed with ISC.
 
@@ -54,7 +54,7 @@ channel #spectrwm.
 * User definable modkey & key bindings
 * User definable quirk bindings
 * User definable key bindings to launch applications
-* Multi OS support (*BSD, Linux, OSX, Windows/cygwin) 
+* Multi OS support (\*BSD, Linux, OSX, Windows/cygwin)
 * Reparenting window manager
 
 ## Documentation
