@@ -5966,7 +5966,7 @@ find_window(xcb_window_t id)
 			win = find_window(qtr->parent);
 
 		if (win)
-			DNPRINTF(SWM_D_MISC, "%#x is decendent of %#x.\n",
+			DNPRINTF(SWM_D_MISC, "%#x is descendent of %#x.\n",
 			    id, qtr->parent);
 
 		free(qtr);
