@@ -203,6 +203,10 @@
     <p class="Pp">A comma separated list of up to 10 colors can be specified,
         with the same syntax and behavior as <code class="Ic">bar_color</code>.
         Default is rgb:40/40/00.</p>
+    <p class="Pp">Note that <code class="Ic">bar_color</code> defines the
+        background color indices that can be used in
+        <code class="Ic">bar_format</code> markup sequences and is the default
+        for colors that are left unspecified in this option.</p>
   </dd>
   <dt id="bar_color_selected"><a class="permalink" href="#bar_color_selected"><code class="Ic">bar_color_selected</code></a>[<var class="Ar">x</var>]</dt>
   <dd>Background color for selected <code class="Cm">menu</code> items on screen
@@ -215,6 +219,10 @@
         with the same syntax and behavior as <code class="Ic">bar_color</code>
         for unfocused bar(s). Defaults to the value of
         <code class="Ic">bar_color</code>.</p>
+    <p class="Pp">Note that <code class="Ic">bar_color</code> defines the
+        background color indices that can be used in
+        <code class="Ic">bar_format</code> markup sequences and is the default
+        for colors that are left unspecified in this option.</p>
   </dd>
   <dt id="bar_enabled"><a class="permalink" href="#bar_enabled"><code class="Ic">bar_enabled</code></a></dt>
   <dd>Set default <code class="Ic">bar_toggle</code> state; default is 1.</dd>
@@ -259,6 +267,17 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
         through the use of the markup sequence <code class="Ic">+@fg=n;</code>
         where n is between 0 and 9.</p>
   </dd>
+  <dt id="bar_font_color_free"><a class="permalink" href="#bar_font_color_free"><code class="Ic">bar_font_color_free</code></a>[<var class="Ar">x</var>]</dt>
+  <dd>Foreground color of a status bar for a focused region on screen number
+      <var class="Ar">x</var> when a workspace-free window is focused.
+    <p class="Pp">A comma separated list of up to 10 colors can be specified,
+        with the same syntax and behavior as
+        <code class="Ic">bar_font_color</code>. Default is rgb:ff/ff/ff.</p>
+    <p class="Pp">Note that <code class="Ic">bar_font_color</code> defines the
+        foreground color indices that can be used in
+        <code class="Ic">bar_format</code> markup sequences and is the default
+        for colors that are left unspecified in this option.</p>
+  </dd>
   <dt id="bar_font_color_unfocus"><a class="permalink" href="#bar_font_color_unfocus"><code class="Ic">bar_font_color_unfocus</code></a>[<var class="Ar">x</var>]</dt>
   <dd>Foreground color of status bar(s) for unfocused region(s) on screen number
       <var class="Ar">x</var>.
@@ -266,6 +285,10 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
         with the same syntax and behavior as
         <code class="Ic">bar_font_color</code> for unfocused bar(s). Defaults to
         the value of <code class="Ic">bar_font_color</code>.</p>
+    <p class="Pp">Note that <code class="Ic">bar_font_color</code> defines the
+        foreground color indices that can be used in
+        <code class="Ic">bar_format</code> markup sequences and is the default
+        for colors that are left unspecified in this option.</p>
   </dd>
   <dt id="bar_font_color_selected"><a class="permalink" href="#bar_font_color_selected"><code class="Ic">bar_font_color_selected</code></a>[<var class="Ar">x</var>]</dt>
   <dd>Foreground color for selected <code class="Cm">menu</code> items on screen

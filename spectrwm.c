@@ -5,7 +5,7 @@
  * Copyright (c) 2009 Pierre-Yves Ritschard <pyr@spootnik.org>
  * Copyright (c) 2010 Tuukka Kataja <stuge@xor.fi>
  * Copyright (c) 2011 Jason L. Wright <jason@thought.net>
- * Copyright (c) 2011-2023 Reginald Kennedy <rk@rejii.com>
+ * Copyright (c) 2011-2024 Reginald Kennedy <rk@rejii.com>
  * Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
  * Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
  * Copyright (c) 2012-2015 David Hill <dhill@mindcry.org>
@@ -271,7 +271,7 @@ uint32_t		swm_debug = 0
 /* convert 8-bit to 16-bit */
 #define RGB_8_TO_16(col)	(((col) << 8) + (col))
 
-#define SWM_COLOR_TO_XRENDERCOLOR(sc, xrc) do {				\
+#define SWM_TO_XRENDER_COLOR(sc, xrc) do {				\
 	xrc.red = sc.r;							\
 	xrc.green = sc.g;						\
 	xrc.blue = sc.b;						\
@@ -547,11 +547,6 @@ char		*bar_fontname_pua = NULL;
 int		font_pua_index;
 bool		 bar_font_legacy = true;
 char		*bar_fonts = NULL;
-XftColor	bar_fg_colors[SWM_BAR_MAX_COLORS];
-XftColor	bar_fg_colors_free[SWM_BAR_MAX_COLORS];
-XftColor	bar_fg_colors_unfocus[SWM_BAR_MAX_COLORS];
-int		num_fg_colors = 1;
-int		num_bg_colors = 1;
 XftColor	search_font_color;
 char		*startup_exception = NULL;
 unsigned int	 nr_exceptions = 0;
@@ -908,8 +903,14 @@ struct swm_screen {
 		uint16_t	g_orig;
 		uint16_t	b_orig;
 		uint32_t	pixel;
-		int		manual;
+		bool		manual;
 	} c[SWM_S_COLOR_MAX];
+
+	XftColor		bar_fg_colors[SWM_BAR_MAX_COLORS];
+	XftColor		bar_fg_colors_free[SWM_BAR_MAX_COLORS];
+	XftColor		bar_fg_colors_unfocus[SWM_BAR_MAX_COLORS];
+	int			num_fg_colors;
+	int			num_bg_colors;
 
 	uint8_t			depth;
 	xcb_timestamp_t		rate; /* Max updates/sec for move and resize */
@@ -1588,7 +1589,7 @@ void	 grab_windows(void);
 void	 grabbuttons(void);
 void	 grabkeys(void);
 void	 iconify(struct swm_screen *, struct binding *, union arg *);
-bool	 is_valid_markup(char *, size_t *);
+static bool	 is_valid_markup(struct swm_screen *, char *, size_t *);
 bool	 isxlfd(char *);
 bool	 keybindreleased(struct binding *, xcb_key_release_event_t *);
 void	 keypress(xcb_key_press_event_t *);
@@ -3228,7 +3229,8 @@ debug_refresh(struct ws_win *win)
 			    win->s->xvisual, win->s->colormap);
 
 			for (i = 0; i < rows; i++)
-				XftDrawStringUtf8(draw, &bar_fg_colors[0],
+				XftDrawStringUtf8(draw,
+				    &win->s->bar_fg_colors[0],
 				    win->s->bar_xftfonts[0], 2, (height +
 				    win->s->bar_xftfonts[0]->height) / 2 -
 				    win->s->bar_xftfonts[0]->descent +
@@ -3618,8 +3620,8 @@ bar_print(struct swm_region *r, const char *s)
 	draw = XftDrawCreate(display, r->bar->buffer, r->s->xvisual,
 	    r->s->colormap);
 
-	XftDrawStringUtf8(draw, &bar_fg_colors[0], xf, x, (HEIGHT(r->bar) +
-	    xf->height) / 2 - xf->descent, (FcChar8 *)s, len);
+	XftDrawStringUtf8(draw, &r->s->bar_fg_colors[0], xf, x,
+	    (HEIGHT(r->bar) + xf->height) / 2 - xf->descent, (FcChar8 *)s, len);
 
 	XftDrawDestroy(draw);
 
@@ -3715,17 +3717,17 @@ bar_print_layout(struct swm_region *r)
 		fg_type = SWM_S_COLOR_BAR_FONT_FREE;
 		bg_type = SWM_S_COLOR_BAR_FREE;
 		bd_type = SWM_S_COLOR_BAR_BORDER_FREE;
-		fg_colors = bar_fg_colors_free;
+		fg_colors = r->s->bar_fg_colors_free;
 	} else if (ws_focused(r->ws)) {
 		fg_type = SWM_S_COLOR_BAR_FONT;
 		bg_type = SWM_S_COLOR_BAR;
 		bd_type = SWM_S_COLOR_BAR_BORDER;
-		fg_colors = bar_fg_colors;
+		fg_colors = r->s->bar_fg_colors;
 	} else {
 		fg_type = SWM_S_COLOR_BAR_FONT_UNFOCUS;
 		bg_type = SWM_S_COLOR_BAR_UNFOCUS;
 		bd_type = SWM_S_COLOR_BAR_BORDER_UNFOCUS;
-		fg_colors = bar_fg_colors_unfocus;
+		fg_colors = r->s->bar_fg_colors_unfocus;
 	}
 
 	/* Paint entire bar with default background color */
@@ -4511,53 +4513,53 @@ bar_split_format(char *format)
 	*dst = '\0';
 }
 
-bool
-is_valid_markup(char *f, size_t *size)
+static bool
+is_valid_markup(struct swm_screen *s, char *f, size_t *size)
 {
-	char *s = f;
-	int n;
+	char	*c = f;
+	int	n;
 
 	*size = 0;
-	if (*s != '+')
+	if (*c != '+')
 		return false;
-	s++;
-	if (*s != '@')
+	c++;
+	if (*c != '@')
 		return false;
-	s++;
-	if ((*s == 'b') && (*(s+1) == 'g') && (*(s+2) == '=') && (*(s+3) >= '0')
-	    && (*(s+3) <= '9') && (*(s+4) == ';')) {
+	c++;
+	if ((*c == 'b') && (*(c + 1) == 'g') && (*(c + 2) == '=') &&
+	    (*(c + 3) >= '0') && (*(c + 3) <= '9') && (*(c + 4) == ';')) {
 		*size = 7;
-		n = (*(s+3) - '0');
-		if (n < num_bg_colors)
+		n = (*(c + 3) - '0');
+		if (n < s->num_bg_colors)
 			return true;
 		else
 			return false;
 	}
 
-	if ((*s == 'f') && (*(s+1) == 'g') && (*(s+2) == '=') && (*(s+3) >= '0')
-	    && (*(s+3) <= '9') && (*(s+4) == ';')) {
+	if ((*c == 'f') && (*(c + 1) == 'g') && (*(c + 2) == '=') &&
+	    (*(c + 3) >= '0') && (*(c + 3) <= '9') && (*(c + 4) == ';')) {
 		*size = 7;
-		n = (*(s+3) - '0');
-		if (n < num_fg_colors)
+		n = (*(c + 3) - '0');
+		if (n < s->num_fg_colors)
 			return true;
 		else
 			return false;
 	}
 
-	if ((*s == 'f') && (*(s+1) == 'n') && (*(s+2) == '=') && (*(s+3) >= '0')
-	    && (*(s+3) <= '9') && (*(s+4) == ';')) {
+	if ((*c == 'f') && (*(c + 1) == 'n') && (*(c + 2) == '=') &&
+	    (*(c + 3) >= '0') && (*(c + 3) <= '9') && (*(c + 4) == ';')) {
 		if (bar_font_legacy)
 			return false;
 		*size = 7;
-		n = (*(s+3) - '0');
+		n = (*(c + 3) - '0');
 		if (n < num_xftfonts)
 			return true;
 		else
 			return false;
 	}
 
-	if ((*s == 's') && (*(s+1) == 't') && (*(s+2) == 'p') &&
-	    (*(s+3) == ';')) {
+	if ((*c == 's') && (*(c + 1) == 't') && (*(c + 2) == 'p') &&
+	    (*(c + 3) == ';')) {
 		*size = 6;
 		return true;
 	}
@@ -4608,7 +4610,7 @@ bar_parse_markup(struct swm_screen *s, struct bar_section *sect)
 	int			idx, fn, fg, bg;
 	FcChar32		c;
 	char			*fmt;
-	size_t			size;
+	size_t			sz;
 
 	sect->text_width = 0;
 	sect->nfrags = 0;
@@ -4632,7 +4634,7 @@ bar_parse_markup(struct swm_screen *s, struct bar_section *sect)
 	while (*fmt != '\0') {
 		/* Handle markup sequences. */
 		if (*fmt == '+' && !stop) {
-			if (*(fmt+1) == '@' && (is_valid_markup(fmt, &size))) {
+			if (*(fmt+1) == '@' && (is_valid_markup(s, fmt, &sz))) {
 				idx = *(fmt+5) - '0';
 				if ((*(fmt+2) == 'f') && (*(fmt+3) == 'n'))
 					fn = idx;
@@ -4645,8 +4647,8 @@ bar_parse_markup(struct swm_screen *s, struct bar_section *sect)
 					stop = 1;
 
 				/* Eat markup. */
-				fmt += size;
-				fmtlen -= size;
+				fmt += sz;
+				fmtlen -= sz;
 				termfrag = 1;
 				continue;
 			} else if (*(fmt+1) == '+') {
@@ -5060,29 +5062,29 @@ xft_init(struct swm_screen *s)
 			font_pua_index = num_xftfonts;
 	}
 
-	for (i = 0; i < num_fg_colors; i++) {
+	for (i = 0; i < s->num_fg_colors; i++) {
 		/* Focused */
-		SWM_COLOR_TO_XRENDERCOLOR(s->c[SWM_S_COLOR_BAR_FONT+i], color);
+		SWM_TO_XRENDER_COLOR(s->c[SWM_S_COLOR_BAR_FONT + i], color);
 		if (!XftColorAllocValue(display, s->xvisual, s->colormap,
-		    &color, &bar_fg_colors[i]))
+		    &color, &s->bar_fg_colors[i]))
 			warn("Xft error: unable to allocate color.");
 
 		/* 'Free' */
-		SWM_COLOR_TO_XRENDERCOLOR(s->c[SWM_S_COLOR_BAR_FONT_FREE+i],
+		SWM_TO_XRENDER_COLOR(s->c[SWM_S_COLOR_BAR_FONT_FREE + i],
 		    color);
 		if (!XftColorAllocValue(display, s->xvisual, s->colormap,
-		    &color, &bar_fg_colors_free[i]))
+		    &color, &s->bar_fg_colors_free[i]))
 			warn("Xft error: unable to allocate color.");
 
 		/* Unfocused */
-		SWM_COLOR_TO_XRENDERCOLOR(s->c[SWM_S_COLOR_BAR_FONT_UNFOCUS+i],
+		SWM_TO_XRENDER_COLOR(s->c[SWM_S_COLOR_BAR_FONT_UNFOCUS + i],
 		    color);
 		if (!XftColorAllocValue(display, s->xvisual, s->colormap,
-		    &color, &bar_fg_colors_unfocus[i]))
+		    &color, &s->bar_fg_colors_unfocus[i]))
 			warn("Xft error: unable to allocate color.");
 	}
 
-	SWM_COLOR_TO_XRENDERCOLOR(s->c[SWM_S_COLOR_BAR], color);
+	SWM_TO_XRENDER_COLOR(s->c[SWM_S_COLOR_BAR], color);
 	if (!XftColorAllocValue(display, s->xvisual, s->colormap, &color,
 	    &search_font_color))
 		warn("Xft error: unable to allocate color.");
@@ -13098,7 +13100,7 @@ int
 setconfcolor(const char *selector, const char *value, int flags, char **emsg)
 {
 	struct swm_screen	*s;
-	int			first, last, i = 0, num_screens;
+	int			first, last, i = 0, d, num_screens;
 
 	num_screens = get_screen_count();
 
@@ -13120,11 +13122,34 @@ setconfcolor(const char *selector, const char *value, int flags, char **emsg)
 		s = &screens[i];
 
 		setscreencolor(s, value, flags);
+		s->c[flags].manual = true;
 
-		/*
-		 * Need to sync 'maximized', 'selected' and 'unfocus' colors
-		 * with their respective colors if they haven't been customized.
-		 */
+		if (SWM_S_COLOR_BAR <= flags && flags <= SWM_S_COLOR_BAR9) {
+			d = flags - SWM_S_COLOR_BAR;
+			s->num_bg_colors = d + 1;
+
+			if (!s->c[SWM_S_COLOR_BAR_UNFOCUS + d].manual)
+				setscreencolor(s, value,
+				    SWM_S_COLOR_BAR_UNFOCUS + d);
+			if (!s->c[SWM_S_COLOR_BAR_FREE + d].manual)
+				setscreencolor(s, value,
+				    SWM_S_COLOR_BAR_FREE + d);
+			continue;
+		} else if (SWM_S_COLOR_BAR_FONT <= flags &&
+		    flags <= SWM_S_COLOR_BAR_FONT9) {
+			d = flags - SWM_S_COLOR_BAR_FONT;
+			s->num_fg_colors = d + 1;
+
+			if (!s->c[SWM_S_COLOR_BAR_FONT_UNFOCUS + d].manual)
+				setscreencolor(s, value,
+				    SWM_S_COLOR_BAR_FONT_UNFOCUS + d);
+			if (!s->c[SWM_S_COLOR_BAR_FONT_FREE + d].manual)
+				setscreencolor(s, value,
+				    SWM_S_COLOR_BAR_FONT_FREE + d);
+			continue;
+		}
+
+		/* Automatic sync related default colors. */
 		switch (flags) {
 		case SWM_S_COLOR_FOCUS:
 			if (!s->c[SWM_S_COLOR_FOCUS_MAXIMIZED].manual)
@@ -13146,27 +13171,14 @@ setconfcolor(const char *selector, const char *value, int flags, char **emsg)
 				setscreencolor(s, value,
 				    SWM_S_COLOR_UNFOCUS_MAXIMIZED_FREE);
 			break;
-		case SWM_S_COLOR_BAR:
-			if (!s->c[SWM_S_COLOR_BAR_FONT_SELECTED].manual)
-				setscreencolor(s, value,
-				    SWM_S_COLOR_BAR_FONT_SELECTED);
-			if (!s->c[SWM_S_COLOR_BAR_UNFOCUS].manual)
-				setscreencolor(s, value,
-				    SWM_S_COLOR_BAR_UNFOCUS);
-			break;
 		case SWM_S_COLOR_BAR_BORDER:
 			if (!s->c[SWM_S_COLOR_BAR_SELECTED].manual)
 				setscreencolor(s, value,
 				    SWM_S_COLOR_BAR_SELECTED);
 			break;
-		case SWM_S_COLOR_BAR_FONT:
-			if (!s->c[SWM_S_COLOR_BAR_FONT_UNFOCUS].manual)
-				setscreencolor(s, value,
-				    SWM_S_COLOR_BAR_FONT_UNFOCUS);
+		default:
 			break;
 		}
-
-		s->c[flags].manual = 1;
 	}
 
 	return (0);
@@ -13175,6 +13187,7 @@ setconfcolor(const char *selector, const char *value, int flags, char **emsg)
 int
 setconfcolorlist(const char *selector, const char *value, int flags, char **emsg)
 {
+	int			n;
 	char			*b, *str, *sp;
 
 	switch (flags) {
@@ -13185,14 +13198,14 @@ setconfcolorlist(const char *selector, const char *value, int flags, char **emsg
 		if ((sp = str = strdup(value)) == NULL)
 			err(1, "setconfvalue: strdup");
 
-		num_bg_colors = 0;
+		n = 0;
 		while ((b = strsep(&sp, SWM_CONF_DELIMLIST)) != NULL) {
 			while (isblank((unsigned char)*b)) b++;
 			if (*b == '\0')
 				continue;
-			setconfcolor(selector, b, flags + num_bg_colors, emsg);
-			num_bg_colors++;
-			if (num_bg_colors == SWM_BAR_MAX_COLORS)
+			setconfcolor(selector, b, flags + n, emsg);
+			n++;
+			if (n == SWM_BAR_MAX_COLORS)
 				break;
 		}
 		free(str);
@@ -13204,14 +13217,14 @@ setconfcolorlist(const char *selector, const char *value, int flags, char **emsg
 		if ((sp = str = strdup(value)) == NULL)
 			err(1, "setconfvalue: strdup");
 
-		num_fg_colors = 0;
+		n = 0;
 		while ((b = strsep(&sp, SWM_CONF_DELIMLIST)) != NULL) {
 			while (isblank((unsigned char)*b)) b++;
 			if (*b == '\0')
 				continue;
-			setconfcolor(selector, b, flags + num_fg_colors, emsg);
-			num_fg_colors++;
-			if (num_fg_colors == SWM_BAR_MAX_COLORS)
+			setconfcolor(selector, b, flags + n, emsg);
+			n++;
+			if (n == SWM_BAR_MAX_COLORS)
 				break;
 		}
 		free(str);
@@ -16508,6 +16521,8 @@ setup_screens(void)
 		s->visual = screen->root_visual;
 		s->colormap = screen->default_colormap;
 		s->xvisual = DefaultVisual(display, i);
+		s->num_fg_colors = 1;
+		s->num_bg_colors = 1;
 		s->bar_xftfonts[0] = NULL;
 		s->managed_count = 0;
 
@@ -16554,7 +16569,7 @@ setup_screens(void)
 		DNPRINTF(SWM_D_INIT, "Using visual %#x, depth: %d.\n",
 		    s->visual, xcb_aux_get_depth_of_visual(screen, s->visual));
 
-		/* set default colors */
+		/* Set default colors. */
 		setscreencolor(s, "red", SWM_S_COLOR_FOCUS);
 		setscreencolor(s, "red", SWM_S_COLOR_FOCUS_MAXIMIZED);
 		setscreencolor(s, "rgb:88/88/88", SWM_S_COLOR_UNFOCUS);
@@ -16577,6 +16592,10 @@ setup_screens(void)
 		setscreencolor(s, "rgb:a0/a0/a0", SWM_S_COLOR_BAR_FONT_UNFOCUS);
 		setscreencolor(s, "rgb:ff/ff/ff", SWM_S_COLOR_BAR_FONT_FREE);
 		setscreencolor(s, "black", SWM_S_COLOR_BAR_FONT_SELECTED);
+
+		/* Disable auto-sync on default 'free' bar colors. */
+		s->c[SWM_S_COLOR_BAR_FREE].manual = true;
+		s->c[SWM_S_COLOR_BAR_FONT_FREE].manual = true;
 
 		/* set default cursor */
 		wa[0] = cursors[XC_LEFT_PTR].cid;
@@ -16873,15 +16892,14 @@ shutdown_cleanup(void)
 		if (!bar_font_legacy) {
 			XftColorFree(display, s->xvisual, s->colormap,
 			    &search_font_color);
-			for (j = 0; j < num_fg_colors; j++)
+			for (j = 0; j < s->num_fg_colors; j++) {
 				XftColorFree(display, s->xvisual, s->colormap,
-				    &bar_fg_colors[j]);
-			for (j = 0; j < num_fg_colors; j++)
+				    &s->bar_fg_colors[j]);
 				XftColorFree(display, s->xvisual, s->colormap,
-				    &bar_fg_colors_free[j]);
-			for (j = 0; j < num_fg_colors; j++)
+				    &s->bar_fg_colors_free[j]);
 				XftColorFree(display, s->xvisual, s->colormap,
-				    &bar_fg_colors_unfocus[j]);
+				    &s->bar_fg_colors_unfocus[j]);
+			}
 
 			for (i = 0; i < num_xftfonts; i++)
 				if (s->bar_xftfonts[i])

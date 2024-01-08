@@ -205,6 +205,13 @@ A comma separated list of up to 10 colors can be specified, with the same
 syntax and behavior as
 .Ic bar_color .
 Default is rgb:40/40/00.
+.Pp
+Note that
+.Ic bar_color
+defines the background color indices that can be used in
+.Ic bar_format
+markup sequences and is the default for colors that are left unspecified in
+this option.
 .It Ic bar_color_selected Ns Bq Ar x
 Background color for selected
 .Cm menu
@@ -222,6 +229,13 @@ syntax and behavior as
 for unfocused bar(s).
 Defaults to the value of
 .Ic bar_color .
+.Pp
+Note that
+.Ic bar_color
+defines the background color indices that can be used in
+.Ic bar_format
+markup sequences and is the default for colors that are left unspecified in
+this option.
 .It Ic bar_enabled
 Set default
 .Ic bar_toggle
@@ -287,6 +301,22 @@ Any of these colors can then be selected as a foreground color in the status
 bar through the use of the markup sequence
 .Ic +@fg=n;\&
 where n is between 0 and 9.
+.It Ic bar_font_color_free Ns Bq Ar x
+Foreground color of a status bar for a focused region on screen number
+.Ar x
+when a workspace-free window is focused.
+.Pp
+A comma separated list of up to 10 colors can be specified, with the same
+syntax and behavior as
+.Ic bar_font_color .
+Default is rgb:ff/ff/ff.
+.Pp
+Note that
+.Ic bar_font_color
+defines the foreground color indices that can be used in
+.Ic bar_format
+markup sequences and is the default for colors that are left unspecified in
+this option.
 .It Ic bar_font_color_unfocus Ns Bq Ar x
 Foreground color of status bar(s) for unfocused region(s) on screen number
 .Ar x .
@@ -297,6 +327,13 @@ syntax and behavior as
 for unfocused bar(s).
 Defaults to the value of
 .Ic bar_font_color .
+.Pp
+Note that
+.Ic bar_font_color
+defines the foreground color indices that can be used in
+.Ic bar_format
+markup sequences and is the default for colors that are left unspecified in
+this option.
 .It Ic bar_font_color_selected Ns Bq Ar x
 Foreground color for selected
 .Cm menu
