@@ -67,7 +67,6 @@
 #include <inttypes.h>
 #endif
 #include <X11/cursorfont.h>
-#include <X11/extensions/Xrandr.h>
 #include <X11/Xcursor/Xcursor.h>
 #include <X11/Xft/Xft.h>
 #include <X11/Xlib-xcb.h>
@@ -120,18 +119,6 @@ static const char	*buildstr = SPECTRWM_BUILDSTR;
 #else
 static const char	*buildstr = SPECTRWM_VERSION;
 #endif
-
-#if !defined(__CYGWIN__) /* cygwin chokes on randr stuff */
-#  if RANDR_MAJOR < 1
-#    error RandR versions less than 1.0 are not supported
-#endif
-
-#  if RANDR_MAJOR >= 1
-#    if RANDR_MINOR >= 2
-#      define SWM_XRR_HAS_CRTC
-#    endif
-#  endif
-#endif /* __CYGWIN__ */
 
 #ifndef XCB_ICCCM_NUM_WM_HINTS_ELEMENTS
 #define XCB_ICCCM_SIZE_HINT_P_MIN_SIZE		XCB_SIZE_HINT_P_MIN_SIZE
@@ -401,6 +388,7 @@ xcb_timestamp_t		event_time = 0;
 int			outputs = 0;
 xcb_window_t		pointer_window = XCB_WINDOW_NONE;
 bool			randr_support = false;
+bool			randr_scan = false;
 int			randr_eventbase;
 unsigned int		numlockmask = 0;
 bool			xinput2_support = false;
@@ -5266,10 +5254,6 @@ bar_setup(struct swm_region *r)
 	xcb_create_pixmap(conn, s->depth, r->bar->buffer, r->bar->id,
 	    WIDTH(r->bar) + 2 * bar_border_width,
 	    HEIGHT(r->bar) + 2 * bar_border_width);
-
-	if (randr_support)
-		xcb_randr_select_input(conn, r->bar->id,
-		    XCB_RANDR_NOTIFY_MASK_OUTPUT_CHANGE);
 
 	if (bar_enabled)
 		xcb_map_window(conn, r->bar->id);
@@ -14378,6 +14362,7 @@ get_randr_event_label(xcb_generic_event_t *e)
 
 	if ((type - randr_eventbase) == XCB_RANDR_SCREEN_CHANGE_NOTIFY)
 		label = "RRScreenChangeNotify";
+#ifdef XCB_RANDR_NOTIFY /* RandR 1.2 */
 	else if ((type - randr_eventbase) == XCB_RANDR_NOTIFY) {
 		switch (((xcb_randr_notify_event_t *)e)->subCode) {
 		case XCB_RANDR_NOTIFY_CRTC_CHANGE:
@@ -14389,6 +14374,7 @@ get_randr_event_label(xcb_generic_event_t *e)
 		case XCB_RANDR_NOTIFY_OUTPUT_PROPERTY:
 			label = "RROutputPropertyNotify";
 			break;
+#ifdef XCB_RANDR_NOTIFY_PROVIDER_CHANGE /* RandR 1.4 */
 		case XCB_RANDR_NOTIFY_PROVIDER_CHANGE:
 			label = "RRProviderChangeNotify";
 			break;
@@ -14398,13 +14384,17 @@ get_randr_event_label(xcb_generic_event_t *e)
 		case XCB_RANDR_NOTIFY_RESOURCE_CHANGE:
 			label = "RResourceChangeNotify";
 			break;
+#ifdef XCB_RANDR_NOTIFY_LEASE /* RandR 1.6 */
 		case XCB_RANDR_NOTIFY_LEASE:
 			label = "RRLeaseNotify";
 			break;
+#endif /* XCB_RANDR_NOTIFY_LEASE */
+#endif /* XCB_RANDR_NOTIFY_PROVIDER_CHANGE */
 		default:
 			label = "RRNotifyUnknown";
 		}
 	}
+#endif /* XCB_RANDR_NOTIFY */
 
 	return (label);
 }
@@ -14426,10 +14416,12 @@ get_event_label(xcb_generic_event_t *e)
 		else
 #endif
 			label = "Unknown GenericEvent";
-	}
-	else if (randr_support &&
-	    ((type - randr_eventbase) == XCB_RANDR_SCREEN_CHANGE_NOTIFY ||
-	    (type - randr_eventbase) == XCB_RANDR_NOTIFY))
+	} else if (randr_support &&
+	    ((type - randr_eventbase) == XCB_RANDR_SCREEN_CHANGE_NOTIFY
+#ifdef XCB_RANDR_NOTIFY /* RandR 1.2 */
+	    || (type - randr_eventbase) == XCB_RANDR_NOTIFY
+#endif
+	    ))
 		label = get_randr_event_label(e);
 	else
 		label = "Unknown Event";
@@ -16172,7 +16164,7 @@ new_region(struct swm_screen *s, int16_t x, int16_t y, uint16_t w, uint16_t h,
 void
 scan_randr(struct swm_screen *s)
 {
-#ifdef SWM_XRR_HAS_CRTC
+#ifdef XCB_RANDR_GET_SCREEN_RESOURCES_CURRENT /* RandR 1.3 */
 	int						i, j;
 	int						ncrtc = 0, nmodes = 0;
 	xcb_randr_get_screen_resources_current_reply_t	*srr;
@@ -16180,7 +16172,7 @@ scan_randr(struct swm_screen *s)
 	xcb_randr_crtc_t				*crtc;
 	xcb_randr_mode_info_t				*mode;
 	int						minrate, currate;
-#endif /* SWM_XRR_HAS_CRTC */
+#endif
 	struct swm_region				*r;
 	xcb_screen_t					*screen;
 
@@ -16203,9 +16195,9 @@ scan_randr(struct swm_screen *s)
 	}
 	outputs = 0;
 
-	/* map virtual screens onto physical screens */
-#ifdef SWM_XRR_HAS_CRTC
-	if (randr_support) {
+#ifdef XCB_RANDR_GET_SCREEN_RESOURCES_CURRENT
+	/* Try to automatically detect regions based on RandR CRTC info. */
+	if (randr_scan) {
 		srr = xcb_randr_get_screen_resources_current_reply(conn,
 		    xcb_randr_get_screen_resources_current(conn, s->root),
 		    NULL);
@@ -16264,14 +16256,14 @@ scan_randr(struct swm_screen *s)
 		DNPRINTF(SWM_D_MISC, "Screen %d update rate: %d\n", s->idx,
 		    s->rate);
 	}
-#endif /* SWM_XRR_HAS_CRTC */
+#endif /* XCB_RANDR_GET_SCREEN_RESOURCES_CURRENT */
 
 	/* If detection failed, create a single region that spans the screen. */
 	if (TAILQ_EMPTY(&s->rl))
 		new_region(s, 0, 0, screen->width_in_pixels,
 		    screen->height_in_pixels, ROTATION_DEFAULT);
 
-#ifdef SWM_XRR_HAS_CRTC
+#ifdef XCB_RANDR_GET_SCREEN_RESOURCES_CURRENT
 out:
 #endif
 	/* The screen shouldn't focus on unused regions. */
@@ -16645,49 +16637,62 @@ setup_extensions(void)
 #endif
 
 	randr_support = false;
+	randr_scan = false;
 	qep = xcb_get_extension_data(conn, &xcb_randr_id);
 	if (qep->present) {
+		DNPRINTF(SWM_D_INIT, "XCB RandR version: %u.%u.\n",
+		    XCB_RANDR_MAJOR_VERSION, XCB_RANDR_MINOR_VERSION);
 		rqvr = xcb_randr_query_version_reply(conn,
 		    xcb_randr_query_version(conn, XCB_RANDR_MAJOR_VERSION,
 		    XCB_RANDR_MINOR_VERSION), NULL);
 		if (rqvr) {
+			DNPRINTF(SWM_D_INIT, "X server RandR version: %u.%u, "
+			    "major_opcode: %u, first_event: %u\n",
+			    rqvr->major_version, rqvr->minor_version,
+			    qep->major_opcode, qep->first_event);
 			if (rqvr->major_version >= 1) {
 				randr_support = true;
 				randr_eventbase = qep->first_event;
-				DNPRINTF(SWM_D_INIT, "RandR %u.%u supported."
-				    " major_opcode: %u, first_event: %u\n",
-				    rqvr->major_version, rqvr->minor_version,
-				    qep->major_opcode, qep->first_event);
+
+				if (rqvr->minor_version >= 3 ||
+				    rqvr->major_version > 1)
+					randr_scan = true;
 			}
 			free(rqvr);
 		}
 	}
+	DNPRINTF(SWM_D_INIT, "randr_support: %s, randr_scan: %s\n",
+	    YESNO(randr_support), YESNO(randr_scan));
 
 #ifdef SWM_XCB_HAS_XINPUT
 	xinput2_support = false;
 	xinput2_raw = false;
 	qep = xcb_get_extension_data(conn, &xcb_input_id);
 	if (qep->present) {
+		DNPRINTF(SWM_D_INIT, "XCB XInput version: %u.%u.\n",
+		    XCB_INPUT_MAJOR_VERSION, XCB_INPUT_MINOR_VERSION);
 		xiqvr = xcb_input_xi_query_version_reply(conn,
 		    xcb_input_xi_query_version(conn, XCB_INPUT_MAJOR_VERSION,
 		    XCB_INPUT_MINOR_VERSION), NULL);
 		if (xiqvr) {
+			DNPRINTF(SWM_D_INIT, "X server XInput version: %u.%u, "
+			    "major_opcode: %u\n", xiqvr->major_version,
+			    xiqvr->minor_version, qep->major_opcode);
 			if (xiqvr->major_version >= 2) {
 				xinput2_support = true;
+				xinput2_opcode = qep->major_opcode;
 #ifdef XCB_INPUT_RAW_BUTTON_PRESS
 				if (xiqvr->minor_version >= 1 ||
 				    xiqvr->major_version > 2)
 					xinput2_raw = true;
 #endif
-				xinput2_opcode = qep->major_opcode;
-				DNPRINTF(SWM_D_INIT, "XInput %u.%u supported. "
-				    "major_opcode: %u\n", xiqvr->major_version,
-				    xiqvr->minor_version, qep->major_opcode);
 			}
 			free(xiqvr);
 		}
 	}
 #endif /* SWM_XCB_HAS_XINPUT */
+	DNPRINTF(SWM_D_INIT, "xinput2_support: %s, xinput2_raw: %s\n",
+	    YESNO(xinput2_support), YESNO(xinput2_raw));
 }
 
 void
