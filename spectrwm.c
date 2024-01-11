@@ -496,6 +496,7 @@ int		 bar_height = 0;
 int		 bar_justify = SWM_BAR_JUSTIFY_LEFT;
 char		*bar_format = NULL;
 bool		 bar_action_expand = false;
+int		 bar_workspace_limit = 0;
 bool		 stack_enabled = true;
 bool		 clock_enabled = true;
 bool		 iconic_enabled = false;
@@ -3972,6 +3973,9 @@ bar_urgent(struct swm_screen *s, char *str, size_t sz)
 
 	ws = RB_MIN(workspace_tree, &s->workspaces);
 	for (i = 0; i < workspace_limit; i++) {
+		if (bar_workspace_limit > 0 && i >= bar_workspace_limit)
+			break;
+
 		while (ws && ws->idx < i)
 			ws = RB_NEXT(workspace_tree, &s->workspaces, ws);
 
@@ -4008,6 +4012,9 @@ bar_workspace_indicator(char *s, size_t sz, struct swm_region *r)
 
 	ws = RB_MIN(workspace_tree, &r->s->workspaces);
 	for (i = 0; i < workspace_limit; i++) {
+		if (bar_workspace_limit > 0 && i >= bar_workspace_limit)
+			break;
+
 		while (ws && ws->idx < i)
 			ws = RB_NEXT(workspace_tree, &s->workspaces, ws);
 
@@ -12622,6 +12629,7 @@ enum {
 	SWM_S_BAR_FONT_PUA,
 	SWM_S_BAR_FORMAT,
 	SWM_S_BAR_JUSTIFY,
+	SWM_S_BAR_WORKSPACE_LIMIT,
 	SWM_S_BORDER_WIDTH,
 	SWM_S_BOUNDARY_WIDTH,
 	SWM_S_CLICK_TO_RAISE,
@@ -12754,6 +12762,13 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 			return (1);
 		}
 
+		break;
+	case SWM_S_BAR_WORKSPACE_LIMIT:
+		bar_workspace_limit = atoi(value);
+		if (bar_workspace_limit > SWM_WS_MAX)
+			bar_workspace_limit = SWM_WS_MAX;
+		else if (bar_workspace_limit < 0)
+			bar_workspace_limit = 0;
 		break;
 	case SWM_S_BORDER_WIDTH:
 		border_width = atoi(value);
@@ -13578,6 +13593,7 @@ struct config_option configopt[] = {
 	{ "bar_font_pua",		setconfvalue,	SWM_S_BAR_FONT_PUA },
 	{ "bar_format",			setconfvalue,	SWM_S_BAR_FORMAT },
 	{ "bar_justify",		setconfvalue,	SWM_S_BAR_JUSTIFY },
+	{ "bar_workspace_limit",	setconfvalue,	SWM_S_BAR_WORKSPACE_LIMIT },
 	{ "bind",			setconfbinding,	0 },
 	{ "border_width",		setconfvalue,	SWM_S_BORDER_WIDTH },
 	{ "boundary_width",		setconfvalue,	SWM_S_BOUNDARY_WIDTH },
