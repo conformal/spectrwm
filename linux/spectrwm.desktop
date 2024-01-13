@@ -5,4 +5,3 @@ Type=Application
 Exec=spectrwm
 TryExec=spectrwm
 DesktopNames=spectrwm;
-Keywords=tiling;window;manager;wm;
