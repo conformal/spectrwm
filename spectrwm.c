@@ -7094,7 +7094,10 @@ swapwin(struct swm_screen *s, struct binding *bp, union arg *args)
 		}
 		if (w == NULL || sw == NULL || w->ws != sw->ws)
 			return;
-		pw = TAILQ_PREV(w, ws_win_list, entry);
+		pw = w;
+		while ((pw = TAILQ_PREV(pw, ws_win_list, entry)))
+			if (pw != sw)
+				break;
 		set_focus_prev(w);
 		TAILQ_REMOVE(wl, w, entry);
 		TAILQ_INSERT_BEFORE(sw, w, entry);
