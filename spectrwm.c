@@ -6551,6 +6551,7 @@ focus_region(struct swm_region *r)
 			/* Clear bar since empty. */
 			bar_draw(old_r->bar);
 		}
+		bar_draw(r->bar);
 
 		set_input_focus(r->id, true);
 		ewmh_update_active_window(r->s);
@@ -6856,6 +6857,10 @@ cyclews(struct swm_screen *s, struct binding *bp, union arg *args)
 				unmap_workspace(ws);
 			stack(r);
 			update_mapping(s);
+
+			bar_draw(r->bar);
+			if (rr)
+				bar_draw(rr->bar);
 
 			ewmh_update_current_desktop(r->s);
 			center_pointer(nws->r);
@@ -15490,6 +15495,7 @@ motionnotify(xcb_motion_notify_event_t *e)
 			focus_region(r);
 		}
 	}
+	xcb_flush(conn);
 
 	DNPRINTF(SWM_D_EVENT, "done\n");
 }
