@@ -108,9 +108,18 @@ The format of the file is
 .Pp
 .Dl Ar keyword Li = Ar setting
 .Pp
+Where
+.Ql =
+may be replaced with
+.Ql +=
+or
+.Ql -= ,
+if supported by the option.
+.Pp
 For example:
 .Pp
 .Dl color_focus = red
+.Dl quirk[XTerm] += FLOAT
 .Pp
 Enabling or disabling an option is done by using 1 or 0 respectively.
 .Pp
@@ -1790,7 +1799,7 @@ fonts when resizing.
 Custom quirks in the configuration file are specified as follows:
 .Pp
 .Dl quirk Ns Bo Ar class Ns Bo : Ns Ar instance Ns Bo : Ns Ar name Bc Bc Bc \
-= Ar quirk Op + Ar quirk ...
+{=|+=|-=} Ar quirk Op + Ar quirk ...
 .Pp
 .Ar class ,
 .Ar instance
@@ -1800,6 +1809,18 @@ Custom quirks in the configuration file are specified as follows:
 to and
 .Ar quirk
 is one of the quirks from the list above.
+.Pp
+When a window is managed, quirk entries are applied in the order specified in
+the configuration file.
+The assignment operator determines how the quirks are applied.
+When assigning quirks with
+.Ql = ,
+quirks are replaced on matching windows.
+To add or remove quirks, assign them with
+.Ql +=
+or
+.Ql -=
+instead.
 .Pp
 Note that patterns are interpreted as POSIX Extended Regular Expressions.
 Any ':', '[' or ']' must be escaped with '\e'.
@@ -1813,14 +1834,16 @@ quirk[MPlayer] = FLOAT + FULLSCREEN + FOCUSPREV # Float all windows having a \
 class of 'MPlayer'
 quirk[.*] = FLOAT # Float all windows by default.
 quirk[.*:.*:.*] = FLOAT # Same as above.
-quirk[Firefox:Navigator] = FLOAT # Float all Firefox browser windows.
+quirk[firefox:Navigator] = FLOAT # Float all Firefox browser windows.
 quirk[::Console] = FLOAT # Float windows with WM_CLASS not set and a \
 window name of 'Console'.
 quirk[\e[0-9\e].*:.*:\e[\e[\e:alnum\e:\e]\e]*] = FLOAT # Float windows with \
 WM_CLASS class beginning with a number, any WM_CLASS instance and a \
 _NET_WM_NAME/WM_NAME either blank or containing alphanumeric characters \
 without spaces.
-quirk[pcb:pcb] = NONE # remove existing quirk
+quirk[pcb:pcb] = NONE # Remove the default quirk entry.
+quirk[.*:ws10] += WS[10] # Force windows with a WM_CLASS name of 'ws10' to \
+workspace 10 without removing existing quirks.
 .Ed
 .Pp
 You can obtain

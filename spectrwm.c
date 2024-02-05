@@ -968,6 +968,10 @@ union arg {
 	char			**argv;
 };
 
+#define SWM_ASOP_BASIC		(1 << 0)
+#define SWM_ASOP_ADD		(1 << 1)
+#define SWM_ASOP_SUBTRACT	(1 << 2)
+
 /* quirks */
 struct quirk {
 	TAILQ_ENTRY(quirk)	entry;
@@ -977,6 +981,7 @@ struct quirk {
 	regex_t			regex_class;
 	regex_t			regex_instance;
 	regex_t			regex_name;
+	uint8_t			mode;	 /* Assignment mode. */
 	uint32_t		quirk;
 	int			ws;	 /* Initial workspace. */
 #define SWM_Q_FLOAT		(1 << 0) /* Float this window. */
@@ -1403,6 +1408,7 @@ RB_HEAD(atom_name_tree, atom_name) atom_names = RB_INITIALIZER(&atom_names);
 void	 adjust_font(struct ws_win *);
 int	 apply_unfocus(struct workspace *, struct ws_win *);
 char	*argsep(char **);
+int	 asopcheck(uint8_t, uint8_t, char **);
 int	 atom_name_cmp(struct atom_name *, struct atom_name *);
 void	 atom_name_insert(xcb_atom_t, char *);
 struct atom_name	*atom_name_lookup(xcb_atom_t);
@@ -1620,10 +1626,11 @@ void	 priorws(struct swm_screen *, struct binding *, union arg *);
 void	 propertynotify(xcb_property_notify_event_t *);
 void	 put_back_event(xcb_generic_event_t *);
 void	 quirk_free(struct quirk *);
-void	 quirk_insert(const char *, const char *, const char *, uint32_t, int);
+void	 quirk_insert(const char *, const char *, const char *, uint8_t,
+	     uint32_t, int);
 void	 quirk_remove(struct quirk *);
 void	 quirk_replace(struct quirk *, const char *, const char *, const char *,
-	     uint32_t, int);
+	     uint8_t, uint32_t, int);
 void	 quit(struct swm_screen *, struct binding *, union arg *);
 void	 raise_focus(struct swm_screen *, struct binding *, union arg *);
 void	 raise_toggle(struct swm_screen *, struct binding *, union arg *);
@@ -1664,21 +1671,22 @@ void	 set_focus_redirect(struct ws_win *);
 void	 set_input_focus(xcb_window_t, bool);
 void	 set_region(struct swm_region *);
 void	 set_win_state(struct ws_win *, uint32_t);
-int	 setautorun(const char *, const char *, int, char **);
+int	 setautorun(uint8_t, const char *, const char *, int, char **);
 void	 setbinding(uint16_t, enum binding_type, uint32_t, enum actionid,
 	     uint32_t, const char *);
-int	 setconfbinding(const char *, const char *, int, char **);
-int	 setconfcancelkey(const char *, const char *, int, char **);
-int	 setconfcolor(const char *, const char *, int, char **);
-int	 setconfcolorlist(const char *, const char *, int, char **);
-int	 setconfmodkey(const char *, const char *, int, char **);
-int	 setconfquirk(const char *, const char *, int, char **);
-int	 setconfregion(const char *, const char *, int, char **);
-int	 setconfspawn(const char *, const char *, int, char **);
-int	 setconfvalue(const char *, const char *, int, char **);
-int	 setkeymapping(const char *, const char *, int, char **);
-int	 setlayout(const char *, const char *, int, char **);
-void	 setquirk(const char *, const char *, const char *, uint32_t, int);
+int	 setconfbinding(uint8_t, const char *, const char *, int, char **);
+int	 setconfcancelkey(uint8_t, const char *, const char *, int, char **);
+int	 setconfcolor(uint8_t, const char *, const char *, int, char **);
+int	 setconfcolorlist(uint8_t, const char *, const char *, int, char **);
+int	 setconfmodkey(uint8_t, const char *, const char *, int, char **);
+int	 setconfquirk(uint8_t, const char *, const char *, int, char **);
+int	 setconfregion(uint8_t, const char *, const char *, int, char **);
+int	 setconfspawn(uint8_t, const char *, const char *, int, char **);
+int	 setconfvalue(uint8_t, const char *, const char *, int, char **);
+int	 setkeymapping(uint8_t, const char *, const char *, int, char **);
+int	 setlayout(uint8_t, const char *, const char *, int, char **);
+void	 setquirk(const char *, const char *, const char *, uint8_t, uint32_t,
+	     int);
 void	 setscreencolor(struct swm_screen *, const char *, int);
 void	 setspawn(const char *, const char *, int);
 void	 setup_btnbindings(void);
@@ -11270,7 +11278,31 @@ setspawn(const char *name, const char *args, int flags)
 }
 
 int
-setconfspawn(const char *selector, const char *value, int flags, char **emsg)
+asopcheck(uint8_t asop, uint8_t allowed, char **emsg)
+{
+	if (!(asop & allowed)) {
+		switch (asop) {
+		case SWM_ASOP_ADD:
+			ALLOCSTR(emsg, "'+=' cannot be used with this option");
+			break;
+		case SWM_ASOP_SUBTRACT:
+			ALLOCSTR(emsg, "'-=' cannot be used with this option");
+			break;
+		case SWM_ASOP_BASIC:
+			ALLOCSTR(emsg, "'=' cannot be used with this option");
+			break;
+		default:
+			ALLOCSTR(emsg, "invalid assignment operator");
+			break;
+		}
+		return (1);
+	}
+	return (0);
+}
+
+int
+setconfspawn(uint8_t asop, const char *selector, const char *value, int flags,
+    char **emsg)
 {
 	char		*args;
 
@@ -11278,7 +11310,8 @@ setconfspawn(const char *selector, const char *value, int flags, char **emsg)
 		ALLOCSTR(emsg, "missing selector");
 		return (1);
 	}
-
+	if (asopcheck(asop, SWM_ASOP_BASIC, emsg))
+		return (1);
 	args = expand_tilde(value);
 
 	DNPRINTF(SWM_D_SPAWN, "[%s] [%s]\n", selector, args);
@@ -11324,29 +11357,30 @@ validate_spawns(void)
 void
 setup_spawn(void)
 {
-	setconfspawn("lock", "xlock", 0, NULL);
+	setconfspawn(SWM_ASOP_BASIC, "lock", "xlock", 0, NULL);
 
-	setconfspawn("term", "xterm", 0, NULL);
-	setconfspawn("spawn_term", "xterm", 0, NULL);
+	setconfspawn(SWM_ASOP_BASIC, "term", "xterm", 0, NULL);
+	setconfspawn(SWM_ASOP_BASIC, "spawn_term", "xterm", 0, NULL);
 
-	setconfspawn("menu", "dmenu_run $dmenu_bottom -fn $bar_font "
-	    "-nb $bar_color -nf $bar_font_color -sb $bar_color_selected "
-	    "-sf $bar_font_color_selected", 0, NULL);
-
-	setconfspawn("search", "dmenu $dmenu_bottom -i -fn $bar_font "
-	    "-nb $bar_color -nf $bar_font_color -sb $bar_color_selected "
-	    "-sf $bar_font_color_selected", 0, NULL);
-
-	setconfspawn("name_workspace", "dmenu $dmenu_bottom -p Workspace "
+	setconfspawn(SWM_ASOP_BASIC, "menu", "dmenu_run $dmenu_bottom "
 	    "-fn $bar_font -nb $bar_color -nf $bar_font_color "
 	    "-sb $bar_color_selected -sf $bar_font_color_selected", 0, NULL);
 
+	setconfspawn(SWM_ASOP_BASIC, "search", "dmenu $dmenu_bottom -i "
+	    "-fn $bar_font -nb $bar_color -nf $bar_font_color "
+	    "-sb $bar_color_selected -sf $bar_font_color_selected", 0, NULL);
+
+	setconfspawn(SWM_ASOP_BASIC, "name_workspace", "dmenu $dmenu_bottom "
+	    "-p Workspace -fn $bar_font -nb $bar_color -nf $bar_font_color "
+	    "-sb $bar_color_selected -sf $bar_font_color_selected", 0, NULL);
+
 	 /* These are not verified for existence, even with a binding set. */
-	setconfspawn("screenshot_all", "screenshot.sh full",
+	setconfspawn(SWM_ASOP_BASIC, "screenshot_all", "screenshot.sh full",
 	    SWM_SPAWN_OPTIONAL, NULL);
-	setconfspawn("screenshot_wind", "screenshot.sh window",
+	setconfspawn(SWM_ASOP_BASIC, "screenshot_wind", "screenshot.sh window",
 	    SWM_SPAWN_OPTIONAL, NULL);
-	setconfspawn("initscr", "initscreen.sh", SWM_SPAWN_OPTIONAL, NULL);
+	setconfspawn(SWM_ASOP_BASIC, "initscr", "initscreen.sh",
+	    SWM_SPAWN_OPTIONAL, NULL);
 }
 
 /* bindings */
@@ -11532,7 +11566,8 @@ setbinding(uint16_t mod, enum binding_type type, uint32_t val,
 }
 
 int
-setconfbinding(const char *selector, const char *value, int flags, char **emsg)
+setconfbinding(uint8_t asop, const char *selector, const char *value, int flags,
+    char **emsg)
 {
 	struct spawn_prog	*sp;
 	uint32_t		keybtn, opts;
@@ -11542,6 +11577,9 @@ setconfbinding(const char *selector, const char *value, int flags, char **emsg)
 
 	/* Suppress warning. */
 	(void)flags;
+
+	if (asopcheck(asop, SWM_ASOP_BASIC, emsg))
+		return (1);
 
 	DNPRINTF(SWM_D_KEY, "selector: [%s], value: [%s]\n", selector, value);
 	if (selector == NULL || strlen(selector) == 0) {
@@ -11771,7 +11809,8 @@ button_has_binding(uint32_t button)
 }
 
 int
-setkeymapping(const char *selector, const char *value, int flags, char **emsg)
+setkeymapping(uint8_t asop, const char *selector, const char *value, int flags,
+    char **emsg)
 {
 	char			*keymapping_file;
 
@@ -11780,6 +11819,9 @@ setkeymapping(const char *selector, const char *value, int flags, char **emsg)
 	(void)flags;
 
 	DNPRINTF(SWM_D_KEY, "enter\n");
+
+	if (asopcheck(asop, SWM_ASOP_BASIC, emsg))
+		return (1);
 
 	keymapping_file = expand_tilde(value);
 
@@ -12277,6 +12319,16 @@ parsequirks(const char *qstr, uint32_t *quirk, int *ws, char **emsg)
 		if (sscanf(name, "WS[%d]", ws) == 1) {
 			if (*ws > 0)
 				*ws -= 1;
+			if (*ws < -1)
+				*ws = -1;
+			continue;
+		}
+
+		/* When workspace index is unspecified, reset to none. */
+		if (strncmp(name, "WS", SWM_QUIRK_LEN) == 0 ||
+		    strncmp(name, "WS[]", SWM_QUIRK_LEN) == 0) {
+			DNPRINTF(SWM_D_QUIRK, "%s\n", name);
+			*ws = -3;
 			continue;
 		}
 
@@ -12307,14 +12359,14 @@ parsequirks(const char *qstr, uint32_t *quirk, int *ws, char **emsg)
 
 void
 quirk_insert(const char *class, const char *instance, const char *name,
-    uint32_t quirk, int ws)
+    uint8_t mode, uint32_t quirk, int ws)
 {
 	struct quirk		*qp;
 	char			*str;
 	bool			failed = false;
 
-	DNPRINTF(SWM_D_QUIRK, "class: %s, instance: %s, name: %s, value: %u, "
-	    "ws: %d\n", class, instance, name, quirk, ws);
+	DNPRINTF(SWM_D_QUIRK, "class: %s, instance: %s, name: %s, mode:%u, "
+	    "value: %u, ws: %d\n", class, instance, name, mode, quirk, ws);
 
 	if ((qp = malloc(sizeof *qp)) == NULL)
 		err(1, "quirk_insert: malloc");
@@ -12361,6 +12413,7 @@ quirk_insert(const char *class, const char *instance, const char *name,
 		quirk_free(qp);
 	} else {
 		qp->quirk = quirk;
+		qp->mode = mode;
 		qp->ws = ws;
 		TAILQ_INSERT_TAIL(&quirks, qp, entry);
 	}
@@ -12403,25 +12456,25 @@ clear_quirks(void)
 
 void
 quirk_replace(struct quirk *qp, const char *class, const char *instance,
-    const char *name, uint32_t quirk, int ws)
+    const char *name, uint8_t mode, uint32_t quirk, int ws)
 {
-	DNPRINTF(SWM_D_QUIRK, "%s:%s:%s [%u], ws: %d\n", qp->class,
-	    qp->instance, qp->name, qp->quirk, qp->ws);
+	DNPRINTF(SWM_D_QUIRK, "%s:%s:%s %u [%u], ws: %d\n", qp->class,
+	    qp->instance, qp->name, qp->mode, qp->quirk, qp->ws);
 
 	quirk_remove(qp);
-	quirk_insert(class, instance, name, quirk, ws);
+	quirk_insert(class, instance, name, mode, quirk, ws);
 
 	DNPRINTF(SWM_D_QUIRK, "leave\n");
 }
 
 void
 setquirk(const char *class, const char *instance, const char *name,
-    uint32_t quirk, int ws)
+    uint8_t mode, uint32_t quirk, int ws)
 {
 	struct quirk		*qp;
 
-	DNPRINTF(SWM_D_QUIRK, "enter %s:%s:%s [%u], ws: %d\n", class, instance,
-	    name, quirk, ws);
+	DNPRINTF(SWM_D_QUIRK, "%s:%s:%s %u [%u] ws: %d\n", class, instance,
+	    name, mode, quirk, ws);
 
 #ifndef __clang_analyzer__ /* Suppress false warnings. */
 	/* Remove/replace existing quirk. */
@@ -12432,16 +12485,16 @@ setquirk(const char *class, const char *instance, const char *name,
 			if (quirk == 0 && ws == -2)
 				quirk_remove(qp);
 			else
-				quirk_replace(qp, class, instance, name, quirk,
-				    ws);
+				quirk_replace(qp, class, instance, name, mode,
+				    quirk, ws);
 			goto out;
 		}
 	}
 #endif
 
 	/* Only insert if quirk is not NONE or forced ws is set. */
-	if (quirk || ws >= -1)
-		quirk_insert(class, instance, name, quirk, ws);
+	if (quirk || ws != -2)
+		quirk_insert(class, instance, name, mode, quirk, ws);
 out:
 	DNPRINTF(SWM_D_QUIRK, "leave\n");
 }
@@ -12463,7 +12516,8 @@ unescape_selector(char *str)
 }
 
 int
-setconfquirk(const char *selector, const char *value, int flags, char **emsg)
+setconfquirk(uint8_t asop, const char *selector, const char *value, int flags,
+    char **emsg)
 {
 	char			*str, *cp, *class;
 	char			*instance = NULL, *name = NULL;
@@ -12472,6 +12526,10 @@ setconfquirk(const char *selector, const char *value, int flags, char **emsg)
 
 	/* Suppress warning. */
 	(void)flags;
+
+	if (asopcheck(asop, SWM_ASOP_BASIC | SWM_ASOP_ADD | SWM_ASOP_SUBTRACT,
+	    emsg))
+		return (1);
 
 	if (selector == NULL || strlen(selector) == 0)
 		return (0);
@@ -12512,7 +12570,7 @@ setconfquirk(const char *selector, const char *value, int flags, char **emsg)
 	    instance, name);
 
 	if ((retval = parsequirks(value, &qrks, &ws, emsg)) == 0)
-		setquirk(class, instance, name, qrks, ws);
+		setquirk(class, instance, name, asop, qrks, ws);
 
 	free(str);
 	return (retval);
@@ -12521,31 +12579,31 @@ setconfquirk(const char *selector, const char *value, int flags, char **emsg)
 void
 setup_quirks(void)
 {
-	setquirk("MPlayer",		"xv",		".*",
+	setquirk("MPlayer",		"xv",		".*", SWM_ASOP_BASIC,
 	    SWM_Q_FLOAT | SWM_Q_FULLSCREEN | SWM_Q_FOCUSPREV, -2);
-	setquirk("OpenOffice.org 3.2",	"VCLSalFrame",	".*",
+	setquirk("OpenOffice.org 3.2",	"VCLSalFrame",	".*", SWM_ASOP_BASIC,
 	    SWM_Q_FLOAT, -2);
-	setquirk("Firefox-bin",		"firefox-bin",	".*",
+	setquirk("Firefox-bin",		"firefox-bin",	".*", SWM_ASOP_BASIC,
 	    SWM_Q_TRANSSZ, -2);
-	setquirk("Firefox",		"Dialog",	".*",
+	setquirk("Firefox",		"Dialog",	".*", SWM_ASOP_BASIC,
 	    SWM_Q_FLOAT, -2);
-	setquirk("Gimp",		"gimp",		".*",
+	setquirk("Gimp",		"gimp",		".*", SWM_ASOP_BASIC,
 	    SWM_Q_FLOAT | SWM_Q_ANYWHERE, -2);
-	setquirk("XTerm",		"xterm",	".*",
+	setquirk("XTerm",		"xterm",	".*", SWM_ASOP_BASIC,
 	    SWM_Q_XTERM_FONTADJ, -2);
-	setquirk("xine",		"Xine Window",	".*",
+	setquirk("xine",		"Xine Window",	".*", SWM_ASOP_BASIC,
 	    SWM_Q_FLOAT | SWM_Q_ANYWHERE, -2);
-	setquirk("Xitk",		"Xitk Combo",	".*",
+	setquirk("Xitk",		"Xitk Combo",	".*", SWM_ASOP_BASIC,
 	    SWM_Q_FLOAT | SWM_Q_ANYWHERE, -2);
-	setquirk("xine",		"xine Panel",	".*",
+	setquirk("xine",		"xine Panel",	".*", SWM_ASOP_BASIC,
 	    SWM_Q_FLOAT | SWM_Q_ANYWHERE, -2);
-	setquirk("Xitk",		"Xine Window",	".*",
+	setquirk("Xitk",		"Xine Window",	".*", SWM_ASOP_BASIC,
 	    SWM_Q_FLOAT | SWM_Q_ANYWHERE, -2);
 	setquirk("xine",		"xine Video Fullscreen Window",	".*",
-	    SWM_Q_FULLSCREEN | SWM_Q_FLOAT, -2);
-	setquirk("pcb",			"pcb",		".*",
+	    SWM_ASOP_BASIC, SWM_Q_FULLSCREEN | SWM_Q_FLOAT, -2);
+	setquirk("pcb",			"pcb",		".*", SWM_ASOP_BASIC,
 	    SWM_Q_FLOAT, -2);
-	setquirk("SDL_App",		"SDL_App",	".*",
+	setquirk("SDL_App",		"SDL_App",	".*", SWM_ASOP_BASIC,
 	    SWM_Q_FLOAT | SWM_Q_FULLSCREEN, -2);
 }
 
@@ -12626,11 +12684,15 @@ enum {
 };
 
 int
-setconfvalue(const char *selector, const char *value, int flags, char **emsg)
+setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
+    char **emsg)
 {
 	struct swm_region	*r;
 	struct workspace	*ws;
 	int			i, ws_id, num_screens, n;
+
+	if (asopcheck(asop, SWM_ASOP_BASIC, emsg))
+		return (1);
 
 	switch (flags) {
 	case SWM_S_BAR_ACTION:
@@ -12850,8 +12912,8 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 		}
 		break;
 	case SWM_S_SPAWN_TERM:
-		setconfspawn("term", value, 0, emsg);
-		setconfspawn("spawn_term", value, 0, emsg);
+		setconfspawn(asop, "term", value, 0, emsg);
+		setconfspawn(asop, "spawn_term", value, 0, emsg);
 		break;
 	case SWM_S_STACK_ENABLED:
 		stack_enabled = (atoi(value) != 0);
@@ -13036,11 +13098,15 @@ setconfvalue(const char *selector, const char *value, int flags, char **emsg)
 }
 
 int
-setconfmodkey(const char *selector, const char *value, int flags, char **emsg)
+setconfmodkey(uint8_t asop, const char *selector, const char *value, int flags,
+    char **emsg)
 {
 	/* Suppress warning. */
 	(void)selector;
 	(void)flags;
+
+	if (asopcheck(asop, SWM_ASOP_BASIC, emsg))
+		return (1);
 
 	if (strncasecmp(value, "Mod1", strlen("Mod1")) == 0)
 		update_modkey(XCB_MOD_MASK_1);
@@ -13060,7 +13126,8 @@ setconfmodkey(const char *selector, const char *value, int flags, char **emsg)
 }
 
 int
-setconfcancelkey(const char *selector, const char *value, int flags, char **emsg)
+setconfcancelkey(uint8_t asop, const char *selector, const char *value,
+    int flags, char **emsg)
 {
 	xcb_keysym_t	ks;
 	char		*name, *cp;
@@ -13068,6 +13135,9 @@ setconfcancelkey(const char *selector, const char *value, int flags, char **emsg
 	/* Suppress warning. */
 	(void)selector;
 	(void)flags;
+
+	if (asopcheck(asop, SWM_ASOP_BASIC, emsg))
+		return (1);
 
 	if ((cp = name = strdup(value)) == NULL)
 		err(1, "setconfcancelkey: strdup");
@@ -13089,10 +13159,14 @@ setconfcancelkey(const char *selector, const char *value, int flags, char **emsg
 }
 
 int
-setconfcolor(const char *selector, const char *value, int flags, char **emsg)
+setconfcolor(uint8_t asop, const char *selector, const char *value, int flags,
+    char **emsg)
 {
 	struct swm_screen	*s;
 	int			first, last, i = 0, d, num_screens;
+
+	if (asopcheck(asop, SWM_ASOP_BASIC, emsg))
+		return (1);
 
 	num_screens = get_screen_count();
 
@@ -13177,10 +13251,14 @@ setconfcolor(const char *selector, const char *value, int flags, char **emsg)
 }
 
 int
-setconfcolorlist(const char *selector, const char *value, int flags, char **emsg)
+setconfcolorlist(uint8_t asop, const char *selector, const char *value,
+    int flags, char **emsg)
 {
 	int			n;
 	char			*b, *str, *sp;
+
+	if (asopcheck(asop, SWM_ASOP_BASIC, emsg))
+		return (1);
 
 	switch (flags) {
 	case SWM_S_COLOR_BAR:
@@ -13195,7 +13273,7 @@ setconfcolorlist(const char *selector, const char *value, int flags, char **emsg
 			while (isblank((unsigned char)*b)) b++;
 			if (*b == '\0')
 				continue;
-			setconfcolor(selector, b, flags + n, emsg);
+			setconfcolor(asop, selector, b, flags + n, emsg);
 			n++;
 			if (n == SWM_BAR_MAX_COLORS)
 				break;
@@ -13214,7 +13292,7 @@ setconfcolorlist(const char *selector, const char *value, int flags, char **emsg
 			while (isblank((unsigned char)*b)) b++;
 			if (*b == '\0')
 				continue;
-			setconfcolor(selector, b, flags + n, emsg);
+			setconfcolor(asop, selector, b, flags + n, emsg);
 			n++;
 			if (n == SWM_BAR_MAX_COLORS)
 				break;
@@ -13226,7 +13304,8 @@ setconfcolorlist(const char *selector, const char *value, int flags, char **emsg
 }
 
 int
-setconfregion(const char *selector, const char *value, int flags, char **emsg)
+setconfregion(uint8_t asop, const char *selector, const char *value, int flags,
+    char **emsg)
 {
 	unsigned int			x, y, w, h;
 	int				sidx, num_screens, rot;
@@ -13238,6 +13317,9 @@ setconfregion(const char *selector, const char *value, int flags, char **emsg)
 	(void)flags;
 
 	DNPRINTF(SWM_D_CONF, "%s\n", value);
+
+	if (asopcheck(asop, SWM_ASOP_BASIC, emsg))
+		return (1);
 
 	num_screens = get_screen_count();
 	if (sscanf(value, "screen[%d]:%ux%u+%u+%u,%8s",
@@ -13290,7 +13372,8 @@ setconfregion(const char *selector, const char *value, int flags, char **emsg)
 }
 
 int
-setautorun(const char *selector, const char *value, int flags, char **emsg)
+setautorun(uint8_t asop, const char *selector, const char *value, int flags,
+    char **emsg)
 {
 	int			ws_id;
 	char			*ap, *sp, *str;
@@ -13305,6 +13388,9 @@ setautorun(const char *selector, const char *value, int flags, char **emsg)
 
 	if (getenv("SWM_STARTED"))
 		return (0);
+
+	if (asopcheck(asop, SWM_ASOP_BASIC, emsg))
+		return (1);
 
 	n = 0;
 	if (sscanf(value, "ws[%d]:%n", &ws_id, &n) != 1 || n == 0 ||
@@ -13368,7 +13454,8 @@ setautorun(const char *selector, const char *value, int flags, char **emsg)
 }
 
 int
-setlayout(const char *selector, const char *value, int flags, char **emsg)
+setlayout(uint8_t asop, const char *selector, const char *value, int flags,
+    char **emsg)
 {
 	struct workspace	*ws;
 	int			ws_id, i, x, mg, ma, si, ar, n;
@@ -13382,6 +13469,8 @@ setlayout(const char *selector, const char *value, int flags, char **emsg)
 	if (getenv("SWM_STARTED"))
 		return (0);
 
+	if (asopcheck(asop, SWM_ASOP_BASIC, emsg))
+		return (1);
 	n = 0;
 	if (sscanf(value, "ws[%d]:%d:%d:%d:%d:%n",
 	    &ws_id, &mg, &ma, &si, &ar, &n) != 5 || n == 0 ||
@@ -13462,7 +13551,7 @@ setlayout(const char *selector, const char *value, int flags, char **emsg)
 /* config options */
 struct config_option {
 	char			*name;
-	int			(*func)(const char*, const char*, int, char **);
+	int			(*func)(uint8_t, const char*, const char*, int, char **);
 	int			flags;
 };
 struct config_option configopt[] = {
@@ -13474,17 +13563,17 @@ struct config_option configopt[] = {
 	{ "bar_border_unfocus",		setconfcolor,	SWM_S_COLOR_BAR_BORDER_UNFOCUS },
 	{ "bar_border_free",		setconfcolor,	SWM_S_COLOR_BAR_BORDER_FREE },
 	{ "bar_border_width",		setconfvalue,	SWM_S_BAR_BORDER_WIDTH },
-	{ "bar_color",			setconfcolorlist,	SWM_S_COLOR_BAR },
-	{ "bar_color_unfocus",		setconfcolorlist,	SWM_S_COLOR_BAR_UNFOCUS },
-	{ "bar_color_free",		setconfcolorlist,	SWM_S_COLOR_BAR_FREE },
+	{ "bar_color",			setconfcolorlist,SWM_S_COLOR_BAR },
+	{ "bar_color_unfocus",		setconfcolorlist,SWM_S_COLOR_BAR_UNFOCUS },
+	{ "bar_color_free",		setconfcolorlist,SWM_S_COLOR_BAR_FREE },
 	{ "bar_color_selected",		setconfcolor,	SWM_S_COLOR_BAR_SELECTED },
-	{ "bar_delay",			NULL,		0 }, /* dummy */
+	{ "bar_delay",			NULL,		0 },	/* dummy */
 	{ "bar_enabled",		setconfvalue,	SWM_S_BAR_ENABLED },
 	{ "bar_enabled_ws",		setconfvalue,	SWM_S_BAR_ENABLED_WS },
 	{ "bar_font",			setconfvalue,	SWM_S_BAR_FONT },
-	{ "bar_font_color",		setconfcolorlist,	SWM_S_COLOR_BAR_FONT },
-	{ "bar_font_color_unfocus",	setconfcolorlist,	SWM_S_COLOR_BAR_FONT_UNFOCUS },
-	{ "bar_font_color_free",	setconfcolorlist,	SWM_S_COLOR_BAR_FONT_FREE },
+	{ "bar_font_color",		setconfcolorlist,SWM_S_COLOR_BAR_FONT },
+	{ "bar_font_color_unfocus",	setconfcolorlist,SWM_S_COLOR_BAR_FONT_UNFOCUS },
+	{ "bar_font_color_free",	setconfcolorlist,SWM_S_COLOR_BAR_FONT_FREE },
 	{ "bar_font_color_selected",	setconfcolor,	SWM_S_COLOR_BAR_FONT_SELECTED },
 	{ "bar_font_pua",		setconfvalue,	SWM_S_BAR_FONT_PUA },
 	{ "bar_format",			setconfvalue,	SWM_S_BAR_FORMAT },
@@ -13492,7 +13581,7 @@ struct config_option configopt[] = {
 	{ "bind",			setconfbinding,	0 },
 	{ "border_width",		setconfvalue,	SWM_S_BORDER_WIDTH },
 	{ "boundary_width",		setconfvalue,	SWM_S_BOUNDARY_WIDTH },
-	{ "cancelkey",			setconfcancelkey,	0 },
+	{ "cancelkey",			setconfcancelkey,0 },
 	{ "click_to_raise",		setconfvalue,	SWM_S_CLICK_TO_RAISE },
 	{ "clock_enabled",		setconfvalue,	SWM_S_CLOCK_ENABLED },
 	{ "clock_format",		setconfvalue,	SWM_S_CLOCK_FORMAT },
@@ -13503,7 +13592,7 @@ struct config_option configopt[] = {
 	{ "color_unfocus",		setconfcolor,	SWM_S_COLOR_UNFOCUS },
 	{ "color_unfocus_free",		setconfcolor,	SWM_S_COLOR_UNFOCUS_FREE },
 	{ "color_unfocus_maximized",	setconfcolor,	SWM_S_COLOR_UNFOCUS_MAXIMIZED },
-	{ "color_unfocus_maximized_free",	setconfcolor,	SWM_S_COLOR_UNFOCUS_MAXIMIZED_FREE },
+	{ "color_unfocus_maximized_free",setconfcolor,	SWM_S_COLOR_UNFOCUS_MAXIMIZED_FREE },
 	{ "cycle_empty",		setconfvalue,	SWM_S_CYCLE_EMPTY },
 	{ "cycle_visible",		setconfvalue,	SWM_S_CYCLE_VISIBLE },
 	{ "dialog_ratio",		setconfvalue,	SWM_S_DIALOG_RATIO },
@@ -13515,7 +13604,7 @@ struct config_option configopt[] = {
 	{ "fullscreen_hide_other",	setconfvalue,	SWM_S_FULLSCREEN_HIDE_OTHER },
 	{ "fullscreen_unfocus",		setconfvalue,	SWM_S_FULLSCREEN_UNFOCUS },
 	{ "iconic_enabled",		setconfvalue,	SWM_S_ICONIC_ENABLED },
-	{ "java_workaround",		NULL,		0 }, /* dummy */
+	{ "java_workaround",		NULL,		0 },	/* dummy */
 	{ "keyboard_mapping",		setkeymapping,	0 },
 	{ "layout",			setlayout,	0 },
 	{ "max_layout_maximize",	setconfvalue,	SWM_S_MAX_LAYOUT_MAXIMIZE },
@@ -13527,16 +13616,16 @@ struct config_option configopt[] = {
 	{ "quirk",			setconfquirk,	0 },
 	{ "region",			setconfregion,	0 },
 	{ "region_padding",		setconfvalue,	SWM_S_REGION_PADDING },
-	{ "screenshot_app",		NULL,		0 }, /* dummy */
-	{ "screenshot_enabled",		NULL,		0 }, /* dummy */
+	{ "screenshot_app",		NULL,		0 },	/* dummy */
+	{ "screenshot_enabled",		NULL,		0 },	/* dummy */
 	{ "snap_range",			setconfvalue,	SWM_S_SNAP_RANGE },
 	{ "spawn_position",		setconfvalue,	SWM_S_SPAWN_ORDER },
 	{ "spawn_term",			setconfvalue,	SWM_S_SPAWN_TERM },
 	{ "stack_enabled",		setconfvalue,	SWM_S_STACK_ENABLED },
 	{ "term_width",			setconfvalue,	SWM_S_TERM_WIDTH },
 	{ "tile_gap",			setconfvalue,	SWM_S_TILE_GAP },
-	{ "title_class_enabled",	setconfvalue,	SWM_S_WINDOW_CLASS_ENABLED }, /* For backwards compat. */
-	{ "title_name_enabled",		setconfvalue,	SWM_S_WINDOW_INSTANCE_ENABLED }, /* For backwards compat. */
+	{ "title_class_enabled",	setconfvalue,	SWM_S_WINDOW_CLASS_ENABLED },	/* For backwards compat. */
+	{ "title_name_enabled",		setconfvalue,	SWM_S_WINDOW_INSTANCE_ENABLED },/* For backwards compat. */
 	{ "urgent_collapse",		setconfvalue,	SWM_S_URGENT_COLLAPSE },
 	{ "urgent_enabled",		setconfvalue,	SWM_S_URGENT_ENABLED },
 	{ "verbose_layout",		setconfvalue,	SWM_S_VERBOSE_LAYOUT },
@@ -13556,13 +13645,13 @@ struct config_option configopt[] = {
 	{ "focus_mark_free",		setconfvalue,	SWM_S_FOCUS_MARK_FREE },
 	{ "focus_mark_maximized",	setconfvalue,	SWM_S_FOCUS_MARK_MAXIMIZED },
 	{ "workspace_mark_current",	setconfvalue,	SWM_S_WORKSPACE_MARK_CURRENT },
-	{ "workspace_mark_current_suffix",	setconfvalue,	SWM_S_WORKSPACE_MARK_CURRENT_SUFFIX },
+	{ "workspace_mark_current_suffix",setconfvalue,	SWM_S_WORKSPACE_MARK_CURRENT_SUFFIX },
 	{ "workspace_mark_urgent",	setconfvalue,	SWM_S_WORKSPACE_MARK_URGENT },
-	{ "workspace_mark_urgent_suffix",	setconfvalue,	SWM_S_WORKSPACE_MARK_URGENT_SUFFIX },
+	{ "workspace_mark_urgent_suffix",setconfvalue,	SWM_S_WORKSPACE_MARK_URGENT_SUFFIX },
 	{ "workspace_mark_active",	setconfvalue,	SWM_S_WORKSPACE_MARK_ACTIVE },
-	{ "workspace_mark_active_suffix",	setconfvalue,	SWM_S_WORKSPACE_MARK_ACTIVE_SUFFIX },
+	{ "workspace_mark_active_suffix",setconfvalue,	SWM_S_WORKSPACE_MARK_ACTIVE_SUFFIX },
 	{ "workspace_mark_empty",	setconfvalue,	SWM_S_WORKSPACE_MARK_EMPTY },
-	{ "workspace_mark_empty_suffix",	setconfvalue,	SWM_S_WORKSPACE_MARK_EMPTY_SUFFIX },
+	{ "workspace_mark_empty_suffix",setconfvalue,	SWM_S_WORKSPACE_MARK_EMPTY_SUFFIX },
 	{ "stack_mark_floating",	setconfvalue,	SWM_S_STACK_MARK_FLOATING },
 	{ "stack_mark_max",		setconfvalue,	SWM_S_STACK_MARK_MAX },
 	{ "stack_mark_vertical",	setconfvalue,	SWM_S_STACK_MARK_VERTICAL },
@@ -13599,12 +13688,13 @@ add_startup_exception(const char *fmt, ...)
 int
 conf_load(const char *filename, int keymapping)
 {
+	struct config_option	*opt = NULL;
 	FILE			*config;
 	char			*line = NULL, *cp, *ce, *optsub, *optval = NULL;
 	char			*emsg = NULL;
 	size_t			linelen, lineno = 0;
 	int			wordlen, i, optidx, count;
-	struct config_option	*opt = NULL;
+	uint8_t			asop = 0;
 
 	DNPRINTF(SWM_D_CONF, "filename: %s, keymapping: %d\n", filename,
 	    keymapping);
@@ -13639,7 +13729,7 @@ conf_load(const char *filename, int keymapping)
 			continue;
 		}
 		/* get config option */
-		wordlen = strcspn(cp, "=[ \t\n");
+		wordlen = strcspn(cp, "=+-[ \t\n");
 		if (wordlen == 0) {
 			add_startup_exception("%s: line %zd: no option found",
 			    filename, lineno);
@@ -13693,7 +13783,25 @@ conf_load(const char *filename, int keymapping)
 			optsub = cp;
 			cp = ce + 1;
 		}
-		cp += strspn(cp, "= \t\n"); /* eat trailing */
+		cp += strspn(cp, " \t\n"); /* eat whitespace */
+
+		/* Get assignment operator. */
+		wordlen = strspn(cp, "=+-");
+		if (wordlen >= 1 && strncmp(cp, "=", wordlen) == 0)
+			asop = SWM_ASOP_BASIC;
+		else if (wordlen >= 2 && strncmp(cp, "+=", wordlen) == 0)
+			asop = SWM_ASOP_ADD;
+		else if (wordlen >= 2 && strncmp(cp, "-=", wordlen) == 0)
+			asop = SWM_ASOP_SUBTRACT;
+		else {
+			add_startup_exception("%s: line %zd: syntax error: "
+			    "invalid/missing assignment operator", filename,
+			    lineno);
+			continue;
+		}
+		cp += wordlen;
+		cp += strspn(cp, " \t\n"); /* eat whitespace */
+
 		/* get RHS value */
 		optval = cp;
 		if (strlen(optval) == 0) {
@@ -13707,7 +13815,8 @@ conf_load(const char *filename, int keymapping)
 			--ce;
 		*(ce + 1) = '\0';
 		/* call function to deal with it all */
-		if (opt->func && opt->func(optsub, optval, opt->flags, &emsg)) {
+		if (opt->func &&
+		    opt->func(asop, optsub, optval, opt->flags, &emsg)) {
 			if (emsg) {
 				add_startup_exception("%s: line %zd: %s: %s",
 				    filename, lineno, opt->name, emsg);
@@ -14061,11 +14170,33 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 		    regexec(&qp->regex_instance, instance, 0, NULL, 0) == 0 &&
 		    regexec(&qp->regex_name, name, 0, NULL, 0) == 0) {
 			DNPRINTF(SWM_D_CLASS, "matched quirk: %s:%s:%s "
-			    "mask: %#x, ws: %d\n", qp->class, qp->instance,
-			    qp->name, qp->quirk, qp->ws);
-			win->quirks = qp->quirk;
-			if (qp->ws >= -1 && qp->ws < workspace_limit)
-				force_ws = qp->ws;
+			    "mode: %u, mask: %#x, ws: %d\n", qp->class,
+			    qp->instance, qp->name, qp->mode, qp->quirk,
+			    qp->ws);
+			switch (qp->mode) {
+			case SWM_ASOP_ADD:
+				win->quirks |= qp->quirk;
+				break;
+			case SWM_ASOP_SUBTRACT:
+				win->quirks &= ~qp->quirk;
+				break;
+			case SWM_ASOP_BASIC:
+			default:
+				win->quirks = qp->quirk;
+				break;
+			}
+
+			if (qp->ws == -2)
+				continue;
+
+			if (qp->ws >= -1 && qp->ws < workspace_limit) {
+				if (qp->mode == SWM_ASOP_SUBTRACT) {
+					if (qp->ws == force_ws)
+						force_ws = -2;
+				} else
+					force_ws = qp->ws;
+			} else if (qp->ws == -3)
+				force_ws = -2;
 		}
 	}
 
