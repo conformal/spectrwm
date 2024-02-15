@@ -2076,6 +2076,15 @@ quirk[XTerm:ws2] = WS[2]
 .Pp
 Note that XCB programs are currently unsupported by
 .Pa libswmhack.so .
+.Pp
+If the "spawn-in-workspace" behavior is not desired, it is possible to disable
+it globally by setting the
+.Pa IGNORESPAWNWS
+and
+.Pa IGNOREPID
+quirks for all windows:
+.Bd -literal -offset indent
+quirk[.*] += IGNORESPAWNWS + IGNOREPID
 .Sh SIGNALS
 Sending
 .Nm
