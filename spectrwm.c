@@ -1500,9 +1500,10 @@ static void	 ewmh_update_active_window(struct swm_screen *);
 void	 ewmh_update_client_list(struct swm_screen *);
 void	 ewmh_update_current_desktop(struct swm_screen *);
 void	 ewmh_update_desktop_names(struct swm_screen *);
-void	 ewmh_update_desktops(struct swm_screen *);
+static void	 ewmh_update_number_of_desktops(struct swm_screen *);
 void	 ewmh_update_wm_state(struct ws_win *);
 void	 ewmh_update_workarea(struct swm_screen *);
+static void	 ewmh_update_desktop_viewports(struct swm_screen *);
 char	*expand_tilde(const char *);
 void	 expose(xcb_expose_event_t *);
 void	 fake_keypress(struct ws_win *, xcb_keysym_t, uint16_t);
@@ -2463,8 +2464,9 @@ setup_ewmh(void)
 			    a_net_supported, XCB_ATOM_ATOM, 32, 1,
 			    &ewmh[j].atom);
 
-		ewmh_update_desktops(&screens[i]);
+		ewmh_update_number_of_desktops(&screens[i]);
 		ewmh_get_desktop_names(&screens[i]);
+		ewmh_update_desktop_viewports(&screens[i]);
 	}
 }
 
@@ -6738,7 +6740,7 @@ switch_workspace(struct swm_region *r, struct workspace *ws, bool noclamp)
 		bar_draw(other_r->bar);
 
 	ewmh_update_current_desktop(s);
-	ewmh_update_desktops(s);
+	ewmh_update_number_of_desktops(s);
 
 	if (focus_mode != SWM_FOCUS_FOLLOW)
 		update_focus(s);
@@ -9284,39 +9286,25 @@ ewmh_update_current_desktop(struct swm_screen *s)
 	    ewmh[_NET_CURRENT_DESKTOP].atom, XCB_ATOM_CARDINAL, 32, 1, &val);
 }
 
-void
-ewmh_update_desktops(struct swm_screen *s)
+static void
+ewmh_update_number_of_desktops(struct swm_screen *s)
 {
-	struct workspace	*ws;
-	int			i;
-	uint32_t		*vals;
-
-	vals = calloc(workspace_limit * 2, sizeof(uint32_t));
-	if (vals == NULL)
-		err(1, "ewmh_update_desktops: calloc");
-
 	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, s->root,
 	    ewmh[_NET_NUMBER_OF_DESKTOPS].atom, XCB_ATOM_CARDINAL, 32, 1,
 	    &workspace_limit);
+}
 
-	for (i = 0; i < workspace_limit; ++i) {
-		ws = workspace_lookup(s, i);
-		if (ws && ws->r) {
-			vals[i * 2] = X(ws->r);
-			vals[i * 2 + 1] = Y(ws->r);
-		} else if (ws && ws->old_r) {
-			vals[i * 2] = X(ws->old_r);
-			vals[i * 2 + 1] = Y(ws->old_r);
-		} else {
-			vals[i * 2] = vals[i * 2 + 1] = 0;
-		}
-	}
+static void
+ewmh_update_desktop_viewports(struct swm_screen *s)
+{
+	uint32_t	vals[2];
+
+	/* Always (0,0) since regions are never larger than root. */
+	vals[0] = 0;
+	vals[1] = 0;
 
 	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, s->root,
-	    ewmh[_NET_DESKTOP_VIEWPORT].atom, XCB_ATOM_CARDINAL, 32,
-	    workspace_limit * 2, vals);
-
-	free(vals);
+	    ewmh[_NET_DESKTOP_VIEWPORT].atom, XCB_ATOM_CARDINAL, 32, 2, &vals);
 }
 
 void
@@ -12992,7 +12980,7 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 
 		num_screens = get_screen_count();
 		for (i = 0; i < num_screens; ++i)
-			ewmh_update_desktops(&screens[i]);
+			ewmh_update_number_of_desktops(&screens[i]);
 		break;
 	case SWM_S_WORKSPACE_INDICATOR:
 		if (parse_workspace_indicator(value, &workspace_indicator,
@@ -16479,7 +16467,7 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 		if (ws->r == NULL)
 			unmap_workspace(ws);
 
-	ewmh_update_desktops(s);
+	ewmh_update_number_of_desktops(s);
 	update_bars(s);
 
 	flush();
