@@ -1793,8 +1793,6 @@ $ xprop -id $WINDOWID _NET_WM_NAME | grep -o &quot;\&quot;.*\&quot;&quot;</pre>
 <pre>autorun = ws[2]:xterm -name ws2
 quirk[XTerm:ws2] = WS[2]</pre>
 </div>
-<p class="Pp">Note that XCB programs are currently unsupported by
-    <span class="Pa">libswmhack.so</span>.</p>
 <p class="Pp">If the &quot;spawn-in-workspace&quot; behavior is not desired, it
     is possible to disable it globally by setting the
     <span class="Pa">IGNORESPAWNWS</span> and <span class="Pa">IGNOREPID</span>
@@ -1802,6 +1800,8 @@ quirk[XTerm:ws2] = WS[2]</pre>
 <div class="Bd Pp Bd-indent Li">
 <pre>quirk[.*] += IGNORESPAWNWS + IGNOREPID</pre>
 </div>
+<p class="Pp">Note that XCB programs are currently unsupported by
+    <span class="Pa">libswmhack.so</span>.</p>
 </section>
 <section class="Sh">
 <h1 class="Sh" id="SIGNALS"><a class="permalink" href="#SIGNALS">SIGNALS</a></h1>
