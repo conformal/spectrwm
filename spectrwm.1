@@ -483,7 +483,8 @@ Border color of the currently focused maximized window that is in free mode.
 Defaults to the value of
 .Ic color_focus_free .
 .It Ic color_unfocus_free
-Border color of unfocused windows that are in free mode, default is rgb:88/88/00.
+Border color of unfocused windows that are in free mode, default is
+rgb:88/88/00.
 .It Ic color_unfocus_maximized_free
 Border color of unfocused maximized windows that are in free mode.
 Defaults to the value of
@@ -803,7 +804,8 @@ Disable by setting to 0.
 .It Ic snap_range
 Set the distance in pixels a tiled/maximized window must be moved (with the
 pointer) to unsnap and float freely.
-Set to 0 to unsnap immediately. Default is 25.
+Set to 0 to unsnap immediately.
+Default is 25.
 .It Ic spawn_position
 Position in stack to place newly spawned windows.
 Possible values are
@@ -1793,9 +1795,11 @@ of workspaces and regions.
 .It XTERM_FONTADJ
 Adjust
 .Xr xterm 1
-fonts when resizing. Note that this needs
+fonts when resizing.
+Note that this needs
 .Pa libswmhack.so
-to work. See the
+to work.
+See the
 .Sx SWMHACK
 section below.
 .El
@@ -2074,9 +2078,6 @@ autorun = ws[2]:xterm -name ws2
 quirk[XTerm:ws2] = WS[2]
 .Ed
 .Pp
-Note that XCB programs are currently unsupported by
-.Pa libswmhack.so .
-.Pp
 If the "spawn-in-workspace" behavior is not desired, it is possible to disable
 it globally by setting the
 .Pa IGNORESPAWNWS
@@ -2085,6 +2086,10 @@ and
 quirks for all windows:
 .Bd -literal -offset indent
 quirk[.*] += IGNORESPAWNWS + IGNOREPID
+.Ed
+.Pp
+Note that XCB programs are currently unsupported by
+.Pa libswmhack.so .
 .Sh SIGNALS
 Sending
 .Nm
