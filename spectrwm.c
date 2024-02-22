@@ -7138,6 +7138,7 @@ swapwin(struct swm_screen *s, struct binding *bp, union arg *args)
 
 	update_stacking(s);
 	stack(r);
+	update_mapping(s);
 	center_pointer(r);
 	flush();
 
