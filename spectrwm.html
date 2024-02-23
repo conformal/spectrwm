@@ -195,21 +195,21 @@
   <dt id="bar_color"><a class="permalink" href="#bar_color"><code class="Ic">bar_color</code></a>[<var class="Ar">x</var>]</dt>
   <dd>Background color of status bar(s) on screen number
       <var class="Ar">x</var>.
-    <p class="Pp">A comma separated list of up to 10 colors can be specified.
+    <p class="Pp">A comma-separated list of multiple colors can be specified.
         The first value is used as the default background color. Any of these
         colors can then be selected as a background color in the status bar
         through the use of the markup sequence <code class="Ic">+@bg=n;</code>
-        where n is between 0 and 9.</p>
+        where n is the color index counting from 0.</p>
   </dd>
   <dt id="bar_color_free"><a class="permalink" href="#bar_color_free"><code class="Ic">bar_color_free</code></a>[<var class="Ar">x</var>]</dt>
   <dd>Background color of a status bar for a focused region on screen number
       <var class="Ar">x</var> when a workspace-free window is focused.
-    <p class="Pp">A comma separated list of up to 10 colors can be specified,
+    <p class="Pp">A comma-separated list of multiple colors can be specified,
         with the same syntax and behavior as <code class="Ic">bar_color</code>.
         Default is rgb:40/40/00.</p>
     <p class="Pp">Note that <code class="Ic">bar_color</code> defines the
         background color indices that can be used in
-        <code class="Ic">bar_format</code> markup sequences and is the default
+        <code class="Ic">bar_format</code> markup sequences and is the fallback
         for colors that are left unspecified in this option.</p>
   </dd>
   <dt id="bar_color_selected"><a class="permalink" href="#bar_color_selected"><code class="Ic">bar_color_selected</code></a>[<var class="Ar">x</var>]</dt>
@@ -219,13 +219,13 @@
   <dt id="bar_color_unfocus"><a class="permalink" href="#bar_color_unfocus"><code class="Ic">bar_color_unfocus</code></a>[<var class="Ar">x</var>]</dt>
   <dd>Background color of status bar(s) for unfocused region(s) on screen number
       <var class="Ar">x</var>.
-    <p class="Pp">A comma separated list of up to 10 colors can be specified,
+    <p class="Pp">A comma-separated list of multiple colors can be specified,
         with the same syntax and behavior as <code class="Ic">bar_color</code>
         for unfocused bar(s). Defaults to the value of
         <code class="Ic">bar_color</code>.</p>
     <p class="Pp">Note that <code class="Ic">bar_color</code> defines the
         background color indices that can be used in
-        <code class="Ic">bar_format</code> markup sequences and is the default
+        <code class="Ic">bar_format</code> markup sequences and is the fallback
         for colors that are left unspecified in this option.</p>
   </dd>
   <dt id="bar_enabled"><a class="permalink" href="#bar_enabled"><code class="Ic">bar_enabled</code></a></dt>
@@ -265,33 +265,33 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
   <dt id="bar_font_color"><a class="permalink" href="#bar_font_color"><code class="Ic">bar_font_color</code></a>[<var class="Ar">x</var>]</dt>
   <dd>Foreground color of the status bar(s) on screen number
       <var class="Ar">x</var>.
-    <p class="Pp">A comma separated list of up to 10 colors can be specified.
+    <p class="Pp">A comma-separated list of multiple colors can be specified.
         The first value is used as the default foreground color. Any of these
         colors can then be selected as a foreground color in the status bar
         through the use of the markup sequence <code class="Ic">+@fg=n;</code>
-        where n is between 0 and 9.</p>
+        where n is the color index counting from 0.</p>
   </dd>
   <dt id="bar_font_color_free"><a class="permalink" href="#bar_font_color_free"><code class="Ic">bar_font_color_free</code></a>[<var class="Ar">x</var>]</dt>
   <dd>Foreground color of a status bar for a focused region on screen number
       <var class="Ar">x</var> when a workspace-free window is focused.
-    <p class="Pp">A comma separated list of up to 10 colors can be specified,
+    <p class="Pp">A comma-separated list of multiple colors can be specified,
         with the same syntax and behavior as
         <code class="Ic">bar_font_color</code>. Default is rgb:ff/ff/ff.</p>
     <p class="Pp">Note that <code class="Ic">bar_font_color</code> defines the
         foreground color indices that can be used in
-        <code class="Ic">bar_format</code> markup sequences and is the default
+        <code class="Ic">bar_format</code> markup sequences and is the fallback
         for colors that are left unspecified in this option.</p>
   </dd>
   <dt id="bar_font_color_unfocus"><a class="permalink" href="#bar_font_color_unfocus"><code class="Ic">bar_font_color_unfocus</code></a>[<var class="Ar">x</var>]</dt>
   <dd>Foreground color of status bar(s) for unfocused region(s) on screen number
       <var class="Ar">x</var>.
-    <p class="Pp">A comma separated list of up to 10 colors can be specified,
+    <p class="Pp">A comma-separated list of multiple colors can be specified,
         with the same syntax and behavior as
         <code class="Ic">bar_font_color</code> for unfocused bar(s). Defaults to
         the value of <code class="Ic">bar_font_color</code>.</p>
     <p class="Pp">Note that <code class="Ic">bar_font_color</code> defines the
         foreground color indices that can be used in
-        <code class="Ic">bar_format</code> markup sequences and is the default
+        <code class="Ic">bar_format</code> markup sequences and is the fallback
         for colors that are left unspecified in this option.</p>
   </dd>
   <dt id="bar_font_color_selected"><a class="permalink" href="#bar_font_color_selected"><code class="Ic">bar_font_color_selected</code></a>[<var class="Ar">x</var>]</dt>
@@ -419,12 +419,12 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
       </tr>
       <tr id="+@fg=n;">
         <td><a class="permalink" href="#+@fg=n;"><code class="Li">+@fg=n;</code></a></td>
-        <td>Selects foreground color n (from 0 to 9) from
+        <td>Selects foreground color n (starting at 0) from
           <code class="Ic">bar_font_color</code>.</td>
       </tr>
       <tr id="+@bg=n;">
         <td><a class="permalink" href="#+@bg=n;"><code class="Li">+@bg=n;</code></a></td>
-        <td>Selects background color n (from 0 to 9) from
+        <td>Selects background color n (starting at 0) from
           <code class="Ic">bar_color</code>.</td>
       </tr>
       <tr id="+@stp;">
