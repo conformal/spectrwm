@@ -2093,7 +2093,8 @@ quirks for all windows:
 quirk[.*] += IGNORESPAWNWS + IGNOREPID
 .Ed
 .Pp
-Note that XCB programs are currently unsupported by
+Note that XCB programs that roll their own X11 requests (e.g. Chromium) are
+currently unsupported by
 .Pa libswmhack.so .
 .Sh SIGNALS
 Sending
