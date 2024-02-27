@@ -1804,7 +1804,8 @@ quirk[XTerm:ws2] = WS[2]</pre>
 <div class="Bd Pp Bd-indent Li">
 <pre>quirk[.*] += IGNORESPAWNWS + IGNOREPID</pre>
 </div>
-<p class="Pp">Note that XCB programs are currently unsupported by
+<p class="Pp">Note that XCB programs that roll their own X11 requests (e.g.
+    Chromium) are currently unsupported by
     <span class="Pa">libswmhack.so</span>.</p>
 </section>
 <section class="Sh">
