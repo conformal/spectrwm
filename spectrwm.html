@@ -990,7 +990,8 @@ workspace_mark_current_suffix = '+@fg=0;'</pre>
   <dt id="$color_unfocus"><a class="permalink" href="#$color_unfocus"><code class="Cm">$color_unfocus</code></a></dt>
   <dd style="width: auto;">&#x00A0;</dd>
   <dt id="$dmenu_bottom"><a class="permalink" href="#$dmenu_bottom"><code class="Cm">$dmenu_bottom</code></a></dt>
-  <dd>-b if <code class="Ic">bar_at_bottom</code> is enabled.</dd>
+  <dd>-b if <code class="Ic">bar_at_bottom</code> is enabled, otherwise ''
+      (empty string.)</dd>
   <dt id="$region_index"><a class="permalink" href="#$region_index"><code class="Cm">$region_index</code></a></dt>
   <dd style="width: auto;">&#x00A0;</dd>
   <dt id="$workspace_index"><a class="permalink" href="#$workspace_index"><code class="Cm">$workspace_index</code></a></dt>
@@ -1006,7 +1007,9 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
 <div class="Bd Pp Bd-indent Li">
 <pre>bind[] = MOD+Shift+b</pre>
 </div>
-<p class="Pp">Default programs:</p>
+<p class="Pp">A number of built-in actions spawn a program as part of their
+    implementation. The respective default program entries are as follows:</p>
+<p class="Pp"></p>
 <div class="Bd-indent">
 <dl class="Bl-tag Bl-compact">
   <dt id="term"><a class="permalink" href="#term"><code class="Cm">term</code></a></dt>
@@ -1030,10 +1033,16 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dd>screenshot.sh window # optional</dd>
 </dl>
 </div>
-<p class="Pp">Note that optional default programs will not be validated unless
-    overridden. If a default program fails validation, you can resolve the
-    exception by installing the program, modifying the program call or disabling
-    the program by freeing the respective binding.</p>
+<p class="Pp">Note that <code class="Cm">search</code> is required by the
+    <code class="Cm">search_win</code>,
+    <code class="Ic">search_workspace</code>, and
+    <code class="Ic">uniconify</code> actions and does not have a direct
+    binding.</p>
+<p class="Pp">With the exception of the default entries marked
+    &#x201C;optional&#x201D;, validation is performed to ensure the program
+    exists. If validation fails, the exception can be resolved by installing the
+    program, overriding the program, or disabling the program by freeing the
+    respective binding.</p>
 <p class="Pp">For example, to override <code class="Ic">lock</code>:</p>
 <div class="Bd Pp Bd-indent Li">
 <pre>program[lock] = xscreensaver-command -lock</pre>
@@ -1430,6 +1439,7 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
     separated by &#x2018;<code class="Li">+</code>&#x2019;. Multiple key/button
     combinations may be bound to the same action.</p>
 <p class="Pp">Special arguments:</p>
+<p class="Pp"></p>
 <div class="Bd-indent">
 <dl class="Bl-tag Bl-compact">
   <dt id="MOD"><a class="permalink" href="#MOD"><code class="Cm">MOD</code></a></dt>

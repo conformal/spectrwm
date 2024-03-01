@@ -1132,7 +1132,7 @@ program is spawned:
 .It Cm $dmenu_bottom
 \-b if
 .Ic bar_at_bottom
-is enabled.
+is enabled, otherwise '' (empty string.)
 .It Cm $region_index
 .It Cm $workspace_index
 .El
@@ -1148,7 +1148,9 @@ To cancel the previous, unbind it:
 bind[] = MOD+Shift+b
 .Ed
 .Pp
-Default programs:
+A number of built-in actions spawn a program as part of their implementation.
+The respective default program entries are as follows:
+.Pp
 .Bl -tag -width "screenshot_wind" -offset indent -compact
 .It Cm term
 xterm
@@ -1171,10 +1173,21 @@ screenshot.sh full   # optional
 screenshot.sh window # optional
 .El
 .Pp
-Note that optional default programs will not be validated unless overridden.
-If a default program fails validation, you can resolve the exception by
-installing the program, modifying the program call or disabling the program by
-freeing the respective binding.
+Note that
+.Cm search
+is required by the
+.Cm search_win ,
+.Ic search_workspace ,
+and
+.Ic uniconify
+actions and does not have a direct binding.
+.Pp
+With the exception of the default entries marked
+.Dq optional ,
+validation is performed to ensure the program exists.
+If validation fails, the exception can be resolved by installing the program,
+overriding the program, or disabling the program by freeing the respective
+binding.
 .Pp
 For example, to override
 .Ic lock :
@@ -1610,6 +1623,7 @@ or a button (Button1 .. Button255), separated by
 Multiple key/button combinations may be bound to the same action.
 .Pp
 Special arguments:
+.Pp
 .Bl -tag -width "anymodxxxx" -offset indent -compact
 .It Cm MOD
 Substituted for the currently defined
