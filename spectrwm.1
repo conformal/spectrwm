@@ -1996,7 +1996,10 @@ $ wmctrl \-i \-r 0x4a0000b \-e 0,100,50,640,480
 .Pp
 This moves the window to (100,50) and resizes it to 640x480.
 .Pp
-Any _NET_MOVERESIZE_WINDOW events received for stacked windows are ignored.
+Note that if a window has been manually positioned via binding,
+_NET_MOVERESIZE_WINDOW requests are ignored unless the window has the ANYWHERE
+quirk, the workspace is in floating layout, or the window is workspace-free.
+Requests are also ignored on maximized and fullscreen windows.
 .Sh SWMHACK
 When spawning a program via
 .Ic autorun

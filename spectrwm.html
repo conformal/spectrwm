@@ -1740,8 +1740,11 @@ $ xprop -id $WINDOWID _NET_WM_NAME | grep -o &quot;\&quot;.*\&quot;&quot;</pre>
 <pre>$ wmctrl -i -r 0x4a0000b -e 0,100,50,640,480</pre>
 </div>
 <p class="Pp">This moves the window to (100,50) and resizes it to 640x480.</p>
-<p class="Pp">Any _NET_MOVERESIZE_WINDOW events received for stacked windows are
-    ignored.</p>
+<p class="Pp">Note that if a window has been manually positioned via binding,
+    _NET_MOVERESIZE_WINDOW requests are ignored unless the window has the
+    ANYWHERE quirk, the workspace is in floating layout, or the window is
+    workspace-free. Requests are also ignored on maximized and fullscreen
+    windows.</p>
 </section>
 <section class="Sh">
 <h1 class="Sh" id="SWMHACK"><a class="permalink" href="#SWMHACK">SWMHACK</a></h1>
