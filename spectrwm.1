@@ -264,12 +264,12 @@ If at least one entry is Xft, Xft will be used.
 .Pp
 The default is to use font set.
 .Pp
-If Xft is used, a comma-separated list of up to 10 fonts can be specified.
+If Xft is used, a comma-separated list of multiple fonts can be specified.
 The first entry is the default font.
 Any font defined here can then be selected in the status bar through the use of
 the markup sequence
 .Ic +@fn=n;\&
-where n is between 0 and 9.
+where n is the font index counting from 0.
 .Pp
 Also note that
 .Xr dmenu 1
@@ -406,7 +406,7 @@ is used.
 The currently recognized text markup sequences are:
 .Bl -column "Character sequence" "Action" -offset indent
 .It Sy "Character sequence" Ta Sy "Action"
-.It Li "+@fn=n;\&" Ta Selects font n (from 0 to 9) from
+.It Li "+@fn=n;\&" Ta Selects font n (starting at 0) from
 .Ic bar_font .
 .It Li "+@fg=n;\&" Ta Selects foreground color n (starting at 0) from
 .Ic bar_font_color .
