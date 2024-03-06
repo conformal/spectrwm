@@ -463,8 +463,6 @@ double			dialog_ratio = 0.6;
 #define SWM_BAR_FONTS_FALLBACK	"-*-fixed-*-r-*-*-*-*-*-*-*-*-*-*,"		\
 				"-*-*-*-*-*-r-*-*-*-*-*-*-*-*,"			\
 				"-*-*-*-*-*-*-*-*-*-*-*-*-*-*"
-#define SWM_BAR_MAX_FONTS	(10)
-#define SWM_BAR_MAX_COLORS	(10)
 
 #ifdef X_HAVE_UTF8_STRING
 #define DRAWSTRING(x...)	Xutf8DrawString(x)
@@ -530,7 +528,7 @@ time_t		 time_started;
 pid_t		 bar_pid;
 XFontSet	 bar_fs = NULL;
 XFontSetExtents	*bar_fs_extents;
-char		*bar_fontnames[SWM_BAR_MAX_FONTS];
+char		**bar_fontnames = NULL;
 int		 num_xftfonts = 0;
 char		*bar_fontname_pua = NULL;
 int		font_pua_index;
@@ -853,7 +851,7 @@ struct swm_screen {
 	Visual			*xvisual; /* Needed for Xft. */
 	xcb_colormap_t		colormap;
 	xcb_gcontext_t		gc;
-	XftFont			*bar_xftfonts[SWM_BAR_MAX_FONTS + 1];
+	XftFont			**bar_xftfonts;
 };
 struct swm_screen	*screens;
 
@@ -4616,13 +4614,12 @@ scan_markup(struct swm_screen *s, char *f, int *n, size_t *size)
 			return false;
 	}
 
-	if ((*c == 'f') && (*(c + 1) == 'n') && (*(c + 2) == '=') &&
-	    (*(c + 3) >= '0') && (*(c + 3) <= '9') && (*(c + 4) == ';')) {
+	if ((*c == 'f') && (*(c + 1) == 'n') && (*(c + 2) == '=')) {
 		if (bar_font_legacy)
 			return false;
 		*n = strtol((c + 3), &t, 10);
 		*size = t - f + 1;
-		if (*t == ';' && *n < num_xftfonts)
+		if (*t == ';' && *n >= 0 && *n < num_xftfonts)
 			return true;
 		else
 			return false;
@@ -5115,6 +5112,13 @@ xft_init(struct swm_screen *s)
 
 	DNPRINTF(SWM_D_INIT, "loading bar_fonts: %s\n", bar_fonts);
 
+	if (num_xftfonts == 0 && bar_fontname_pua == NULL)
+		return (1);
+
+	if ((s->bar_xftfonts = calloc(num_xftfonts + 1,
+	    sizeof(XftFont *))) == NULL)
+		err(1, "xft_init: calloc");
+
 	for (i = 0; i < num_xftfonts; i++) {
 		s->bar_xftfonts[i] = XftFontOpenName(display, s->idx,
 		    bar_fontnames[i]);
@@ -5214,16 +5218,30 @@ setup_fonts(void)
 
 	/* Otherwise, use Xft mode and parse list into array. */
 	if (!bar_font_legacy) {
+		/* Get count. */
 		memcpy(buf, bar_fonts, len);
 		sp = buf;
 		while ((b = strsep(&sp, SWM_CONF_DELIMLIST)) != NULL) {
 			if (*b == '\0')
 				continue;
-			if ((bar_fontnames[num_xftfonts] = strdup(b)) == NULL)
-				err(1, "setup_fonts: strdup");
 			num_xftfonts++;
-			if (num_xftfonts == SWM_BAR_MAX_FONTS)
-				break;
+		}
+
+		DNPRINTF(SWM_D_CONF, "num_xftfonts: %d\n", num_xftfonts);
+
+		/* Extra slot is for PUA font. */
+		bar_fontnames = calloc(num_xftfonts + 1, sizeof(char *));
+		if (bar_fontnames == NULL)
+			err(1, "setup_fonts: calloc");
+
+		memcpy(buf, bar_fonts, len);
+		sp = buf;
+		i = 0;
+		while ((b = strsep(&sp, SWM_CONF_DELIMLIST)) != NULL) {
+			if (*b == '\0')
+				continue;
+			if ((bar_fontnames[i++] = strdup(b)) == NULL)
+				err(1, "setup_fonts: strdup");
 		}
 	}
 	free(buf);
@@ -16657,7 +16675,7 @@ setup_screens(void)
 		s->visual = screen->root_visual;
 		s->colormap = screen->default_colormap;
 		s->xvisual = DefaultVisual(display, i);
-		s->bar_xftfonts[0] = NULL;
+		s->bar_xftfonts = NULL;
 		s->managed_count = 0;
 
 		DNPRINTF(SWM_D_INIT, "root_depth: %d, screen_depth: %d\n",
@@ -17036,6 +17054,8 @@ shutdown_cleanup(void)
 			if (font_pua_index)
 				XftFontClose(display,
 				    s->bar_xftfonts[font_pua_index]);
+
+			free(s->bar_xftfonts);
 		}
 
 #ifndef __clang_analyzer__ /* Suppress false warnings. */
@@ -17084,6 +17104,13 @@ shutdown_cleanup(void)
 	}
 	free(screens);
 
+	if (bar_fontnames) {
+		for (i = 0; i < num_xftfonts; i++)
+			free(bar_fontnames[i]);
+		free(bar_fontnames);
+	}
+
+	free(bar_fontname_pua);
 	free(bar_format);
 	free(bar_fonts);
 	free(clock_format);

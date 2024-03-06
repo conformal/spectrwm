@@ -239,10 +239,11 @@
       separating each font with a comma. If all entries are in XLFD syntax, font
       set will be used. If at least one entry is Xft, Xft will be used.
     <p class="Pp">The default is to use font set.</p>
-    <p class="Pp">If Xft is used, a comma-separated list of up to 10 fonts can
+    <p class="Pp">If Xft is used, a comma-separated list of multiple fonts can
         be specified. The first entry is the default font. Any font defined here
         can then be selected in the status bar through the use of the markup
-        sequence <code class="Ic">+@fn=n;</code> where n is between 0 and 9.</p>
+        sequence <code class="Ic">+@fn=n;</code> where n is the font index
+        counting from 0.</p>
     <p class="Pp">Also note that <a class="Xr">dmenu(1)</a> prior to 4.6 does
         not support Xft fonts.</p>
     <p class="Pp">Xft examples:</p>
@@ -414,7 +415,7 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
       </tr>
       <tr id="+@fn=n;">
         <td><a class="permalink" href="#+@fn=n;"><code class="Li">+@fn=n;</code></a></td>
-        <td>Selects font n (from 0 to 9) from
+        <td>Selects font n (starting at 0) from
           <code class="Ic">bar_font</code>.</td>
       </tr>
       <tr id="+@fg=n;">
