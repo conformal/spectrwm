@@ -6649,13 +6649,13 @@ focus_region(struct swm_region *r)
 	if (r == NULL)
 		return;
 
+	old_r = r->s->r_focus;
+	set_region(r);
+
 	nfw = get_focus_magic(get_ws_focus(r->ws));
 	if (nfw) {
 		focus_win(nfw->s, nfw);
 	} else {
-		old_r = r->s->r_focus;
-		set_region(r);
-
 		/* New region is empty; need to manually unfocus win. */
 		if (old_r && old_r != r) {
 			unfocus_win(old_r->ws->focus);
