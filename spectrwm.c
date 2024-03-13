@@ -3513,7 +3513,13 @@ getcolorpixel(struct swm_screen *s, int c, int i)
 static char *
 getcolorrgb(struct swm_screen *s, int c, int i)
 {
-	return (color_to_rgb(s->c[c].colors[i]));
+	struct swm_color	*color;
+
+	color = getcolor(s, c, i);
+	if (!color)
+		err(1, "getcolorrgb: invalid color index");
+
+	return (color_to_rgb(color));
 }
 
 static XftColor *
