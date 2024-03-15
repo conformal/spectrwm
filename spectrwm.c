@@ -211,7 +211,7 @@ uint32_t		swm_debug = 0
 
 #define ALLOCSTR(s, x...) do {							\
 	if (s && asprintf(s, x) == -1)						\
-		err(1, "asprintf");						\
+		err(1, "%s: asprintf", __func__);				\
 } while (0)
 
 /* _NET_WM_STATE flags */
@@ -1448,7 +1448,7 @@ static void	 ewmh_update_number_of_desktops(struct swm_screen *);
 void	 ewmh_update_wm_state(struct ws_win *);
 void	 ewmh_update_workarea(struct swm_screen *);
 static void	 ewmh_update_desktop_viewports(struct swm_screen *);
-char	*expand_tilde(const char *);
+static char	*expand_tilde(const char *);
 void	 expose(xcb_expose_event_t *);
 void	 fake_keypress(struct ws_win *, xcb_keysym_t, uint16_t);
 struct swm_bar	*find_bar(xcb_window_t);
@@ -2009,48 +2009,40 @@ cursors_cleanup(void)
 		xcb_free_cursor(conn, cursors[i].cid);
 }
 
-char *
-expand_tilde(const char *s)
+static char *
+expand_tilde(const char *str)
 {
 	struct passwd		*ppwd;
-	int			i;
-	long			max;
-	char			*user;
-	const char		*sc = s;
-	char			*result;
+	const char		*p, *s = str;
+	char			*user, *result = NULL;
 
 	if (s == NULL)
 		errx(1, "expand_tilde: NULL string.");
 
-	if (s[0] != '~') {
-		result = strdup(sc);
-		goto out;
+	if (*s == '~') {
+		p = ++s;
+		while (*p != '\0' && *p != '/')
+			p++;
+
+		if (p - s > 0) {
+			/* Assume tilde-prefix is a user. */
+			if ((user = strndup(s, p - s)) == NULL)
+				err(1, "expand_tilde: strndup");
+			s = p;
+
+			ppwd = getpwnam(user);
+			free(user);
+		} else
+			ppwd = getpwuid(getuid());
+
+		if (ppwd && asprintf(&result, "%s%s", ppwd->pw_dir, s) == -1)
+			err(1, "expand_tilde: asprintf");
 	}
 
-	++s;
-
-	if ((max = sysconf(_SC_LOGIN_NAME_MAX)) == -1)
-		errx(1, "expand_tilde: sysconf");
-
-	if ((user = calloc(1, max + 1)) == NULL)
-		errx(1, "expand_tilde: calloc");
-
-	for (i = 0; s[i] != '/' && s[i] != '\0'; ++i)
-		user[i] = s[i];
-	user[i] = '\0';
-	s = &s[i];
-
-	ppwd = strlen(user) == 0 ? getpwuid(getuid()) : getpwnam(user);
-	free(user);
-
-	if (ppwd == NULL)
-		result = strdup(sc);
-	else
-		if (asprintf(&result, "%s%s", ppwd->pw_dir, s) == -1)
-			result = NULL;
-out:
-	if (result == NULL)
-		errx(1, "expand_tilde: failed to allocate memory.");
+	if (result == NULL) {
+		if ((result = strdup(str)) == NULL)
+			err(1, "expand_tilde: strdup");
+	}
 
 	return (result);
 }
@@ -2300,7 +2292,7 @@ atom_name_insert(xcb_atom_t atom, char *name)
 	ap->atom = atom;
 	ap->name = name;
 	if (RB_INSERT(atom_name_tree, &atom_names, ap))
-		err(1, "atom_name_insert: RB_INSERT");
+		errx(1, "atom_name_insert: RB_INSERT");
 }
 
 void
@@ -3282,7 +3274,7 @@ color_to_rgb(struct swm_color *color)
 
 	if (asprintf(&name, "rgb:%04x/%04x/%04x",
 	    color->r_orig, color->g_orig, color->b_orig) == -1)
-		err(1, "asprintf");
+		err(1, "color_to_rgb: asprintf");
 
 	return (name);
 }
@@ -3516,8 +3508,8 @@ getcolorrgb(struct swm_screen *s, int c, int i)
 	struct swm_color	*color;
 
 	color = getcolor(s, c, i);
-	if (!color)
-		err(1, "getcolorrgb: invalid color index");
+	if (color == NULL)
+		errx(1, "getcolorrgb: invalid color index");
 
 	return (color_to_rgb(color));
 }
@@ -4530,9 +4522,9 @@ bar_split_format(char *format)
 	/* Allocate the data structures for the bar sections */
 	if (numsect > maxsect) {
 		free(bsect);
-		if ((bsect = calloc(numsect, sizeof(struct bar_section)
-		   )) == NULL)
-			err(1, "bar_split_format: failed to calloc memory.");
+		bsect = calloc(numsect, sizeof(struct bar_section));
+		if (bsect == NULL)
+			err(1, "bar_split_format: calloc");
 		maxsect = numsect;
 	}
 
@@ -5147,7 +5139,7 @@ xft_init(struct swm_screen *s)
 		SWM_TO_XRENDER_COLOR(*c, color);
 		if (!XftColorAllocValue(display, s->xvisual, s->colormap,
 		    &color, &c->xft_color))
-			warn("Xft error: unable to allocate color.");
+			warnx("Xft error: unable to allocate color.");
 	}
 
 	for (i = 0; i < s->c[SWM_S_COLOR_BAR_FONT_FREE].count; i++) {
@@ -5155,7 +5147,7 @@ xft_init(struct swm_screen *s)
 		SWM_TO_XRENDER_COLOR(*c, color);
 		if (!XftColorAllocValue(display, s->xvisual, s->colormap,
 		    &color, &c->xft_color))
-			warn("Xft error: unable to allocate color.");
+			warnx("Xft error: unable to allocate color.");
 	}
 
 	for (i = 0; i < s->c[SWM_S_COLOR_BAR_FONT_UNFOCUS].count; i++) {
@@ -5163,7 +5155,7 @@ xft_init(struct swm_screen *s)
 		SWM_TO_XRENDER_COLOR(*c, color);
 		if (!XftColorAllocValue(display, s->xvisual, s->colormap,
 		    &color, &c->xft_color))
-			warn("Xft error: unable to allocate color.");
+			warnx("Xft error: unable to allocate color.");
 	}
 
 	if (s->c[SWM_S_COLOR_BAR].count > 0) {
@@ -5171,7 +5163,7 @@ xft_init(struct swm_screen *s)
 		SWM_TO_XRENDER_COLOR(*c, color);
 		if (!XftColorAllocValue(display, s->xvisual, s->colormap,
 		    &color, &c->xft_color))
-			warn("Xft error: unable to allocate color.");
+			warnx("Xft error: unable to allocate color.");
 	}
 
 	if (s->bar_xftfonts[0] == NULL)
@@ -5296,10 +5288,10 @@ bar_setup(struct swm_region *r)
 	    get_region_index(r));
 
 	if ((r->bar = calloc(1, sizeof(struct swm_bar))) == NULL)
-		err(1, "bar_setup: calloc");
+		err(1, "bar_setup: bar calloc");
 
 	if ((r->bar->st = calloc(1, sizeof(struct swm_stackable))) == NULL)
-		err(1, "bar_setup: calloc");
+		err(1, "bar_setup: st calloc");
 
 	r->bar->st->type = STACKABLE_BAR;
 	r->bar->st->bar = r->bar;
@@ -5342,7 +5334,7 @@ bar_setup(struct swm_region *r)
 
 	if (asprintf(&name, "Status Bar - Region %d - " SWM_WM_CLASS_INSTANCE,
 	    get_region_index(r)) == -1)
-		err(1, "asprintf");
+		err(1, "bar_setup: asprintf");
 	len = strlen(name);
 	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, r->bar->id,
 	    XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8, len, name);
@@ -9351,8 +9343,7 @@ ewmh_update_client_list(struct swm_screen *s)
 
 	wins = calloc(s->managed_count, sizeof(xcb_window_t));
 	if (wins == NULL)
-		err(1, "ewmh_update_client_list: calloc: failed to "
-		    "allocate memory.");
+		err(1, "ewmh_update_client_list: calloc");
 
 	/* Save workspace window order. */
 	i = 0;
@@ -11049,7 +11040,7 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
 			    getcolorrgb(r->s, SWM_S_COLOR_BAR_SELECTED, 0);
 		} else if (strcasecmp(ap, "$bar_font") == 0) {
 			if ((real_args[c] = strdup(bar_fonts)) == NULL)
-				err(1, "spawn_custom: strdup");
+				err(1, "spawn_custom: bar_fonts strdup");
 		} else if (strcasecmp(ap, "$bar_font_color") == 0) {
 			real_args[c] =
 			    getcolorrgb(r->s, SWM_S_COLOR_BAR_FONT, 0);
@@ -11060,14 +11051,15 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
 			real_args[c] =
 			    getcolorrgb(r->s, SWM_S_COLOR_FOCUS_FREE, 0);
 		} else if (strcasecmp(ap, "$color_focus_maximized_free") == 0) {
-			real_args[c] =
-			    getcolorrgb(r->s, SWM_S_COLOR_FOCUS_MAXIMIZED_FREE, 0);
+			real_args[c] = getcolorrgb(r->s,
+			    SWM_S_COLOR_FOCUS_MAXIMIZED_FREE, 0);
 		} else if (strcasecmp(ap, "$color_unfocus_free") == 0) {
 			real_args[c] =
 			    getcolorrgb(r->s, SWM_S_COLOR_UNFOCUS_FREE, 0);
-		} else if (strcasecmp(ap, "$color_unfocus_maximized_free") == 0) {
-			real_args[c] =
-			    getcolorrgb(r->s, SWM_S_COLOR_UNFOCUS_MAXIMIZED_FREE, 0);
+		} else if (strcasecmp(ap,
+		    "$color_unfocus_maximized_free") == 0) {
+			real_args[c] = getcolorrgb(r->s,
+			    SWM_S_COLOR_UNFOCUS_MAXIMIZED_FREE, 0);
 		} else if (strcasecmp(ap, "$color_focus") == 0) {
 			real_args[c] =
 			    getcolorrgb(r->s, SWM_S_COLOR_FOCUS, 0);
@@ -11083,19 +11075,20 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
 		} else if (strcasecmp(ap, "$region_index") == 0) {
 			if (asprintf(&real_args[c], "%d",
 			    get_region_index(r)) < 1)
-				err(1, "spawn_custom region index");
+				err(1, "spawn_custom: region_index asprintf");
 		} else if (strcasecmp(ap, "$workspace_index") == 0) {
 			if (asprintf(&real_args[c], "%d", r->ws->idx + 1) < 1)
-				err(1, "spawn_custom workspace index");
+				err(1, "spawn_custom: workspace_index "
+				    "asprintf");
 		} else if (strcasecmp(ap, "$dmenu_bottom") == 0) {
 			if (!bar_at_bottom)
 				continue;
 			if ((real_args[c] = strdup("-b")) == NULL)
-				err(1, "spawn_custom workspace index");
+				err(1, "spawn_custom: dmenu_bottom strdup");
 		} else {
 			/* no match --> copy as is */
 			if ((real_args[c] = strdup(ap)) == NULL)
-				err(1, "spawn_custom strdup(ap)");
+				err(1, "spawn_custom: arg strdup");
 		}
 		DNPRINTF(SWM_D_SPAWN, "cooked arg: %s\n", real_args[c]);
 		++c;
@@ -11603,7 +11596,7 @@ binding_insert(uint16_t mod, enum binding_type type, uint32_t val,
 	bp->flags = flags;
 	bp->spawn_name = strdupsafe(spawn_name);
 	if (RB_INSERT(binding_tree, &bindings, bp))
-		err(1, "binding_insert: RB_INSERT");
+		errx(1, "binding_insert: RB_INSERT");
 
 	DNPRINTF(SWM_D_KEY, "leave\n");
 }
@@ -12788,8 +12781,7 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 	switch (flags) {
 	case SWM_S_BAR_ACTION:
 		free(bar_argv[0]);
-		if ((bar_argv[0] = expand_tilde(value)) == NULL)
-			err(1, "setconfvalue: bar_action");
+		bar_argv[0] = expand_tilde(value);
 		break;
 	case SWM_S_BAR_ACTION_EXPAND:
 		bar_action_expand = (atoi(value) != 0);
@@ -12821,17 +12813,17 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 	case SWM_S_BAR_FONT:
 		free(bar_fonts);
 		if ((bar_fonts = strdup(value)) == NULL)
-			err(1, "setconfvalue: strdup");
+			err(1, "setconfvalue: bar_font strdup");
 		break;
 	case SWM_S_BAR_FONT_PUA:
 		free(bar_fontname_pua);
 		if ((bar_fontname_pua = strdup(value)) == NULL)
-			err(1, "setconfvalue: bar_font_pua");
+			err(1, "setconfvalue: bar_font_pua strdup");
 		break;
 	case SWM_S_BAR_FORMAT:
 		free(bar_format);
 		if ((bar_format = strdup(value)) == NULL)
-			err(1, "setconfvalue: bar_format");
+			err(1, "setconfvalue: bar_format strdup");
 		break;
 	case SWM_S_BAR_JUSTIFY:
 		if (strcmp(value, "left") == 0)
@@ -12873,7 +12865,7 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 #ifndef SWM_DENY_CLOCK_FORMAT
 		free(clock_format);
 		if ((clock_format = strdup(value)) == NULL)
-			err(1, "setconfvalue: clock_format");
+			err(1, "setconfvalue: clock_format strdup");
 #endif
 		break;
 	case SWM_S_CYCLE_EMPTY:
@@ -13105,7 +13097,7 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 			if (ws) {
 				free(ws->name);
 				if ((ws->name = strdup(value)) == NULL)
-					err(1, "name: strdup");
+					err(1, "setconfvalue: name strdup");
 
 				ewmh_update_desktop_names(&screens[i]);
 				ewmh_get_desktop_names(&screens[i]);
@@ -13281,7 +13273,7 @@ parseconfcolor(uint8_t asop, const char *selector, const char *value, int flags,
 	}
 
 	if ((sp = str = strdup(value)) == NULL)
-		err(1, "setconfvalue: strdup");
+		err(1, "parseconfcolor: strdup");
 
 	if (asop == SWM_ASOP_BASIC)
 		for (i = first; i <= last; ++i)
@@ -14108,10 +14100,10 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 
 	/* Create and initialize ws_win object. */
 	if ((win = calloc(1, sizeof(struct ws_win))) == NULL)
-		err(1, "manage_window: calloc");
+		err(1, "manage_window: win calloc");
 
 	if ((win->st = calloc(1, sizeof(struct swm_stackable))) == NULL)
-		err(1, "manage_window: calloc2");
+		err(1, "manage_window: st calloc");
 
 	s = find_screen(gr->root);
 	win->st->s = win->s = s; /* this never changes */
