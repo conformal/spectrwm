@@ -246,12 +246,13 @@ uint32_t		swm_debug = 0
 #define EWMH_WINDOW_TYPE_DND		(1 << 12)
 #define EWMH_WINDOW_TYPE_NORMAL		(1 << 13)
 
-#define WINDESKTOP(w)			((w)->type & EWMH_WINDOW_TYPE_DESKTOP)
-#define WINDOCK(w)			((w)->type & EWMH_WINDOW_TYPE_DOCK)
-#define WINTOOLBAR(w)			((w)->type & EWMH_WINDOW_TYPE_TOOLBAR)
-#define WINUTILITY(w)			((w)->type & EWMH_WINDOW_TYPE_UTILITY)
-#define WINSPLASH(w)			((w)->type & EWMH_WINDOW_TYPE_SPLASH)
-#define WINDIALOG(w)			((w)->type & EWMH_WINDOW_TYPE_DIALOG)
+#define WINDESKTOP(w)		((w)->type & EWMH_WINDOW_TYPE_DESKTOP)
+#define WINDOCK(w)		((w)->type & EWMH_WINDOW_TYPE_DOCK)
+#define WINTOOLBAR(w)		((w)->type & EWMH_WINDOW_TYPE_TOOLBAR)
+#define WINUTILITY(w)		((w)->type & EWMH_WINDOW_TYPE_UTILITY)
+#define WINSPLASH(w)		((w)->type & EWMH_WINDOW_TYPE_SPLASH)
+#define WINDIALOG(w)		((w)->type & EWMH_WINDOW_TYPE_DIALOG)
+#define WINNOTIFY(w)		((w)->type & EWMH_WINDOW_TYPE_NOTIFICATION)
 
 #define EWMH_ALL_DESKTOPS		(0xffffffff)
 
@@ -14172,6 +14173,9 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 		win->quirks = SWM_Q_FLOAT;
 	if (WINTOOLBAR(win) || WINUTILITY(win))
 		win->quirks = SWM_Q_FLOAT | SWM_Q_ANYWHERE;
+	if (WINNOTIFY(win))
+		win->quirks = SWM_Q_FLOAT | SWM_Q_ANYWHERE |
+		    SWM_Q_MINIMALBORDER | SWM_Q_NOFOCUSONMAP;
 
 	/* Determine initial quirks. */
 	xcb_icccm_get_wm_class_reply(conn,
