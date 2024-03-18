@@ -637,6 +637,13 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
         <code class="Ic">layout</code> option.</p>
     <p class="Pp">This setting is not retained at restart.</p>
   </dd>
+  <dt id="layout_order"><a class="permalink" href="#layout_order"><code class="Ic">layout_order</code></a></dt>
+  <dd>Define the layout sequence used by the
+      <code class="Ic">cycle_layout</code> action. Possible values are
+      <var class="Ar">vertical</var>, <var class="Ar">horizontal</var>,
+      <var class="Ar">max</var> and <var class="Ar">floating</var>. At least one
+      value must be specified, without duplicates. The default is
+      <var class="Ar">vertical</var>,<var class="Ar">horizontal</var>,<var class="Ar">max</var>,<var class="Ar">floating</var>.</dd>
   <dt id="max_layout_maximize"><a class="permalink" href="#max_layout_maximize"><code class="Ic">max_layout_maximize</code></a></dt>
   <dd>Automatically maximize windows in max layout. Note that automatic maximize
       behavior is disabled for windows that are unmaximized in max layout.

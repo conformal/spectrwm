@@ -715,7 +715,16 @@ void	floating_stack(struct workspace *, struct swm_geometry *);
 void	plain_stacker(struct workspace *);
 void	fancy_stacker(struct workspace *);
 
+enum {
+	SWM_V_STACK,
+	SWM_H_STACK,
+	SWM_MAX_STACK,
+	SWM_FLOATING_STACK,
+	SWM_STACK_COUNT
+};
+
 struct layout {
+	char		*name;
 	void		(*l_stack)(struct workspace *, struct swm_geometry *);
 	void		(*l_config)(struct workspace *, int);
 	uint32_t	flags;
@@ -723,21 +732,19 @@ struct layout {
 #define SWM_L_MAPONFOCUS	(1 << 1)
 #define SWM_L_NOTILE		(1 << 2)
 	void		(*l_string)(struct workspace *);
-} layouts[] =  {
-	/* stack,		configure */
-	{ vertical_stack,	vertical_config,	0,	plain_stacker },
-	{ horizontal_stack,	horizontal_config,	0,	plain_stacker },
-	{ max_stack,		max_config,
-	  SWM_L_MAPONFOCUS | SWM_L_FOCUSPREV,			plain_stacker },
-	{ floating_stack,	NULL,		SWM_L_NOTILE,	plain_stacker },
-	{ NULL,			NULL,			0,	NULL  },
+} layouts[SWM_STACK_COUNT] = {
+	{ "vertical",	vertical_stack,		vertical_config,
+	    0,						plain_stacker },
+	{ "horizontal",	horizontal_stack,	horizontal_config,
+	    0,						plain_stacker },
+	{ "max",	max_stack,		max_config,
+	    SWM_L_MAPONFOCUS | SWM_L_FOCUSPREV,		plain_stacker },
+	{ "floating",	floating_stack,		NULL,
+	    SWM_L_NOTILE,				plain_stacker },
 };
 
-/* position of max_stack mode in the layouts array, index into layouts! */
-#define SWM_V_STACK		(0)
-#define SWM_H_STACK		(1)
-#define SWM_MAX_STACK		(2)
-#define SWM_FLOATING_STACK	(3)
+struct layout		*layout_order[SWM_STACK_COUNT];
+int			 layout_order_count = 0;
 
 #define SWM_H_SLICE		(32)
 #define SWM_V_SLICE		(32)
@@ -1542,6 +1549,7 @@ void	 keyrelease(xcb_key_release_event_t *);
 bool	 keyrepeating(xcb_key_release_event_t *);
 void	 kill_bar_extra_atexit(void);
 void	 kill_refs(struct ws_win *);
+static void	 layout_order_reset(void);
 void	 leavenotify(xcb_leave_notify_event_t *);
 void	 load_float_geom(struct ws_win *);
 struct ws_win	*manage_window(xcb_window_t, int, bool);
@@ -1641,6 +1649,7 @@ int	 setconfspawn(uint8_t, const char *, const char *, int, char **);
 int	 setconfvalue(uint8_t, const char *, const char *, int, char **);
 int	 setkeymapping(uint8_t, const char *, const char *, int, char **);
 int	 setlayout(uint8_t, const char *, const char *, int, char **);
+static int	 setlayoutorder(const char *, char **);
 void	 setquirk(const char *, const char *, const char *, uint8_t, uint32_t,
 	     int);
 static void	 setscreencolor(struct swm_screen *, const char *, int, int);
@@ -1683,6 +1692,7 @@ void	 switchlayout(struct swm_screen *, struct binding *, union arg *);
 void	 switchws(struct swm_screen *, struct binding *, union arg *);
 void	 teardown_ewmh(void);
 void	 transfer_win(struct ws_win *, struct workspace *);
+static char	*trimopt(char *);
 void	 update_mapping(struct swm_screen *);
 void	 update_region_mapping(struct swm_region *);
 void	 update_stacking(struct swm_screen *);
@@ -1951,7 +1961,7 @@ workspace_insert(struct swm_screen *s, int id)
 	if (ws->stacker == NULL)
 		err(1, "setup_marks: calloc");
 
-	for (i = 0; layouts[i].l_stack != NULL; i++)
+	for (i = 0; i < LENGTH(layouts); i++)
 		if (layouts[i].l_config != NULL)
 			layouts[i].l_config(ws, SWM_ARG_ID_STACKINIT);
 	ws->cur_layout = &layouts[0];
@@ -7602,6 +7612,7 @@ switchlayout(struct swm_screen *s, struct binding *bp, union arg *args)
 	struct workspace	*ws;
 	struct ws_win		*w;
 	uint32_t		changed = 0;
+	int			i;
 
 	/* Suppress warning. */
 	(void)bp;
@@ -7614,9 +7625,15 @@ switchlayout(struct swm_screen *s, struct binding *bp, union arg *args)
 
 	switch (args->id) {
 	case SWM_ARG_ID_CYCLE_LAYOUT:
-		new_layout = ws->cur_layout + 1;
-		if (new_layout->l_stack == NULL)
-			new_layout = &layouts[0];
+		for (i = 0; i < layout_order_count; i++)
+			if (layout_order[i] == ws->cur_layout) {
+				new_layout =
+				    layout_order[(i + 1) % layout_order_count];
+				break;
+			}
+
+		if (new_layout == NULL)
+			new_layout = layout_order[0];
 		break;
 	case SWM_ARG_ID_LAYOUT_VERTICAL:
 		new_layout = &layouts[SWM_V_STACK];
@@ -11467,6 +11484,20 @@ setup_spawn(void)
 	    SWM_SPAWN_OPTIONAL, NULL);
 }
 
+static char *
+trimopt(char *str)
+{
+	char	*p;
+
+	/* Trim leading/trailing whitespace. */
+	str += strspn(str, SWM_CONF_WHITESPACE);
+	p = str + strlen(str) - 1;
+	while (p > str && strchr(SWM_CONF_WHITESPACE, *p))
+		*p-- = '\0';
+
+	return (str);
+}
+
 /* bindings */
 #define SWM_MODNAME_SIZE	32
 #define SWM_KEY_WS		"\n+ \t"
@@ -12364,6 +12395,58 @@ parse_workspace_indicator(const char *str, uint32_t *mode, char **emsg)
 	return (0);
 }
 
+static int
+setlayoutorder(const char *str, char **emsg)
+{
+	struct layout	*new_layout;
+	int		i;
+	char		*s, *cp, *name;
+
+	if (str == NULL)
+		return (1);
+
+	if ((cp = s = strdup(str)) == NULL)
+		err(1, "setlayoutorder: strdup");
+
+	layout_order_count = 0;
+
+	while ((name = strsep(&cp, SWM_CONF_DELIMLIST)) != NULL) {
+		name = trimopt(name);
+		if (*name == '\0')
+			continue;
+
+		new_layout = NULL;
+		for (i = 0; i < LENGTH(layouts); i++)
+			if (strcasecmp(name, layouts[i].name) == 0) {
+				new_layout = &layouts[i];
+				break;
+			}
+
+		if (new_layout == NULL) {
+			ALLOCSTR(emsg, "invalid layout: %s", name);
+			free(s);
+			return (1);
+		}
+
+		for (i = 0; i < layout_order_count; i++)
+			if (layout_order[i] == new_layout) {
+				ALLOCSTR(emsg, "duplicate layout: %s", name);
+				free(s);
+				return (1);
+			}
+
+		layout_order[layout_order_count++] = new_layout;
+	}
+	free(s);
+
+	if (layout_order_count == 0) {
+		ALLOCSTR(emsg, "missing layout");
+		return (1);
+	}
+
+	return (0);
+}
+
 const char *quirkname[] = {
 	"NONE",		/* config string for "no value" */
 	"FLOAT",
@@ -12723,6 +12806,7 @@ enum {
 	SWM_S_FULLSCREEN_HIDE_OTHER,
 	SWM_S_FULLSCREEN_UNFOCUS,
 	SWM_S_ICONIC_ENABLED,
+	SWM_S_LAYOUT_ORDER,
 	SWM_S_MAX_LAYOUT_MAXIMIZE,
 	SWM_S_MAXIMIZE_HIDE_BAR,
 	SWM_S_MAXIMIZE_HIDE_OTHER,
@@ -12950,6 +13034,12 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 	case SWM_S_ICONIC_ENABLED:
 		iconic_enabled = (atoi(value) != 0);
 		break;
+	case SWM_S_LAYOUT_ORDER:
+		if (setlayoutorder(value, emsg)) {
+			layout_order_reset();
+			return (1);
+		}
+		break;
 	case SWM_S_MAX_LAYOUT_MAXIMIZE:
 		max_layout_maximize = atoi(value);
 		break;
@@ -13025,7 +13115,7 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 		break;
 	case SWM_S_VERBOSE_LAYOUT:
 		verbose_layout = (atoi(value) != 0);
-		for (i = 0; layouts[i].l_stack != NULL; i++) {
+		for (i = 0; i < LENGTH(layouts); i++) {
 			if (verbose_layout)
 				layouts[i].l_string = fancy_stacker;
 			else
@@ -13628,6 +13718,7 @@ struct config_option configopt[] = {
 	{ "java_workaround",		NULL,		0 },	/* dummy */
 	{ "keyboard_mapping",		setkeymapping,	0 },
 	{ "layout",			setlayout,	0 },
+	{ "layout_order",		setconfvalue,	SWM_S_LAYOUT_ORDER },
 	{ "max_layout_maximize",	setconfvalue,	SWM_S_MAX_LAYOUT_MAXIMIZE },
 	{ "maximize_hide_bar",		setconfvalue,	SWM_S_MAXIMIZE_HIDE_BAR },
 	{ "maximize_hide_other",	setconfvalue,	SWM_S_MAXIMIZE_HIDE_OTHER },
@@ -16619,6 +16710,16 @@ setup_focus(void)
 	DNPRINTF(SWM_D_INIT, "done\n");
 }
 
+static void
+layout_order_reset(void)
+{
+	int		i;
+
+	for (i = 0; i < LENGTH(layouts); i++)
+		layout_order[i] = &layouts[i];
+	layout_order_count = i;
+}
+
 void
 setup_screens(void)
 {
@@ -16910,6 +17011,8 @@ setup_globals(void)
 	a_utf8_string = get_atom_from_string("UTF8_STRING");
 	a_swm_pid = get_atom_from_string("_SWM_PID");
 	a_swm_ws = get_atom_from_string("_SWM_WS");
+
+	layout_order_reset();
 }
 
 void
