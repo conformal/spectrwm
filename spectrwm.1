@@ -690,6 +690,19 @@ the
 option.
 .Pp
 This setting is not retained at restart.
+.It Ic layout_order
+Define the layout sequence used by the
+.Ic cycle_layout
+action.
+Possible values are
+.Ar vertical ,
+.Ar horizontal ,
+.Ar max
+and
+.Ar floating .
+At least one value must be specified, without duplicates.
+The default is
+.Ar vertical , Ns Ar horizontal , Ns Ar max , Ns Ar floating .
 .It Ic max_layout_maximize
 Automatically maximize windows in max layout.
 Note that automatic maximize behavior is disabled for windows that are
