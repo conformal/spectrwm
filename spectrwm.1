@@ -108,9 +108,18 @@ The format of the file is
 .Pp
 .Dl Ar keyword Li = Ar setting
 .Pp
+Where
+.Ql =
+may be replaced with
+.Ql +=
+or
+.Ql -= ,
+if supported by the option.
+.Pp
 For example:
 .Pp
 .Dl color_focus = red
+.Dl quirk[XTerm] += FLOAT
 .Pp
 Enabling or disabling an option is done by using 1 or 0 respectively.
 .Pp
@@ -190,18 +199,18 @@ Disable border by setting to 0.
 Background color of status bar(s) on screen number
 .Ar x .
 .Pp
-A comma separated list of up to 10 colors can be specified.
+A comma-separated list of multiple colors can be specified.
 The first value is used as the default background color.
 Any of these colors can then be selected as a background color in the status
 bar through the use of the markup sequence
 .Ic +@bg=n;\&
-where n is between 0 and 9.
+where n is the color index counting from 0.
 .It Ic bar_color_free Ns Bq Ar x
 Background color of a status bar for a focused region on screen number
 .Ar x
 when a workspace-free window is focused.
 .Pp
-A comma separated list of up to 10 colors can be specified, with the same
+A comma-separated list of multiple colors can be specified, with the same
 syntax and behavior as
 .Ic bar_color .
 Default is rgb:40/40/00.
@@ -210,7 +219,7 @@ Note that
 .Ic bar_color
 defines the background color indices that can be used in
 .Ic bar_format
-markup sequences and is the default for colors that are left unspecified in
+markup sequences and is the fallback for colors that are left unspecified in
 this option.
 .It Ic bar_color_selected Ns Bq Ar x
 Background color for selected
@@ -223,7 +232,7 @@ Defaults to the value of
 Background color of status bar(s) for unfocused region(s) on screen number
 .Ar x .
 .Pp
-A comma separated list of up to 10 colors can be specified, with the same
+A comma-separated list of multiple colors can be specified, with the same
 syntax and behavior as
 .Ic bar_color
 for unfocused bar(s).
@@ -234,7 +243,7 @@ Note that
 .Ic bar_color
 defines the background color indices that can be used in
 .Ic bar_format
-markup sequences and is the default for colors that are left unspecified in
+markup sequences and is the fallback for colors that are left unspecified in
 this option.
 .It Ic bar_enabled
 Set default
@@ -255,12 +264,12 @@ If at least one entry is Xft, Xft will be used.
 .Pp
 The default is to use font set.
 .Pp
-If Xft is used, a comma-separated list of up to 10 fonts can be specified.
+If Xft is used, a comma-separated list of multiple fonts can be specified.
 The first entry is the default font.
 Any font defined here can then be selected in the status bar through the use of
 the markup sequence
 .Ic +@fn=n;\&
-where n is between 0 and 9.
+where n is the font index counting from 0.
 .Pp
 Also note that
 .Xr dmenu 1
@@ -295,18 +304,18 @@ application can help with the XLFD setting.
 Foreground color of the status bar(s) on screen number
 .Ar x .
 .Pp
-A comma separated list of up to 10 colors can be specified.
+A comma-separated list of multiple colors can be specified.
 The first value is used as the default foreground color.
 Any of these colors can then be selected as a foreground color in the status
 bar through the use of the markup sequence
 .Ic +@fg=n;\&
-where n is between 0 and 9.
+where n is the color index counting from 0.
 .It Ic bar_font_color_free Ns Bq Ar x
 Foreground color of a status bar for a focused region on screen number
 .Ar x
 when a workspace-free window is focused.
 .Pp
-A comma separated list of up to 10 colors can be specified, with the same
+A comma-separated list of multiple colors can be specified, with the same
 syntax and behavior as
 .Ic bar_font_color .
 Default is rgb:ff/ff/ff.
@@ -315,13 +324,13 @@ Note that
 .Ic bar_font_color
 defines the foreground color indices that can be used in
 .Ic bar_format
-markup sequences and is the default for colors that are left unspecified in
+markup sequences and is the fallback for colors that are left unspecified in
 this option.
 .It Ic bar_font_color_unfocus Ns Bq Ar x
 Foreground color of status bar(s) for unfocused region(s) on screen number
 .Ar x .
 .Pp
-A comma separated list of up to 10 colors can be specified, with the same
+A comma-separated list of multiple colors can be specified, with the same
 syntax and behavior as
 .Ic bar_font_color
 for unfocused bar(s).
@@ -332,7 +341,7 @@ Note that
 .Ic bar_font_color
 defines the foreground color indices that can be used in
 .Ic bar_format
-markup sequences and is the default for colors that are left unspecified in
+markup sequences and is the fallback for colors that are left unspecified in
 this option.
 .It Ic bar_font_color_selected Ns Bq Ar x
 Foreground color for selected
@@ -397,11 +406,11 @@ is used.
 The currently recognized text markup sequences are:
 .Bl -column "Character sequence" "Action" -offset indent
 .It Sy "Character sequence" Ta Sy "Action"
-.It Li "+@fn=n;\&" Ta Selects font n (from 0 to 9) from
+.It Li "+@fn=n;\&" Ta Selects font n (starting at 0) from
 .Ic bar_font .
-.It Li "+@fg=n;\&" Ta Selects foreground color n (from 0 to 9) from
+.It Li "+@fg=n;\&" Ta Selects foreground color n (starting at 0) from
 .Ic bar_font_color .
-.It Li "+@bg=n;\&" Ta Selects background color n (from 0 to 9) from
+.It Li "+@bg=n;\&" Ta Selects background color n (starting at 0) from
 .Ic bar_color .
 .It Li "+@stp;\&" Ta Stops the interpretation of markup sequences.
 Any markup sequence found after +@stp will appear as normal characters in the
@@ -436,6 +445,11 @@ in some circumstances, due to the white-spaces in the default static format.
 See the
 .Ic bar_format
 option for more details.
+.It Ic bar_workspace_limit
+Set the maximum workspace index (counting from 1) to list in the status bar
+workspace (+L) and urgency hint (+U) indicators.
+Workspaces beyond this value will not be shown.
+Default is 0 (disabled).
 .It Ic bind Ns Bq Ar x
 Bind key or button combo to action
 .Ar x .
@@ -474,7 +488,8 @@ Border color of the currently focused maximized window that is in free mode.
 Defaults to the value of
 .Ic color_focus_free .
 .It Ic color_unfocus_free
-Border color of unfocused windows that are in free mode, default is rgb:88/88/00.
+Border color of unfocused windows that are in free mode, default is
+rgb:88/88/00.
 .It Ic color_unfocus_maximized_free
 Border color of unfocused maximized windows that are in free mode.
 Defaults to the value of
@@ -675,6 +690,19 @@ the
 option.
 .Pp
 This setting is not retained at restart.
+.It Ic layout_order
+Define the layout sequence used by the
+.Ic cycle_layout
+action.
+Possible values are
+.Ar vertical ,
+.Ar horizontal ,
+.Ar max
+and
+.Ar floating .
+At least one value must be specified, without duplicates.
+The default is
+.Ar vertical , Ns Ar horizontal , Ns Ar max , Ns Ar floating .
 .It Ic max_layout_maximize
 Automatically maximize windows in max layout.
 Note that automatic maximize behavior is disabled for windows that are
@@ -794,7 +822,8 @@ Disable by setting to 0.
 .It Ic snap_range
 Set the distance in pixels a tiled/maximized window must be moved (with the
 pointer) to unsnap and float freely.
-Set to 0 to unsnap immediately. Default is 25.
+Set to 0 to unsnap immediately.
+Default is 25.
 .It Ic spawn_position
 Position in stack to place newly spawned windows.
 Possible values are
@@ -1116,7 +1145,7 @@ program is spawned:
 .It Cm $dmenu_bottom
 \-b if
 .Ic bar_at_bottom
-is enabled.
+is enabled, otherwise '' (empty string.)
 .It Cm $region_index
 .It Cm $workspace_index
 .El
@@ -1132,7 +1161,9 @@ To cancel the previous, unbind it:
 bind[] = MOD+Shift+b
 .Ed
 .Pp
-Default programs:
+A number of built-in actions spawn a program as part of their implementation.
+The respective default program entries are as follows:
+.Pp
 .Bl -tag -width "screenshot_wind" -offset indent -compact
 .It Cm term
 xterm
@@ -1155,10 +1186,21 @@ screenshot.sh full   # optional
 screenshot.sh window # optional
 .El
 .Pp
-Note that optional default programs will not be validated unless overridden.
-If a default program fails validation, you can resolve the exception by
-installing the program, modifying the program call or disabling the program by
-freeing the respective binding.
+Note that
+.Cm search
+is required by the
+.Cm search_win ,
+.Ic search_workspace ,
+and
+.Ic uniconify
+actions and does not have a direct binding.
+.Pp
+With the exception of the default entries marked
+.Dq optional ,
+validation is performed to ensure the program exists.
+If validation fails, the exception can be resolved by installing the program,
+overriding the program, or disabling the program by freeing the respective
+binding.
 .Pp
 For example, to override
 .Ic lock :
@@ -1594,6 +1636,7 @@ or a button (Button1 .. Button255), separated by
 Multiple key/button combinations may be bound to the same action.
 .Pp
 Special arguments:
+.Pp
 .Bl -tag -width "anymodxxxx" -offset indent -compact
 .It Cm MOD
 Substituted for the currently defined
@@ -1785,12 +1828,18 @@ of workspaces and regions.
 Adjust
 .Xr xterm 1
 fonts when resizing.
+Note that this needs
+.Pa libswmhack.so
+to work.
+See the
+.Sx SWMHACK
+section below.
 .El
 .Pp
 Custom quirks in the configuration file are specified as follows:
 .Pp
 .Dl quirk Ns Bo Ar class Ns Bo : Ns Ar instance Ns Bo : Ns Ar name Bc Bc Bc \
-= Ar quirk Op + Ar quirk ...
+{=|+=|-=} Ar quirk Op + Ar quirk ...
 .Pp
 .Ar class ,
 .Ar instance
@@ -1800,6 +1849,18 @@ Custom quirks in the configuration file are specified as follows:
 to and
 .Ar quirk
 is one of the quirks from the list above.
+.Pp
+When a window is managed, quirk entries are applied in the order specified in
+the configuration file.
+The assignment operator determines how the quirks are applied.
+When assigning quirks with
+.Ql = ,
+quirks are replaced on matching windows.
+To add or remove quirks, assign them with
+.Ql +=
+or
+.Ql -=
+instead.
 .Pp
 Note that patterns are interpreted as POSIX Extended Regular Expressions.
 Any ':', '[' or ']' must be escaped with '\e'.
@@ -1813,14 +1874,16 @@ quirk[MPlayer] = FLOAT + FULLSCREEN + FOCUSPREV # Float all windows having a \
 class of 'MPlayer'
 quirk[.*] = FLOAT # Float all windows by default.
 quirk[.*:.*:.*] = FLOAT # Same as above.
-quirk[Firefox:Navigator] = FLOAT # Float all Firefox browser windows.
+quirk[firefox:Navigator] = FLOAT # Float all Firefox browser windows.
 quirk[::Console] = FLOAT # Float windows with WM_CLASS not set and a \
 window name of 'Console'.
 quirk[\e[0-9\e].*:.*:\e[\e[\e:alnum\e:\e]\e]*] = FLOAT # Float windows with \
 WM_CLASS class beginning with a number, any WM_CLASS instance and a \
 _NET_WM_NAME/WM_NAME either blank or containing alphanumeric characters \
 without spaces.
-quirk[pcb:pcb] = NONE # remove existing quirk
+quirk[pcb:pcb] = NONE # Remove the default quirk entry.
+quirk[.*:ws10] += WS[10] # Force windows with a WM_CLASS name of 'ws10' to \
+workspace 10 without removing existing quirks.
 .Ed
 .Pp
 You can obtain
@@ -1946,7 +2009,10 @@ $ wmctrl \-i \-r 0x4a0000b \-e 0,100,50,640,480
 .Pp
 This moves the window to (100,50) and resizes it to 640x480.
 .Pp
-Any _NET_MOVERESIZE_WINDOW events received for stacked windows are ignored.
+Note that if a window has been manually positioned via binding,
+_NET_MOVERESIZE_WINDOW requests are ignored unless the window has the ANYWHERE
+quirk, the workspace is in floating layout, or the window is workspace-free.
+Requests are also ignored on maximized and fullscreen windows.
 .Sh SWMHACK
 When spawning a program via
 .Ic autorun
@@ -2047,7 +2113,18 @@ autorun = ws[2]:xterm -name ws2
 quirk[XTerm:ws2] = WS[2]
 .Ed
 .Pp
-Note that XCB programs are currently unsupported by
+If the "spawn-in-workspace" behavior is not desired, it is possible to disable
+it globally by setting the
+.Pa IGNORESPAWNWS
+and
+.Pa IGNOREPID
+quirks for all windows:
+.Bd -literal -offset indent
+quirk[.*] += IGNORESPAWNWS + IGNOREPID
+.Ed
+.Pp
+Note that XCB programs that roll their own X11 requests (e.g. Chromium) are
+currently unsupported by
 .Pa libswmhack.so .
 .Sh SIGNALS
 Sending

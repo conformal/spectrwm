@@ -15,7 +15,6 @@ NOPROFILE= yes
 CFLAGS+= -std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Wno-uninitialized -g
 CFLAGS+= -fPIC
 CFLAGS+= -I${X11BASE}/include
-LDADD+= -L${X11BASE}/lib -lX11
 
 install:
 	${INSTALL} ${INSTALL_COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \

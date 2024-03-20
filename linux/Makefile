@@ -27,7 +27,7 @@ BIN_LDLIBS   := $(shell $(PKG_CONFIG) --libs   x11 x11-xcb xcb-icccm xcb-keysyms
 LIB_CFLAGS   := -fPIC
 LIB_LDFLAGS  := -fPIC -shared
 LIB_CPPFLAGS := $(shell $(PKG_CONFIG) --cflags x11)
-LIB_LDLIBS   := $(shell $(PKG_CONFIG) --libs   x11) -ldl
+LIB_LDLIBS   := -ldl
 
 all: spectrwm libswmhack.so.$(LIBVERSION)
 
