@@ -800,10 +800,14 @@ enum {
 	SWM_S_COLOR_FOCUS_MAXIMIZED,
 	SWM_S_COLOR_UNFOCUS,
 	SWM_S_COLOR_UNFOCUS_MAXIMIZED,
+	SWM_S_COLOR_URGENT,
+	SWM_S_COLOR_URGENT_MAXIMIZED,
 	SWM_S_COLOR_FOCUS_FREE,
 	SWM_S_COLOR_FOCUS_MAXIMIZED_FREE,
 	SWM_S_COLOR_UNFOCUS_FREE,
 	SWM_S_COLOR_UNFOCUS_MAXIMIZED_FREE,
+	SWM_S_COLOR_URGENT_FREE,
+	SWM_S_COLOR_URGENT_MAXIMIZED_FREE,
 	SWM_S_COLOR_MAX
 };
 
@@ -2638,6 +2642,9 @@ ewmh_apply_flags(struct ws_win *win, uint32_t pending)
 			store_float_geom(win);
 	}
 
+	if (changed & EWMH_F_DEMANDS_ATTENTION)
+		draw_frame(win);
+
 	if (changed & EWMH_F_MAXIMIZED) {
 		/* VERT and/or HORZ changed. */
 		if (ABOVE(win) || BELOW(win)) {
@@ -3483,11 +3490,17 @@ getcolor(struct swm_screen *s, int c, int i)
 	case SWM_S_COLOR_UNFOCUS_MAXIMIZED:
 		c = SWM_S_COLOR_UNFOCUS;
 		break;
+	case SWM_S_COLOR_URGENT_MAXIMIZED:
+		c = SWM_S_COLOR_URGENT;
+		break;
 	case SWM_S_COLOR_FOCUS_MAXIMIZED_FREE:
 		c = SWM_S_COLOR_FOCUS_FREE;
 		break;
 	case SWM_S_COLOR_UNFOCUS_MAXIMIZED_FREE:
 		c = SWM_S_COLOR_UNFOCUS_FREE;
+		break;
+	case SWM_S_COLOR_URGENT_MAXIMIZED_FREE:
+		c = SWM_S_COLOR_URGENT_FREE;
 		break;
 	default:
 		DNPRINTF(SWM_D_BAR, "no fallback [%d][%d]\n", c, i);
@@ -10037,6 +10050,15 @@ draw_frame(struct ws_win *win)
 			gcv[0] = getcolorpixel(win->s, (MAXIMIZED(win) ?
 			    SWM_S_COLOR_FOCUS_MAXIMIZED :
 			    SWM_S_COLOR_FOCUS), 0);
+	} else if (win_urgent(win)) {
+		if (win_free(win))
+			gcv[0] = getcolorpixel(win->s, (MAXIMIZED(win) ?
+			    SWM_S_COLOR_URGENT_MAXIMIZED_FREE :
+			    SWM_S_COLOR_URGENT_FREE), 0);
+		else
+			gcv[0] = getcolorpixel(win->s, (MAXIMIZED(win) ?
+			    SWM_S_COLOR_URGENT_MAXIMIZED :
+			    SWM_S_COLOR_URGENT), 0);
 	} else {
 		if (win_free(win))
 			gcv[0] = getcolorpixel(win->s, (MAXIMIZED(win) ?
@@ -11078,6 +11100,13 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
 		    "$color_unfocus_maximized_free") == 0) {
 			real_args[c] = getcolorrgb(r->s,
 			    SWM_S_COLOR_UNFOCUS_MAXIMIZED_FREE, 0);
+		} else if (strcasecmp(ap, "$color_urgent_free") == 0) {
+			real_args[c] =
+			    getcolorrgb(r->s, SWM_S_COLOR_URGENT_FREE, 0);
+		} else if (strcasecmp(ap,
+		    "$color_urgent_maximized_free") == 0) {
+			real_args[c] = getcolorrgb(r->s,
+			    SWM_S_COLOR_URGENT_MAXIMIZED_FREE, 0);
 		} else if (strcasecmp(ap, "$color_focus") == 0) {
 			real_args[c] =
 			    getcolorrgb(r->s, SWM_S_COLOR_FOCUS, 0);
@@ -11090,6 +11119,12 @@ spawn_expand(struct swm_region *r, union arg *args, const char *spawn_name,
 		} else if (strcasecmp(ap, "$color_unfocus_maximized") == 0) {
 			real_args[c] =
 			    getcolorrgb(r->s, SWM_S_COLOR_UNFOCUS_MAXIMIZED, 0);
+		} else if (strcasecmp(ap, "$color_urgent") == 0) {
+			real_args[c] =
+			    getcolorrgb(r->s, SWM_S_COLOR_URGENT, 0);
+		} else if (strcasecmp(ap, "$color_urgent_maximized") == 0) {
+			real_args[c] =
+			    getcolorrgb(r->s, SWM_S_COLOR_URGENT_MAXIMIZED, 0);
 		} else if (strcasecmp(ap, "$region_index") == 0) {
 			if (asprintf(&real_args[c], "%d",
 			    get_region_index(r)) < 1)
@@ -13704,6 +13739,10 @@ struct config_option configopt[] = {
 	{ "color_unfocus_free",		setconfcolor,	SWM_S_COLOR_UNFOCUS_FREE },
 	{ "color_unfocus_maximized",	setconfcolor,	SWM_S_COLOR_UNFOCUS_MAXIMIZED },
 	{ "color_unfocus_maximized_free",setconfcolor,	SWM_S_COLOR_UNFOCUS_MAXIMIZED_FREE },
+	{ "color_urgent",		setconfcolor,	SWM_S_COLOR_URGENT },
+	{ "color_urgent_free",		setconfcolor,	SWM_S_COLOR_URGENT_FREE },
+	{ "color_urgent_maximized",	setconfcolor,	SWM_S_COLOR_URGENT_MAXIMIZED },
+	{ "color_urgent_maximized_free",setconfcolor,	SWM_S_COLOR_URGENT_MAXIMIZED_FREE },
 	{ "cycle_empty",		setconfvalue,	SWM_S_CYCLE_EMPTY },
 	{ "cycle_visible",		setconfvalue,	SWM_S_CYCLE_VISIBLE },
 	{ "dialog_ratio",		setconfvalue,	SWM_S_DIALOG_RATIO },
@@ -16827,8 +16866,10 @@ setup_screens(void)
 		/* Set default colors. */
 		setscreencolor(s, "red", SWM_S_COLOR_FOCUS, 0);
 		setscreencolor(s, "rgb:88/88/88", SWM_S_COLOR_UNFOCUS, 0);
+		setscreencolor(s, "rgb:ff/a5/00", SWM_S_COLOR_URGENT, 0);
 		setscreencolor(s, "yellow", SWM_S_COLOR_FOCUS_FREE, 0);
 		setscreencolor(s, "rgb:88/88/00", SWM_S_COLOR_UNFOCUS_FREE, 0);
+		setscreencolor(s, "rgb:b8/86/0b", SWM_S_COLOR_URGENT_FREE, 0);
 		setscreencolor(s, "rgb:00/80/80", SWM_S_COLOR_BAR_BORDER, 0);
 		setscreencolor(s, "rgb:80/80/00",
 		    SWM_S_COLOR_BAR_BORDER_FREE, 0);

@@ -494,6 +494,13 @@ rgb:88/88/00.
 Border color of unfocused maximized windows that are in free mode.
 Defaults to the value of
 .Ic color_unfocus_free .
+.It Ic color_urgent_free
+Border color of urgent windows that are in free mode, default is
+rgb:b8/86/0b.
+.It Ic color_urgent_maximized_free
+Border color of urgent maximized windows that are in free mode.
+Defaults to the value of
+.Ic color_urgent_free .
 .It Ic color_focus
 Border color of the currently focused window.
 Default is red.
@@ -507,6 +514,12 @@ Border color of unfocused windows, default is rgb:88/88/88.
 Border color of unfocused, maximized windows.
 Defaults to the value of
 .Ic color_unfocus .
+.It Ic color_urgent
+Border color of urgent windows, default is rgb:ff/a5/00.
+.It Ic color_urgent_maximized
+Border color of urgent, maximized windows.
+Defaults to the value of
+.Ic color_urgent .
 .It Ic cycle_visible
 Include workspaces that are mapped when switching with
 .Ic ws_next ,
@@ -1142,6 +1155,7 @@ program is spawned:
 .It Cm $bar_font_color_selected
 .It Cm $color_focus
 .It Cm $color_unfocus
+.It Cm $color_urgent
 .It Cm $dmenu_bottom
 \-b if
 .Ic bar_at_bottom
