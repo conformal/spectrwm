@@ -3492,6 +3492,8 @@ getcolor(struct swm_screen *s, int c, int i)
 		break;
 	case SWM_S_COLOR_URGENT_MAXIMIZED:
 		c = SWM_S_COLOR_URGENT;
+		if (i >= s->c[c].count || s->c[c].colors[i] == NULL)
+			c = SWM_S_COLOR_UNFOCUS;
 		break;
 	case SWM_S_COLOR_FOCUS_MAXIMIZED_FREE:
 		c = SWM_S_COLOR_FOCUS_FREE;
@@ -3501,6 +3503,14 @@ getcolor(struct swm_screen *s, int c, int i)
 		break;
 	case SWM_S_COLOR_URGENT_MAXIMIZED_FREE:
 		c = SWM_S_COLOR_URGENT_FREE;
+		if (i >= s->c[c].count || s->c[c].colors[i] == NULL)
+			c = SWM_S_COLOR_UNFOCUS_FREE;
+		break;
+	case SWM_S_COLOR_URGENT:
+		c = SWM_S_COLOR_UNFOCUS;
+		break;
+	case SWM_S_COLOR_URGENT_FREE:
+		c = SWM_S_COLOR_UNFOCUS_FREE;
 		break;
 	default:
 		DNPRINTF(SWM_D_BAR, "no fallback [%d][%d]\n", c, i);
@@ -15805,6 +15815,8 @@ propertynotify(xcb_property_notify_event_t *e)
 			bar_draw(win->ws->r->bar);
 	} else if (e->atom == XCB_ATOM_WM_HINTS) {
 		get_wm_hints(win);
+		draw_frame(win);
+		update_bars(win->s);
 	} else if (e->atom == XCB_ATOM_WM_NORMAL_HINTS) {
 		get_wm_normal_hints(win);
 		win->gravity = win_gravity(win);
@@ -16038,6 +16050,7 @@ clientmessage(xcb_client_message_event_t *e)
 			}
 		} else {
 			set_attention(win);
+			draw_frame(win);
 			update_bars(s);
 		}
 	} else if (e->type == ewmh[_NET_CLOSE_WINDOW].atom) {
@@ -16866,10 +16879,8 @@ setup_screens(void)
 		/* Set default colors. */
 		setscreencolor(s, "red", SWM_S_COLOR_FOCUS, 0);
 		setscreencolor(s, "rgb:88/88/88", SWM_S_COLOR_UNFOCUS, 0);
-		setscreencolor(s, "rgb:ff/a5/00", SWM_S_COLOR_URGENT, 0);
 		setscreencolor(s, "yellow", SWM_S_COLOR_FOCUS_FREE, 0);
 		setscreencolor(s, "rgb:88/88/00", SWM_S_COLOR_UNFOCUS_FREE, 0);
-		setscreencolor(s, "rgb:b8/86/0b", SWM_S_COLOR_URGENT_FREE, 0);
 		setscreencolor(s, "rgb:00/80/80", SWM_S_COLOR_BAR_BORDER, 0);
 		setscreencolor(s, "rgb:80/80/00",
 		    SWM_S_COLOR_BAR_BORDER_FREE, 0);
