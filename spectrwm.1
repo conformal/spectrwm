@@ -840,6 +840,62 @@ Set the distance in pixels a tiled/maximized window must be moved (with the
 pointer) to unsnap and float freely.
 Set to 0 to unsnap immediately.
 Default is 25.
+.It Ic spawn_flags Ns Bq Ar p
+Change the spawn flags of
+.Ic program
+entry
+.Ar p .
+If
+.Ar p
+is omitted, changes are applied to the default spawn flags for any
+.Ic program
+or
+.Ic autorun
+entries that come later in the configuration file.
+One or more of the following flags may be specified in a comma-separated list:
+.Pp
+.Bl -tag -width "markcurrentXXX" -offset indent -compact
+.It Ar nospawnws
+When the program is spawned, do not associate the spawn workspace with the
+program's windows.
+.It Ar xterm_fontadj
+Enables automatic font size adjustments when resizing
+.Xr xterm 1
+windows.
+Note that this works in conjunction with the
+.Ic term_width
+option and the
+.Ic XTERM_FONTADJ
+quirk.
+See the
+.Ic term_width
+option and
+.Sx QUIRKS
+section for more information.
+.It Ar optional
+Disable program validation.
+.It Ar none
+No flags specified.
+.El
+.Pp
+The default is
+.Ar none .
+.Pp
+In addition to the
+.Ql =
+operator, this option also supports
+.Ql +=
+and
+.Ql -=
+to add/remove flags instead of replacing them.
+.Pp
+Note that the default of associating windows with the spawn workspace and the
+.Ar xterm_fontadj
+flag both rely on
+.Pa libswmhack.so .
+See the
+.Sx SWMHACK
+section below for more information.
 .It Ic spawn_position
 Position in stack to place newly spawned windows.
 Possible values are
@@ -903,10 +959,21 @@ If this value is greater than 0,
 .Nm
 will attempt to adjust the font sizes in the terminal to keep the terminal
 width above this number as the window is resized.
-Only
+.Pp
+Note that only
 .Xr xterm 1
 is currently supported.
-The
+The terminal process must be spawned with the
+.Ar xterm_fontadj
+spawn flag and the
+.Ar XTERM_FONTADJ
+quirk must be set on its window.
+See the
+.Ic spawn_flags
+option and the
+.Sx QUIRKS
+section for more information.
+In addition, the
 .Xr xterm 1
 binary must not be setuid or setgid, which it is by default on most systems.
 Users may need to set program[term] (see the
@@ -1216,13 +1283,17 @@ With the exception of the default entries marked
 .Dq optional ,
 validation is performed to ensure the program exists.
 If validation fails, the exception can be resolved by installing the program,
-overriding the program, or disabling the program by freeing the respective
-binding.
+adding the
+.Ar optional
+flag to the program entry's spawn flags, or by disabling the program entry by
+freeing the respective binding.
 .Pp
-For example, to override
+For example, to add the
+.Ic optional
+flag to
 .Ic lock :
 .Bd -literal -offset indent
-program[lock] = xscreensaver\-command \-lock
+spawn_flags[lock] += optional
 .Ed
 .Pp
 To unbind
@@ -1845,12 +1916,12 @@ of workspaces and regions.
 Adjust
 .Xr xterm 1
 fonts when resizing.
-Note that this needs
-.Pa libswmhack.so
-to work.
+Note that this requires the
+.Ar xterm_fontadj
+spawn flag to be set on the autorun/program entry when the program is spawned.
 See the
-.Sx SWMHACK
-section below.
+.Ic spawn_flags
+option for information on how to enable it.
 .El
 .Pp
 Custom quirks in the configuration file are specified as follows:
@@ -2031,9 +2102,13 @@ _NET_MOVERESIZE_WINDOW requests are ignored unless the window has the ANYWHERE
 quirk, the workspace is in floating layout, or the window is workspace-free.
 Requests are also ignored on maximized and fullscreen windows.
 .Sh SWMHACK
-When spawning a program via
+When spawning a program via an
 .Ic autorun
-or a binding,
+or
+.Ic program
+entry without the
+.Ar nospawnws
+flag,
 .Nm
 aims to place the program's windows (if any) in its spawn workspace.
 To accomplish this "spawn-in-workspace" behavior,
@@ -2131,12 +2206,34 @@ quirk[XTerm:ws2] = WS[2]
 .Ed
 .Pp
 If the "spawn-in-workspace" behavior is not desired, it is possible to disable
-it globally by setting the
+it before programs are spawned by setting the
+.Ar nospawnws
+spawn flag on spawn entries via the
+.Ic spawn_flags
+option:
+.Bd -literal -offset indent
+# Make 'nospawnws' the default for any autorun/program entries that are
+# added/replaced below this line in the configuration file:
+spawn_flags = nospawnws
+program[pcmanfm] = pcmanfm -n  # 'nospawnws' is set
+autorun = ws[1]:firefox        # ws[1] is ignored since 'nospawnws' is set
+program[lock] = xlock          # the replaced default entry has 'nospawnws' set
+
+# Add 'nospawnws' to an existing entry:
+spawn_flags[term] += nospawnws
+.Ed
+.Pp
+Alternatively, the
 .Pa IGNORESPAWNWS
 and
 .Pa IGNOREPID
-quirks for all windows:
+quirks can be applied to windows:
 .Bd -literal -offset indent
+# Disable spawn-in-workspace on PCManFM windows:
+quirk[Pcmanfm] = IGNORESPAWNWS
+
+# Disable spawn-in-workspace on all windows, including those spawned via \
+autorun:
 quirk[.*] += IGNORESPAWNWS + IGNOREPID
 .Ed
 .Pp
