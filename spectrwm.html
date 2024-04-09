@@ -741,6 +741,45 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
   <dd>Set the distance in pixels a tiled/maximized window must be moved (with
       the pointer) to unsnap and float freely. Set to 0 to unsnap immediately.
       Default is 25.</dd>
+  <dt id="spawn_flags"><a class="permalink" href="#spawn_flags"><code class="Ic">spawn_flags</code></a>[<var class="Ar">p</var>]</dt>
+  <dd>Change the spawn flags of <code class="Ic">program</code> entry
+      <var class="Ar">p</var>. If <var class="Ar">p</var> is omitted, changes
+      are applied to the default spawn flags for any
+      <code class="Ic">program</code> or <code class="Ic">autorun</code> entries
+      that come later in the configuration file. One or more of the following
+      flags may be specified in a comma-separated list:
+    <p class="Pp"></p>
+    <div class="Bd-indent">
+    <dl class="Bl-tag Bl-compact">
+      <dt><var class="Ar">nospawnws</var></dt>
+      <dd>When the program is spawned, do not associate the spawn workspace with
+          the program's windows.</dd>
+      <dt><var class="Ar">xterm_fontadj</var></dt>
+      <dd>Enables automatic font size adjustments when resizing
+          <a class="Xr">xterm(1)</a> windows. Note that this works in
+          conjunction with the <code class="Ic">term_width</code> option and the
+          <code class="Ic">XTERM_FONTADJ</code> quirk. See the
+          <code class="Ic">term_width</code> option and
+          <a class="Sx" href="#QUIRKS">QUIRKS</a> section for more
+        information.</dd>
+      <dt><var class="Ar">optional</var></dt>
+      <dd>Disable program validation.</dd>
+      <dt><var class="Ar">none</var></dt>
+      <dd>No flags specified.</dd>
+    </dl>
+    </div>
+    <p class="Pp">The default is <var class="Ar">none</var>.</p>
+    <p class="Pp">In addition to the &#x2018;<code class="Li">=</code>&#x2019;
+        operator, this option also supports
+        &#x2018;<code class="Li">+=</code>&#x2019; and
+        &#x2018;<code class="Li">-=</code>&#x2019; to add/remove flags instead
+        of replacing them.</p>
+    <p class="Pp">Note that the default of associating windows with the spawn
+        workspace and the <var class="Ar">xterm_fontadj</var> flag both rely on
+        <span class="Pa">libswmhack.so</span>. See the
+        <a class="Sx" href="#SWMHACK">SWMHACK</a> section below for more
+        information.</p>
+  </dd>
   <dt id="spawn_position"><a class="permalink" href="#spawn_position"><code class="Ic">spawn_position</code></a></dt>
   <dd>Position in stack to place newly spawned windows. Possible values are
       <var class="Ar">first</var>, <var class="Ar">next</var>,
@@ -778,12 +817,19 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
   <dd>Set a preferred minimum width for the terminal. If this value is greater
       than 0, <code class="Nm">spectrwm</code> will attempt to adjust the font
       sizes in the terminal to keep the terminal width above this number as the
-      window is resized. Only <a class="Xr">xterm(1)</a> is currently supported.
-      The <a class="Xr">xterm(1)</a> binary must not be setuid or setgid, which
-      it is by default on most systems. Users may need to set program[term] (see
-      the <a class="Sx" href="#PROGRAMS">PROGRAMS</a> section) to use an
-      alternate copy of the <a class="Xr">xterm(1)</a> binary without the setgid
-      bit set.</dd>
+      window is resized.
+    <p class="Pp">Note that only <a class="Xr">xterm(1)</a> is currently
+        supported. The terminal process must be spawned with the
+        <var class="Ar">xterm_fontadj</var> spawn flag and the
+        <var class="Ar">XTERM_FONTADJ</var> quirk must be set on its window. See
+        the <code class="Ic">spawn_flags</code> option and the
+        <a class="Sx" href="#QUIRKS">QUIRKS</a> section for more information. In
+        addition, the <a class="Xr">xterm(1)</a> binary must not be setuid or
+        setgid, which it is by default on most systems. Users may need to set
+        program[term] (see the <a class="Sx" href="#PROGRAMS">PROGRAMS</a>
+        section) to use an alternate copy of the <a class="Xr">xterm(1)</a>
+        binary without the setgid bit set.</p>
+  </dd>
   <dt id="tile_gap"><a class="permalink" href="#tile_gap"><code class="Ic">tile_gap</code></a></dt>
   <dd>Pixel width of empty space between tiled windows. Negative values cause
       overlap. Set this to the opposite of <code class="Ic">border_width</code>
@@ -1063,11 +1109,13 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
 <p class="Pp">With the exception of the default entries marked
     &#x201C;optional&#x201D;, validation is performed to ensure the program
     exists. If validation fails, the exception can be resolved by installing the
-    program, overriding the program, or disabling the program by freeing the
+    program, adding the <var class="Ar">optional</var> flag to the program
+    entry's spawn flags, or by disabling the program entry by freeing the
     respective binding.</p>
-<p class="Pp">For example, to override <code class="Ic">lock</code>:</p>
+<p class="Pp">For example, to add the <code class="Ic">optional</code> flag to
+    <code class="Ic">lock</code>:</p>
 <div class="Bd Pp Bd-indent Li">
-<pre>program[lock] = xscreensaver-command -lock</pre>
+<pre>spawn_flags[lock] += optional</pre>
 </div>
 <p class="Pp">To unbind <code class="Ic">lock</code> and prevent it from being
     validated:</p>
@@ -1633,8 +1681,10 @@ bind[move] = MOD+Button3</pre>
       workspaces and regions.</dd>
   <dt>XTERM_FONTADJ</dt>
   <dd>Adjust <a class="Xr">xterm(1)</a> fonts when resizing. Note that this
-      needs <span class="Pa">libswmhack.so</span> to work. See the
-      <a class="Sx" href="#SWMHACK">SWMHACK</a> section below.</dd>
+      requires the <var class="Ar">xterm_fontadj</var> spawn flag to be set on
+      the autorun/program entry when the program is spawned. See the
+      <code class="Ic">spawn_flags</code> option for information on how to
+      enable it.</dd>
 </dl>
 </div>
 <p class="Pp">Custom quirks in the configuration file are specified as
@@ -1770,12 +1820,13 @@ $ xprop -id $WINDOWID _NET_WM_NAME | grep -o &quot;\&quot;.*\&quot;&quot;</pre>
 </section>
 <section class="Sh">
 <h1 class="Sh" id="SWMHACK"><a class="permalink" href="#SWMHACK">SWMHACK</a></h1>
-<p class="Pp">When spawning a program via <code class="Ic">autorun</code> or a
-    binding, <code class="Nm">spectrwm</code> aims to place the program's
-    windows (if any) in its spawn workspace. To accomplish this
-    &quot;spawn-in-workspace&quot; behavior, <code class="Nm">spectrwm</code>
-    must determine the intended spawn workspace when managing a new window.
-    Since it cannot be done with X11 alone,
+<p class="Pp">When spawning a program via an <code class="Ic">autorun</code> or
+    <code class="Ic">program</code> entry without the
+    <var class="Ar">nospawnws</var> flag, <code class="Nm">spectrwm</code> aims
+    to place the program's windows (if any) in its spawn workspace. To
+    accomplish this &quot;spawn-in-workspace&quot; behavior,
+    <code class="Nm">spectrwm</code> must determine the intended spawn workspace
+    when managing a new window. Since it cannot be done with X11 alone,
     <span class="Pa">libswmhack.so</span> is included to make this feature
     possible.</p>
 <p class="Pp">When a program is spawned, <code class="Nm">spectrwm</code>
@@ -1833,11 +1884,28 @@ $ xprop -id $WINDOWID _NET_WM_NAME | grep -o &quot;\&quot;.*\&quot;&quot;</pre>
 quirk[XTerm:ws2] = WS[2]</pre>
 </div>
 <p class="Pp">If the &quot;spawn-in-workspace&quot; behavior is not desired, it
-    is possible to disable it globally by setting the
-    <span class="Pa">IGNORESPAWNWS</span> and <span class="Pa">IGNOREPID</span>
-    quirks for all windows:</p>
+    is possible to disable it before programs are spawned by setting the
+    <var class="Ar">nospawnws</var> spawn flag on spawn entries via the
+    <code class="Ic">spawn_flags</code> option:</p>
 <div class="Bd Pp Bd-indent Li">
-<pre>quirk[.*] += IGNORESPAWNWS + IGNOREPID</pre>
+<pre># Make 'nospawnws' the default for any autorun/program entries that are
+# added/replaced below this line in the configuration file:
+spawn_flags = nospawnws
+program[pcmanfm] = pcmanfm -n  # 'nospawnws' is set
+autorun = ws[1]:firefox        # ws[1] is ignored since 'nospawnws' is set
+program[lock] = xlock          # the replaced default entry has 'nospawnws' set
+
+# Add 'nospawnws' to an existing entry:
+spawn_flags[term] += nospawnws</pre>
+</div>
+<p class="Pp">Alternatively, the <span class="Pa">IGNORESPAWNWS</span> and
+    <span class="Pa">IGNOREPID</span> quirks can be applied to windows:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre># Disable spawn-in-workspace on PCManFM windows:
+quirk[Pcmanfm] = IGNORESPAWNWS
+
+# Disable spawn-in-workspace on all windows, including those spawned via autorun:
+quirk[.*] += IGNORESPAWNWS + IGNOREPID</pre>
 </div>
 <p class="Pp">Note that XCB programs that roll their own X11 requests (e.g.
     Chromium) are currently unsupported by
