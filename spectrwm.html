@@ -742,12 +742,14 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
       the pointer) to unsnap and float freely. Set to 0 to unsnap immediately.
       Default is 25.</dd>
   <dt id="spawn_flags"><a class="permalink" href="#spawn_flags"><code class="Ic">spawn_flags</code></a>[<var class="Ar">p</var>]</dt>
-  <dd>Change the spawn flags of <code class="Ic">program</code> entry
-      <var class="Ar">p</var>. If <var class="Ar">p</var> is omitted, changes
-      are applied to the default spawn flags for any
-      <code class="Ic">program</code> or <code class="Ic">autorun</code> entries
-      that come later in the configuration file. One or more of the following
-      flags may be specified in a comma-separated list:
+  <dd>If search pattern <var class="Ar">p</var> is specified, change the spawn
+      flags of existing program entries. If <var class="Ar">p</var> is omitted,
+      change the default spawn flags for any <code class="Ic">program</code> or
+      <code class="Ic">autorun</code> entries that come later in the
+      configuration file. Note that <var class="Ar">p</var> is interpreted as a
+      POSIX Extended Regular Expression.
+    <p class="Pp">One or more of the following flags may be specified in a
+        comma-separated list:</p>
     <p class="Pp"></p>
     <div class="Bd-indent">
     <dl class="Bl-tag Bl-compact">

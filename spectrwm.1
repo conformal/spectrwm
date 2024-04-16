@@ -841,17 +841,20 @@ pointer) to unsnap and float freely.
 Set to 0 to unsnap immediately.
 Default is 25.
 .It Ic spawn_flags Ns Bq Ar p
-Change the spawn flags of
-.Ic program
-entry
-.Ar p .
+If search pattern
+.Ar p
+is specified, change the spawn flags of existing program entries.
 If
 .Ar p
-is omitted, changes are applied to the default spawn flags for any
+is omitted, change the default spawn flags for any
 .Ic program
 or
 .Ic autorun
 entries that come later in the configuration file.
+Note that
+.Ar p
+is interpreted as a POSIX Extended Regular Expression.
+.Pp
 One or more of the following flags may be specified in a comma-separated list:
 .Pp
 .Bl -tag -width "markcurrentXXX" -offset indent -compact
