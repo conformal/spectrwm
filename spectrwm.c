@@ -3897,7 +3897,6 @@ bar_print_layout(struct swm_region *r)
 			fn = frag->font;
 			fg = frag->fg;
 			bg = frag->bg;
-			xf = r->s->bar_xftfonts[fn];
 
 			/* Paint background color of the text fragment  */
 			if (bg != 0) {
@@ -3920,6 +3919,7 @@ bar_print_layout(struct swm_region *r)
 				    - bsect[i].height) / 2 - bsect[i].ypos,
 				    frag->text, frag->length);
 			} else {
+				xf = r->s->bar_xftfonts[fn];
 				XftDrawStringUtf8(xft_draw, getcolorxft(r->s,
 				    fg_type, fg), xf, xpos, bar_border_width +
 				    (HEIGHT(r->bar) + xf->height) / 2
