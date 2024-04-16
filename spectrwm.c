@@ -11560,7 +11560,10 @@ setconfspawnflags(uint8_t asop, const char *selector, const char *value,
     int flags, char **emsg)
 {
 	struct spawn_prog	*sp = NULL;
-	unsigned int		sflags, *sf;
+	unsigned int		sflags;
+	char			*name;
+	regex_t			regex_name;
+	int			count;
 
 	/* Suppress warning. */
 	(void)flags;
@@ -11569,34 +11572,68 @@ setconfspawnflags(uint8_t asop, const char *selector, const char *value,
 	    emsg))
 		return (1);
 
-	if (selector && strlen(selector)) {
-		if ((sp = spawn_find(selector)) == NULL) {
-			ALLOCSTR(emsg, "invalid program: %s", selector);
+	/* If no selector, set default spawn flags. */
+	if (selector == NULL || strlen(selector) == 0) {
+		if (parse_spawn_flags(value, &sflags, emsg))
 			return (1);
+
+		switch (asop) {
+		case SWM_ASOP_ADD:
+			spawn_flags |= sflags;
+			break;
+		case SWM_ASOP_SUBTRACT:
+			spawn_flags &= ~sflags;
+			break;
+		case SWM_ASOP_BASIC:
+		default:
+			spawn_flags = sflags;
+			break;
 		}
 
-		DNPRINTF(SWM_D_KEY, "found [%s]\n", selector);
-		sf = &sp->flags;
-	} else
-		sf = &spawn_flags;
+		DNPRINTF(SWM_D_KEY, "set spawn_flags: %#x\n", spawn_flags);
+		return (0);
+	}
+
+	/* Otherwise, search for spawn entries and set their spawn flags. */
+	if (asprintf(&name, "^%s$", selector) == -1)
+		err(1, "setconfspawnflags: asprintf");
+
+	if (regcomp(&regex_name, name, REG_EXTENDED | REG_NOSUB)) {
+		ALLOCSTR(emsg, "invalid regex: %s", selector);
+		free(name);
+		return (1);
+	}
+	free(name);
 
 	if (parse_spawn_flags(value, &sflags, emsg))
 		return (1);
 
-	switch (asop) {
-	case SWM_ASOP_ADD:
-		*sf |= sflags;
-		break;
-	case SWM_ASOP_SUBTRACT:
-		*sf &= ~sflags;
-		break;
-	case SWM_ASOP_BASIC:
-	default:
-		*sf = sflags;
-		break;
+	count = 0;
+	TAILQ_FOREACH(sp, &spawns, entry) {
+		if (regexec(&regex_name, sp->name, 0, NULL, 0) == 0) {
+			switch (asop) {
+			case SWM_ASOP_ADD:
+				sp->flags |= sflags;
+				break;
+			case SWM_ASOP_SUBTRACT:
+				sp->flags &= ~sflags;
+				break;
+			case SWM_ASOP_BASIC:
+			default:
+				sp->flags = sflags;
+				break;
+			}
+
+			DNPRINTF(SWM_D_KEY, "set %s flags: %#x\n", sp->name,
+			    sp->flags);
+			count++;
+		}
 	}
 
-	DNPRINTF(SWM_D_KEY, "flags set to %#x\n", *sf);
+	if (count == 0) {
+		ALLOCSTR(emsg, "program entry not found: %s", selector);
+		return (1);
+	}
 
 	return (0);
 }
@@ -12765,8 +12802,8 @@ quirk_insert(const char *class, const char *instance, const char *name,
 	if (asprintf(&str, "^%s$", class) == -1)
 		err(1, "quirk_insert: asprintf");
 	if (regcomp(&qp->regex_class, str, REG_EXTENDED | REG_NOSUB)) {
-		add_startup_exception("regex failed to compile quirk 'class' "
-		    "field: %s", class);
+		add_startup_exception("invalid regex for 'class' field: %s",
+		    class);
 		failed = true;
 	}
 	DNPRINTF(SWM_D_QUIRK, "compiled: %s\n", str);
@@ -12775,8 +12812,8 @@ quirk_insert(const char *class, const char *instance, const char *name,
 	if (asprintf(&str, "^%s$", instance) == -1)
 		err(1, "quirk_insert: asprintf");
 	if (regcomp(&qp->regex_instance, str, REG_EXTENDED | REG_NOSUB)) {
-		add_startup_exception("regex failed to compile quirk 'instance'"
-		    " field: %s", instance);
+		add_startup_exception("invalid regex for 'instance' field: %s",
+		    class);
 		failed = true;
 	}
 	DNPRINTF(SWM_D_QUIRK, "compiled: %s\n", str);
@@ -12785,8 +12822,8 @@ quirk_insert(const char *class, const char *instance, const char *name,
 	if (asprintf(&str, "^%s$", name) == -1)
 		err(1, "quirk_insert: asprintf");
 	if (regcomp(&qp->regex_name, str, REG_EXTENDED | REG_NOSUB)) {
-		add_startup_exception("regex failed to compile quirk 'name' "
-		    "field: %s", name);
+		add_startup_exception("invalid regex for 'name' field: %s",
+		    class);
 		failed = true;
 	}
 	DNPRINTF(SWM_D_QUIRK, "compiled: %s\n", str);
