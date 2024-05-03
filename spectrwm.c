@@ -954,6 +954,7 @@ struct quirk {
 #define SWM_Q_IGNORESPAWNWS	(1 << 10)/* Ignore _SWM_WS when managing win. */
 #define SWM_Q_NOFOCUSCYCLE	(1 << 11)/* Remove from normal focus cycle. */
 #define SWM_Q_MINIMALBORDER	(1 << 12)/* No border when floating/unfocused.*/
+#define SWM_Q_MAXIMIZE		(1 << 13)/* Maximize window when mapped. */
 };
 TAILQ_HEAD(quirk_list, quirk) quirks = TAILQ_HEAD_INITIALIZER(quirks);
 
@@ -12716,6 +12717,7 @@ const char *quirkname[] = {
 	"IGNORESPAWNWS",
 	"NOFOCUSCYCLE",
 	"MINIMALBORDER",
+	"MAXIMIZE",
 };
 
 /* SWM_Q_DELIM: retain '|' for back compat for now (2009-08-11) */
@@ -14692,7 +14694,8 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	if (win->quirks & SWM_Q_ANYWHERE)
 		new_flags |= SWM_F_MANUAL;
 
-	if (win->maxstackmax && ws_maxstack(win->ws))
+	if (win->quirks & SWM_Q_MAXIMIZE ||
+	    (win->maxstackmax && ws_maxstack(win->ws)))
 		new_flags |= EWMH_F_MAXIMIZED;
 
 	ewmh_apply_flags(win, new_flags);
