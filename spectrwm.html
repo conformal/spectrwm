@@ -1882,10 +1882,17 @@ $ xprop -id $WINDOWID _NET_WM_NAME | grep -o &quot;\&quot;.*\&quot;&quot;</pre>
 <p class="Pp">In situations where <span class="Pa">libswmhack.so</span> cannot
     be used, it is possible to use a quirk to spawn a program in a specific
     workspace.</p>
-<p class="Pp">e.g. launch an xterm(1) in workspace 2 on startup:</p>
+<p class="Pp">e.g. launch an <a class="Xr">xterm(1)</a> in workspace 2 on
+    startup:</p>
 <div class="Bd Pp Bd-indent Li">
-<pre>autorun = ws[2]:xterm -name ws2
-quirk[XTerm:ws2] = WS[2]</pre>
+<pre>quirk[XTerm:ws2] += WS[2]
+autorun = ws[2]:xterm -name ws2</pre>
+</div>
+<p class="Pp">Launch a <a class="Xr">chromium(1)</a> window in workspace 3 on
+    startup:</p>
+<div class="Bd Pp Bd-indent Li">
+<pre>quirk[Chromium:chromium:ws3] += WS[3]
+autorun = ws[3]:chromium --window-name=&quot;ws3&quot; --new-window</pre>
 </div>
 <p class="Pp">If the &quot;spawn-in-workspace&quot; behavior is not desired, it
     is possible to disable it before programs are spawned by setting the

@@ -2204,10 +2204,20 @@ In situations where
 cannot be used, it is possible to use a quirk to spawn a program in a specific
 workspace.
 .Pp
-e.g. launch an xterm(1) in workspace 2 on startup:
+e.g. launch an
+.Xr xterm 1
+in workspace 2 on startup:
 .Bd -literal -offset indent
+quirk[XTerm:ws2] += WS[2]
 autorun = ws[2]:xterm -name ws2
-quirk[XTerm:ws2] = WS[2]
+.Ed
+.Pp
+Launch a
+.Xr chromium 1
+window in workspace 3 on startup:
+.Bd -literal -offset indent
+quirk[Chromium:chromium:ws3] += WS[3]
+autorun = ws[3]:chromium --window-name="ws3" --new-window
 .Ed
 .Pp
 If the "spawn-in-workspace" behavior is not desired, it is possible to disable
