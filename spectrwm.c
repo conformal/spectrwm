@@ -955,6 +955,7 @@ struct quirk {
 #define SWM_Q_NOFOCUSCYCLE	(1 << 11)/* Remove from normal focus cycle. */
 #define SWM_Q_MINIMALBORDER	(1 << 12)/* No border when floating/unfocused.*/
 #define SWM_Q_MAXIMIZE		(1 << 13)/* Maximize window when mapped. */
+#define SWM_Q_BELOW		(1 << 14)/* Put window below when mapped. */
 };
 TAILQ_HEAD(quirk_list, quirk) quirks = TAILQ_HEAD_INITIALIZER(quirks);
 
@@ -12718,6 +12719,7 @@ const char *quirkname[] = {
 	"NOFOCUSCYCLE",
 	"MINIMALBORDER",
 	"MAXIMIZE",
+	"BELOW",
 };
 
 /* SWM_Q_DELIM: retain '|' for back compat for now (2009-08-11) */
@@ -14690,6 +14692,9 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 
 	if (win->quirks & SWM_Q_FLOAT)
 		new_flags |= EWMH_F_ABOVE;
+
+	if (win->quirks & SWM_Q_BELOW)
+		new_flags |= EWMH_F_BELOW;
 
 	if (win->quirks & SWM_Q_ANYWHERE)
 		new_flags |= SWM_F_MANUAL;
