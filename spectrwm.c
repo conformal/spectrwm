@@ -956,6 +956,7 @@ struct quirk {
 #define SWM_Q_MINIMALBORDER	(1 << 12)/* No border when floating/unfocused.*/
 #define SWM_Q_MAXIMIZE		(1 << 13)/* Maximize window when mapped. */
 #define SWM_Q_BELOW		(1 << 14)/* Put window below when mapped. */
+#define SWM_Q_ICONIFY		(1 << 15)/* Put window below when mapped. */
 };
 TAILQ_HEAD(quirk_list, quirk) quirks = TAILQ_HEAD_INITIALIZER(quirks);
 
@@ -12720,6 +12721,7 @@ const char *quirkname[] = {
 	"MINIMALBORDER",
 	"MAXIMIZE",
 	"BELOW",
+	"ICONIFY",
 };
 
 /* SWM_Q_DELIM: retain '|' for back compat for now (2009-08-11) */
@@ -14695,6 +14697,9 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 
 	if (win->quirks & SWM_Q_BELOW)
 		new_flags |= EWMH_F_BELOW;
+
+	if (win->quirks & SWM_Q_ICONIFY)
+		new_flags |= EWMH_F_HIDDEN;
 
 	if (win->quirks & SWM_Q_ANYWHERE)
 		new_flags |= SWM_F_MANUAL;
