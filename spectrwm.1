@@ -799,14 +799,16 @@ Define new action to spawn a program
 See the
 .Sx PROGRAMS
 section below.
-.It Ic quirk Ns Bq Ar c Ns Bq : Ns Ar i Ns Bq : Ns Ar n
+.It Ic quirk Ns Bq Ar c Ns Bq : Ns Ar i Ns Bq : Ns Ar n Ns Bq : Ns Ar t
 Add "quirk" for windows with class
 .Ar c ,
 instance
 .Ar i
-(optional) and name
+(optional), name
 .Ar n
-(optional).
+(optional), and type
+.Ar t
+(optional.)
 See the
 .Sx QUIRKS
 section below.
@@ -1935,15 +1937,42 @@ option for information on how to enable it.
 .Pp
 Custom quirks in the configuration file are specified as follows:
 .Pp
-.Dl quirk Ns Bo Ar class Ns Bo : Ns Ar instance Ns Bo : Ns Ar name Bc Bc Bc \
-{=|+=|-=} Ar quirk Op + Ar quirk ...
+.Dl quirk Ns Bo Ar class Ns Bo : Ns Ar instance Ns Bo : Ns Ar name Ns Bo : Ns \
+Ar type Bc Bc Bc Bc {=|+=|-=} Ar quirk Op + Ar quirk ...
 .Pp
 .Ar class ,
 .Ar instance
-(optional) and
+(optional),
 .Ar name
-(optional) are patterns used to determine which window(s) the quirk(s) apply
-to and
+(optional), and
+.Ar type
+(optional) are used to determine which window(s) the quirk(s) apply to.
+.Ar class
+and
+.Ar instance
+are regex search patterns for the respective fields of the WM_CLASS window
+property.
+.Ar name
+is a regex search pattern for the window name (WM_NAME/_NET_WM_NAME.)
+.Ar type
+is a comma-separated list of zero or more of the following window types
+(_NET_WM_WINDOW_TYPE):
+.Ic desktop ,
+.Ic dock ,
+.Ic toolbar ,
+.Ic menu ,
+.Ic utility ,
+.Ic splash ,
+.Ic dialog ,
+.Ic dropdown_menu ,
+.Ic popup_menu ,
+.Ic tooltip ,
+.Ic notification ,
+.Ic combo ,
+.Ic dnd ,
+and
+.Ic normal .
+Leave this field blank to match any window type.
 .Ar quirk
 is one of the quirks from the list above.
 .Pp
