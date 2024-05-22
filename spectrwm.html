@@ -712,10 +712,10 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
   <dt id="program"><a class="permalink" href="#program"><code class="Ic">program</code></a>[<var class="Ar">p</var>]</dt>
   <dd>Define new action to spawn a program <var class="Ar">p</var>. See the
       <a class="Sx" href="#PROGRAMS">PROGRAMS</a> section below.</dd>
-  <dt id="quirk"><a class="permalink" href="#quirk"><code class="Ic">quirk</code></a>[<var class="Ar">c</var>[:<var class="Ar">i</var>[:<var class="Ar">n</var>]]]</dt>
+  <dt id="quirk"><a class="permalink" href="#quirk"><code class="Ic">quirk</code></a>[<var class="Ar">c</var>[:<var class="Ar">i</var>[:<var class="Ar">n</var>[:<var class="Ar">t</var>]]]]</dt>
   <dd>Add &quot;quirk&quot; for windows with class <var class="Ar">c</var>,
-      instance <var class="Ar">i</var> (optional) and name
-      <var class="Ar">n</var> (optional). See the
+      instance <var class="Ar">i</var> (optional), name <var class="Ar">n</var>
+      (optional), and type <var class="Ar">t</var> (optional.) See the
       <a class="Sx" href="#QUIRKS">QUIRKS</a> section below.</dd>
   <dt id="region"><a class="permalink" href="#region"><code class="Ic">region</code></a></dt>
   <dd>Allocates a custom region, removing any autodetected regions that occupy
@@ -1699,13 +1699,27 @@ bind[move] = MOD+Button3</pre>
   follows:</p>
 <p class="Pp"></p>
 <div class="Bd
-  Bd-indent"><code class="Li">quirk[<var class="Ar">class</var>[:<var class="Ar">instance</var>[:<var class="Ar">name</var>]]]
+  Bd-indent"><code class="Li">quirk[<var class="Ar">class</var>[:<var class="Ar">instance</var>[:<var class="Ar">name</var>[:<var class="Ar">type</var>]]]]
   {=|+=|-=} <var class="Ar">quirk</var> [+ <var class="Ar">quirk
   ...</var>]</code></div>
 <p class="Pp"><var class="Ar">class</var>, <var class="Ar">instance</var>
-    (optional) and <var class="Ar">name</var> (optional) are patterns used to
-    determine which window(s) the quirk(s) apply to and
-    <var class="Ar">quirk</var> is one of the quirks from the list above.</p>
+    (optional), <var class="Ar">name</var> (optional), and
+    <var class="Ar">type</var> (optional) are used to determine which window(s)
+    the quirk(s) apply to. <var class="Ar">class</var> and
+    <var class="Ar">instance</var> are regex search patterns for the respective
+    fields of the WM_CLASS window property. <var class="Ar">name</var> is a
+    regex search pattern for the window name (WM_NAME/_NET_WM_NAME.)
+    <var class="Ar">type</var> is a comma-separated list of zero or more of the
+    following window types (_NET_WM_WINDOW_TYPE):
+    <code class="Ic">desktop</code>, <code class="Ic">dock</code>,
+    <code class="Ic">toolbar</code>, <code class="Ic">menu</code>,
+    <code class="Ic">utility</code>, <code class="Ic">splash</code>,
+    <code class="Ic">dialog</code>, <code class="Ic">dropdown_menu</code>,
+    <code class="Ic">popup_menu</code>, <code class="Ic">tooltip</code>,
+    <code class="Ic">notification</code>, <code class="Ic">combo</code>,
+    <code class="Ic">dnd</code>, and <code class="Ic">normal</code>. Leave this
+    field blank to match any window type. <var class="Ar">quirk</var> is one of
+    the quirks from the list above.</p>
 <p class="Pp">When a window is managed, quirk entries are applied in the order
     specified in the configuration file. The assignment operator determines how
     the quirks are applied. When assigning quirks with
