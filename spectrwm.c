@@ -13038,6 +13038,14 @@ setconfquirk(uint8_t asop, const char *selector, const char *value, int flags,
 void
 setup_quirks(void)
 {
+	setquirk(".*", ".*", ".*", EWMH_WINDOW_TYPE_SPLASH |
+	    EWMH_WINDOW_TYPE_DIALOG, SWM_ASOP_BASIC, SWM_Q_FLOAT, -2);
+	setquirk(".*", ".*", ".*", EWMH_WINDOW_TYPE_TOOLBAR |
+	    EWMH_WINDOW_TYPE_UTILITY, SWM_ASOP_BASIC, SWM_Q_FLOAT |
+	    SWM_Q_ANYWHERE, -2);
+	setquirk(".*", ".*", ".*", EWMH_WINDOW_TYPE_NOTIFICATION,
+	    SWM_ASOP_BASIC, SWM_Q_FLOAT | SWM_Q_ANYWHERE | SWM_Q_MINIMALBORDER |
+	    SWM_Q_NOFOCUSONMAP, -2);
 	setquirk("MPlayer", "xv", ".*", 0, SWM_ASOP_BASIC,
 	    SWM_Q_FLOAT | SWM_Q_FULLSCREEN | SWM_Q_FOCUSPREV, -2);
 	setquirk("OpenOffice.org 3.2", "VCLSalFrame", ".*", 0,
@@ -14561,15 +14569,6 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	/* Must be after getting WM_HINTS and WM_PROTOCOLS. */
 	DNPRINTF(SWM_D_FOCUS, "input_model: %s\n",
 	    get_win_input_model_label(win));
-
-	/* Automatic quirks based on EWMH. */
-	if (WINSPLASH(win) || WINDIALOG(win))
-		win->quirks = SWM_Q_FLOAT;
-	if (WINTOOLBAR(win) || WINUTILITY(win))
-		win->quirks = SWM_Q_FLOAT | SWM_Q_ANYWHERE;
-	if (WINNOTIFY(win))
-		win->quirks = SWM_Q_FLOAT | SWM_Q_ANYWHERE |
-		    SWM_Q_MINIMALBORDER | SWM_Q_NOFOCUSONMAP;
 
 	/* Determine initial quirks. */
 	xcb_icccm_get_wm_class_reply(conn,

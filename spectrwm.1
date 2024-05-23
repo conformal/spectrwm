@@ -1837,6 +1837,12 @@ The default quirks are described below:
 .Pp
 .Bl -tag -width "OpenOffice.org N.M:VCLSalFrame<TAB>XXX" -offset indent \
 -compact
+.It .*:.*:.*:splash,dialog
+FLOAT
+.It .*:.*:.*:toolbar,utility
+FLOAT + ANYWHERE
+.It .*:.*:.*:notification
+FLOAT + ANYWHERE + MINIMALBORDER + NOFOCUSONMAP
 .It Firefox\-bin:firefox\-bin
 TRANSSZ
 .It Firefox:Dialog
@@ -2010,6 +2016,7 @@ without spaces.
 quirk[pcb:pcb] = NONE # Remove the default quirk entry.
 quirk[.*:ws10] += WS[10] # Force windows with a WM_CLASS name of 'ws10' to \
 workspace 10 without removing existing quirks.
+quirk[.*:.*:.*:splash,dialog] = FLOAT + ANYWHERE # Override default quirk entry.
 .Ed
 .Pp
 You can obtain

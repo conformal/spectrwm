@@ -1606,6 +1606,12 @@ bind[move] = MOD+Button3</pre>
 <p class="Pp"></p>
 <div class="Bd-indent">
 <dl class="Bl-tag Bl-compact">
+  <dt>.*:.*:.*:splash,dialog</dt>
+  <dd>FLOAT</dd>
+  <dt>.*:.*:.*:toolbar,utility</dt>
+  <dd>FLOAT + ANYWHERE</dd>
+  <dt>.*:.*:.*:notification</dt>
+  <dd>FLOAT + ANYWHERE + MINIMALBORDER + NOFOCUSONMAP</dd>
   <dt>Firefox-bin:firefox-bin</dt>
   <dd>TRANSSZ</dd>
   <dt>Firefox:Dialog</dt>
@@ -1740,7 +1746,8 @@ quirk[firefox:Navigator] = FLOAT # Float all Firefox browser windows.
 quirk[::Console] = FLOAT # Float windows with WM_CLASS not set and a window name of 'Console'.
 quirk[\[0-9\].*:.*:\[\[\:alnum\:\]\]*] = FLOAT # Float windows with WM_CLASS class beginning with a number, any WM_CLASS instance and a _NET_WM_NAME/WM_NAME either blank or containing alphanumeric characters without spaces.
 quirk[pcb:pcb] = NONE # Remove the default quirk entry.
-quirk[.*:ws10] += WS[10] # Force windows with a WM_CLASS name of 'ws10' to workspace 10 without removing existing quirks.</pre>
+quirk[.*:ws10] += WS[10] # Force windows with a WM_CLASS name of 'ws10' to workspace 10 without removing existing quirks.
+quirk[.*:.*:.*:splash,dialog] = FLOAT + ANYWHERE # Override default quirk entry.</pre>
 </div>
 <p class="Pp">You can obtain <var class="Ar">class</var>,
     <var class="Ar">instance</var> and <var class="Ar">name</var> by running
