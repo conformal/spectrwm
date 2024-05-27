@@ -558,7 +558,7 @@ char		*stack_mark_vertical = NULL;
 char		*stack_mark_vertical_flip = NULL;
 char		*stack_mark_horizontal = NULL;
 char		*stack_mark_horizontal_flip = NULL;
-size_t		 stack_mark_maxlen = 0;
+size_t		 stack_mark_maxlen = 1;	/* Start with null byte. */
 
 #define ROTATION_DEFAULT	(XCB_RANDR_ROTATION_ROTATE_0)
 #define ROTATION_VERT		(XCB_RANDR_ROTATION_ROTATE_0 |		       \
@@ -750,7 +750,7 @@ int			 layout_order_count = 0;
 #define SWM_H_SLICE		(32)
 #define SWM_V_SLICE		(32)
 
-#define SWM_FANCY_MAXLEN	8		/* Includes null byte. */
+#define SWM_FANCY_MAXLEN	(8)		/* Includes null byte. */
 
 /* define work spaces */
 struct workspace {
@@ -2004,7 +2004,8 @@ workspace_insert(struct swm_screen *s, int id)
 	ws->stacker_len = stack_mark_maxlen;
 	ws->stacker = calloc(ws->stacker_len, sizeof(char));
 	if (ws->stacker == NULL)
-		err(1, "setup_marks: calloc");
+		err(1, "workspace_insert: stacker calloc");
+	ws->stacker[0] = '\0';
 
 	for (i = 0; i < LENGTH(layouts); i++)
 		if (layouts[i].l_config != NULL)
@@ -5441,6 +5442,7 @@ setup_marks(void)
 			free(ws->stacker);
 			if ((ws->stacker = calloc(mlen, sizeof(char))) == NULL)
 				err(1, "setup_marks: calloc");
+			ws->stacker[0] = '\0';
 			ws->stacker_len = mlen;
 		}
 }
