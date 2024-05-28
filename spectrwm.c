@@ -9319,13 +9319,11 @@ ewmh_update_desktop_names(struct swm_screen *s)
 
 	p = name_list;
 	for (i = 0; i < workspace_limit; ++i) {
-		if ((ws = workspace_lookup(s, i))) {
-			if (ws->name) {
-				len = strlen(ws->name);
-				memcpy(p, ws->name, len);
-			} else
-				len = 0;
-		}
+		if ((ws = workspace_lookup(s, i)) && ws->name) {
+			len = strlen(ws->name);
+			memcpy(p, ws->name, len);
+		} else
+			len = 0;
 
 		p += len + 1;
 		tot += len + 1;
