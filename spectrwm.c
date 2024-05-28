@@ -533,7 +533,7 @@ XFontSetExtents	*bar_fs_extents;
 char		**bar_fontnames = NULL;
 int		 num_xftfonts = 0;
 char		*bar_fontname_pua = NULL;
-int		font_pua_index;
+int		 font_pua_index = 0;
 bool		 bar_font_legacy = true;
 char		*bar_fonts = NULL;
 XftColor	search_font_color;
@@ -1643,6 +1643,7 @@ void	 rawbuttonpress(xcb_input_raw_button_press_event_t *);
 #endif
 void	 refresh_stack(struct swm_screen *);
 int	 refresh_strut(struct swm_screen *);
+static int	 regcompopt(regex_t *, const char *);
 struct swm_region	*region_under(struct swm_screen *, int, int);
 void	 regionize(struct ws_win *, int, int);
 int	 reparent_window(struct ws_win *);
@@ -3331,6 +3332,7 @@ parse_color(struct swm_screen *s, const char *name, struct swm_color *color)
 			bb = lcr->visual_blue;
 			aa = 0xff;
 			valid = true;
+			free(lcr);
 		} else
 			warnx("color '%s' not found", name);
 	}
@@ -4664,6 +4666,9 @@ int
 get_character_font(struct swm_screen *s, FcChar32 c, int pref)
 {
 	int			i;
+
+	if (bar_font_legacy)
+		return (0);
 
 	/* Try special font for PUA codepoints. */
 	if (font_pua_index && s->bar_xftfonts[font_pua_index] &&
@@ -9319,13 +9324,11 @@ ewmh_update_desktop_names(struct swm_screen *s)
 
 	p = name_list;
 	for (i = 0; i < workspace_limit; ++i) {
-		if ((ws = workspace_lookup(s, i))) {
-			if (ws->name) {
-				len = strlen(ws->name);
-				memcpy(p, ws->name, len);
-			} else
-				len = 0;
-		}
+		if ((ws = workspace_lookup(s, i)) && ws->name) {
+			len = strlen(ws->name);
+			memcpy(p, ws->name, len);
+		} else
+			len = 0;
 
 		p += len + 1;
 		tot += len + 1;
@@ -9364,10 +9367,9 @@ ewmh_get_desktop_names(struct swm_screen *s)
 
 	for (i = 0, k = 0; i < n; ++i) {
 		if (*(names + i) != '\0') {
-			if ((ws = get_workspace(s, k))) {
+			if ((ws = get_workspace(s, k)))
 				ws->name = strdup(names + i);
-				i += strlen(names + i);
-			}
+			i += strlen(names + i);
 		}
 		++k;
 	}
@@ -11469,6 +11471,19 @@ asopcheck(uint8_t asop, uint8_t allowed, char **emsg)
 	return (0);
 }
 
+static int
+regcompopt(regex_t *preg, const char *regex) {
+	int	ret;
+	char	*str;
+
+	if (asprintf(&str, "^%s$", regex) == -1)
+		err(1, "regcompopt: asprintf");
+	ret = regcomp(preg, regex, REG_EXTENDED | REG_NOSUB);
+	free(str);
+
+	return (ret);
+}
+
 static char *
 cleanopt(char *str)
 {
@@ -11545,7 +11560,6 @@ setconfspawnflags(uint8_t asop, const char *selector, const char *value,
 {
 	struct spawn_prog	*sp = NULL;
 	unsigned int		sflags;
-	char			*name;
 	regex_t			regex_name;
 	int			count;
 
@@ -11579,15 +11593,10 @@ setconfspawnflags(uint8_t asop, const char *selector, const char *value,
 	}
 
 	/* Otherwise, search for spawn entries and set their spawn flags. */
-	if (asprintf(&name, "^%s$", selector) == -1)
-		err(1, "setconfspawnflags: asprintf");
-
-	if (regcomp(&regex_name, name, REG_EXTENDED | REG_NOSUB)) {
+	if (regcompopt(&regex_name, selector)) {
 		ALLOCSTR(emsg, "invalid regex: %s", selector);
-		free(name);
 		return (1);
 	}
-	free(name);
 
 	if (parse_spawn_flags(value, &sflags, emsg))
 		return (1);
@@ -11613,6 +11622,7 @@ setconfspawnflags(uint8_t asop, const char *selector, const char *value,
 			count++;
 		}
 	}
+	regfree(&regex_name);
 
 	if (count == 0) {
 		ALLOCSTR(emsg, "program entry not found: %s", selector);
@@ -12770,8 +12780,7 @@ quirk_insert(const char *class, const char *instance, const char *name,
     uint32_t type, uint8_t mode, uint32_t quirk, int ws)
 {
 	struct quirk		*qp;
-	char			*str;
-	bool			failed = false;
+	int			retc, reti, retn;
 
 	DNPRINTF(SWM_D_QUIRK, "class: %s, instance: %s, name: %s, type: %u, "
 	    "mode:%u, value: %u, ws: %d\n", class, instance, name, type, mode,
@@ -12787,39 +12796,28 @@ quirk_insert(const char *class, const char *instance, const char *name,
 	if ((qp->name = strdup(name)) == NULL)
 		err(1, "quirk_insert: strdup");
 
-	if (asprintf(&str, "^%s$", class) == -1)
-		err(1, "quirk_insert: asprintf");
-	if (regcomp(&qp->regex_class, str, REG_EXTENDED | REG_NOSUB)) {
+	if ((retc = regcompopt(&qp->regex_class, class)))
 		add_startup_exception("invalid regex for 'class' field: %s",
 		    class);
-		failed = true;
-	}
-	DNPRINTF(SWM_D_QUIRK, "compiled: %s\n", str);
-	free(str);
-
-	if (asprintf(&str, "^%s$", instance) == -1)
-		err(1, "quirk_insert: asprintf");
-	if (regcomp(&qp->regex_instance, str, REG_EXTENDED | REG_NOSUB)) {
+	if ((reti = regcompopt(&qp->regex_instance, instance)))
 		add_startup_exception("invalid regex for 'instance' field: %s",
-		    class);
-		failed = true;
-	}
-	DNPRINTF(SWM_D_QUIRK, "compiled: %s\n", str);
-	free(str);
-
-	if (asprintf(&str, "^%s$", name) == -1)
-		err(1, "quirk_insert: asprintf");
-	if (regcomp(&qp->regex_name, str, REG_EXTENDED | REG_NOSUB)) {
+		    instance);
+	if ((retn = regcompopt(&qp->regex_name, name)))
 		add_startup_exception("invalid regex for 'name' field: %s",
-		    class);
-		failed = true;
-	}
-	DNPRINTF(SWM_D_QUIRK, "compiled: %s\n", str);
-	free(str);
+		    name);
 
-	if (failed) {
+	if (retc || reti || retn) {
 		DNPRINTF(SWM_D_QUIRK, "regex error\n");
-		quirk_free(qp);
+		if (retc == 0)
+			regfree(&qp->regex_class);
+		if (reti == 0)
+			regfree(&qp->regex_instance);
+		if (retn == 0)
+			regfree(&qp->regex_name);
+		free(qp->class);
+		free(qp->instance);
+		free(qp->name);
+		free(qp);
 	} else {
 		qp->type = type;
 		qp->quirk = quirk;
@@ -17119,8 +17117,11 @@ setup_screens(void)
 			vtmpl.visualid = s->visual;
 			vlist = XGetVisualInfo(display, VisualIDMask, &vtmpl,
 			    &vcount);
-			if (vcount > 0)
-				s->xvisual = vlist[0].visual;
+			if (vlist) {
+				if (vcount > 0)
+					s->xvisual = vlist[0].visual;
+				XFree(vlist);
+			}
 
 			DNPRINTF(SWM_D_INIT, "Creating new colormap.\n");
 			s->colormap = xcb_generate_id(conn);
@@ -17508,13 +17509,17 @@ shutdown_cleanup(void)
 		/* Free region memory. */
 		while ((r = TAILQ_FIRST(&s->rl)) != NULL) {
 			TAILQ_REMOVE(&s->rl, r, entry);
+			free(r->bar->st);
 			free(r->bar);
+			free(r->st);
 			free(r);
 		}
 
 		while ((r = TAILQ_FIRST(&s->orl)) != NULL) {
 			TAILQ_REMOVE(&s->orl, r, entry);
+			free(r->bar->st);
 			free(r->bar);
+			free(r->st);
 			free(r);
 		}
 
@@ -17528,6 +17533,7 @@ shutdown_cleanup(void)
 		free(bar_fontnames);
 	}
 
+	free(bsect);
 	free(bar_fontname_pua);
 	free(bar_format);
 	free(bar_fonts);
@@ -17536,6 +17542,7 @@ shutdown_cleanup(void)
 	free(focus_mark_none);
 	free(focus_mark_normal);
 	free(focus_mark_floating);
+	free(focus_mark_free);
 	free(focus_mark_maximized);
 	free(stack_mark_floating);
 	free(stack_mark_max);
@@ -17555,10 +17562,12 @@ shutdown_cleanup(void)
 	if (bar_fs)
 		XFreeFontSet(display, bar_fs);
 
+	free(bar_argv[0]);
+
 	xcb_key_symbols_free(syms);
 	xcb_flush(conn);
 	xcb_aux_sync(conn);
-	xcb_disconnect(conn);
+	XCloseDisplay(display);
 }
 
 void
