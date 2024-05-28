@@ -22,8 +22,8 @@ endif
 
 BIN_CFLAGS   := -fPIE
 BIN_LDFLAGS  := -fPIE -pie
-BIN_CPPFLAGS := $(shell $(PKG_CONFIG) --cflags x11 x11-xcb xcb-icccm xcb-keysyms xcb-randr xcb-util xcb-xinput xcb-xtest xcursor fontconfig xft)
-BIN_LDLIBS   := $(shell $(PKG_CONFIG) --libs   x11 x11-xcb xcb-icccm xcb-keysyms xcb-randr xcb-util xcb-xinput xcb-xtest xcursor fontconfig xft)
+BIN_CPPFLAGS := $(shell $(PKG_CONFIG) --cflags libbsd-overlay x11 x11-xcb xcb-icccm xcb-keysyms xcb-randr xcb-util xcb-xinput xcb-xtest xcursor fontconfig xft)
+BIN_LDLIBS   := $(shell $(PKG_CONFIG) --libs   libbsd-overlay x11 x11-xcb xcb-icccm xcb-keysyms xcb-randr xcb-util xcb-xinput xcb-xtest xcursor fontconfig xft)
 LIB_CFLAGS   := -fPIC
 LIB_LDFLAGS  := -fPIC -shared
 LIB_CPPFLAGS := $(shell $(PKG_CONFIG) --cflags x11)
@@ -31,13 +31,10 @@ LIB_LDLIBS   := -ldl
 
 all: spectrwm libswmhack.so.$(LIBVERSION)
 
-spectrwm: spectrwm.o linux.o
+spectrwm: spectrwm.o
 	$(CC) $(MAINT_LDFLAGS) $(BIN_LDFLAGS) $(LDFLAGS) -o $@ $+ $(BIN_LDLIBS) $(LDLIBS)
 
 spectrwm.o: ../spectrwm.c ../version.h tree.h util.h queue_compat.h
-	$(CC) $(MAINT_CFLAGS) $(BIN_CFLAGS) $(CFLAGS) $(MAINT_CPPFLAGS) $(BIN_CPPFLAGS) $(CPPFLAGS) -c -o $@ $<
-
-linux.o: linux.c util.h queue_compat.h
 	$(CC) $(MAINT_CFLAGS) $(BIN_CFLAGS) $(CFLAGS) $(MAINT_CPPFLAGS) $(BIN_CPPFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 libswmhack.so.$(LIBVERSION): swm_hack.so
