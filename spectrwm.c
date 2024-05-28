@@ -7552,7 +7552,7 @@ focus(struct swm_screen *s, struct binding *bp, union arg *args)
 		head = cur_focus;
 		d = cws ? cws->idx : ws->idx;
 
-		for (i = 0; i <= workspace_limit; ++i) {
+		for (i = 0; i <= workspace_limit + 1; ++i) {
 			if (head == NULL) {
 				wws = workspace_lookup(s,
 				    (d + i + 1) % (workspace_limit + 1) - 1);
