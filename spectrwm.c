@@ -13876,6 +13876,7 @@ setlayout(uint8_t asop, const char *selector, const char *value, int flags,
 	struct workspace	*ws;
 	int			ws_id, i, x, mg, ma, si, ar, n;
 	int			st = SWM_V_STACK, num_screens;
+	uint16_t		rot;
 	bool			f = false;
 
 	/* suppress unused warnings since vars are needed */
@@ -13929,14 +13930,15 @@ setlayout(uint8_t asop, const char *selector, const char *value, int flags,
 			continue;
 
 		/* Set layout relative to default rotation. */
-		uint16_t rot = ws->rotation;
+		rot = ws->rotation;
 		rotatews(ws, ROTATION_DEFAULT);
 		ws->cur_layout = &layouts[st];
-		ws->cur_layout->l_config(ws, SWM_ARG_ID_STACKINIT);
-
 		ws->always_raise = (ar != 0);
-		if (st == SWM_MAX_STACK)
+
+		if (ws->cur_layout->l_config == NULL || st == SWM_MAX_STACK)
 			continue;
+
+		ws->cur_layout->l_config(ws, SWM_ARG_ID_STACKINIT);
 
 		/* master grow */
 		for (x = 0; x < abs(mg); x++) {
