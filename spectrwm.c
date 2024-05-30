@@ -8088,10 +8088,12 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 				cell.x += r_g.w - msize;
 			s = stacks;
 		} else {
-			msize = - 2 * border_width;
+			msize = -2 * border_width;
 			colno = split = winno / stacks;
 			cell.w = ((r_g.w - (stacks * 2 * border_width) +
 			    2 * border_width) / stacks);
+			if (flip)
+				cell.x += r_g.w - cell.w;
 			s = stacks - 1;
 		}
 
@@ -8132,8 +8134,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 				    stacks;
 
 			if (flip)
-				cell.x -= cell.w + 2 * border_width +
-				    tile_gap;
+				cell.x -= cell.w + 2 * border_width + tile_gap;
 			s--;
 			j = 0;
 		}
