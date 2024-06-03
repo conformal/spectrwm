@@ -237,26 +237,40 @@ preload_atoms_xlib(Display *dpy)
 		swmpid = get_atom_from_string_xlib(dpy, "_SWM_PID");
 }
 
-typedef uint32_t (XGIF)(xcb_connection_t *);
-uint32_t
-xcb_generate_id(xcb_connection_t *c)
+typedef void (XDF)(xcb_connection_t *);
+typedef xcb_connection_t *(XCAF)(const char *, xcb_auth_info_t *, int *);
+xcb_connection_t *
+xcb_connect_to_display_with_auth_info(const char *display,
+    xcb_auth_info_t *auth, int *screen)
 {
-	static XGIF		*xgif = NULL;
-	uint32_t		id;
+	static XCAF		*xcaf = NULL;
+	static XDF		*xdf = NULL;
+	xcb_connection_t	*c;
 	char			*e;
 
-	if (xgif == NULL) {
-		xgif = (XGIF *)xcbsym("xcb_generate_id", &e);
-		if (xgif == NULL) {
+	if (xcaf == NULL) {
+		xcaf =
+		    (XCAF *)xcbsym("xcb_connect_to_display_with_auth_info", &e);
+		if (xcaf == NULL) {
+			fprintf(stderr, "libswmhack.so: ERROR: %s\n", e);
+			exit(1);
+		}
+	}
+	if (xdf == NULL) {
+		xdf = (XDF *)xcbsym("xcb_disconnect", &e);
+		if (xdf == NULL) {
 			fprintf(stderr, "libswmhack.so: ERROR: %s\n", e);
 			exit(1);
 		}
 	}
 
+	/* Preload without affecting the initial sequence count. */
+	c = (*xcaf)(display, auth, screen);
 	preload_atoms_xcb(c);
-	id = (*xgif)(c);
+	(*xdf)(c);
 
-	return (id);
+	c = (*xcaf)(display, auth, screen);
+	return (c);
 }
 
 /* xcb_change_property */
