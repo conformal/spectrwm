@@ -16309,11 +16309,15 @@ clientmessage(xcb_client_message_event_t *e)
 			else {
 				set_attention(win);
 				update_bars(s);
+				return;
 			}
 		} else {
-			set_attention(win);
-			draw_frame(win);
-			update_bars(s);
+			if (s->focus != win) {
+				set_attention(win);
+				draw_frame(win);
+				update_bars(s);
+			}
+			return;
 		}
 	} else if (e->type == ewmh[_NET_CLOSE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_CLOSE_WINDOW\n");
