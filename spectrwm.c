@@ -16238,6 +16238,7 @@ clientmessage(xcb_client_message_event_t *e)
 	struct ws_win		*win;
 	uint32_t		vals[4];
 	xcb_map_request_event_t	mre;
+	bool			follow;
 
 	DNPRINTF(SWM_D_EVENT, "win %#x, atom: %s(%u)\n", e->window,
 	    get_atom_label(e->type), e->type);
@@ -16273,7 +16274,9 @@ clientmessage(xcb_client_message_event_t *e)
 		}
 		return;
 	}
+
 	s = win->s;
+	follow = (focus_mode == SWM_FOCUS_FOLLOW);
 
 	if (e->type == ewmh[_NET_ACTIVE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_ACTIVE_WINDOW, source_type: "
@@ -16442,9 +16445,10 @@ clientmessage(xcb_client_message_event_t *e)
 	} else if (e->type == ewmh[_NET_WM_MOVERESIZE].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_WM_MOVERESIZE\n");
 		moveresize_win(win, e);
+		follow = true;
 	}
 
-	if (focus_mode != SWM_FOCUS_FOLLOW) {
+	if (!follow) {
 		update_focus(s);
 		center_pointer(s->r_focus);
 	}
