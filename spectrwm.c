@@ -328,9 +328,21 @@ uint32_t		swm_debug = 0
 #define SWM_CW_TOP		(0x80)
 #define SWM_CW_ALLSIDES		(0xf0)
 
-#define SWM_FOCUS_DEFAULT	(0)
-#define SWM_FOCUS_FOLLOW	(1)
-#define SWM_FOCUS_MANUAL	(2)
+#define SWM_FOCUS_TYPE_STARTUP		(1 << 0)
+#define SWM_FOCUS_TYPE_BORDER		(1 << 1)
+#define SWM_FOCUS_TYPE_LAYOUT		(1 << 2)
+#define SWM_FOCUS_TYPE_MAP		(1 << 3)
+#define SWM_FOCUS_TYPE_UNMAP		(1 << 4)
+#define SWM_FOCUS_TYPE_ICONIFY		(1 << 5)
+#define SWM_FOCUS_TYPE_UNICONIFY	(1 << 6)
+#define SWM_FOCUS_TYPE_CONFIGURE	(1 << 7)
+#define SWM_FOCUS_TYPE_MOVE		(1 << 8)
+#define SWM_FOCUS_TYPE_WORKSPACE	(1 << 9)
+#define SWM_FOCUS_TYPE_ALL		((1 << 10) - 1)
+
+#define SWM_FOCUS_MODE_DEFAULT	(SWM_FOCUS_TYPE_BORDER)
+#define SWM_FOCUS_MODE_FOLLOW	(SWM_FOCUS_TYPE_ALL)
+#define SWM_FOCUS_MODE_MANUAL	(0)
 
 #define SWM_COUNT_TILED		(1 << 0)
 #define SWM_COUNT_FLOATING	(1 << 1)
@@ -514,7 +526,7 @@ bool		 window_instance_enabled = false;
 bool		 window_name_enabled = false;
 bool		 click_to_raise = true;
 uint32_t	 workspace_indicator = SWM_WSI_DEFAULT;
-int		 focus_mode = SWM_FOCUS_DEFAULT;
+unsigned int	 focus_mode = SWM_FOCUS_MODE_DEFAULT;
 int		 focus_close = SWM_STACK_BELOW;
 bool		 focus_close_wrap = true;
 int		 focus_default = SWM_STACK_TOP;
@@ -1481,8 +1493,8 @@ int	 enable_wm(void);
 void	 enternotify(xcb_enter_notify_event_t *);
 void	 event_error(xcb_generic_error_t *);
 void	 event_handle(xcb_generic_event_t *);
-uint32_t	 ewmh_apply_flags(struct ws_win *, uint32_t);
-void	 ewmh_change_wm_state(struct ws_win *, xcb_atom_t, long);
+static uint32_t	 ewmh_apply_flags(struct ws_win *, uint32_t);
+static uint32_t	 ewmh_change_wm_state(struct ws_win *, xcb_atom_t, long);
 void	 ewmh_get_desktop_names(struct swm_screen *);
 void	 ewmh_get_strut(struct ws_win *);
 void	 ewmh_get_window_type(struct ws_win *);
@@ -1520,7 +1532,8 @@ void	 focus_window_region(xcb_window_t);
 void	 focusin(xcb_focus_in_event_t *);
 static void	 focusout(xcb_focus_out_event_t *);
 void	 focusrg(struct swm_screen *, struct binding *, union arg *);
-static bool	 follow_pointer(struct swm_screen *);
+static bool	 follow_mode(unsigned int);
+static bool	 follow_pointer(struct swm_screen *, unsigned int);
 int	 fontset_init(void);
 static void	 freecolortype(struct swm_screen *, int);
 void	 free_toggle(struct swm_screen *, struct binding *, union arg *);
@@ -1609,6 +1622,7 @@ void	 name_workspace(struct swm_screen *, struct binding *, union arg *);
 void	 new_region(struct swm_screen *, int16_t, int16_t, uint16_t, uint16_t,
 	     uint16_t);
 int	 parse_color(struct swm_screen *, const char *, struct swm_color *);
+static int	 parse_focus_types(const char *, uint32_t *, char **);
 int	 parse_rgb(const char *, uint16_t *, uint16_t *, uint16_t *);
 int	 parse_rgba(const char *, uint16_t *, uint16_t *, uint16_t *,
 	     uint16_t *);
@@ -1733,7 +1747,8 @@ void	 store_float_geom(struct ws_win *);
 char	*strdupsafe(const char *);
 static int32_t	 strtoint32(const char *, int32_t, int32_t, int *);
 void	 swapwin(struct swm_screen *, struct binding *, union arg *);
-void	 switch_workspace(struct swm_region *, struct workspace *, bool);
+static void	 switch_workspace(struct swm_region *, struct workspace *, bool,
+		     bool);
 void	 switchlayout(struct swm_screen *, struct binding *, union arg *);
 void	 switchws(struct swm_screen *, struct binding *, union arg *);
 void	 teardown_ewmh(void);
@@ -1920,6 +1935,12 @@ static bool
 ws_root(struct workspace *ws)
 {
 	return (ws && ws->s->r->ws == ws);
+}
+
+static bool
+follow_mode(unsigned int type)
+{
+	return (focus_mode & type);
 }
 
 static xcb_window_t
@@ -2551,11 +2572,12 @@ ewmh_update_actions(struct ws_win *win)
 #define _NET_WM_STATE_ADD	1    /* add/set property */
 #define _NET_WM_STATE_TOGGLE	2    /* toggle property */
 
-void
+static uint32_t
 ewmh_change_wm_state(struct ws_win *win, xcb_atom_t state, long action)
 {
 	uint32_t		flag = 0;
 	uint32_t		new_flags;
+	uint32_t		ret = 0;
 
 	DNPRINTF(SWM_D_PROP, "win %#x, state: %s(%u), " "action: %ld\n",
 	    WINID(win), get_atom_label(state), state, action);
@@ -2601,13 +2623,13 @@ ewmh_change_wm_state(struct ws_win *win, xcb_atom_t state, long action)
 		break;
 	}
 
-	ewmh_apply_flags(win, new_flags);
-
+	ret = ewmh_apply_flags(win, new_flags);
 out:
 	DNPRINTF(SWM_D_PROP, "done\n");
+	return (ret);
 }
 
-uint32_t
+static uint32_t
 ewmh_apply_flags(struct ws_win *win, uint32_t pending)
 {
 	uint32_t		changed;
@@ -5873,11 +5895,11 @@ restart(struct swm_screen *s, struct binding *bp, union arg *args)
 }
 
 static bool
-follow_pointer(struct swm_screen *s)
+follow_pointer(struct swm_screen *s, unsigned int type)
 {
 	bool	result;
 
-	result = (focus_mode == SWM_FOCUS_FOLLOW && s->r_focus &&
+	result = (follow_mode(type) && s->r_focus &&
 	    !ws_maponfocus(s->r_focus->ws) &&
 	    s->r_focus == get_pointer_region(s));
 	DNPRINTF(SWM_D_FOCUS, "%s\n", YESNO(result));
@@ -6405,9 +6427,6 @@ focus_follow(struct swm_screen *s, struct swm_region *r, struct ws_win *win)
 	struct swm_region	*rr;
 
 	/* Try to focus pointer, otherwise window, otherwise region. */
-	if (focus_mode != SWM_FOCUS_FOLLOW)
-		return;
-
 	if (win && (validate_win(win) || win->ws->r != r))
 		win = NULL;
 
@@ -6778,8 +6797,9 @@ rotatews(struct workspace *ws, uint16_t rot)
 	ws->rotation = rot;
 }
 
-void
-switch_workspace(struct swm_region *r, struct workspace *ws, bool noclamp)
+static void
+switch_workspace(struct swm_region *r, struct workspace *ws, bool noclamp,
+    bool follow)
 {
 	struct swm_screen	*s;
 	struct swm_region	*other_r;
@@ -6872,12 +6892,13 @@ switch_workspace(struct swm_region *r, struct workspace *ws, bool noclamp)
 	ewmh_update_current_desktop(s);
 	ewmh_update_number_of_desktops(s);
 
-	if (focus_mode != SWM_FOCUS_FOLLOW)
+	if (!follow)
 		update_focus(s);
 
 	center_pointer(r);
 	flush();
-	focus_follow(s, r, NULL);
+	if (follow)
+		focus_follow(s, r, NULL);
 
 	DNPRINTF(SWM_D_WS, "done\n");
 }
@@ -6896,7 +6917,7 @@ switchws(struct swm_screen *s, struct binding *bp, union arg *args)
 		return;
 
 	r = get_current_region(s);
-	switch_workspace(r, ws, false);
+	switch_workspace(r, ws, false, follow_mode(SWM_FOCUS_TYPE_WORKSPACE));
 	DNPRINTF(SWM_D_WS, "done\n");
 }
 
@@ -7013,7 +7034,8 @@ cyclews(struct swm_screen *s, struct binding *bp, union arg *args)
 			center_pointer(nws->r);
 			flush();
 		} else {
-			switch_workspace(r, nws, false);
+			switch_workspace(r, nws, false,
+			    follow_mode(SWM_FOCUS_TYPE_WORKSPACE));
 		}
 	}
 
@@ -7068,7 +7090,8 @@ emptyws(struct swm_screen *s, struct binding *bp, union arg *args)
 		transfer_win(win, ws);
 		/* FALLTHROUGH */
 	case SWM_ARG_ID_WS_EMPTY:
-		switch_workspace(r, ws, false);
+		switch_workspace(r, ws, false,
+		    follow_mode(SWM_FOCUS_TYPE_WORKSPACE));
 		break;
 	default:
 		DNPRINTF(SWM_D_FOCUS, "invalid id: %d\n", args->id);
@@ -7096,7 +7119,8 @@ priorws(struct swm_screen *s, struct binding *bp, union arg *args)
 	if (r->ws_prior == NULL)
 		return;
 
-	switch_workspace(r, r->ws_prior, false);
+	switch_workspace(r, r->ws_prior, false,
+	    follow_mode(SWM_FOCUS_TYPE_WORKSPACE));
 	DNPRINTF(SWM_D_FOCUS, "done\n");
 }
 
@@ -7166,7 +7190,8 @@ cyclerg(struct swm_screen *s, struct binding *bp, union arg *args)
 		break;
 	case SWM_ARG_ID_CYCLERG_MOVE_UP:
 	case SWM_ARG_ID_CYCLERG_MOVE_DOWN:
-		switch_workspace(r, rr->ws, true);
+		switch_workspace(r, rr->ws, true,
+		    follow_mode(SWM_FOCUS_TYPE_WORKSPACE));
 		break;
 	default:
 		return;
@@ -7580,7 +7605,7 @@ focus(struct swm_screen *s, struct binding *bp, union arg *args)
 
 		/* Switch ws if new focus is on a different ws. */
 		if (winfocus && winfocus->ws != ws && !ws_root(winfocus->ws))
-			switch_workspace(r, winfocus->ws, false);
+			switch_workspace(r, winfocus->ws, false, false);
 		break;
 	case SWM_ARG_ID_FOCUSFREE:
 		if (s->focus && win_free(s->focus)) {
@@ -7742,7 +7767,8 @@ switchlayout(struct swm_screen *s, struct binding *bp, union arg *args)
 	center_pointer(r);
 
 	flush();
-	focus_follow(s, r, NULL);
+	if (follow_mode(SWM_FOCUS_TYPE_LAYOUT))
+		focus_follow(s, r, NULL);
 out:
 	DNPRINTF(SWM_D_FOCUS, "done\n");
 }
@@ -8498,7 +8524,7 @@ transfer_win(struct ws_win *win, struct workspace *ws)
 
 	DNPRINTF(SWM_D_MOVE, "win %#x, id: %d\n", win->id, ws->idx);
 
-	follow = follow_pointer(s);
+	follow = follow_pointer(s, SWM_FOCUS_TYPE_MOVE);
 
 	if (win_free(win))
 		win->ewmh_flags |= EWMH_F_ABOVE;
@@ -8838,6 +8864,7 @@ iconify(struct swm_screen *s, struct binding *bp, union arg *args)
 {
 	struct swm_region	*r;
 	struct ws_win		*win, *nfw;
+	bool			follow;
 
 	/* Suppress warning. */
 	(void)bp;
@@ -8858,19 +8885,21 @@ iconify(struct swm_screen *s, struct binding *bp, union arg *args)
 		nfw = get_focus_magic(get_ws_focus(r->ws));
 	}
 
-	if (focus_mode != SWM_FOCUS_FOLLOW && nfw)
+	follow = follow_mode(SWM_FOCUS_TYPE_ICONIFY);
+	if (!follow && nfw)
 		set_focus(s, get_focus_magic(nfw));
 
 	refresh_strut(s);
 	stack(win->ws->r);
 	update_mapping(s);
-	if (focus_mode != SWM_FOCUS_FOLLOW) {
+	if (!follow) {
 		update_focus(win->s);
 		center_pointer(win->ws->r);
 	}
 
 	flush(); /* win can be freed. */
-	focus_follow(s, s->r_focus, nfw);
+	if (follow)
+		focus_follow(s, s->r_focus, nfw);
 }
 
 char *
@@ -9206,6 +9235,7 @@ search_resp_uniconify(const char *resp, size_t len)
 	struct ws_win		*win;
 	struct swm_screen	*s;
 	char			*str;
+	bool			follow;
 
 	DNPRINTF(SWM_D_MISC, "resp: %s\n", resp);
 	if (search_r == NULL)
@@ -9251,7 +9281,8 @@ search_resp_uniconify(const char *resp, size_t len)
 		ewmh_update_wm_state(win);
 
 		set_focus_redirect(win);
-		if (focus_mode != SWM_FOCUS_FOLLOW)
+		follow = follow_mode(SWM_FOCUS_TYPE_UNICONIFY);
+		if (!follow)
 			set_focus(s, get_focus_magic(win));
 
 		apply_unfocus(win->ws, win);
@@ -9261,13 +9292,14 @@ search_resp_uniconify(const char *resp, size_t len)
 		stack(win->ws->r);
 		update_mapping(s);
 
-		if (focus_mode != SWM_FOCUS_FOLLOW) {
+		if (!follow) {
 			update_focus(s);
 			center_pointer(win->ws->r);
 		}
 
 		flush(); /* win can be freed. */
-		focus_follow(s, s->r_focus, win);
+		if (follow)
+			focus_follow(s, s->r_focus, win);
 
 		if (validate_win(win) == 0) {
 			draw_frame(win);
@@ -9501,7 +9533,8 @@ search_resp_search_workspace(const char *resp)
 
 	ws = get_workspace(search_r->s, ws_idx);
 	if (ws)
-		switch_workspace(search_r, ws, false);
+		switch_workspace(search_r, ws, false,
+		    follow_mode(SWM_FOCUS_TYPE_WORKSPACE));
 }
 
 void
@@ -9788,14 +9821,15 @@ maximize_toggle(struct swm_screen *s, struct binding *bp, union arg *args)
 	stack(win->ws->r);
 	update_mapping(s);
 
-	follow = follow_pointer(s);
+	follow = follow_pointer(s, SWM_FOCUS_TYPE_CONFIGURE);
 	if (!follow && win_focused(win)) {
 		focus_win(s, win);
 		center_pointer(win->ws->r);
 	}
 
 	flush();
-	focus_follow(s, r, NULL);
+	if (follow_mode(SWM_FOCUS_TYPE_CONFIGURE))
+		focus_follow(s, r, NULL);
 
 	DNPRINTF(SWM_D_MISC, "done\n");
 }
@@ -9806,6 +9840,7 @@ floating_toggle(struct swm_screen *s, struct binding *bp, union arg *args)
 	struct swm_region	*r;
 	struct ws_win		*win;
 	uint32_t		newf;
+	bool			follow;
 
 	/* Suppress warnings. */
 	(void)bp;
@@ -9847,12 +9882,14 @@ floating_toggle(struct swm_screen *s, struct binding *bp, union arg *args)
 	stack(r);
 	update_mapping(s);
 
-	if (focus_mode != SWM_FOCUS_FOLLOW && win_focused(win))
+	follow = follow_mode(SWM_FOCUS_TYPE_CONFIGURE);
+	if (!follow && win_focused(win))
 		focus_win(s, win);
 
 	center_pointer(r);
 	flush();
-	focus_follow(s, r, NULL);
+	if (follow)
+		focus_follow(s, r, NULL);
 
 	DNPRINTF(SWM_D_MISC, "done\n");
 }
@@ -12963,6 +13000,105 @@ parse_window_type(const char *str, uint32_t *flags, char **emsg)
 	return (0);
 }
 
+struct focus_type {
+	char		*name;
+	unsigned int	mask;
+} focustypes[] = {
+	{"startup",		SWM_FOCUS_TYPE_STARTUP},
+	{"border",		SWM_FOCUS_TYPE_BORDER},
+	{"layout",		SWM_FOCUS_TYPE_LAYOUT},
+	{"map",			SWM_FOCUS_TYPE_MAP},
+	{"unmap",		SWM_FOCUS_TYPE_UNMAP},
+	{"iconify",		SWM_FOCUS_TYPE_ICONIFY},
+	{"uniconify",		SWM_FOCUS_TYPE_UNICONIFY},
+	{"configure",		SWM_FOCUS_TYPE_CONFIGURE},
+	{"move",		SWM_FOCUS_TYPE_MOVE},
+	{"workspace",		SWM_FOCUS_TYPE_WORKSPACE},
+};
+
+static int
+parse_focus_types(const char *str, uint32_t *ftypes, char **emsg)
+{
+	char			*tmp, *cp, *name;
+	int			i, count;
+
+	if (str == NULL || ftypes == NULL)
+		return (1);
+
+	if ((cp = tmp = strdup(str)) == NULL)
+		err(1, "parse_focus_types: strdup");
+
+	*ftypes = 0;
+	count = 0;
+	while ((name = strsep(&cp, SWM_CONF_DELIMLIST)) != NULL) {
+		name = cleanopt(name);
+		if (*name == '\0')
+			continue;
+
+		for (i = 0; i < LENGTH(focustypes); i++) {
+			if (strcmp(name, focustypes[i].name) == 0) {
+				DNPRINTF(SWM_D_CONF, "flag: [%s]\n", name);
+				*ftypes |= focustypes[i].mask;
+				break;
+			}
+		}
+		if (i >= LENGTH(focustypes)) {
+			ALLOCSTR(emsg, "invalid focus type: %s", name);
+			DNPRINTF(SWM_D_CONF, "invalid focus type: [%s]\n",
+			    name);
+			free(tmp);
+			return (1);
+		}
+		count++;
+	}
+
+	if (count == 0) {
+		ALLOCSTR(emsg, "missing focus type");
+		free(tmp);
+		return(1);
+	}
+
+	free(tmp);
+	return (0);
+}
+
+static int
+setconffocusmode(uint8_t asop, const char *selector, const char *value,
+    int flags, char **emsg)
+{
+	unsigned int		ftypes, fmode;
+
+	/* Suppress warning. */
+	(void)flags;
+
+	if (asopcheck(asop, SWM_ASOP_BASIC, emsg))
+		return (1);
+
+	if (selector && strlen(selector)) {
+		ftypes = 0;
+		if (parse_focus_types(selector, &ftypes, emsg))
+			return (1);
+	} else
+		ftypes = SWM_FOCUS_TYPE_ALL;
+
+	if (strcmp(value, "default") == 0)
+		fmode = SWM_FOCUS_MODE_DEFAULT;
+	else if (strcmp(value, "follow") == 0 ||
+			strcmp(value, "follow_cursor") == 0)
+		fmode = SWM_FOCUS_MODE_FOLLOW;
+	else if (strcmp(value, "manual") == 0)
+		fmode = SWM_FOCUS_MODE_MANUAL;
+	else {
+		ALLOCSTR(emsg, "invalid focus mode value: %s", value);
+		return (1);
+	}
+
+	focus_mode = (focus_mode & ~ftypes) | (fmode & ftypes);
+	DNPRINTF(SWM_D_MISC, "focus_mode = %d\n", focus_mode);
+
+	return (0);
+}
+
 int
 setconfquirk(uint8_t asop, const char *selector, const char *value, int flags,
     char **emsg)
@@ -13103,7 +13239,6 @@ enum {
 	SWM_S_FOCUS_CLOSE,
 	SWM_S_FOCUS_CLOSE_WRAP,
 	SWM_S_FOCUS_DEFAULT,
-	SWM_S_FOCUS_MODE,
 	SWM_S_FULLSCREEN_HIDE_OTHER,
 	SWM_S_FULLSCREEN_UNFOCUS,
 	SWM_S_ICONIC_ENABLED,
@@ -13293,19 +13428,6 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 			focus_default = SWM_STACK_TOP;
 		else if (strcmp(value, "first") == 0)
 			focus_default = SWM_STACK_BOTTOM;
-		else {
-			ALLOCSTR(emsg, "invalid value: %s", value);
-			return (1);
-		}
-		break;
-	case SWM_S_FOCUS_MODE:
-		if (strcmp(value, "default") == 0)
-			focus_mode = SWM_FOCUS_DEFAULT;
-		else if (strcmp(value, "follow") == 0 ||
-		    strcmp(value, "follow_cursor") == 0)
-			focus_mode = SWM_FOCUS_FOLLOW;
-		else if (strcmp(value, "manual") == 0)
-			focus_mode = SWM_FOCUS_MANUAL;
 		else {
 			ALLOCSTR(emsg, "invalid value: %s", value);
 			return (1);
@@ -14024,7 +14146,7 @@ struct config_option configopt[] = {
 	{ "focus_close",		setconfvalue,	SWM_S_FOCUS_CLOSE },
 	{ "focus_close_wrap",		setconfvalue,	SWM_S_FOCUS_CLOSE_WRAP },
 	{ "focus_default",		setconfvalue,	SWM_S_FOCUS_DEFAULT },
-	{ "focus_mode",			setconfvalue,	SWM_S_FOCUS_MODE },
+	{ "focus_mode",			setconffocusmode,0 },
 	{ "fullscreen_hide_other",	setconfvalue,	SWM_S_FULLSCREEN_HIDE_OTHER },
 	{ "fullscreen_unfocus",		setconfvalue,	SWM_S_FULLSCREEN_UNFOCUS },
 	{ "iconic_enabled",		setconfvalue,	SWM_S_ICONIC_ENABLED },
@@ -15063,7 +15185,7 @@ focusin(xcb_focus_in_event_t *e)
 		else
 			s = find_screen(e->event);
 
-		if (s && !follow_pointer(s)) {
+		if (s && !follow_pointer(s, SWM_FOCUS_TYPE_BORDER)) {
 			win = s->focus;
 			if (win == NULL && s->r_focus)
 				win = get_focus_magic(
@@ -15457,7 +15579,7 @@ configurerequest(xcb_configure_request_event_t *e)
 				xcb_window_t wid = pointer_window;
 				update_floater(win);
 				flush();
-				if (focus_mode == SWM_FOCUS_FOLLOW &&
+				if (follow_mode(SWM_FOCUS_TYPE_CONFIGURE) &&
 				    pointer_window != wid) {
 					focus_window(pointer_window);
 					xcb_flush(conn);
@@ -15525,7 +15647,7 @@ destroynotify(xcb_destroy_notify_event_t *e)
 	ws = win->ws;
 	win->id = XCB_WINDOW_NONE;
 
-	follow = follow_pointer(s);
+	follow = follow_pointer(s, SWM_FOCUS_TYPE_UNMAP);
 
 	if (win == ws->focus)
 		ws->focus = get_focus_magic(get_focus_other(win));
@@ -15699,7 +15821,7 @@ get_wm_state_label(uint32_t state)
 void
 enternotify(xcb_enter_notify_event_t *e)
 {
-	struct ws_win		*win;
+	struct ws_win		*win = NULL;
 
 	event_time = e->time;
 	pointer_window = e->event;
@@ -15712,13 +15834,8 @@ enternotify(xcb_enter_notify_event_t *e)
 	    e->root_y, e->child, YESNO(e->same_screen_focus),
 	    get_state_mask_label(e->state), e->state);
 
-	if (focus_mode == SWM_FOCUS_MANUAL) {
+	if (!follow_mode(SWM_FOCUS_TYPE_BORDER)) {
 		DNPRINTF(SWM_D_EVENT, "ignore; manual focus\n");
-		return;
-	} else if (focus_mode != SWM_FOCUS_FOLLOW &&
-	    e->mode == XCB_NOTIFY_MODE_UNGRAB &&
-	    e->detail != XCB_NOTIFY_DETAIL_ANCESTOR) {
-		DNPRINTF(SWM_D_EVENT, "ignore; ungrab\n");
 		return;
 	}
 
@@ -15734,18 +15851,20 @@ enternotify(xcb_enter_notify_event_t *e)
 		if (e->detail == XCB_NOTIFY_DETAIL_INFERIOR) {
 			DNPRINTF(SWM_D_EVENT, "ignore; enter from inferior\n");
 			return;
-		} else if (e->detail == XCB_NOTIFY_DETAIL_ANCESTOR) {
-			/* Only handle enternotify on frame. */
-			win = find_window(e->event);
-			if (win && e->event != win->frame) {
-				DNPRINTF(SWM_D_EVENT, "ignore; enter client "
-				    "from ancestor\n");
-				return;
-			}
+		}
+
+		win = find_window(e->event);
+
+		/* Only handle enternotify on frame. */
+		if (win && e->event != win->frame &&
+		    e->detail == XCB_NOTIFY_DETAIL_ANCESTOR) {
+			DNPRINTF(SWM_D_EVENT, "ignore; enter client from "
+			    "ancestor\n");
+			return;
 		}
 	}
 
-	if ((win = find_window(e->event)) && win_free(win)) {
+	if (win && win_free(win)) {
 		set_region(get_pointer_region(win->s));
 		focus_win(win->s, get_focus_magic(win));
 	} else
@@ -15955,7 +16074,7 @@ maprequest(xcb_map_request_event_t *e)
 	ws = win->ws;
 	win->mapped = false;
 
-	follow = follow_pointer(s);
+	follow = follow_pointer(s, SWM_FOCUS_TYPE_MAP);
 	/* Set new focus unless a quirk says otherwise. */
 	if (!follow && !(win->quirks & SWM_Q_NOFOCUSONMAP)) {
 		w = NULL;
@@ -16025,7 +16144,7 @@ motionnotify(xcb_motion_notify_event_t *e)
 {
 	struct swm_screen	*s;
 	struct swm_region	*r = NULL;
-	struct ws_win		*win;
+	struct ws_win		*win = NULL;
 
 	event_time = e->time;
 
@@ -16035,15 +16154,18 @@ motionnotify(xcb_motion_notify_event_t *e)
 	    e->event_y, get_notify_detail_label(e->detail), e->detail, e->root,
 	    e->root_x, e->root_y, e->child, YESNO(e->same_screen), e->state);
 
-	if (focus_mode == SWM_FOCUS_MANUAL)
-		return;
+	if (follow_mode(SWM_FOCUS_TYPE_BORDER)) {
+		if (pointer_window != XCB_WINDOW_NONE)
+			win = get_focus_magic(find_window(pointer_window));
+		if (win == NULL && e->event == e->root)
+			win = find_window(e->child);
+	}
 
-	if (focus_mode == SWM_FOCUS_FOLLOW &&
-	    pointer_window != XCB_WINDOW_NONE)
-		focus_window(pointer_window);
-	else {
-		if (e->event == e->root && (win = find_window(e->child)))
-			focus_win(win->s, win);
+	if (win)
+		focus_win(win->s, win);
+	else if (follow_mode(SWM_FOCUS_TYPE_BORDER)) {
+		if (pointer_window != XCB_WINDOW_NONE)
+			focus_window_region(pointer_window);
 		else if ((s = find_screen(e->root)) != NULL) {
 			TAILQ_FOREACH(r, &s->rl, entry)
 				if (X(r) <= e->root_x && e->root_x < MAX_X(r) &&
@@ -16142,7 +16264,7 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 	s = win->s;
 	ws = win->ws;
 
-	follow = follow_pointer(s);
+	follow = follow_pointer(s, SWM_FOCUS_TYPE_UNMAP);
 
 	if (win->frame == e->window) {
 		DNPRINTF(SWM_D_EVENT, "unexpected unmap of frame; fixing.\n");
@@ -16238,7 +16360,7 @@ clientmessage(xcb_client_message_event_t *e)
 	struct ws_win		*win;
 	uint32_t		vals[4];
 	xcb_map_request_event_t	mre;
-	bool			follow;
+	bool			follow = false;
 
 	DNPRINTF(SWM_D_EVENT, "win %#x, atom: %s(%u)\n", e->window,
 	    get_atom_label(e->type), e->type);
@@ -16248,9 +16370,10 @@ clientmessage(xcb_client_message_event_t *e)
 		if (s) {
 			r = get_current_region(s);
 			if (r && (int)e->data.data32[0] < workspace_limit) {
+				follow = follow_mode(SWM_FOCUS_TYPE_WORKSPACE);
 				ws = get_workspace(s, e->data.data32[0]);
 				if (ws)
-					switch_workspace(r, ws, false);
+					switch_workspace(r, ws, false, follow);
 			}
 		}
 		return;
@@ -16276,7 +16399,6 @@ clientmessage(xcb_client_message_event_t *e)
 	}
 
 	s = win->s;
-	follow = (focus_mode == SWM_FOCUS_FOLLOW);
 
 	if (e->type == ewmh[_NET_ACTIVE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_ACTIVE_WINDOW, source_type: "
@@ -16312,6 +16434,7 @@ clientmessage(xcb_client_message_event_t *e)
 			else {
 				set_attention(win);
 				update_bars(s);
+				xcb_flush(conn);
 				return;
 			}
 		} else {
@@ -16319,6 +16442,7 @@ clientmessage(xcb_client_message_event_t *e)
 				set_attention(win);
 				draw_frame(win);
 				update_bars(s);
+				xcb_flush(conn);
 			}
 			return;
 		}
@@ -16328,12 +16452,18 @@ clientmessage(xcb_client_message_event_t *e)
 			client_msg(win, a_delete, 0);
 		else
 			xcb_kill_client(conn, win->id);
+		xcb_flush(conn);
+		return;
 	} else if (e->type == ewmh[_NET_MOVERESIZE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_MOVERESIZE_WINDOW\n");
 		if ((!MANUAL(win) || win->quirks & SWM_Q_ANYWHERE ||
 		    ws_floating(win->ws)) && !FULLSCREEN(win) &&
 		    !MAXIMIZED(win)) {
 			uint8_t grav;
+
+			if (win->mapped)
+				follow = follow_pointer(s,
+				    SWM_FOCUS_TYPE_CONFIGURE);
 
 			/* Update floating geometry. */
 			if (e->data.data32[0] & (1 << 8)) { /* x */
@@ -16358,33 +16488,50 @@ clientmessage(xcb_client_message_event_t *e)
 			if (win_floating(win)) {
 				load_float_geom(win);
 				update_floater(win);
-			} else
+			} else {
 				config_win(win, NULL);
+				return;
+			}
 
 			win->gravity = grav;
-		} else
+		} else {
 			config_win(win, NULL);
+			return;
+		}
 	} else if (e->type == ewmh[_NET_RESTACK_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_RESTACK_WINDOW\n");
 		vals[0] = e->data.data32[1]; /* Sibling window. */
 		vals[1] = e->data.data32[2]; /* Stack mode detail. */
 
-		if (win->frame != XCB_WINDOW_NONE)
-			xcb_configure_window(conn, win->frame,
-			    XCB_CONFIG_WINDOW_SIBLING |
-			    XCB_CONFIG_WINDOW_STACK_MODE, vals);
+		if (win->frame == XCB_WINDOW_NONE)
+			return;
+
+		xcb_configure_window(conn, win->frame, XCB_CONFIG_WINDOW_SIBLING
+		    | XCB_CONFIG_WINDOW_STACK_MODE, vals);
+		xcb_flush(conn);
+		return;
 	} else 	if (e->type == ewmh[_NET_WM_STATE].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_WM_STATE\n");
-		bool origmax = MAXIMIZED(win);
-		ewmh_change_wm_state(win, e->data.data32[1], e->data.data32[0]);
+		uint32_t changed;
+
+		changed = ewmh_change_wm_state(win, e->data.data32[1],
+		    e->data.data32[0]);
 		if (e->data.data32[2])
-			ewmh_change_wm_state(win, e->data.data32[2],
+			changed |= ewmh_change_wm_state(win, e->data.data32[2],
 			    e->data.data32[0]);
 
-		if (s->focus == win && HIDDEN(win))
+		if (changed & EWMH_F_HIDDEN)
+			follow = follow_pointer(s, HIDDEN(win) ?
+			    SWM_FOCUS_TYPE_ICONIFY : SWM_FOCUS_TYPE_UNICONIFY);
+		else if (changed & (EWMH_F_FULLSCREEN | EWMH_F_MAXIMIZED))
+			follow = follow_pointer(s, SWM_FOCUS_TYPE_CONFIGURE);
+		else if (changed & (EWMH_F_BELOW | EWMH_F_ABOVE))
+			follow = follow_pointer(s, SWM_FOCUS_TYPE_BORDER);
+
+		if ((s->focus == win) && HIDDEN(win) && !follow)
 			set_focus(s, get_focus_other(win));
 
-		if (ws_maxstack(win->ws) && origmax != MAXIMIZED(win))
+		if (ws_maxstack(win->ws) && changed & EWMH_F_MAXIMIZED)
 			win->maxstackmax = MAXIMIZED(win);
 
 		ewmh_update_wm_state(win);
@@ -16396,56 +16543,71 @@ clientmessage(xcb_client_message_event_t *e)
 		else
 			stack(win->ws->r);
 		update_mapping(s);
+
+		r = get_current_region(s);
+		if (r != win->ws->r)
+			return;
 	} else if (e->type == ewmh[_NET_WM_DESKTOP].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_WM_DESKTOP, new_desktop: %d, "
 		    "source_type: %s(%d)\n", e->data.data32[0],
 		    get_source_type_label(e->data.data32[1]),
 		    e->data.data32[1]);
 
-		if ((int)e->data.data32[0] < workspace_limit) {
-			r = win->ws->r;
-			win_to_ws(win, get_workspace(s, e->data.data32[0]),
-			    SWM_WIN_UNFOCUS);
+		if ((int)e->data.data32[0] >= workspace_limit)
+			return;
 
-			/* Stack source and destination ws, if mapped. */
-			if (r != win->ws->r) {
-				if (refresh_strut(s))
-					update_layout(s);
-				else if (r) {
-					stack(r);
-					bar_draw(r->bar);
-				}
+		r = win->ws->r;
+		win_to_ws(win, get_workspace(s, e->data.data32[0]),
+		    SWM_WIN_UNFOCUS);
 
-				if (win->ws->r) {
-					if (win_floating(win))
-						load_float_geom(win);
+		follow = follow_pointer(s, SWM_FOCUS_TYPE_MOVE);
 
-					stack(win->ws->r);
-					bar_draw(win->ws->r->bar);
-				}
-				update_mapping(s);
+		/* Stack source and destination ws, if mapped. */
+		if (r != win->ws->r) {
+			if (refresh_strut(s))
+				update_layout(s);
+			else if (r) {
+				stack(r);
+				bar_draw(r->bar);
 			}
+
+			if (win->ws->r) {
+				if (win_floating(win))
+					load_float_geom(win);
+
+				stack(win->ws->r);
+				bar_draw(win->ws->r->bar);
+			}
+			update_mapping(s);
 		}
+
+		if (r == NULL && win->ws->r == NULL)
+			return;
 	} else if (e->type == a_change_state) {
 		DNPRINTF(SWM_D_EVENT, "WM_CHANGE_STATE state: %s\n",
 		    get_wm_state_label(e->data.data32[0]));
-		if (e->data.data32[0] == XCB_ICCCM_WM_STATE_ICONIC) {
-			/* Iconify. */
-			ewmh_apply_flags(win, win->ewmh_flags | EWMH_F_HIDDEN);
-			ewmh_update_wm_state(win);
-			update_stacking(s);
-			if (s->focus == win)
-				set_focus(s, get_focus_other(win));
-			if (refresh_strut(s))
-				update_layout(s);
-			else
-				stack(win->ws->r);
-			update_mapping(s);
-		}
+		if (e->data.data32[0] != XCB_ICCCM_WM_STATE_ICONIC)
+			return;
+		/* Iconify. */
+		follow = follow_mode(SWM_FOCUS_TYPE_ICONIFY);
+		ewmh_apply_flags(win, win->ewmh_flags | EWMH_F_HIDDEN);
+		ewmh_update_wm_state(win);
+		update_stacking(s);
+		if (s->focus == win && !follow)
+			set_focus(s, get_focus_other(win));
+		if (refresh_strut(s))
+			update_layout(s);
+		else
+			stack(win->ws->r);
+		update_mapping(s);
+
+		r = get_current_region(s);
+		if (r != win->ws->r)
+			return;
 	} else if (e->type == ewmh[_NET_WM_MOVERESIZE].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_WM_MOVERESIZE\n");
 		moveresize_win(win, e);
-		follow = true;
+		return;
 	}
 
 	if (!follow) {
@@ -16454,7 +16616,8 @@ clientmessage(xcb_client_message_event_t *e)
 	}
 
 	flush(); /* win can be freed. */
-	focus_follow(s, s->r_focus, win);
+	if (follow)
+		focus_follow(s, s->r_focus, win);
 
 	DNPRINTF(SWM_D_EVENT, "done\n");
 }
@@ -16996,8 +17159,10 @@ setup_focus(void)
 {
 	struct swm_region	*r;
 	struct ws_win		*w;
+	bool			follow;
 
-	if (focus_mode == SWM_FOCUS_FOLLOW) {
+	follow = follow_mode(SWM_FOCUS_TYPE_STARTUP);
+	if (follow) {
 		DNPRINTF(SWM_D_INIT, "focus pointer window\n");
 		r = get_pointer_region(&screens[0]);
 	} else {
@@ -17006,7 +17171,7 @@ setup_focus(void)
 	}
 
 	if (r) {
-		if (focus_mode != SWM_FOCUS_FOLLOW || ws_maponfocus(r->ws)) {
+		if (!follow || ws_maponfocus(r->ws)) {
 			w = r->ws->focus;
 			if (w == NULL || !(FULLSCREEN(w) || MAXIMIZED(w)))
 				w = get_main_window(r->ws);
@@ -17022,11 +17187,9 @@ setup_focus(void)
 		}
 		focus_region(r);
 		flush();
-		if (focus_mode == SWM_FOCUS_FOLLOW) {
-			if (pointer_window != XCB_WINDOW_NONE) {
-				focus_window(pointer_window);
-				xcb_flush(conn);
-			}
+		if (follow && pointer_window != XCB_WINDOW_NONE) {
+			focus_window(pointer_window);
+			xcb_flush(conn);
 		}
 	}
 	DNPRINTF(SWM_D_INIT, "done\n");

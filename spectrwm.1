@@ -609,8 +609,8 @@ Set the
 focus status indicator (+F) string to substitute when a maximized window is
 focused.
 Default is '(m)'.
-.It Ic focus_mode
-Window focus behavior with respect to the pointer.
+.It Ic focus_mode Ns Bq Ar t
+Set window focus behavior with respect to the pointer.
 Possible values:
 .Pp
 .Bl -tag -width "default" -offset indent -compact
@@ -618,11 +618,72 @@ Possible values:
 Set window focus on border crossings caused by cursor motion and
 window interaction.
 .It Ar follow
+Prioritize the pointer location.
 Set window focus on all cursor border crossings, including workspace switches
 and changes to layout.
 .It Ar manual
+Ignore the pointer location.
 Set window focus on window interaction only.
 .El
+.Pp
+Optionally, it is possible to adjust the focus mode for specific focus
+situations.
+A comma-separated list of the following situations can be specified for
+.Ar t :
+.Pp
+.Bl -tag -width "uniconify" -offset indent -compact
+.It Ar border
+Pointer enters a window.
+Default is
+.Ar follow .
+.It Ar configure
+Window position/size changed by the client/EWMH.
+Default is
+.Ar manual .
+.It Ar iconify
+Window iconified.
+Default is
+.Ar manual .
+.It Ar layout
+Workspace layout changed.
+Default is
+.Ar manual .
+.It Ar map
+Window maps.
+Default is
+.Ar manual .
+.It Ar move
+Window moved to another workspace.
+Default is
+.Ar manual .
+.It Ar startup
+.Nm
+(re)started.
+Default is
+.Ar manual .
+.It Ar uniconify
+Window uniconified.
+Default is
+.Ar manual .
+.It Ar unmap
+Window unmaps.
+Default is
+.Ar manual .
+.It Ar workspace
+Workspace switched.
+Default is
+.Ar manual .
+.El
+.Pp
+Note that when
+.Ar t
+is omitted, the specified setting is applied to all focus situations.
+Example:
+.Bd -literal -offset indent
+focus_mode = follow # Set all focus situations to 'follow'.
+focus_mode[map,unmap] = manual # Change only map and unmap to 'manual'.
+focus_mode = default # Reset all focus situations to respective default values.
+.Ed
 .It Ic fullscreen_hide_other
 When a fullscreen window is focused and not in
 .Ic below

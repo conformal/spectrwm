@@ -573,8 +573,8 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
   <dd>Set the <code class="Ic">bar_format</code> focus status indicator (+F)
       string to substitute when a maximized window is focused. Default is
     '(m)'.</dd>
-  <dt id="focus_mode"><a class="permalink" href="#focus_mode"><code class="Ic">focus_mode</code></a></dt>
-  <dd>Window focus behavior with respect to the pointer. Possible values:
+  <dt id="focus_mode"><a class="permalink" href="#focus_mode"><code class="Ic">focus_mode</code></a>[<var class="Ar">t</var>]</dt>
+  <dd>Set window focus behavior with respect to the pointer. Possible values:
     <p class="Pp"></p>
     <div class="Bd-indent">
     <dl class="Bl-tag Bl-compact">
@@ -582,11 +582,51 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
       <dd>Set window focus on border crossings caused by cursor motion and
           window interaction.</dd>
       <dt><var class="Ar">follow</var></dt>
-      <dd>Set window focus on all cursor border crossings, including workspace
-          switches and changes to layout.</dd>
+      <dd>Prioritize the pointer location. Set window focus on all cursor border
+          crossings, including workspace switches and changes to layout.</dd>
       <dt><var class="Ar">manual</var></dt>
-      <dd>Set window focus on window interaction only.</dd>
+      <dd>Ignore the pointer location. Set window focus on window interaction
+          only.</dd>
     </dl>
+    </div>
+    <p class="Pp">Optionally, it is possible to adjust the focus mode for
+        specific focus situations. A comma-separated list of the following
+        situations can be specified for <var class="Ar">t</var>:</p>
+    <p class="Pp"></p>
+    <div class="Bd-indent">
+    <dl class="Bl-tag Bl-compact">
+      <dt><var class="Ar">border</var></dt>
+      <dd>Pointer enters a window. Default is <var class="Ar">follow</var>.</dd>
+      <dt><var class="Ar">configure</var></dt>
+      <dd>Window position/size changed by the client/EWMH. Default is
+          <var class="Ar">manual</var>.</dd>
+      <dt><var class="Ar">iconify</var></dt>
+      <dd>Window iconified. Default is <var class="Ar">manual</var>.</dd>
+      <dt><var class="Ar">layout</var></dt>
+      <dd>Workspace layout changed. Default is
+        <var class="Ar">manual</var>.</dd>
+      <dt><var class="Ar">map</var></dt>
+      <dd>Window maps. Default is <var class="Ar">manual</var>.</dd>
+      <dt><var class="Ar">move</var></dt>
+      <dd>Window moved to another workspace. Default is
+          <var class="Ar">manual</var>.</dd>
+      <dt><var class="Ar">startup</var></dt>
+      <dd><code class="Nm">spectrwm</code> (re)started. Default is
+          <var class="Ar">manual</var>.</dd>
+      <dt><var class="Ar">uniconify</var></dt>
+      <dd>Window uniconified. Default is <var class="Ar">manual</var>.</dd>
+      <dt><var class="Ar">unmap</var></dt>
+      <dd>Window unmaps. Default is <var class="Ar">manual</var>.</dd>
+      <dt><var class="Ar">workspace</var></dt>
+      <dd>Workspace switched. Default is <var class="Ar">manual</var>.</dd>
+    </dl>
+    </div>
+    <p class="Pp">Note that when <var class="Ar">t</var> is omitted, the
+        specified setting is applied to all focus situations. Example:</p>
+    <div class="Bd Pp Bd-indent Li">
+    <pre>focus_mode = follow # Set all focus situations to 'follow'.
+focus_mode[map,unmap] = manual # Change only map and unmap to 'manual'.
+focus_mode = default # Reset all focus situations to respective default values.</pre>
     </div>
   </dd>
   <dt id="fullscreen_hide_other"><a class="permalink" href="#fullscreen_hide_other"><code class="Ic">fullscreen_hide_other</code></a></dt>
