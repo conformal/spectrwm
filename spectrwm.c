@@ -11479,7 +11479,7 @@ regcompopt(regex_t *preg, const char *regex) {
 
 	if (asprintf(&str, "^%s$", regex) == -1)
 		err(1, "regcompopt: asprintf");
-	ret = regcomp(preg, regex, REG_EXTENDED | REG_NOSUB);
+	ret = regcomp(preg, str, REG_EXTENDED | REG_NOSUB);
 	free(str);
 
 	return (ret);
