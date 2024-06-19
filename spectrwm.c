@@ -17352,6 +17352,10 @@ setup_screens(void)
 		    s->root, -1, -1, 1, 1, 0,
 		    XCB_WINDOW_CLASS_INPUT_ONLY, XCB_COPY_FROM_PARENT,
 		    XCB_CW_OVERRIDE_REDIRECT | XCB_CW_EVENT_MASK, wa);
+		/* Keep any existing override-redirect windows on top. */
+		wa[0] = XCB_STACK_MODE_BELOW;
+		xcb_configure_window(conn, s->swmwin,
+		    XCB_CONFIG_WINDOW_STACK_MODE, wa);
 		xcb_map_window(conn, s->swmwin);
 
 #if defined(SWM_XCB_HAS_XINPUT) && defined(XCB_INPUT_RAW_BUTTON_PRESS)
