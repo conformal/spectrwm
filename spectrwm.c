@@ -1418,7 +1418,7 @@ int	 atom_name_cmp(struct atom_name *, struct atom_name *);
 void	 atom_name_insert(xcb_atom_t, char *);
 struct atom_name	*atom_name_lookup(xcb_atom_t);
 void	 atom_name_remove(struct atom_name *);
-void	 bar_cleanup(struct swm_region *);
+static void	 bar_cleanup(struct swm_region *);
 void	 bar_draw(struct swm_bar *);
 void	 bar_extra_setup(void);
 void	 bar_extra_stop(void);
@@ -1465,6 +1465,7 @@ void	 clear_bindings(void);
 void	 clear_keybindings(void);
 void	 clear_quirks(void);
 static void	 clear_spawns(void);
+static void	 clear_stack(struct swm_screen *);
 void	 click_focus(struct swm_screen *, xcb_window_t, int, int);
 void	 client_msg(struct ws_win *, xcb_atom_t, xcb_timestamp_t);
 void	 clientmessage(xcb_client_message_event_t *);
@@ -1536,6 +1537,7 @@ static bool	 follow_mode(unsigned int);
 static bool	 follow_pointer(struct swm_screen *, unsigned int);
 int	 fontset_init(void);
 static void	 freecolortype(struct swm_screen *, int);
+static void	 free_stackable(struct swm_stackable *);
 void	 free_toggle(struct swm_screen *, struct binding *, union arg *);
 void	 free_window(struct ws_win *);
 void	 fullscreen_toggle(struct swm_screen *, struct binding *, union arg *);
@@ -1742,7 +1744,6 @@ void	 spawn_select(struct swm_region *, union arg *, const char *, int *);
 static xcb_window_t	 st_window_id(struct swm_stackable *);
 void	 stack_config(struct swm_screen *, struct binding *, union arg *);
 void	 stack_master(struct workspace *, struct swm_geometry *, int, bool);
-static void	 update_layout(struct swm_screen *);
 void	 store_float_geom(struct ws_win *);
 char	*strdupsafe(const char *);
 static int32_t	 strtoint32(const char *, int32_t, int32_t, int *);
@@ -1773,6 +1774,7 @@ void	 update_floater(struct ws_win *);
 void	 update_focus(struct swm_screen *);
 static void	 update_gravity(struct ws_win *);
 void	 update_keycodes(void);
+static void	 update_layout(struct swm_screen *);
 void	 update_modkey(uint16_t);
 void	 update_stackable(struct swm_stackable *, struct swm_stackable *);
 void	 update_win_layer(struct ws_win *);
@@ -1781,7 +1783,6 @@ void	 update_window(struct ws_win *);
 void	 update_wm_state(struct  ws_win *win);
 void	 updatenumlockmask(void);
 static void	 usage(void);
-int	 validate_rg(struct swm_region *);
 void	 validate_spawns(void);
 int	 validate_win(struct ws_win *);
 int	 validate_ws(struct workspace *);
@@ -5422,13 +5423,28 @@ bar_setup(struct swm_region *r)
 	bar_extra_setup();
 }
 
-void
+static void
+free_stackable(struct swm_stackable *st) {
+	struct swm_stackable	*sst;
+
+	if (st == NULL)
+		return;
+
+	SLIST_FOREACH(sst, &st->s->stack, entry)
+		if (sst == st)
+			SLIST_REMOVE(&st->s->stack, st, swm_stackable, entry);
+	free(st);
+}
+
+static void
 bar_cleanup(struct swm_region *r)
 {
 	if (r->bar == NULL)
 		return;
+
 	xcb_destroy_window(conn, r->bar->id);
 	xcb_free_pixmap(conn, r->bar->buffer);
+	free_stackable(r->bar->st);
 	free(r->bar);
 	r->bar = NULL;
 }
@@ -5677,6 +5693,13 @@ prioritize_window(struct ws_win *win)
 	TAILQ_INSERT_HEAD(&win->s->priority, win, priority_entry);
 }
 
+static void
+clear_stack(struct swm_screen *s)
+{
+	while (!SLIST_EMPTY(&s->stack))
+		SLIST_REMOVE_HEAD(&s->stack, entry);
+}
+
 /* Updates current stacking order with all rules/priorities/etc. */
 void
 refresh_stack(struct swm_screen *s)
@@ -5688,8 +5711,7 @@ refresh_stack(struct swm_screen *s)
 	DNPRINTF(SWM_D_STACK, "rebuilding stack on screen %d\n", s->idx);
 
 	/* Rebuild from scratch for now. */
-	while (!SLIST_EMPTY(&s->stack))
-		SLIST_REMOVE_HEAD(&s->stack, entry);
+	clear_stack(s);
 
 	/* Start from the top. */
 	for (layer = SWM_LAYER_INVALID; layer; layer--) {
@@ -15000,7 +15022,6 @@ free_window(struct ws_win *win)
 		return;
 
 	xcb_icccm_get_wm_class_reply_wipe(&win->ch);
-	free(win->st);
 
 	/* paint memory */
 	memset(win, 0xff, sizeof *win);	/* XXX kill later */
@@ -15012,8 +15033,6 @@ free_window(struct ws_win *win)
 void
 unmanage_window(struct ws_win *win)
 {
-	struct swm_stackable	*st;
-
 	if (win == NULL)
 		return;
 
@@ -15034,11 +15053,7 @@ unmanage_window(struct ws_win *win)
 		win->strut = NULL;
 	}
 
-	SLIST_FOREACH(st, &win->s->stack, entry)
-		if (st == win->st)
-			SLIST_REMOVE(&win->s->stack, win->st, swm_stackable,
-			    entry);
-
+	free_stackable(win->st);
 	ewmh_update_client_list(win->s);
 	free_window(win);
 }
@@ -16805,6 +16820,8 @@ new_region(struct swm_screen *s, int16_t x, int16_t y, uint16_t w, uint16_t h,
 			if (r->ws->r != NULL)
 				r->ws->old_r = r->ws->r;
 			r->ws->r = NULL;
+			free_stackable(r->st);
+			r->st = NULL;
 			bar_cleanup(r);
 			xcb_destroy_window(conn, r->id);
 			r->id = XCB_WINDOW_NONE;
@@ -16839,13 +16856,11 @@ new_region(struct swm_screen *s, int16_t x, int16_t y, uint16_t w, uint16_t h,
 		/* try to use old region's workspace */
 		if (r->ws->r == NULL)
 			ws = r->ws;
-	} else {
-		if ((r = calloc(1, sizeof(struct swm_region))) == NULL)
-			err(1, "new_region: calloc");
+	} else if ((r = calloc(1, sizeof(struct swm_region))) == NULL)
+		err(1, "new_region: r calloc");
 
-		if ((r->st = calloc(1, sizeof(struct swm_stackable))) == NULL)
-			err(1, "new_region: calloc");
-	}
+	if ((r->st = calloc(1, sizeof(struct swm_stackable))) == NULL)
+		err(1, "new_region: st calloc");
 
 	/* if we don't have a workspace already, find one */
 	if (ws == NULL) {
@@ -16914,6 +16929,7 @@ scan_randr(struct swm_screen *s)
 	int						minrate, currate;
 #endif
 	struct swm_region				*r;
+	struct workspace				*ws;
 	xcb_screen_t					*screen;
 
 	if (s == NULL)
@@ -16924,9 +16940,14 @@ scan_randr(struct swm_screen *s)
 	if ((screen = get_screen(s->idx)) == NULL)
 		errx(1, "ERROR: unable to get screen %d.", s->idx);
 
+	/* Cleanup references. */
+	clear_stack(s);
+
 	/* remove any old regions */
 	while ((r = TAILQ_FIRST(&s->rl)) != NULL) {
 		r->ws->old_r = r->ws->r = NULL;
+		free_stackable(r->st);
+		r->st = NULL;
 		bar_cleanup(r);
 		xcb_destroy_window(conn, r->id);
 		r->id = XCB_WINDOW_NONE;
@@ -17006,10 +17027,15 @@ scan_randr(struct swm_screen *s)
 #ifdef XCB_RANDR_GET_SCREEN_RESOURCES_CURRENT
 out:
 #endif
-	/* The screen shouldn't focus on unused regions. */
+	/* Cleanup references to unused regions. */
 	TAILQ_FOREACH(r, &s->orl, entry) {
 		if (s->r_focus == r)
 			s->r_focus = NULL;
+		for (i = 0; i < workspace_limit; i++) {
+			ws = workspace_lookup(s, i);
+			if (ws && ws->old_r == r)
+				ws->old_r = NULL;
+		}
 	}
 
 	DNPRINTF(SWM_D_MISC, "done.\n");
@@ -17040,6 +17066,7 @@ screenchange(xcb_randr_screen_change_notify_event_t *e)
 		bar_setup(r);
 
 	/* Stack all regions. */
+	refresh_stack(s);
 	update_stacking(s);
 	refresh_strut(s);
 	update_layout(s);
@@ -17655,6 +17682,8 @@ shutdown_cleanup(void)
 			free(s->bar_xftfonts);
 		}
 
+		clear_stack(s);
+
 #ifndef __clang_analyzer__ /* Suppress false warnings. */
 		/* Cleanup window state and memory. */
 		while ((w = TAILQ_FIRST(&s->managed))) {
@@ -17678,6 +17707,7 @@ shutdown_cleanup(void)
 			}
 
 			TAILQ_REMOVE(&s->managed, w, manage_entry);
+			free(w->st);
 			free_window(w);
 		}
 
@@ -17687,17 +17717,16 @@ shutdown_cleanup(void)
 		/* Free region memory. */
 		while ((r = TAILQ_FIRST(&s->rl)) != NULL) {
 			TAILQ_REMOVE(&s->rl, r, entry);
-			free(r->bar->st);
-			free(r->bar);
+			if (r->bar) {
+				free(r->bar->st);
+				free(r->bar);
+			}
 			free(r->st);
 			free(r);
 		}
 
 		while ((r = TAILQ_FIRST(&s->orl)) != NULL) {
 			TAILQ_REMOVE(&s->orl, r, entry);
-			free(r->bar->st);
-			free(r->bar);
-			free(r->st);
 			free(r);
 		}
 
@@ -17963,6 +17992,7 @@ main(int argc, char *argv[])
 
 	/* Stack all regions to trigger mapping. */
 	for (i = 0; i < num_screens; i++) {
+		refresh_stack(&screens[i]);
 		update_stacking(&screens[i]);
 		refresh_strut(&screens[i]);
 		update_layout(&screens[i]);
