@@ -16372,7 +16372,7 @@ clientmessage(xcb_client_message_event_t *e)
 	struct swm_screen	*s;
 	struct swm_region	*r = NULL;
 	struct workspace	*ws;
-	struct ws_win		*win;
+	struct ws_win		*win, *cfw;
 	uint32_t		vals[4];
 	xcb_map_request_event_t	mre;
 	bool			follow = false;
@@ -16414,6 +16414,7 @@ clientmessage(xcb_client_message_event_t *e)
 	}
 
 	s = win->s;
+	cfw = s->focus;
 
 	if (e->type == ewmh[_NET_ACTIVE_WINDOW].atom) {
 		DNPRINTF(SWM_D_EVENT, "_NET_ACTIVE_WINDOW, source_type: "
@@ -16627,7 +16628,8 @@ clientmessage(xcb_client_message_event_t *e)
 
 	if (!follow) {
 		update_focus(s);
-		center_pointer(s->r_focus);
+		if (cfw != s->focus)
+			center_pointer(s->r_focus);
 	}
 
 	flush(); /* win can be freed. */
