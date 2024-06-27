@@ -1411,6 +1411,7 @@ RB_HEAD(atom_name_tree, atom_name) atom_names = RB_INITIALIZER(&atom_names);
 
 /* function prototypes */
 void	 adjust_font(struct ws_win *);
+static void	 apply_struts(struct swm_screen *, struct swm_geometry *);
 int	 apply_unfocus(struct workspace *, struct ws_win *);
 char	*argsep(char **);
 int	 asopcheck(uint8_t, uint8_t, char **);
@@ -1658,7 +1659,7 @@ void	 raise_toggle(struct swm_screen *, struct binding *, union arg *);
 void	 rawbuttonpress(xcb_input_raw_button_press_event_t *);
 #endif
 void	 refresh_stack(struct swm_screen *);
-int	 refresh_strut(struct swm_screen *);
+static int	 refresh_strut(struct swm_screen *);
 static int	 regcompopt(regex_t *, const char *);
 struct swm_region	*region_under(struct swm_screen *, int, int);
 void	 regionize(struct ws_win *, int, int);
@@ -2806,64 +2807,74 @@ ewmh_get_strut(struct ws_win *win)
 	free(r);
 }
 
-int
+static void
+apply_struts(struct swm_screen *s, struct swm_geometry *g)
+{
+	struct swm_strut	*srt;
+
+	/* Reduce available area for struts. */
+	SLIST_FOREACH(srt, &s->struts, entry) {
+		if (HIDDEN(srt->win) || srt->win->ws->r == NULL)
+			continue;
+		if (srt->top && (srt->top > (uint32_t)g->y &&
+		    srt->top <= (uint32_t)g->y + g->h) &&
+		    ((srt->top_start_x == 0 && srt->top_end_x == 0) ||
+		    (srt->top_end_x > (uint32_t)g->x &&
+		    srt->top_start_x < (uint32_t)g->x + g->w))) {
+			g->h -= srt->top - (uint32_t)g->y;
+			g->y = srt->top;
+		}
+		if (srt->bottom && (HEIGHT(s->r) - srt->bottom <
+		    (uint32_t)g->y + g->h) && ((srt->bottom_start_x == 0
+		    && srt->bottom_end_x == 0) || (srt->bottom_end_x >
+		    (uint32_t)g->x && srt->bottom_start_x <
+		    (uint32_t)g->x + g->w))) {
+			g->h = HEIGHT(s->r) - srt->bottom - g->y;
+		}
+		if (srt->left && (srt->left > (uint32_t)g->x &&
+		    srt->left <= (uint32_t)g->x + g->w) &&
+		    ((srt->left_start_y == 0 && srt->left_end_y == 0) ||
+		    (srt->left_end_y > (uint32_t)g->y &&
+		    srt->left_start_y < (uint32_t)g->y + g->h))) {
+			g->w -= srt->left - (uint32_t)g->x;
+			g->x = srt->left;
+		}
+		if (srt->right && (WIDTH(s->r) - srt->right <
+		    (uint32_t)g->x + g->w) && ((srt->right_start_y == 0 &&
+		    srt->right_end_y == 0) || (srt->right_end_y >
+		    (uint32_t)g->y && srt->right_start_y <
+		    (uint32_t)g->y + g->h))) {
+			g->w = WIDTH(s->r) - srt->right - g->x;
+		}
+	}
+}
+
+static int
 refresh_strut(struct swm_screen *s)
 {
 	int			changed = 0;
 	struct swm_region	*r;
-	struct swm_strut	*srt;
 	struct swm_geometry	g;
 	uint32_t		wc[4];
 
+	g = s->r->g;
+	apply_struts(s, &g);
+	s->r->g_usable = (g.w > 0 && g.h > 0) ? g : s->r->g;
+
 	TAILQ_FOREACH(r, &s->rl, entry) {
 		g = r->g;
-
-		/* Reduce available area for struts. */
-		SLIST_FOREACH(srt, &s->struts, entry) {
-			if (HIDDEN(srt->win) || srt->win->ws->r == NULL)
-				continue;
-			if (srt->top && (srt->top > (uint32_t)g.y &&
-			    srt->top <= (uint32_t)g.y + g.h) &&
-			    ((srt->top_start_x == 0 && srt->top_end_x == 0) ||
-			    (srt->top_end_x > (uint32_t)g.x &&
-			    srt->top_start_x < (uint32_t)g.x + g.w))) {
-				g.h -= srt->top - (uint32_t)g.y;
-				g.y = srt->top;
-			}
-			if (srt->bottom && (HEIGHT(s->r) - srt->bottom <
-			    (uint32_t)g.y + g.h) && ((srt->bottom_start_x == 0
-			    && srt->bottom_end_x == 0) || (srt->bottom_end_x >
-			    (uint32_t)g.x && srt->bottom_start_x <
-			    (uint32_t)g.x + g.w))) {
-				g.h = HEIGHT(s->r) - srt->bottom - g.y;
-			}
-			if (srt->left && (srt->left > (uint32_t)g.x &&
-			    srt->left <= (uint32_t)g.x + g.w) &&
-			    ((srt->left_start_y == 0 && srt->left_end_y == 0) ||
-			    (srt->left_end_y > (uint32_t)g.y &&
-			    srt->left_start_y < (uint32_t)g.y + g.h))) {
-				g.w -= srt->left - (uint32_t)g.x;
-				g.x = srt->left;
-			}
-			if (srt->right && (WIDTH(s->r) - srt->right <
-			    (uint32_t)g.x + g.w) && ((srt->right_start_y == 0 &&
-			    srt->right_end_y == 0) || (srt->right_end_y >
-			    (uint32_t)g.y && srt->right_start_y <
-			    (uint32_t)g.y + g.h))) {
-				g.w = WIDTH(s->r) - srt->right - g.x;
-			}
-		}
+		apply_struts(s, &g);
 
 		if ((g.x == r->g_usable.x && g.y == r->g_usable.y &&
-		    g.w == r->g_usable.w && g.h == r->g_usable.h) ||
-		    g.w < 1 || g.h < 1)
+		    g.w == r->g_usable.w && g.h == r->g_usable.h))
 			continue;
 
-		DNPRINTF(SWM_D_MISC, "r%d usable:%dx%d+%d+%d\n",
-		    get_region_index(r), g.w, g.h, g.x, g.y);
-
-		r->g_usable = g;
+		r->g_usable = (g.w > 0 && g.h > 0) ? g : r->g;
 		changed++;
+
+		DNPRINTF(SWM_D_MISC, "r%d usable:%dx%d+%d+%d\n",
+		    get_region_index(r), r->g_usable.w, r->g_usable.h,
+		    r->g_usable.x, r->g_usable.y);
 
 		if (r->bar) {
 			if (bar_at_bottom)
@@ -9499,26 +9510,21 @@ ewmh_update_desktop_viewports(struct swm_screen *s)
 void
 ewmh_update_workarea(struct swm_screen *s)
 {
-	struct swm_region	*r = NULL;
-	struct workspace	*ws;
 	int			i;
 	uint32_t		*vals;
 
 	if ((vals = calloc(workspace_limit * 4, sizeof(uint32_t))) == NULL)
 		err(1, "ewmh_update_workarea: calloc");
 
-	for (i = 0; i < workspace_limit; ++i) {
-		if ((ws = workspace_lookup(s, i)))
-			r = ws->r ? ws->r : ws->old_r;
-		if (r == NULL)
-			r = get_current_region(s);
-		if (r == NULL)
-			r = s->r;
+	DNPRINTF(SWM_D_MISC, "usable: x:%u y:%u w:%d h:%d\n", s->r->g_usable.x,
+	    s->r->g_usable.y, s->r->g_usable.w, s->r->g_usable.h);
 
-		vals[i * 4] = r->g_usable.x;
-		vals[i * 4 + 1] = r->g_usable.y;
-		vals[i * 4 + 2] = r->g_usable.w;
-		vals[i * 4 + 3] = r->g_usable.h;
+	/* The usable area of root applies to all desktops. */
+	for (i = 0; i < workspace_limit; ++i) {
+		vals[i * 4] = s->r->g_usable.x;
+		vals[i * 4 + 1] = s->r->g_usable.y;
+		vals[i * 4 + 2] = s->r->g_usable.w;
+		vals[i * 4 + 3] = s->r->g_usable.h;
 	}
 
 	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, s->root,
@@ -16958,6 +16964,10 @@ scan_randr(struct swm_screen *s)
 	}
 	outputs = 0;
 
+	/* Update root region geometry. */
+	s->r->g.w = screen->width_in_pixels;
+	s->r->g.h = screen->height_in_pixels;
+
 #ifdef XCB_RANDR_GET_SCREEN_RESOURCES_CURRENT
 	/* Try to automatically detect regions based on RandR CRTC info. */
 	if (randr_scan) {
@@ -17279,6 +17289,7 @@ setup_screens(void)
 		Y(s->r) = 0;
 		WIDTH(s->r) = screen->width_in_pixels;
 		HEIGHT(s->r) = screen->height_in_pixels;
+		s->r->g_usable = s->r->g;
 		s->r->s = s;
 		s->r->ws = get_workspace(s, -1);
 		s->r->ws->r = s->r;
