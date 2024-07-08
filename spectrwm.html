@@ -903,8 +903,9 @@ focus_mode = default # Reset all focus situations to respective default values.<
       with the target workspace. Enable by setting to 1.</dd>
   <dt id="warp_pointer"><a class="permalink" href="#warp_pointer"><code class="Ic">warp_pointer</code></a></dt>
   <dd>Centers the pointer on the focused window when using bindings to change
-      focus, switch workspaces, change regions, etc. Enable by setting to
-    1.</dd>
+      focus, switch workspaces, change regions, etc. Enable by setting to 1.
+      Note that this option is ignored in <code class="Ic">focus_mode</code>
+      situations set to <var class="Ar">follow</var>.</dd>
   <dt id="window_class_enabled"><a class="permalink" href="#window_class_enabled"><code class="Ic">window_class_enabled</code></a></dt>
   <dd>Enable or disable displaying the window class name (from WM_CLASS) in the
       status bar. Enable by setting to 1.</dd>
