@@ -67,7 +67,7 @@ install: all
 	install -m 644 ../initscreen.sh            $(DESTDIR)$(DOCDIR)/examples
 	install -m 644 ../screenshot.sh            $(DESTDIR)$(DOCDIR)/examples
 	install -m 644 ../spectrwm_*.conf          $(DESTDIR)$(DOCDIR)/examples
-	install -m 644 spectrwm.desktop            $(DESTDIR)$(XSESSIONSDIR)
+	install -m 644 ../spectrwm.desktop         $(DESTDIR)$(XSESSIONSDIR)
 
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/spectrwm
