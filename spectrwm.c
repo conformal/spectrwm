@@ -6045,10 +6045,12 @@ center_pointer(struct swm_region *r)
 	if (xinput2_support) {
 		gcpr = xcb_input_xi_get_client_pointer_reply(conn,
 		    xcb_input_xi_get_client_pointer(conn, XCB_NONE), NULL);
-		if (gcpr)
+		if (gcpr) {
 			/* XIWarpPointer takes FP1616. */
 			xcb_input_xi_warp_pointer(conn, XCB_NONE, dwinid, 0, 0,
 			    0, 0, dx << 16, dy << 16, gcpr->deviceid);
+			free(gcpr);
+		}
 	} else {
 #endif
 		xcb_warp_pointer(conn, XCB_NONE, dwinid, 0, 0, 0, 0, dx, dy);
