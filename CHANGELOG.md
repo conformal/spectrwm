@@ -1,3 +1,61 @@
+spectrwm 3.6.0
+==============
+
+Released on Jun 10, 2024
+
+Adds some new features, removes limits and fixes bugs.
+
+* Improve `focus_mode` to support customization of specific focus situations.
+* Improve quirks.
+  - Add support for `+=` and `-=` assignment operators for quirk assignment.
+  - Add new optional window type field to quirks.
+  - Add `BELOW` quirk.
+  - Add `ICONIFY` quirk.
+  - Add `MAXIMIZE` quirk.
+* Add new `spawn_flags` option to adjust program spawn entry settings.
+* Add new `layout_order` option to customize the layout sequence used by the
+  `cycle_layout` action.
+* Improve bar font handling.
+  - Remove the `bar_font` limit of 10 fonts when using Xft.
+  - Extend `bar_format` markup sequences to support font indexes above 9.
+* Improve bar color handling.
+  - Remove the 10 color limit on options that accept a color list.
+  - Extend `bar_format` markup sequences to support color indexes above 9.
+  - Add support for the `+=` operator with options that accept a color list.
+  - Fix handling of normal/unfocus/free bar colors with different counts.
+  - Fix bar colors should be per X screen.
+* Improve urgent window handling.
+  - Add `color_urgent*` options to change the border colors of urgent windows.
+  - Fix `focus_urgent` search issue.
+* Improve EWMH handling.
+  - Add special handling of `_NET_WM_WINDOW_TYPE_NOTIFICATION` windows.
+  - Fix `warp_pointer` should not apply to `_NET_WM_MOVERESIZE`.
+  - Fix `_NET_ACTIVE_WINDOW` request handling.
+  - Fix `_NET_DESKTOP_VIEWPORTS`.
+  - Fix EWMH `_NET_WM_DESKTOP` requests should not bypass `workspace_limit`.
+* Improve libswmhack.so.
+  - Add XCB support.
+  - Remove unneeded compile time linking with libX11.
+  - Improve symbol lookup.
+* Add new `bar_workspace_limit` option to limit the workspaces shown in the
+  workspace (`+L`) and urgency hint (`+U`) indicators.
+* Fix flipped vertical/horizontal layout positioning issue.
+* Fix segfault when setting the `layout` option to `floating`.
+* Fix window mapping issue when swapping a maximized window.
+* Fix `swap_main` issue.
+* Fix listing of empty workspaces in `bar_format` `+U` and `+L`.
+* Fix escape handling of `+` in `bar_action` script output.
+* Fix possible bar redraw delays.
+* Fix some leaks and a possible crash.
+* Fix building against XCB with RandR < 1.6.
+* Improve RandR checks.
+* Remove Xlib RandR dependency.
+* Remove BSD function ports for Linux and depend on `libbsd` instead.
+* Improve included `spectrwm.desktop` and move it to the main directory.
+* Improve man page.
+* Improve CHANGELOG and README.
+
+
 spectrwm 3.5.1
 ==============
 
