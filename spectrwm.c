@@ -5947,8 +5947,10 @@ restart(struct swm_screen *s, struct binding *bp, union arg *args)
 
 	shutdown_cleanup();
 
-	if (args && args->id == SWM_ARG_ID_RESTARTOFDAY)
+	if (args && args->id == SWM_ARG_ID_RESTARTOFDAY) {
 		unsetenv("SWM_STARTED");
+		setenv("SWM_RESTART", "YES", 1);
+	}
 
 	execvp(start_argv[0], start_argv);
 	warn("execvp failed");
@@ -13976,7 +13978,7 @@ setautorun(uint8_t asop, const char *selector, const char *value, int flags,
 	(void)selector;
 	(void)flags;
 
-	if (getenv("SWM_STARTED"))
+	if (getenv("SWM_STARTED") || getenv("SWM_RESTART"))
 		return (0);
 
 	if (asopcheck(asop, SWM_ASOP_BASIC, emsg))
@@ -18029,6 +18031,9 @@ main(int argc, char *argv[])
 
 	if (getenv("SWM_STARTED") == NULL)
 		setenv("SWM_STARTED", "YES", 1);
+
+	if (getenv("SWM_RESTART"))
+		unsetenv("SWM_RESTART");
 
 	/* Setup bars on all regions. */
 	num_screens = get_screen_count();
