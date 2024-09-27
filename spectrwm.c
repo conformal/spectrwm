@@ -536,6 +536,7 @@ bool		 disable_border_always = false;
 int		 border_width = 1;
 int		 region_padding = 0;
 int		 tile_gap = 0;
+bool		 smart_gaps = false;
 bool		 verbose_layout = false;
 bool		 debug_enabled;
 time_t		 time_started;
@@ -8289,6 +8290,13 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 			Y(win) -= border_width;
 			WIDTH(win) += 2 * border_width;
 			HEIGHT(win) += 2 * border_width;
+			/* No Gaps if there is only one window per workspace */
+			if (smart_gaps) {
+				X(win) -= (border_width + region_padding);
+				Y(win) -= (border_width + region_padding);
+				WIDTH(win) += 2 * (border_width + region_padding);
+				HEIGHT(win) += 2 * (border_width + region_padding);
+			}
 		}
 
 		if (bordered != win->bordered) {
@@ -13305,6 +13313,7 @@ enum {
 	SWM_S_MAXIMIZE_HIDE_OTHER,
 	SWM_S_MAXIMIZED_UNFOCUS,
 	SWM_S_REGION_PADDING,
+	SWM_S_SMART_GAPS,
 	SWM_S_SNAP_RANGE,
 	SWM_S_SPAWN_ORDER,
 	SWM_S_SPAWN_TERM,
@@ -13552,6 +13561,9 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 		region_padding = atoi(value);
 		if (region_padding < 0)
 			region_padding = 0;
+		break;
+	case SWM_S_SMART_GAPS:
+		smart_gaps = atoi(value);
 		break;
 	case SWM_S_SNAP_RANGE:
 		snap_range = atoi(value);
@@ -14222,6 +14234,7 @@ struct config_option configopt[] = {
 	{ "region_padding",		setconfvalue,	SWM_S_REGION_PADDING },
 	{ "screenshot_app",		NULL,		0 },	/* dummy */
 	{ "screenshot_enabled",		NULL,		0 },	/* dummy */
+	{ "smart_gaps",			setconfvalue,	SWM_S_SMART_GAPS },
 	{ "snap_range",			setconfvalue,	SWM_S_SNAP_RANGE },
 	{ "spawn_flags",		setconfspawnflags,0 },
 	{ "spawn_position",		setconfvalue,	SWM_S_SPAWN_ORDER },
