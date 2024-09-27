@@ -16232,6 +16232,7 @@ motionnotify(xcb_motion_notify_event_t *e)
 static void
 propertynotify(xcb_property_notify_event_t *e)
 {
+	struct swm_screen	*s;
 	struct ws_win		*win;
 
 	DNPRINTF(SWM_D_EVENT, "win %#x, atom: %s(%u), time: %#x, state: %u\n",
@@ -16240,8 +16241,16 @@ propertynotify(xcb_property_notify_event_t *e)
 	event_time = e->time;
 
 	win = find_window(e->window);
-	if (win == NULL)
+	if (win == NULL) {
+		if (e->atom == ewmh[_NET_DESKTOP_NAMES].atom) {
+			s = find_screen(e->window);
+			if (s) {
+				ewmh_get_desktop_names(s);
+				update_bars(s);
+			}
+		}
 		return;
+	}
 
 	if (e->atom == XCB_ATOM_WM_CLASS ||
 	    e->atom == XCB_ATOM_WM_NAME) {
