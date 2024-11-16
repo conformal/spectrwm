@@ -505,6 +505,8 @@ int		 bar_border_width = 1;
 bool		 bar_at_bottom = false;
 bool		 bar_extra = false;
 int		 bar_height = 0;
+int		 bar_padding_horizontal = 0;
+int		 bar_padding_vertical = 0;
 int		 bar_justify = SWM_BAR_JUSTIFY_LEFT;
 char		*bar_format = NULL;
 bool		 bar_action_expand = false;
@@ -3805,7 +3807,7 @@ bar_print_layout(struct swm_region *r)
 	int			bd_type, bg, bg_type, fg, fg_type, fn;
 	int 			space, remain, weight;
 
-	space =  WIDTH(r) - 2 * bar_border_width;
+	space = WIDTH(r) - 2 * (bar_border_width + bar_padding_horizontal);
 	weight = 0;
 
 	/* Parse markup sequences in each section  */
@@ -3835,7 +3837,7 @@ bar_print_layout(struct swm_region *r)
 		bsect[j].width += remain;
 
 	/* Calculate starting position of each section and text */
-	xpos = 0;
+	xpos = bar_padding_horizontal;
 	for (i = 0; i < numsect; i++) {
 		bsect[i].start = xpos;
 		if (bsect[i].fit_to_text)
@@ -5188,7 +5190,7 @@ fontset_init(void)
 	bar_fs_extents = XExtentsOfFontSet(bar_fs);
 
 	bar_height = bar_fs_extents->max_logical_extent.height +
-	    2 * bar_border_width;
+	    2 * (bar_border_width + bar_padding_vertical);
 
 	if (bar_height < 1)
 		bar_height = 1;
@@ -5264,7 +5266,8 @@ xft_init(struct swm_screen *s)
 	if (s->bar_xftfonts[0] == NULL)
 		return (1);
 
-	bar_height = s->bar_xftfonts[0]->height + 2 * bar_border_width;
+	bar_height = s->bar_xftfonts[0]->height +
+	    2 * (bar_border_width + bar_padding_vertical);
 	if (bar_height < 1)
 		bar_height = 1;
 
@@ -13283,6 +13286,8 @@ enum {
 	SWM_S_BAR_FONT_PUA,
 	SWM_S_BAR_FORMAT,
 	SWM_S_BAR_JUSTIFY,
+	SWM_S_BAR_PADDING_HORIZONTAL,
+	SWM_S_BAR_PADDING_VERTICAL,
 	SWM_S_BAR_WORKSPACE_LIMIT,
 	SWM_S_BORDER_WIDTH,
 	SWM_S_BOUNDARY_WIDTH,
@@ -13415,6 +13420,16 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 			return (1);
 		}
 
+		break;
+	case SWM_S_BAR_PADDING_HORIZONTAL:
+		bar_padding_horizontal = atoi(value);
+		if (bar_padding_horizontal < 0)
+			bar_padding_horizontal = 0;
+		break;
+	case SWM_S_BAR_PADDING_VERTICAL:
+		bar_padding_vertical = atoi(value);
+		if (bar_padding_vertical < 0)
+			bar_padding_vertical = 0;
 		break;
 	case SWM_S_BAR_WORKSPACE_LIMIT:
 		bar_workspace_limit = atoi(value);
@@ -14176,6 +14191,8 @@ struct config_option configopt[] = {
 	{ "bar_font_pua",		setconfvalue,	SWM_S_BAR_FONT_PUA },
 	{ "bar_format",			setconfvalue,	SWM_S_BAR_FORMAT },
 	{ "bar_justify",		setconfvalue,	SWM_S_BAR_JUSTIFY },
+	{ "bar_padding_horizontal",	setconfvalue,	SWM_S_BAR_PADDING_HORIZONTAL },
+	{ "bar_padding_vertical",	setconfvalue,	SWM_S_BAR_PADDING_VERTICAL },
 	{ "bar_workspace_limit",	setconfvalue,	SWM_S_BAR_WORKSPACE_LIMIT },
 	{ "bind",			setconfbinding,	0 },
 	{ "border_width",		setconfvalue,	SWM_S_BORDER_WIDTH },
