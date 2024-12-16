@@ -971,6 +971,7 @@ struct quirk {
 #define SWM_Q_MAXIMIZE		(1 << 13)/* Maximize window when mapped. */
 #define SWM_Q_BELOW		(1 << 14)/* Put window below when mapped. */
 #define SWM_Q_ICONIFY		(1 << 15)/* Put window below when mapped. */
+#define SWM_Q_IGNOREURGENT	(1 << 16)/* Ignore urgency hint. */
 };
 TAILQ_HEAD(quirk_list, quirk) quirks = TAILQ_HEAD_INITIALIZER(quirks);
 
@@ -4115,8 +4116,9 @@ set_attention(struct ws_win *win)
 static bool
 win_urgent(struct ws_win *win)
 {
-	return (xcb_icccm_wm_hints_get_urgency(&win->hints) != 0 ||
-	    DEMANDS_ATTENTION(win));
+	return (!(win->quirks & SWM_Q_IGNOREURGENT) &&
+	    (xcb_icccm_wm_hints_get_urgency(&win->hints) != 0 ||
+	    DEMANDS_ATTENTION(win)));
 }
 
 static void
@@ -12808,6 +12810,7 @@ const char *quirkname[] = {
 	"MAXIMIZE",
 	"BELOW",
 	"ICONIFY",
+	"IGNOREURGENT",
 };
 
 /* SWM_Q_DELIM: retain '|' for back compat for now (2009-08-11) */
