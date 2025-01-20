@@ -3,7 +3,7 @@
 <!-- This is an automatically generated file.  Do not edit.
    Copyright (c) 2009-2012 Marco Peereboom <marco@peereboom.us>
    Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
-   Copyright (c) 2011-2024 Reginald Kennedy <rk@rejii.com>
+   Copyright (c) 2011-2025 Reginald Kennedy <rk@rejii.com>
    Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
    Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
    Copyright (c) 2012 David Hill <dhill@mindcry.org>
@@ -1723,6 +1723,9 @@ bind[move] = MOD+Button3</pre>
   <dd>Do not change focus to the window when it first appears on the screen. Has
       no effect when <code class="Ic">focus_mode</code> is set to
       <var class="Ar">follow</var>.</dd>
+  <dt>NOFOCUSPOINTER</dt>
+  <dd>Do not focus the window via pointer interaction. The window can still be
+      focused using key bindings.</dd>
   <dt>OBEYAPPFOCUSREQ</dt>
   <dd>When an application requests focus on the window via a _NET_ACTIVE_WINDOW
       client message (source indication of 1), comply with the request. Note

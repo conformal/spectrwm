@@ -1,6 +1,6 @@
 .\" Copyright (c) 2009-2012 Marco Peereboom <marco@peereboom.us>
 .\" Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
-.\" Copyright (c) 2011-2024 Reginald Kennedy <rk@rejii.com>
+.\" Copyright (c) 2011-2025 Reginald Kennedy <rk@rejii.com>
 .\" Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
 .\" Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
 .\" Copyright (c) 2012 David Hill <dhill@mindcry.org>
@@ -1974,14 +1974,17 @@ Put the window into maximized state upon being managed.
 .It MINIMALBORDER
 Remove border when window is unfocused and floating.
 .It NOFOCUSCYCLE
-Remove from normal focus cycle (focus_prev or focus_next). The window can still
-be focused using search_win.
+Remove from normal focus cycle (focus_prev or focus_next).
+The window can still be focused using search_win.
 .It NOFOCUSONMAP
 Do not change focus to the window when it first appears on the screen.
 Has no effect when
 .Ic focus_mode
 is set to
 .Ar follow .
+.It NOFOCUSPOINTER
+Do not focus the window via pointer interaction.
+The window can still be focused using key bindings.
 .It OBEYAPPFOCUSREQ
 When an application requests focus on the window via a _NET_ACTIVE_WINDOW
 client message (source indication of 1), comply with the request.
