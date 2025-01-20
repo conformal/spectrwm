@@ -970,8 +970,9 @@ struct quirk {
 #define SWM_Q_MINIMALBORDER	(1 << 12)/* No border when floating/unfocused.*/
 #define SWM_Q_MAXIMIZE		(1 << 13)/* Maximize window when mapped. */
 #define SWM_Q_BELOW		(1 << 14)/* Put window below when mapped. */
-#define SWM_Q_ICONIFY		(1 << 15)/* Put window below when mapped. */
+#define SWM_Q_ICONIFY		(1 << 15)/* Minimize the window when mapped. */
 #define SWM_Q_IGNOREURGENT	(1 << 16)/* Ignore urgency hint. */
+#define SWM_Q_NOFOCUSPOINTER	(1 << 17)/* Don't let the pointer focus. */
 };
 TAILQ_HEAD(quirk_list, quirk) quirks = TAILQ_HEAD_INITIALIZER(quirks);
 
@@ -10422,7 +10423,7 @@ resize_win_pointer(struct ws_win *win, struct binding *bp,
 	xcb_client_message_event_t	*cme;
 	xcb_timestamp_t			timestamp = 0, mintime;
 	int				dx, dy;
-	bool				resizing;
+	bool				focused, resizing;
 	bool				inplace = false;
 
 	if (MAXIMIZED(win) || ws_floating(win->ws))
@@ -10479,6 +10480,7 @@ resize_win_pointer(struct ws_win *win, struct binding *bp,
 	unsnap_win(win, inplace);
 	xcb_flush(conn);
 
+	focused = win_focused(win);
 	mintime = 1000 / win->s->rate;
 	g = win->g;
 	resizing = true;
@@ -10596,7 +10598,7 @@ resize_win_pointer(struct ws_win *win, struct binding *bp,
 				DNPRINTF(SWM_D_EVENT, "invalid win\n");
 				goto out;
 			}
-			if (!win_focused(win)) {
+			if (focused && !win_focused(win)) {
 				DNPRINTF(SWM_D_EVENT, "win lost focus\n");
 				goto out;
 			}
@@ -10809,7 +10811,7 @@ move_win_pointer(struct ws_win *win, struct binding *bp, uint32_t x_root,
 	xcb_client_message_event_t	*cme;
 	xcb_timestamp_t			timestamp = 0, mintime;
 	int				dx, dy;
-	bool				moving, snapped, inplace;
+	bool				focused, moving, snapped, inplace;
 
 	xcb_grab_pointer(conn, 0, win->id, MOUSEMASK,
 	    XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC,
@@ -10836,6 +10838,8 @@ move_win_pointer(struct ws_win *win, struct binding *bp, uint32_t x_root,
 		update_window(win);
 	}
 	xcb_flush(conn);
+
+	focused = win_focused(win);
 	dx = x_root - X(win);
 	dy = y_root - Y(win);
 	mintime = 1000 / win->s->rate;
@@ -10931,7 +10935,7 @@ move_win_pointer(struct ws_win *win, struct binding *bp, uint32_t x_root,
 				DNPRINTF(SWM_D_EVENT, "invalid win\n");
 				goto out;
 			}
-			if (!win_focused(win)) {
+			if (focused && !win_focused(win)) {
 				DNPRINTF(SWM_D_EVENT, "win lost focus\n");
 				goto out;
 			}
@@ -12813,6 +12817,7 @@ const char *quirkname[] = {
 	"BELOW",
 	"ICONIFY",
 	"IGNOREURGENT",
+	"NOFOCUSPOINTER",
 };
 
 /* SWM_Q_DELIM: retain '|' for back compat for now (2009-08-11) */
@@ -15914,6 +15919,10 @@ enternotify(xcb_enter_notify_event_t *e)
 		}
 
 		win = find_window(e->event);
+		if (win && (win->quirks & SWM_Q_NOFOCUSPOINTER)) {
+			DNPRINTF(SWM_D_EVENT, "ignore; NOFOCUSPOINTER\n");
+			return;
+		}
 
 		/* Only handle enternotify on frame. */
 		if (win && e->event != win->frame &&
@@ -16027,6 +16036,11 @@ click_focus(struct swm_screen *s, xcb_window_t id, int x, int y)
 
 	win = find_window(id);
 	if (win) {
+		if (win->quirks & SWM_Q_NOFOCUSPOINTER) {
+			DNPRINTF(SWM_D_EVENT, "ignore; NOFOCUSPOINTER\n");
+			return;
+		}
+
 		if (win_free(win))
 			set_region(region_under(s, x, y));
 		else if (apply_unfocus(s->r->ws, NULL)) {
@@ -16087,9 +16101,13 @@ focus_window(xcb_window_t id)
 	if (id == XCB_WINDOW_NONE)
 		return;
 
-	if ((w = find_window(id)))
+	if ((w = find_window(id))) {
+		if (w->quirks & SWM_Q_NOFOCUSPOINTER) {
+			DNPRINTF(SWM_D_EVENT, "ignore; NOFOCUSPOINTER\n");
+			return;
+		}
 		focus_win(w->s, get_focus_magic(w));
-	else
+	} else
 		focus_window_region(id);
 }
 
@@ -16222,7 +16240,7 @@ motionnotify(xcb_motion_notify_event_t *e)
 			win = find_window(e->child);
 	}
 
-	if (win)
+	if (win && !(win->quirks & SWM_Q_NOFOCUSPOINTER))
 		focus_win(win->s, win);
 	else if (follow_mode(SWM_FOCUS_TYPE_BORDER)) {
 		if (pointer_window != XCB_WINDOW_NONE)
