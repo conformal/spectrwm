@@ -5,7 +5,7 @@
  * Copyright (c) 2009 Pierre-Yves Ritschard <pyr@spootnik.org>
  * Copyright (c) 2010 Tuukka Kataja <stuge@xor.fi>
  * Copyright (c) 2011 Jason L. Wright <jason@thought.net>
- * Copyright (c) 2011-2024 Reginald Kennedy <rk@rejii.com>
+ * Copyright (c) 2011-2025 Reginald Kennedy <rk@rejii.com>
  * Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
  * Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
  * Copyright (c) 2012-2015 David Hill <dhill@mindcry.org>
@@ -16062,7 +16062,8 @@ click_focus(struct swm_screen *s, xcb_window_t id, int x, int y)
 			bar_draw(r->bar);
 		}
 
-		focus_region(r);
+		if (r != s->r_focus && !win_free(s->focus))
+			focus_region(r);
 	}
 }
 
