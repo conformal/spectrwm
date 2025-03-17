@@ -533,6 +533,8 @@ int		 focus_default = SWM_STACK_TOP;
 int		 spawn_position = SWM_STACK_TOP;
 bool		 disable_border = false;
 bool		 disable_border_always = false;
+bool		 center_autobalance = false;
+bool		 center_nowrap = false;
 int		 border_width = 1;
 int		 region_padding = 0;
 int		 tile_gap = 0;
@@ -568,8 +570,12 @@ char		*stack_mark_floating = NULL;
 char		*stack_mark_max = NULL;
 char		*stack_mark_vertical = NULL;
 char		*stack_mark_vertical_flip = NULL;
+char		*stack_mark_vertical_center = NULL;
+char		*stack_mark_vertical_center_flip = NULL;
 char		*stack_mark_horizontal = NULL;
 char		*stack_mark_horizontal_flip = NULL;
+char		*stack_mark_horizontal_center = NULL;
+char		*stack_mark_horizontal_center_flip = NULL;
 size_t		 stack_mark_maxlen = 1;	/* Start with null byte. */
 
 #define ROTATION_DEFAULT	(XCB_RANDR_ROTATION_ROTATE_0)
@@ -789,10 +795,12 @@ struct workspace {
 		int		horizontal_mwin;
 		int		horizontal_stacks;
 		bool		horizontal_flip;
+		bool		horizontal_center;
 		int		vertical_msize;
 		int		vertical_mwin;
 		int		vertical_stacks;
 		bool		vertical_flip;
+		bool		vertical_center;
 	} l_state;
 };
 RB_HEAD(workspace_tree, workspace);
@@ -897,6 +905,7 @@ union arg {
 #define SWM_ARG_ID_MASTERADD	(22)
 #define SWM_ARG_ID_MASTERDEL	(23)
 #define SWM_ARG_ID_FLIPLAYOUT	(24)
+#define SWM_ARG_ID_CENTERLAYOUT (25)
 #define SWM_ARG_ID_STACKRESET	(30)
 #define SWM_ARG_ID_STACKINIT	(31)
 #define SWM_ARG_ID_STACKBALANCE	(32)
@@ -1248,6 +1257,7 @@ enum actionid {
 	FN_BAR_TOGGLE,
 	FN_BAR_TOGGLE_WS,
 	FN_BUTTON2,
+	FN_CENTER_LAYOUT,
 	FN_CYCLE_LAYOUT,
 	FN_FLIP_LAYOUT,
 	FN_FLOAT_TOGGLE,
@@ -1772,8 +1782,7 @@ static void	 spawn_select(struct swm_region *, union arg *, const char *,
 static xcb_window_t	 st_window_id(struct swm_stackable *);
 static void	 stack_config(struct swm_screen *, struct binding *,
 		     union arg *);
-static void	 stack_master(struct workspace *, struct swm_geometry *, int,
-		     bool);
+static void	 stack_master(struct workspace *, struct swm_geometry *, bool);
 static void	 store_float_geom(struct ws_win *);
 static char	*strdupsafe(const char *);
 static int32_t	 strtoint32(const char *, int32_t, int32_t, int *);
@@ -1828,6 +1837,7 @@ static bool	 win_main(struct ws_win *);
 static bool	 win_raised(struct ws_win *);
 static bool	 win_related(struct ws_win *, struct ws_win *);
 static bool	 win_reparented(struct ws_win *);
+static bool	 win_tiled(struct ws_win *);
 static void	 win_to_ws(struct ws_win *, struct workspace *, uint32_t);
 static bool	 win_transient(struct ws_win *);
 static bool	 win_urgent(struct ws_win *);
@@ -1866,6 +1876,12 @@ win_floating(struct ws_win *win)
 {
 	return (win_transient(win) || win->ewmh_flags & EWMH_F_UNTILED ||
 	    ws_floating(win->ws) || WINDOCK(win) || win_below(win));
+}
+
+static bool
+win_tiled(struct ws_win *win)
+{
+	return (!HIDDEN(win) && !win_floating(win) && !WINDESKTOP(win));
 }
 
 static bool
@@ -3628,11 +3644,15 @@ fancy_stacker(struct workspace *ws)
 {
 	if (ws->cur_layout->l_stack == vertical_stack)
 		snprintf(ws->stacker, ws->stacker_len,
-		    ws->l_state.vertical_flip ? "[%d>%d]" : "[%d|%d]",
+		    ws->l_state.vertical_center ?
+		    (ws->l_state.vertical_flip ? "(%d>%d)" : "(%d|%d)") :
+		    (ws->l_state.vertical_flip ? "[%d>%d]" : "[%d|%d]"),
 		    ws->l_state.vertical_mwin, ws->l_state.vertical_stacks);
 	else if (ws->cur_layout->l_stack == horizontal_stack)
 		snprintf(ws->stacker, ws->stacker_len,
-		    ws->l_state.horizontal_flip ? "[%dv%d]" : "[%d-%d]",
+		    ws->l_state.horizontal_center ?
+		    (ws->l_state.horizontal_flip ? "(%dv%d)" : "(%d-%d)") :
+		    (ws->l_state.horizontal_flip ? "[%dv%d]" : "[%d-%d]"),
 		    ws->l_state.horizontal_mwin, ws->l_state.horizontal_stacks);
 	else if (ws->cur_layout->l_stack == floating_stack)
 		strlcpy(ws->stacker, "[ ~ ]", ws->stacker_len);
@@ -3644,13 +3664,20 @@ static void
 plain_stacker(struct workspace *ws)
 {
 	if (ws->cur_layout->l_stack == vertical_stack)
-		strlcpy(ws->stacker, (ws->l_state.vertical_flip ?
+		strlcpy(ws->stacker, ws->l_state.vertical_center ?
+		    (ws->l_state.vertical_flip ?
+		    stack_mark_vertical_center_flip :
+		    stack_mark_vertical_center) :
+		    (ws->l_state.vertical_flip ?
 		    stack_mark_vertical_flip : stack_mark_vertical),
 		    ws->stacker_len);
 	else if (ws->cur_layout->l_stack == horizontal_stack)
-		strlcpy(ws->stacker, (ws->l_state.horizontal_flip ?
-		    stack_mark_horizontal_flip : stack_mark_horizontal),
-		    ws->stacker_len);
+		strlcpy(ws->stacker, ws->l_state.horizontal_center ?
+		    (ws->l_state.horizontal_flip ?
+		    stack_mark_horizontal_center_flip :
+		    stack_mark_horizontal_center) :
+		    (ws->l_state.horizontal_flip ? stack_mark_horizontal_flip :
+		    stack_mark_horizontal), ws->stacker_len);
 	else if (ws->cur_layout->l_stack == floating_stack)
 		strlcpy(ws->stacker, stack_mark_floating, ws->stacker_len);
 	else
@@ -5507,9 +5534,17 @@ setup_marks(void)
 			mlen = len;
 		if ((len = strlen(stack_mark_vertical_flip)) > mlen)
 			mlen = len;
+		if ((len = strlen(stack_mark_vertical_center)) > mlen)
+			mlen = len;
+		if ((len = strlen(stack_mark_vertical_center_flip)) > mlen)
+			mlen = len;
 		if ((len = strlen(stack_mark_horizontal)) > mlen)
 			mlen = len;
 		if ((len = strlen(stack_mark_horizontal_flip)) > mlen)
+			mlen = len;
+		if ((len = strlen(stack_mark_horizontal_center)) > mlen)
+			mlen = len;
+		if ((len = strlen(stack_mark_horizontal_center_flip)) > mlen)
 			mlen = len;
 		if ((len = strlen(stack_mark_floating)) > mlen)
 			mlen = len;
@@ -7861,8 +7896,11 @@ stack_config(struct swm_screen *s, struct binding *bp, union arg *args)
 		stack(r);
 	}
 
-	if (ws->cur_layout->l_config != NULL)
+	if (ws->cur_layout->l_config != NULL) {
 		ws->cur_layout->l_config(ws, args->id);
+		if (args->id == SWM_ARG_ID_CENTERLAYOUT && center_autobalance)
+			ws->cur_layout->l_config(ws, SWM_ARG_ID_STACKBALANCE);
+	}
 
 	if (args->id != SWM_ARG_ID_STACKINIT)
 		stack(r);
@@ -7887,8 +7925,8 @@ stack(struct swm_region *r) {
 	g = r->g_usable;
 	g.x += region_padding;
 	g.y += region_padding;
-	g.w -= 2 * border_width + 2 * region_padding;
-	g.h -= 2 * border_width + 2 * region_padding;
+	g.w -= 2 * region_padding;
+	g.h -= 2 * region_padding;
 	if (bar_enabled && r->ws->bar_enabled) {
 		if (!bar_at_bottom)
 			g.y += bar_height;
@@ -8105,211 +8143,259 @@ adjust_font(struct ws_win *win)
 	tmp = (g)->y; (g)->y = (g)->x; (g)->x = tmp;	\
 	tmp = (g)->h; (g)->h = (g)->w; (g)->w = tmp;	\
 } while (0)
-static void
-stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
+
+static struct ws_win *
+stack_column(struct swm_geometry *g, struct ws_win *fwin, int count, bool rot)
 {
-	struct swm_geometry	cell, r_g = *g;
-	struct ws_win		*win;
-	int			i = 0, j = 0, s = 0, stacks = 0;
-	int			w_inc = 1, h_inc, w_base = 1, h_base;
-	int			hrh = 0, extra = 0, h_slice = 0, last_h = 0;
-	int			split = 0, colno = 0;
-	int			winno, mwin = 0, msize = 0;
-	int			remain, missing, v_slice, mscale;
-	bool			bordered = true, reconfigure = false;
+	struct ws_win		*w;
+	struct swm_geometry	cell;
+	int			i, base, remain, hrem = 0, h_inc, h_base, boff;
+	int			min_height = 1 + 2 * border_width;
+	int              	missing, htot;
+
+	if (fwin == NULL || count <= 0)
+		return (NULL);
+
+	DNPRINTF(SWM_D_STACK, "g:(%d,%d)+%d+%d count:%d rot:%s\n", g->x, g->y,
+	    g->w, g->h, count, YESNO(rot));
+
+	htot = g->h - (count - 1) * tile_gap;
+	if (htot < count * min_height)
+		htot = count * min_height;
+
+	base = htot / count;
+	remain = htot % count;
+
+	cell = *g;
+	for (i = 0, w = fwin; w && i < count; w = TAILQ_NEXT(w, entry)) {
+		if (!win_tiled(w))
+			continue;
+
+		cell.h = base + (i < remain ? 1 : 0);
+		cell.w = g->w;
+
+		/* Adjust for size hints */
+		if (rot) {
+			h_inc = w->sh.width_inc;
+			h_base = w->sh.base_width;
+		} else {
+			h_inc =	w->sh.height_inc;
+			h_base = w->sh.base_height;
+		}
+
+		boff = w->bordered ? 2 * border_width : 0;
+		if (h_inc > 1) {
+			remain = (cell.h - boff - h_base) % h_inc;
+			missing = h_inc - remain;
+			if (missing <= hrem || i == 0) {
+				hrem -= missing;
+				cell.h += missing;
+			} else {
+				cell.h -= remain;
+				hrem += remain;
+			}
+		}
+
+		/* Apply the geometry to the window */
+		w->g = cell;
+		if (w->bordered) {
+			X(w) += border_width;
+			Y(w) += border_width;
+			WIDTH(w) -= 2 * border_width;
+			HEIGHT(w) -= 2 * border_width;
+		}
+		if (rot)
+			SWAPXY(&w->g);
+		cell.y += tile_gap + cell.h;
+		i++;
+	}
+
+	return (w);
+}
+
+static void
+stack_master(struct workspace *ws, struct swm_geometry *g, bool rot)
+{
+	struct ws_win		*w;
+	struct swm_geometry	r_g = *g, m_g, s_g, s_g1, s_g2, c_g;
+	int			stacks,	split, mwin, mscale, winno, swinno;
+	int			slice, remain, bordered, flip, center;
+	int 			i, j, w_inc = 0, w_base = 0;
 
 	/*
-	 * cell: geometry for window, including frame.
 	 * mwin: # of windows in master area.
 	 * mscale: size increment of master area.
 	 * stacks: # of stack columns
 	 */
 
-	DNPRINTF(SWM_D_STACK, "workspace: %d, rot: %s, flip: %s\n", ws->idx,
-	    YESNO(rot), YESNO(flip));
+	DNPRINTF(SWM_D_STACK, "ws:%d g:(%d,%d)+%d+%d rot:%s\n", ws->idx, g->x,
+	    g->y, g->w, g->h, YESNO(rot));
 
-	memset(&cell, 0, sizeof(cell));
-
-	/* Prepare tiling variables, if needed. */
-	if ((winno = count_win(ws, SWM_COUNT_TILED)) > 0) {
-		/* Find first tiled window. */
-		TAILQ_FOREACH(win, &ws->winlist, entry)
-			if (!win_floating(win) && !HIDDEN(win))
-				break;
-
-		/* Take into account size hints of first tiled window. */
-		if (rot) {
-			w_inc = win->sh.width_inc;
-			w_base = win->sh.base_width;
-			mwin = ws->l_state.horizontal_mwin;
-			mscale = ws->l_state.horizontal_msize;
-			stacks = ws->l_state.horizontal_stacks;
-			SWAPXY(&r_g);
-		} else {
-			w_inc = win->sh.height_inc;
-			w_base = win->sh.base_height;
-			mwin = ws->l_state.vertical_mwin;
-			mscale = ws->l_state.vertical_msize;
-			stacks = ws->l_state.vertical_stacks;
-		}
-
-		cell = r_g;
-		cell.x += border_width;
-		cell.y += border_width;
-
-		if (stacks > winno - mwin)
-			stacks = winno - mwin;
-		if (stacks < 1)
-			stacks = 1;
-
-		h_slice = r_g.h / SWM_H_SLICE;
-		if (mwin && winno > mwin) {
-			v_slice = r_g.w / SWM_V_SLICE;
-
-			split = mwin;
-			colno = split;
-			cell.w = v_slice * mscale;
-
-			if (w_inc > 1 && w_inc < v_slice) {
-				/* Adjust for requested size increment. */
-				remain = (cell.w - w_base) % w_inc;
-				cell.w -= remain;
-			}
-
-			msize = cell.w;
-			if (flip)
-				cell.x += r_g.w - msize;
-			s = stacks;
-		} else {
-			msize = -2 * border_width;
-			colno = split = winno / stacks;
-			cell.w = ((r_g.w - (stacks * 2 * border_width) +
-			    2 * border_width) / stacks);
-			if (flip)
-				cell.x += r_g.w - cell.w;
-			s = stacks - 1;
-		}
-
-		hrh = r_g.h / colno;
-		extra = r_g.h - (colno * hrh);
-		cell.h = hrh - 2 * border_width;
-		i = j = 0;
+	/* Prepare stacking parameters. */
+	if (rot) {
+		mwin = ws->l_state.horizontal_mwin;
+		mscale = ws->l_state.horizontal_msize;
+		stacks = ws->l_state.horizontal_stacks;
+		flip = ws->l_state.horizontal_flip;
+		center = ws->l_state.horizontal_center;
+		SWAPXY(&r_g);
+		slice = r_g.w / SWM_H_SLICE;
+	} else {
+		mwin = ws->l_state.vertical_mwin;
+		mscale = ws->l_state.vertical_msize;
+		stacks = ws->l_state.vertical_stacks;
+		flip = ws->l_state.vertical_flip;
+		center = ws->l_state.vertical_center;
+		slice = r_g.w / SWM_V_SLICE;
 	}
 
-	/* Update window geometry. */
-	TAILQ_FOREACH(win, &ws->winlist, entry) {
-		if (HIDDEN(win))
-			continue;
+	winno = count_win(ws, SWM_COUNT_TILED);
+	if (mwin > winno)
+		mwin = winno;
+	swinno = winno - mwin;
+	if (swinno < stacks)
+		stacks = swinno;
 
-		if (win_floating(win) || WINDESKTOP(win)) {
-			update_floater(win);
-			continue;
-		}
+	DNPRINTF(SWM_D_STACK, "flip:%s center:%s mwin:%d mscale:%d stacks:%d "
+	    "slice:%d winno:%d swinno:%d\n", YESNO(flip),
+	    YESNO(center), mwin, mscale, stacks, slice, winno, swinno);
 
-		/* Tiled. */
-		if (split && i == split) {
-			colno = (winno - mwin) / stacks;
-			if (s <= (winno - mwin) % stacks)
-				colno++;
-			split += colno;
-			if (colno > 0)
-				hrh = r_g.h / colno;
-			extra = r_g.h - (colno * hrh);
+	/* Add master area. */
+	if (mwin) {
+		m_g = r_g;
 
-			if (!flip)
-				cell.x += cell.w + 2 * border_width + tile_gap;
+		/* Find first master window. */
+		TAILQ_FOREACH(w, &ws->winlist, entry)
+			if (win_tiled(w))
+				break;
 
-			cell.w = (r_g.w - msize -
-			    (stacks * (2 * border_width + tile_gap))) / stacks;
-			if (s == 1)
-				cell.w += (r_g.w - msize -
-				    (stacks * (2 * border_width + tile_gap))) %
-				    stacks;
-
-			if (flip)
-				cell.x -= cell.w + 2 * border_width + tile_gap;
-			s--;
-			j = 0;
-		}
-
-		cell.h = hrh - 2 * border_width - tile_gap;
-
+		/* SizeHints of the main window is used to adjust sizing. */
 		if (rot) {
-			h_inc = win->sh.width_inc;
-			h_base = win->sh.base_width;
+			w_inc = w->sh.height_inc;
+			w_base = w->sh.base_height;
 		} else {
-			h_inc =	win->sh.height_inc;
-			h_base = win->sh.base_height;
+			w_inc = w->sh.width_inc;
+			w_base = w->sh.base_width;
 		}
+	}
 
-		if (j == colno - 1) {
-			cell.h = hrh + extra;
-		} else if (h_inc > 1 && h_inc < h_slice) {
-			/* adjust for window's requested size increment */
-			remain = (cell.h - h_base) % h_inc;
-			missing = h_inc - remain;
+	/* Add stack area(s). */
+	if (stacks) {
+		s_g1 = s_g2 = r_g;
 
-			if (missing <= extra || j == 0) {
-				extra -= missing;
-				cell.h += missing;
+		if (mwin) {
+			m_g.w = slice * mscale;
+			if (w_inc > 1 && w_inc < slice) {
+				/* Adjust for requested size increment. */
+				remain = (m_g.w - w_base) % w_inc;
+				m_g.w -= remain;
+			}
+
+			if (center) {
+				m_g.x = r_g.x + r_g.w / 2 - m_g.w / 2;
+				s_g1.x = m_g.x + m_g.w + tile_gap;
+				s_g1.w = (r_g.w + r_g.x) - s_g1.x;
+				s_g2.w = m_g.x - r_g.x - tile_gap;
+
+				if (center_nowrap && stacks > 1) {
+					s_g = s_g1;
+					s_g1 = s_g2;
+					s_g2 = s_g;
+				}
+				if (flip) {
+					s_g = s_g1;
+					s_g1 = s_g2;
+					s_g2 = s_g;
+				}
 			} else {
-				cell.h -= remain;
-				extra += remain;
+				s_g1.w -= m_g.w + tile_gap;
+				if (flip)
+					m_g.x += s_g1.w + tile_gap;
+				else
+					s_g1.x += m_g.w + tile_gap;
 			}
 		}
+	}
 
-		if (j == 0)
-			cell.y = r_g.y + border_width;
-		else
-			cell.y += last_h + 2 * border_width + tile_gap;
+	if (mwin)
+		DNPRINTF(SWM_D_STACK, "m_g:(%d,%d)+%d+%d\n", m_g.x, m_g.y,
+		    m_g.w, m_g.h);
+	if (stacks) {
+		DNPRINTF(SWM_D_STACK, "s_g1:(%d,%d)+%d+%d\n", s_g1.x, s_g1.y,
+		    s_g1.w, s_g1.h);
+		if (center)
+			DNPRINTF(SWM_D_STACK, "s_g2:(%d,%d)+%d+%d\n", s_g2.x,
+			    s_g2.y, s_g2.w, s_g2.h);
+	}
 
-		/* Window coordinates exclude frame. */
+	/* Set borders before stacking. */
+	bordered = (winno > 1 || !disable_border || (bar_enabled &&
+	    ws->bar_enabled && !disable_border_always));
+	TAILQ_FOREACH(w, &ws->winlist, entry) {
+		if (!win_tiled(w))
+			continue;
 
-		bordered = (winno > 1 || !disable_border || (bar_enabled &&
-		    ws->bar_enabled && !disable_border_always));
+		if (bordered != w->bordered) {
+			w->bordered = bordered;
+			update_gravity(w);
+		}
+	}
 
-		if (rot) {
-			if (X(win) != cell.y || Y(win) != cell.x ||
-			    WIDTH(win) != cell.h || HEIGHT(win) != cell.w) {
-				reconfigure = true;
-				X(win) = cell.y;
-				Y(win) = cell.x;
-				WIDTH(win) = cell.h;
-				HEIGHT(win) = cell.w;
+	w = TAILQ_FIRST(&ws->winlist);
+	/* Master area. */
+	if (mwin)
+		w = stack_column(&m_g, w, mwin, rot);
+	/* Secondary area. */
+	if (stacks) {
+		split = stacks;
+		if (center && mwin && stacks >= 2)
+			split = stacks / 2;
+
+		/* Prepare for first stacking area. */
+		c_g = s_g = s_g1;
+		c_g.w = (s_g.w - (split - 1) * tile_gap) / split;
+		remain = (s_g.w - (split - 1) * tile_gap) % c_g.w;
+
+		for (i = 0, j = 0; i < stacks; i++, j++) {
+			if (i == split) {
+				c_g.w += remain;
+				if (flip)
+					c_g.x -= remain;
+				j = 0;
+				c_g = s_g = s_g2;
+				c_g.w = (s_g.w - (stacks - split - 1) *
+				    tile_gap) / (stacks - split);
+				remain = (s_g.w - (stacks - split - 1) *
+				    tile_gap) % c_g.w;
 			}
-		} else {
-			if (X(win) != cell.x || Y(win) != cell.y ||
-			    WIDTH(win) != cell.w || HEIGHT(win) != cell.h) {
-				reconfigure = true;
-				X(win) = cell.x;
-				Y(win) = cell.y;
-				WIDTH(win) = cell.w;
-				HEIGHT(win) = cell.h;
+			if (flip)
+				c_g.x = s_g.x + s_g.w - (j + 1 ) * c_g.w -
+				    j * tile_gap;
+			else
+				c_g.x = s_g.x + j * (c_g.w + tile_gap);
+
+			if (i == stacks - 1) {
+				c_g.w += remain;
+				if (flip)
+					c_g.x -= remain;
 			}
+			w = stack_column(&c_g, w, ((swinno / stacks) +
+			    (stacks - i <= swinno % stacks ? 1 : 0)), rot);
+		}
+	}
+
+	/* Update windows */
+	TAILQ_FOREACH(w, &ws->winlist, entry) {
+		if (HIDDEN(w))
+			continue;
+
+		if (win_floating(w) || WINDESKTOP(w)) {
+			update_floater(w);
+			continue;
 		}
 
-		if (!bordered) {
-			reconfigure = true;
-			X(win) -= border_width;
-			Y(win) -= border_width;
-			WIDTH(win) += 2 * border_width;
-			HEIGHT(win) += 2 * border_width;
-		}
-
-		if (bordered != win->bordered) {
-			reconfigure = true;
-			win->bordered = bordered;
-			update_gravity(win);
-		}
-
-		if (reconfigure) {
-			adjust_font(win);
-			update_window(win);
-		}
-
-		last_h = cell.h;
-		i++;
-		j++;
+		adjust_font(w);
+		update_window(w);
 	}
 
 	DNPRINTF(SWM_D_STACK, "done\n");
@@ -8318,6 +8404,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, int rot, bool flip)
 static void
 vertical_config(struct workspace *ws, int id)
 {
+	int		winno, stacks;
+
 	DNPRINTF(SWM_D_STACK, "id: %d, workspace: %d\n", id, ws->idx);
 
 	switch (id) {
@@ -8343,8 +8431,23 @@ vertical_config(struct workspace *ws, int id)
 			ws->l_state.vertical_mwin--;
 		break;
 	case SWM_ARG_ID_STACKBALANCE:
-		ws->l_state.vertical_msize = SWM_V_SLICE /
-		    (ws->l_state.vertical_stacks + 1);
+		stacks = ws->l_state.vertical_stacks;
+		winno = count_win(ws, SWM_COUNT_TILED);
+		if (winno - ws->l_state.vertical_mwin < stacks)
+			stacks = winno - ws->l_state.vertical_mwin;
+		if (stacks < 0)
+			stacks = 0;
+
+		ws->l_state.vertical_msize = SWM_V_SLICE / (stacks + 1);
+		if (ws->l_state.vertical_center) {
+			if (stacks <= 1)
+				ws->l_state.vertical_msize =
+				    (SWM_V_SLICE + 2) / 3;
+			else
+				ws->l_state.vertical_msize = (SWM_V_SLICE +
+				    (stacks - stacks % 2 + 1) - 1) /
+				    (stacks - stacks % 2 + 1);
+		}
 		break;
 	case SWM_ARG_ID_STACKINC:
 		ws->l_state.vertical_stacks++;
@@ -8356,6 +8459,9 @@ vertical_config(struct workspace *ws, int id)
 	case SWM_ARG_ID_FLIPLAYOUT:
 		ws->l_state.vertical_flip = !ws->l_state.vertical_flip;
 		break;
+	case SWM_ARG_ID_CENTERLAYOUT:
+		ws->l_state.vertical_center = !ws->l_state.vertical_center;
+		break;
 	default:
 		return;
 	}
@@ -8366,12 +8472,14 @@ vertical_stack(struct workspace *ws, struct swm_geometry *g)
 {
 	DNPRINTF(SWM_D_STACK, "workspace: %d\n", ws->idx);
 
-	stack_master(ws, g, 0, ws->l_state.vertical_flip);
+	stack_master(ws, g, 0);
 }
 
 static void
 horizontal_config(struct workspace *ws, int id)
 {
+	int		winno, stacks;
+
 	DNPRINTF(SWM_D_STACK, "workspace: %d\n", ws->idx);
 
 	switch (id) {
@@ -8397,8 +8505,23 @@ horizontal_config(struct workspace *ws, int id)
 			ws->l_state.horizontal_mwin--;
 		break;
 	case SWM_ARG_ID_STACKBALANCE:
-		ws->l_state.horizontal_msize = SWM_H_SLICE /
-		    (ws->l_state.horizontal_stacks + 1);
+		stacks = ws->l_state.horizontal_stacks;
+		winno = count_win(ws, SWM_COUNT_TILED);
+		if (winno - ws->l_state.horizontal_mwin < stacks)
+			stacks = winno - ws->l_state.horizontal_mwin;
+		if (stacks < 0)
+			stacks = 0;
+
+		ws->l_state.horizontal_msize = SWM_H_SLICE / (stacks + 1);
+		if (ws->l_state.horizontal_center) {
+			if (stacks <= 1)
+				ws->l_state.horizontal_msize =
+				    (SWM_H_SLICE + 2) / 3;
+			else
+				ws->l_state.horizontal_msize = (SWM_H_SLICE +
+				    (stacks - stacks % 2 + 1) - 1) /
+				    (stacks - stacks % 2 + 1);
+		}
 		break;
 	case SWM_ARG_ID_STACKINC:
 		ws->l_state.horizontal_stacks++;
@@ -8410,6 +8533,9 @@ horizontal_config(struct workspace *ws, int id)
 	case SWM_ARG_ID_FLIPLAYOUT:
 		ws->l_state.horizontal_flip = !ws->l_state.horizontal_flip;
 		break;
+	case SWM_ARG_ID_CENTERLAYOUT:
+		ws->l_state.horizontal_center = !ws->l_state.horizontal_center;
+		break;
 	default:
 		return;
 	}
@@ -8420,7 +8546,7 @@ horizontal_stack(struct workspace *ws, struct swm_geometry *g)
 {
 	DNPRINTF(SWM_D_STACK, "workspace: %d\n", ws->idx);
 
-	stack_master(ws, g, 1, ws->l_state.horizontal_flip);
+	stack_master(ws, g, 1);
 }
 
 static void
@@ -11002,6 +11128,7 @@ static struct action {
 	{ "bar_toggle",		bar_toggle,	0, {.id = SWM_ARG_ID_BAR_TOGGLE} },
 	{ "bar_toggle_ws",	bar_toggle,	0, {.id = SWM_ARG_ID_BAR_TOGGLE_WS} },
 	{ "button2",		pressbutton,	0, {.id = 2} },
+	{ "center_layout",	stack_config,	0, {.id = SWM_ARG_ID_CENTERLAYOUT} },
 	{ "cycle_layout",	switchlayout,	0, {.id = SWM_ARG_ID_CYCLE_LAYOUT} },
 	{ "flip_layout",	stack_config,	0, {.id = SWM_ARG_ID_FLIPLAYOUT} },
 	{ "float_toggle",	floating_toggle,0, {0} },
@@ -12099,6 +12226,7 @@ setup_keybindings(void)
 	BINDKEY(MOD,		XK_b,			FN_BAR_TOGGLE);
 	BINDKEY(MODSHIFT,	XK_b,			FN_BAR_TOGGLE_WS);
 	BINDKEY(MOD,		XK_v,			FN_BUTTON2);
+	BINDKEY(MOD,		XK_backslash,		FN_CENTER_LAYOUT);
 	BINDKEY(MOD,		XK_space,		FN_CYCLE_LAYOUT);
 	BINDKEY(MODSHIFT,	XK_backslash,		FN_FLIP_LAYOUT);
 	BINDKEY(MOD,		XK_t,			FN_FLOAT_TOGGLE);
@@ -13296,6 +13424,8 @@ enum {
 	SWM_S_BAR_WORKSPACE_LIMIT,
 	SWM_S_BORDER_WIDTH,
 	SWM_S_BOUNDARY_WIDTH,
+	SWM_S_CENTER_AUTOBALANCE,
+	SWM_S_CENTER_NOWRAP,
 	SWM_S_CLICK_TO_RAISE,
 	SWM_S_CLOCK_ENABLED,
 	SWM_S_CLOCK_FORMAT,
@@ -13351,8 +13481,12 @@ enum {
 	SWM_S_STACK_MARK_MAX,
 	SWM_S_STACK_MARK_VERTICAL,
 	SWM_S_STACK_MARK_VERTICAL_FLIP,
+	SWM_S_STACK_MARK_VERTICAL_CENTER,
+	SWM_S_STACK_MARK_VERTICAL_CENTER_FLIP,
 	SWM_S_STACK_MARK_HORIZONTAL,
 	SWM_S_STACK_MARK_HORIZONTAL_FLIP,
+	SWM_S_STACK_MARK_HORIZONTAL_CENTER,
+	SWM_S_STACK_MARK_HORIZONTAL_CENTER_FLIP,
 };
 
 static int
@@ -13442,6 +13576,12 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 		boundary_width = atoi(value);
 		if (boundary_width < 0)
 			boundary_width = 0;
+		break;
+	case SWM_S_CENTER_AUTOBALANCE:
+		center_autobalance = (atoi(value) != 0);
+		break;
+	case SWM_S_CENTER_NOWRAP:
+		center_nowrap = (atoi(value) != 0);
 		break;
 	case SWM_S_CLICK_TO_RAISE:
 		click_to_raise = (atoi(value) != 0);
@@ -13753,6 +13893,14 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 		free(stack_mark_vertical_flip);
 		stack_mark_vertical_flip = unescape_value(value);
 		break;
+	case SWM_S_STACK_MARK_VERTICAL_CENTER:
+		free(stack_mark_vertical_center);
+		stack_mark_vertical_center = unescape_value(value);
+		break;
+	case SWM_S_STACK_MARK_VERTICAL_CENTER_FLIP:
+		free(stack_mark_vertical_center_flip);
+		stack_mark_vertical_center_flip = unescape_value(value);
+		break;
 	case SWM_S_STACK_MARK_HORIZONTAL:
 		free(stack_mark_horizontal);
 		stack_mark_horizontal = unescape_value(value);
@@ -13760,6 +13908,14 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 	case SWM_S_STACK_MARK_HORIZONTAL_FLIP:
 		free(stack_mark_horizontal_flip);
 		stack_mark_horizontal_flip = unescape_value(value);
+		break;
+	case SWM_S_STACK_MARK_HORIZONTAL_CENTER:
+		free(stack_mark_horizontal_center);
+		stack_mark_horizontal_center = unescape_value(value);
+		break;
+	case SWM_S_STACK_MARK_HORIZONTAL_CENTER_FLIP:
+		free(stack_mark_horizontal_center_flip);
+		stack_mark_horizontal_center_flip = unescape_value(value);
 		break;
 	default:
 		ALLOCSTR(emsg, "invalid option");
@@ -14067,7 +14223,7 @@ setlayout(uint8_t asop, const char *selector, const char *value, int flags,
 	int			ws_id, i, x, mg, ma, si, ar, n;
 	int			st = SWM_V_STACK, num_screens;
 	uint16_t		rot;
-	bool			f = false;
+	bool			c = false, f = false;
 
 	/* suppress unused warnings since vars are needed */
 	(void)selector;
@@ -14097,10 +14253,24 @@ setlayout(uint8_t asop, const char *selector, const char *value, int flags,
 	else if (strcasecmp(value, "vertical_flip") == 0) {
 		st = SWM_V_STACK;
 		f = true;
+	} else if (strcasecmp(value, "vertical_center") == 0) {
+		st = SWM_V_STACK;
+		c = true;
+	} else if (strcasecmp(value, "vertical_center_flip") == 0) {
+		st = SWM_V_STACK;
+		c = true;
+		f = true;
 	} else if (strcasecmp(value, "horizontal") == 0)
 		st = SWM_H_STACK;
 	else if (strcasecmp(value, "horizontal_flip") == 0) {
 		st = SWM_H_STACK;
+		f = true;
+	} else if (strcasecmp(value, "horizontal_center") == 0) {
+		st = SWM_H_STACK;
+		c = true;
+	} else if (strcasecmp(value, "horizontal_center_flip") == 0) {
+		st = SWM_H_STACK;
+		c = true;
 		f = true;
 	} else if (strcasecmp(value, "max") == 0 ||
 	    strcasecmp(value, "fullscreen") == 0)
@@ -14148,6 +14318,9 @@ setlayout(uint8_t asop, const char *selector, const char *value, int flags,
 		/* Apply flip */
 		if (f)
 			ws->cur_layout->l_config(ws, SWM_ARG_ID_FLIPLAYOUT);
+		/* Apply center */
+		if (c)
+			ws->cur_layout->l_config(ws, SWM_ARG_ID_CENTERLAYOUT);
 
 		/* Reapply rotation. */
 		rotatews(ws, rot);
@@ -14191,6 +14364,8 @@ struct config_option configopt[] = {
 	{ "border_width",		setconfvalue,	SWM_S_BORDER_WIDTH },
 	{ "boundary_width",		setconfvalue,	SWM_S_BOUNDARY_WIDTH },
 	{ "cancelkey",			setconfcancelkey,0 },
+	{ "center_autobalance",		setconfvalue,	SWM_S_CENTER_AUTOBALANCE },
+	{ "center_nowrap",		setconfvalue,	SWM_S_CENTER_NOWRAP },
 	{ "click_to_raise",		setconfvalue,	SWM_S_CLICK_TO_RAISE },
 	{ "clock_enabled",		setconfvalue,	SWM_S_CLOCK_ENABLED },
 	{ "clock_format",		setconfvalue,	SWM_S_CLOCK_FORMAT },
@@ -14271,8 +14446,12 @@ struct config_option configopt[] = {
 	{ "stack_mark_max",		setconfvalue,	SWM_S_STACK_MARK_MAX },
 	{ "stack_mark_vertical",	setconfvalue,	SWM_S_STACK_MARK_VERTICAL },
 	{ "stack_mark_vertical_flip",	setconfvalue,	SWM_S_STACK_MARK_VERTICAL_FLIP },
+	{ "stack_mark_vertical_center",	setconfvalue,	SWM_S_STACK_MARK_VERTICAL_CENTER },
+	{ "stack_mark_vertical_center_flip",setconfvalue,SWM_S_STACK_MARK_VERTICAL_CENTER_FLIP },
 	{ "stack_mark_horizontal",	setconfvalue,	SWM_S_STACK_MARK_HORIZONTAL },
 	{ "stack_mark_horizontal_flip",	setconfvalue,	SWM_S_STACK_MARK_HORIZONTAL_FLIP },
+	{ "stack_mark_horizontal_center",setconfvalue,	SWM_S_STACK_MARK_HORIZONTAL_CENTER },
+	{ "stack_mark_horizontal_center_flip",setconfvalue,SWM_S_STACK_MARK_HORIZONTAL_CENTER_FLIP },
 };
 
 static void
@@ -17577,10 +17756,22 @@ setup_globals(void)
 	if ((stack_mark_vertical_flip = strdup("[>]")) == NULL)
 		err(1, "stack_mark_vertical_flip: strdup");
 
+	if ((stack_mark_vertical_center = strdup("(|)")) == NULL)
+		err(1, "stack_mark_vertical: strdup");
+
+	if ((stack_mark_vertical_center_flip = strdup("(>)")) == NULL)
+		err(1, "stack_mark_vertical_flip: strdup");
+
 	if ((stack_mark_horizontal = strdup("[-]")) == NULL)
 		err(1, "stack_mark_horizontal: strdup");
 
 	if ((stack_mark_horizontal_flip = strdup("[v]")) == NULL)
+		err(1, "stack_mark_horizontal_flip: strdup");
+
+	if ((stack_mark_horizontal_center = strdup("(-)")) == NULL)
+		err(1, "stack_mark_horizontal: strdup");
+
+	if ((stack_mark_horizontal_center_flip = strdup("(v)")) == NULL)
 		err(1, "stack_mark_horizontal_flip: strdup");
 
 	if ((syms = xcb_key_symbols_alloc(conn)) == NULL)
@@ -17835,8 +18026,12 @@ shutdown_cleanup(void)
 	free(stack_mark_max);
 	free(stack_mark_vertical);
 	free(stack_mark_vertical_flip);
+	free(stack_mark_vertical_center);
+	free(stack_mark_vertical_center_flip);
 	free(stack_mark_horizontal);
 	free(stack_mark_horizontal_flip);
+	free(stack_mark_horizontal_center);
+	free(stack_mark_horizontal_center_flip);
 	free(workspace_mark_current);
 	free(workspace_mark_current_suffix);
 	free(workspace_mark_urgent);
