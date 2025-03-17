@@ -477,6 +477,14 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
     <p class="Pp">See the <a class="Sx" href="#BINDINGS">BINDINGS</a> section
         below for details on how to find key names.</p>
   </dd>
+  <dt id="center_autobalance"><a class="permalink" href="#center_autobalance"><code class="Ic">center_autobalance</code></a></dt>
+  <dd>Automatically balance the master/stacking areas when toggling centered
+      mode. Default is 0.</dd>
+  <dt id="center_nowrap"><a class="permalink" href="#center_nowrap"><code class="Ic">center_nowrap</code></a></dt>
+  <dd>In centered mode, secondary stacks are positioned from one side of the
+      master area and spillover to the opposite side. Enable to maintain the
+      original order of secondary stacks, split by the master area without
+      wrapping. Default is 0.</dd>
   <dt id="click_to_raise"><a class="permalink" href="#click_to_raise"><code class="Ic">click_to_raise</code></a></dt>
   <dd>Enable or disable raising stacking priority when clicking on a window.
       Default is 1.</dd>
@@ -676,8 +684,12 @@ focus_mode = default # Reset all focus situations to respective default values.<
       while maintaining default floating window behavior. Possible
       <var class="Ar">stack_mode</var> values are
       <var class="Ar">vertical</var>, <var class="Ar">vertical_flip</var>,
+      <var class="Ar">vertical_center</var>,
+      <var class="Ar">vertical_center_flip</var>,
       <var class="Ar">horizontal</var>, <var class="Ar">horizontal_flip</var>,
-      <var class="Ar">max</var> and <var class="Ar">floating</var>.
+      <var class="Ar">horizontal_center</var>,
+      <var class="Ar">horizontal_center_flip</var>, <var class="Ar">max</var>
+      and <var class="Ar">floating</var>.
     <p class="Pp">See <code class="Ic">master_grow</code>,
         <code class="Ic">master_shrink</code>,
         <code class="Ic">master_add</code>, <code class="Ic">master_del</code>,
@@ -839,6 +851,14 @@ focus_mode = default # Reset all focus situations to respective default values.<
   <dd>Set the <var class="Ar">horizontal</var> layout mark for the
       <code class="Ic">bar_format</code> stacking indicator (+S). Default is
       '[-]'.</dd>
+  <dt id="stack_mark_horizontal_center"><a class="permalink" href="#stack_mark_horizontal_center"><code class="Ic">stack_mark_horizontal_center</code></a></dt>
+  <dd>Set the <var class="Ar">horizontal_center</var> layout mark for the
+      <code class="Ic">bar_format</code> stacking indicator (+S). Default is
+      '(-)'.</dd>
+  <dt id="stack_mark_horizontal_center_flip"><a class="permalink" href="#stack_mark_horizontal_center_flip"><code class="Ic">stack_mark_horizontal_center_flip</code></a></dt>
+  <dd>Set the <var class="Ar">horizontal_center_flip</var> layout mark for the
+      <code class="Ic">bar_format</code> stacking indicator (+S). Default is
+      '(v)'.</dd>
   <dt id="stack_mark_horizontal_flip"><a class="permalink" href="#stack_mark_horizontal_flip"><code class="Ic">stack_mark_horizontal_flip</code></a></dt>
   <dd>Set the <var class="Ar">horizontal_flip</var> layout mark for the
       <code class="Ic">bar_format</code> stacking indicator (+S). Default is
@@ -851,6 +871,14 @@ focus_mode = default # Reset all focus situations to respective default values.<
   <dd>Set the <var class="Ar">vertical</var> layout mark for the
       <code class="Ic">bar_format</code> stacking indicator (+S). Default is
       '[|]'.</dd>
+  <dt id="stack_mark_vertical_center"><a class="permalink" href="#stack_mark_vertical_center"><code class="Ic">stack_mark_vertical_center</code></a></dt>
+  <dd>Set the <var class="Ar">vertical_center</var> layout mark for the
+      <code class="Ic">bar_format</code> stacking indicator (+S). Default is
+      '(|)'.</dd>
+  <dt id="stack_mark_vertical_center_flip"><a class="permalink" href="#stack_mark_vertical_center_flip"><code class="Ic">stack_mark_vertical_center_flip</code></a></dt>
+  <dd>Set the <var class="Ar">vertical_center_flip</var> layout mark for the
+      <code class="Ic">bar_format</code> stacking indicator (+S). Default is
+      '(&gt;)'.</dd>
   <dt id="stack_mark_vertical_flip"><a class="permalink" href="#stack_mark_vertical_flip"><code class="Ic">stack_mark_vertical_flip</code></a></dt>
   <dd>Set the <var class="Ar">vertical_flip</var> layout mark for the
       <code class="Ic">bar_format</code> stacking indicator (+S). Default is
@@ -1199,6 +1227,8 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dd>restart_of_day</dd>
   <dt id="M-~3"><a class="permalink" href="#M-~3"><code class="Cm">M-</code></a>&#x27E8;<code class="Cm">Space</code>&#x27E9;</dt>
   <dd>cycle_layout</dd>
+  <dt><code class="Cm">M-\</code></dt>
+  <dd>center_layout</dd>
   <dt><code class="Cm">M-S-\</code></dt>
   <dd>flip_layout</dd>
   <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
@@ -1379,6 +1409,8 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
       loaded in full, excluding <code class="Ic">autorun</code>.</dd>
   <dt id="cycle_layout"><a class="permalink" href="#cycle_layout"><code class="Cm">cycle_layout</code></a></dt>
   <dd>Switch to the next layout.</dd>
+  <dt id="center_layout"><a class="permalink" href="#center_layout"><code class="Cm">center_layout</code></a></dt>
+  <dd>Toggle centering of the master area.</dd>
   <dt id="flip_layout"><a class="permalink" href="#flip_layout"><code class="Cm">flip_layout</code></a></dt>
   <dd>Swap the master and stacking areas.</dd>
   <dt id="prior_layout"><a class="permalink" href="#prior_layout"><code class="Cm">prior_layout</code></a></dt>

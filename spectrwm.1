@@ -472,6 +472,15 @@ Default is Escape.
 See the
 .Sx BINDINGS
 section below for details on how to find key names.
+.It Ic center_autobalance
+Automatically balance the master/stacking areas when toggling centered mode.
+Default is 0.
+.It Ic center_nowrap
+In centered mode, secondary stacks are positioned from one side of the master
+area and spillover to the opposite side.
+Enable to maintain the original order of secondary stacks, split by the master
+area without wrapping.
+Default is 0.
 .It Ic click_to_raise
 Enable or disable raising stacking priority when clicking on a window.
 Default is 1.
@@ -743,8 +752,12 @@ Possible
 values are
 .Ar vertical ,
 .Ar vertical_flip ,
+.Ar vertical_center ,
+.Ar vertical_center_flip ,
 .Ar horizontal ,
 .Ar horizontal_flip ,
+.Ar horizontal_center ,
+.Ar horizontal_center_flip ,
 .Ar max
 and
 .Ar floating .
@@ -991,6 +1004,20 @@ layout mark for the
 .Ic bar_format
 stacking indicator (+S).
 Default is '[-]'.
+.It Ic stack_mark_horizontal_center
+Set the
+.Ar horizontal_center
+layout mark for the
+.Ic bar_format
+stacking indicator (+S).
+Default is '(-)'.
+.It Ic stack_mark_horizontal_center_flip
+Set the
+.Ar horizontal_center_flip
+layout mark for the
+.Ic bar_format
+stacking indicator (+S).
+Default is '(v)'.
 .It Ic stack_mark_horizontal_flip
 Set the
 .Ar horizontal_flip
@@ -1012,6 +1039,20 @@ layout mark for the
 .Ic bar_format
 stacking indicator (+S).
 Default is '[|]'.
+.It Ic stack_mark_vertical_center
+Set the
+.Ar vertical_center
+layout mark for the
+.Ic bar_format
+stacking indicator (+S).
+Default is '(|)'.
+.It Ic stack_mark_vertical_center_flip
+Set the
+.Ar vertical_center_flip
+layout mark for the
+.Ic bar_format
+stacking indicator (+S).
+Default is '(>)'.
 .It Ic stack_mark_vertical_flip
 Set the
 .Ar vertical_flip
@@ -1408,6 +1449,8 @@ restart
 restart_of_day
 .It Cm M- Ns Aq Cm Space
 cycle_layout
+.It Cm M-\e
+center_layout
 .It Cm M-S-\e
 flip_layout
 .It Aq Ar unbound
@@ -1598,6 +1641,8 @@ but the configuration file is loaded in full, excluding
 .Ic autorun .
 .It Cm cycle_layout
 Switch to the next layout.
+.It Cm center_layout
+Toggle centering of the master area.
 .It Cm flip_layout
 Swap the master and stacking areas.
 .It Cm prior_layout
