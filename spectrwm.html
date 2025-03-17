@@ -1375,8 +1375,8 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dt id="restart"><a class="permalink" href="#restart"><code class="Cm">restart</code></a></dt>
   <dd>Restart <code class="Nm">spectrwm</code>.</dd>
   <dt id="restart_of_day"><a class="permalink" href="#restart_of_day"><code class="Cm">restart_of_day</code></a></dt>
-  <dd>Same as <code class="Ic">restart</code> but configuration file is loaded
-      in full.</dd>
+  <dd>Same as <code class="Ic">restart</code> but the configuration file is
+      loaded in full, excluding <code class="Ic">autorun</code>.</dd>
   <dt id="cycle_layout"><a class="permalink" href="#cycle_layout"><code class="Cm">cycle_layout</code></a></dt>
   <dd>Switch to the next layout.</dd>
   <dt id="flip_layout"><a class="permalink" href="#flip_layout"><code class="Cm">flip_layout</code></a></dt>
@@ -1710,6 +1710,8 @@ bind[move] = MOD+Button3</pre>
   <dt>IGNORESPAWNWS</dt>
   <dd>Ignore the spawn workspace when determining the initial workspace for a
       new window.</dd>
+  <dt>IGNOREURGENT</dt>
+  <dd>Ignore urgency hint.</dd>
   <dt>MAXIMIZE</dt>
   <dd>Put the window into maximized state upon being managed.</dd>
   <dt>MINIMALBORDER</dt>
