@@ -472,14 +472,18 @@ Default is Escape.
 See the
 .Sx BINDINGS
 section below for details on how to find key names.
+.It Ic center_adaptive
+In centered mode, enable to center the master area only when centering does not
+create empty space (e.g., with one stack, revert to non-centered).
+Default is 0.
 .It Ic center_autobalance
 Automatically balance the master/stacking areas when toggling centered mode.
 Default is 0.
 .It Ic center_nowrap
-In centered mode, secondary stacks are positioned from one side of the master
-area and spillover to the opposite side.
-Enable to maintain the original order of secondary stacks, split by the master
-area without wrapping.
+In centered mode, stacks are positioned from one side of the master area and
+spillover to the opposite side.
+Enable to maintain the original order of stacks, split by the master area
+without wrapping.
 Default is 0.
 .It Ic click_to_raise
 Enable or disable raising stacking priority when clicking on a window.

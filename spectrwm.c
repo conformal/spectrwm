@@ -533,6 +533,7 @@ int		 focus_default = SWM_STACK_TOP;
 int		 spawn_position = SWM_STACK_TOP;
 bool		 disable_border = false;
 bool		 disable_border_always = false;
+bool		 center_adaptive = false;
 bool		 center_autobalance = false;
 bool		 center_nowrap = false;
 int		 border_width = 1;
@@ -8291,7 +8292,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, bool rot)
 				m_g.w -= remain;
 			}
 
-			if (center) {
+			if (center && !(center_adaptive && stacks == 1)) {
 				m_g.x = r_g.x + r_g.w / 2 - m_g.w / 2;
 				s_g1.x = m_g.x + m_g.w + tile_gap;
 				s_g1.w = (r_g.w + r_g.x) - s_g1.x;
@@ -13424,6 +13425,7 @@ enum {
 	SWM_S_BAR_WORKSPACE_LIMIT,
 	SWM_S_BORDER_WIDTH,
 	SWM_S_BOUNDARY_WIDTH,
+	SWM_S_CENTER_ADAPTIVE,
 	SWM_S_CENTER_AUTOBALANCE,
 	SWM_S_CENTER_NOWRAP,
 	SWM_S_CLICK_TO_RAISE,
@@ -13576,6 +13578,9 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 		boundary_width = atoi(value);
 		if (boundary_width < 0)
 			boundary_width = 0;
+		break;
+	case SWM_S_CENTER_ADAPTIVE:
+		center_adaptive = (atoi(value) != 0);
 		break;
 	case SWM_S_CENTER_AUTOBALANCE:
 		center_autobalance = (atoi(value) != 0);
@@ -14364,6 +14369,7 @@ struct config_option configopt[] = {
 	{ "border_width",		setconfvalue,	SWM_S_BORDER_WIDTH },
 	{ "boundary_width",		setconfvalue,	SWM_S_BOUNDARY_WIDTH },
 	{ "cancelkey",			setconfcancelkey,0 },
+	{ "center_adaptive",		setconfvalue,	SWM_S_CENTER_ADAPTIVE },
 	{ "center_autobalance",		setconfvalue,	SWM_S_CENTER_AUTOBALANCE },
 	{ "center_nowrap",		setconfvalue,	SWM_S_CENTER_NOWRAP },
 	{ "click_to_raise",		setconfvalue,	SWM_S_CLICK_TO_RAISE },
