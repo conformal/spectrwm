@@ -713,9 +713,6 @@ struct ws_win {
 	xcb_window_t		debug;	/* Debug overlay window. */
 };
 TAILQ_HEAD(ws_win_list, ws_win);
-TAILQ_HEAD(ws_win_focus, ws_win);
-TAILQ_HEAD(ws_win_managed, ws_win);
-TAILQ_HEAD(ws_win_priority, ws_win);
 
 /* pid goo */
 struct pid_e {
@@ -867,12 +864,12 @@ struct swm_screen {
 	xcb_window_t		swmwin;	/* ewmh wm check/default input */
 
 	struct workspace_tree	workspaces;	/* Dynamic workspaces. */
-	struct ws_win_priority	priority;	/* Window floating priority. */
+	struct ws_win_list	priority;	/* Window floating priority. */
 	struct swm_stack_list	stack;		/* Current stacking order. */
 
 	struct ws_win		*focus;	/* Currently focused window. */
-	struct ws_win_focus	fl;	/* Previous focus queue. */
-	struct ws_win_managed	managed;	/* All client windows. */
+	struct ws_win_list	fl;	/* Previous focus queue. */
+	struct ws_win_list	managed;	/* All client windows. */
 	int			managed_count;
 	struct swm_strut_list	struts;
 
@@ -1490,6 +1487,7 @@ static void	 client_msg(struct ws_win *, xcb_atom_t, xcb_timestamp_t);
 static void	 clientmessage(xcb_client_message_event_t *);
 static char	*color_to_rgb(struct swm_color *);
 static int	 conf_load(const char *, int);
+static void	 config_master(struct workspace *, int, int);
 static void	 config_win(struct ws_win *, xcb_configure_request_event_t *);
 static void	 configurenotify(xcb_configure_notify_event_t *);
 static void	 configurerequest(xcb_configure_request_event_t *);
@@ -6624,7 +6622,7 @@ get_focus_magic(struct ws_win *win)
 		return (winfocus);
 
 	/* Put limit just in case a redirect loop exists. */
-	wincount = count_win(win->ws, SWM_COUNT_NORMAL);
+	wincount = count_win(winfocus->ws, SWM_COUNT_NORMAL);
 	for (i = 0; i < wincount; ++i) {
 		if (winfocus->focus_redirect == NULL)
 			break;
@@ -8406,65 +8404,80 @@ stack_master(struct workspace *ws, struct swm_geometry *g, bool rot)
 }
 
 static void
-vertical_config(struct workspace *ws, int id)
+config_master(struct workspace *ws, int rot, int id)
 {
-	int		winno, stacks;
+	int		winno, *msize, *mwin, *stacks, slice;
+	bool		*center, *flip;
 
-	DNPRINTF(SWM_D_STACK, "id: %d, workspace: %d\n", id, ws->idx);
+	DNPRINTF(SWM_D_STACK, "ws: %d rot: %d id: %d\n", ws->idx, rot, id);
+
+	if (rot) {
+		msize = &ws->l_state.horizontal_msize;
+		mwin = &ws->l_state.horizontal_mwin;
+		stacks = &ws->l_state.horizontal_stacks;
+		flip = &ws->l_state.horizontal_flip;
+		center = &ws->l_state.horizontal_center;
+		slice = SWM_H_SLICE;
+	} else {
+		msize = &ws->l_state.vertical_msize;
+		mwin = &ws->l_state.vertical_mwin;
+		stacks = &ws->l_state.vertical_stacks;
+		flip = &ws->l_state.vertical_flip;
+		center = &ws->l_state.vertical_center;
+		slice = SWM_V_SLICE;
+	}
 
 	switch (id) {
 	case SWM_ARG_ID_STACKRESET:
 	case SWM_ARG_ID_STACKINIT:
-		ws->l_state.vertical_msize = SWM_V_SLICE / 2;
-		ws->l_state.vertical_mwin = 1;
-		ws->l_state.vertical_stacks = 1;
+		*msize = slice / 2;
+		*mwin = 1;
+		*stacks = 1;
 		break;
 	case SWM_ARG_ID_MASTERSHRINK:
-		if (ws->l_state.vertical_msize > 1)
-			ws->l_state.vertical_msize--;
+		if (*msize > 1)
+			(*msize)--;
 		break;
 	case SWM_ARG_ID_MASTERGROW:
-		if (ws->l_state.vertical_msize < SWM_V_SLICE - 1)
-			ws->l_state.vertical_msize++;
+		if (*msize < slice - 1)
+			(*msize)++;
 		break;
 	case SWM_ARG_ID_MASTERADD:
-		ws->l_state.vertical_mwin++;
+		(*mwin)++;
 		break;
 	case SWM_ARG_ID_MASTERDEL:
-		if (ws->l_state.vertical_mwin > 0)
-			ws->l_state.vertical_mwin--;
+		if (*mwin > 0)
+			(*mwin)--;
 		break;
 	case SWM_ARG_ID_STACKBALANCE:
-		stacks = ws->l_state.vertical_stacks;
 		winno = count_win(ws, SWM_COUNT_TILED);
-		if (winno - ws->l_state.vertical_mwin < stacks)
-			stacks = winno - ws->l_state.vertical_mwin;
-		if (stacks < 0)
-			stacks = 0;
+		if (winno - *mwin < *stacks)
+			*stacks = winno - *mwin;
+		if (*stacks < 0)
+			*stacks = 0;
 
-		ws->l_state.vertical_msize = SWM_V_SLICE / (stacks + 1);
-		if (ws->l_state.vertical_center) {
-			if (stacks <= 1)
-				ws->l_state.vertical_msize =
-				    (SWM_V_SLICE + 2) / 3;
+		*msize = slice / (*stacks + 1);
+		if (*center) {
+			if (*stacks <= 1)
+				*msize = (slice + 2) / 3;
 			else
-				ws->l_state.vertical_msize = (SWM_V_SLICE +
-				    (stacks - stacks % 2 + 1) - 1) /
-				    (stacks - stacks % 2 + 1);
+				*msize = (slice +
+				    (*stacks - *stacks % 2 + 1) - 1) /
+				    (*stacks - *stacks % 2 + 1);
 		}
 		break;
 	case SWM_ARG_ID_STACKINC:
-		ws->l_state.vertical_stacks++;
+		(*stacks)++;
 		break;
 	case SWM_ARG_ID_STACKDEC:
-		if (ws->l_state.vertical_stacks > 1)
-			ws->l_state.vertical_stacks--;
+		if (*stacks > 1)
+			(*stacks)--;
 		break;
 	case SWM_ARG_ID_FLIPLAYOUT:
-		ws->l_state.vertical_flip = !ws->l_state.vertical_flip;
+		*flip = !*flip;
 		break;
 	case SWM_ARG_ID_CENTERLAYOUT:
-		ws->l_state.vertical_center = !ws->l_state.vertical_center;
+		*center = !*center;
 		break;
 	default:
 		return;
@@ -8472,84 +8485,26 @@ vertical_config(struct workspace *ws, int id)
 }
 
 static void
+vertical_config(struct workspace *ws, int id)
+{
+	config_master(ws, 0, id);
+}
+
+static void
 vertical_stack(struct workspace *ws, struct swm_geometry *g)
 {
-	DNPRINTF(SWM_D_STACK, "workspace: %d\n", ws->idx);
-
 	stack_master(ws, g, 0);
 }
 
 static void
 horizontal_config(struct workspace *ws, int id)
 {
-	int		winno, stacks;
-
-	DNPRINTF(SWM_D_STACK, "workspace: %d\n", ws->idx);
-
-	switch (id) {
-	case SWM_ARG_ID_STACKRESET:
-	case SWM_ARG_ID_STACKINIT:
-		ws->l_state.horizontal_mwin = 1;
-		ws->l_state.horizontal_msize = SWM_H_SLICE / 2;
-		ws->l_state.horizontal_stacks = 1;
-		break;
-	case SWM_ARG_ID_MASTERSHRINK:
-		if (ws->l_state.horizontal_msize > 1)
-			ws->l_state.horizontal_msize--;
-		break;
-	case SWM_ARG_ID_MASTERGROW:
-		if (ws->l_state.horizontal_msize < SWM_H_SLICE - 1)
-			ws->l_state.horizontal_msize++;
-		break;
-	case SWM_ARG_ID_MASTERADD:
-		ws->l_state.horizontal_mwin++;
-		break;
-	case SWM_ARG_ID_MASTERDEL:
-		if (ws->l_state.horizontal_mwin > 0)
-			ws->l_state.horizontal_mwin--;
-		break;
-	case SWM_ARG_ID_STACKBALANCE:
-		stacks = ws->l_state.horizontal_stacks;
-		winno = count_win(ws, SWM_COUNT_TILED);
-		if (winno - ws->l_state.horizontal_mwin < stacks)
-			stacks = winno - ws->l_state.horizontal_mwin;
-		if (stacks < 0)
-			stacks = 0;
-
-		ws->l_state.horizontal_msize = SWM_H_SLICE / (stacks + 1);
-		if (ws->l_state.horizontal_center) {
-			if (stacks <= 1)
-				ws->l_state.horizontal_msize =
-				    (SWM_H_SLICE + 2) / 3;
-			else
-				ws->l_state.horizontal_msize = (SWM_H_SLICE +
-				    (stacks - stacks % 2 + 1) - 1) /
-				    (stacks - stacks % 2 + 1);
-		}
-		break;
-	case SWM_ARG_ID_STACKINC:
-		ws->l_state.horizontal_stacks++;
-		break;
-	case SWM_ARG_ID_STACKDEC:
-		if (ws->l_state.horizontal_stacks > 1)
-			ws->l_state.horizontal_stacks--;
-		break;
-	case SWM_ARG_ID_FLIPLAYOUT:
-		ws->l_state.horizontal_flip = !ws->l_state.horizontal_flip;
-		break;
-	case SWM_ARG_ID_CENTERLAYOUT:
-		ws->l_state.horizontal_center = !ws->l_state.horizontal_center;
-		break;
-	default:
-		return;
-	}
+	config_master(ws, 1, id);
 }
 
 static void
 horizontal_stack(struct workspace *ws, struct swm_geometry *g)
 {
-	DNPRINTF(SWM_D_STACK, "workspace: %d\n", ws->idx);
-
 	stack_master(ws, g, 1);
 }
 
