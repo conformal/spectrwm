@@ -483,6 +483,14 @@ Default is 0.
 .It Ic center_autobalance
 Automatically balance the master/stacking areas when toggling centered mode.
 Default is 0.
+.It Ic center_noautostack
+In centered mode, an extra stack is automatically added when there is only
+one stack.
+Disable the automatic stack by setting to 1.
+Can be used in combination with
+.Ic center_adaptive
+to only center the master area when there are at least two stacks.
+Default is 0.
 .It Ic center_nowrap
 In centered mode, stacks are positioned from one side of the master area and
 spillover to the opposite side.
