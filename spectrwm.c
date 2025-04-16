@@ -537,6 +537,7 @@ bool		 disable_border = false;
 bool		 disable_border_always = false;
 bool		 center_adaptive = false;
 bool		 center_autobalance = false;
+bool		 center_noautostack = false;
 bool		 center_nowrap = false;
 int		 border_width = 1;
 int		 region_padding = 0;
@@ -796,11 +797,13 @@ struct workspace {
 		int		horizontal_stacks;
 		bool		horizontal_flip;
 		bool		horizontal_center;
+		bool		horizontal_center_autostack;
 		int		vertical_msize;
 		int		vertical_mwin;
 		int		vertical_stacks;
 		bool		vertical_flip;
 		bool		vertical_center;
+		bool		vertical_center_autostack;
 	} l_state;
 };
 RB_HEAD(workspace_tree, workspace);
@@ -8221,8 +8224,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, bool rot)
 	struct ws_win		*w;
 	struct swm_geometry	r_g = *g, m_g, s_g, s_g1, s_g2, c_g;
 	int			stacks,	split, mwin, mscale, winno, swinno;
-	int			slice, remain, bordered, flip, center;
-	int 			i, j, w_inc = 0, w_base = 0;
+	int			slice, remain, i, j, w_inc = 0, w_base = 0;
+	bool			bordered, flip, center, center_autostack;
 
 	/*
 	 * mwin: # of windows in master area.
@@ -8240,6 +8243,7 @@ stack_master(struct workspace *ws, struct swm_geometry *g, bool rot)
 		stacks = ws->l_state.horizontal_stacks;
 		flip = ws->l_state.horizontal_flip;
 		center = ws->l_state.horizontal_center;
+		center_autostack = ws->l_state.horizontal_center_autostack;
 		SWAPXY(&r_g);
 		slice = r_g.w / SWM_H_SLICE;
 	} else {
@@ -8248,8 +8252,13 @@ stack_master(struct workspace *ws, struct swm_geometry *g, bool rot)
 		stacks = ws->l_state.vertical_stacks;
 		flip = ws->l_state.vertical_flip;
 		center = ws->l_state.vertical_center;
+		center_autostack = ws->l_state.vertical_center_autostack;
 		slice = r_g.w / SWM_V_SLICE;
 	}
+
+	if (center && stacks == 1 && mwin && center_autostack &&
+	    !center_noautostack)
+		stacks = 2;
 
 	winno = count_win(ws, SWM_COUNT_TILED);
 	if (mwin > winno)
@@ -8258,9 +8267,10 @@ stack_master(struct workspace *ws, struct swm_geometry *g, bool rot)
 	if (swinno < stacks)
 		stacks = swinno;
 
-	DNPRINTF(SWM_D_STACK, "flip:%s center:%s mwin:%d mscale:%d stacks:%d "
-	    "slice:%d winno:%d swinno:%d\n", YESNO(flip),
-	    YESNO(center), mwin, mscale, stacks, slice, winno, swinno);
+	DNPRINTF(SWM_D_STACK, "flip:%s center:%s center_autostack: %s, mwin:%d "
+	    "mscale:%d stacks:%d slice:%d winno:%d swinno:%d\n", YESNO(flip),
+	    YESNO(center), YESNO(center_autostack), mwin, mscale, stacks, slice,
+	    winno, swinno);
 
 	/* Add master area. */
 	if (mwin) {
@@ -8406,8 +8416,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, bool rot)
 static void
 config_master(struct workspace *ws, int rot, int id)
 {
-	int		winno, *msize, *mwin, *stacks, slice;
-	bool		*center, *flip;
+	int		*msize, *mwin, *stacks, winno, slice;
+	bool		*center, *flip, *center_autostack;
 
 	DNPRINTF(SWM_D_STACK, "ws: %d rot: %d id: %d\n", ws->idx, rot, id);
 
@@ -8417,6 +8427,7 @@ config_master(struct workspace *ws, int rot, int id)
 		stacks = &ws->l_state.horizontal_stacks;
 		flip = &ws->l_state.horizontal_flip;
 		center = &ws->l_state.horizontal_center;
+		center_autostack = &ws->l_state.horizontal_center_autostack;
 		slice = SWM_H_SLICE;
 	} else {
 		msize = &ws->l_state.vertical_msize;
@@ -8424,6 +8435,7 @@ config_master(struct workspace *ws, int rot, int id)
 		stacks = &ws->l_state.vertical_stacks;
 		flip = &ws->l_state.vertical_flip;
 		center = &ws->l_state.vertical_center;
+		center_autostack = &ws->l_state.vertical_center_autostack;
 		slice = SWM_V_SLICE;
 	}
 
@@ -8433,6 +8445,7 @@ config_master(struct workspace *ws, int rot, int id)
 		*msize = slice / 2;
 		*mwin = 1;
 		*stacks = 1;
+		*center_autostack = true;
 		break;
 	case SWM_ARG_ID_MASTERSHRINK:
 		if (*msize > 1)
@@ -8467,10 +8480,21 @@ config_master(struct workspace *ws, int rot, int id)
 		}
 		break;
 	case SWM_ARG_ID_STACKINC:
-		(*stacks)++;
+		if (*center && !center_noautostack && *stacks < 2) {
+			*stacks = *center_autostack ? 3 : 1;
+			*center_autostack = true;
+		} else
+			(*stacks)++;
 		break;
 	case SWM_ARG_ID_STACKDEC:
-		if (*stacks > 1)
+		if (*center && !center_noautostack && *stacks <= 3) {
+			if (*stacks <= 2)
+				*center_autostack = false;
+			*stacks = 1;
+		} else if (!*center && !center_noautostack && *stacks == 2) {
+			*center_autostack = true;
+			*stacks = 1;
+		} else if (*stacks > 1)
 			(*stacks)--;
 		break;
 	case SWM_ARG_ID_FLIPLAYOUT:
@@ -13387,6 +13411,7 @@ enum {
 	SWM_S_BOUNDARY_WIDTH,
 	SWM_S_CENTER_ADAPTIVE,
 	SWM_S_CENTER_AUTOBALANCE,
+	SWM_S_CENTER_NOAUTOSTACK,
 	SWM_S_CENTER_NOWRAP,
 	SWM_S_CLICK_TO_RAISE,
 	SWM_S_CLOCK_ENABLED,
@@ -13554,6 +13579,9 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 		break;
 	case SWM_S_CENTER_AUTOBALANCE:
 		center_autobalance = (atoi(value) != 0);
+		break;
+	case SWM_S_CENTER_NOAUTOSTACK:
+		center_noautostack = (atoi(value) != 0);
 		break;
 	case SWM_S_CENTER_NOWRAP:
 		center_nowrap = (atoi(value) != 0);
@@ -14343,6 +14371,7 @@ struct config_option configopt[] = {
 	{ "cancelkey",			setconfcancelkey,0 },
 	{ "center_adaptive",		setconfvalue,	SWM_S_CENTER_ADAPTIVE },
 	{ "center_autobalance",		setconfvalue,	SWM_S_CENTER_AUTOBALANCE },
+	{ "center_noautostack",		setconfvalue,	SWM_S_CENTER_NOAUTOSTACK },
 	{ "center_nowrap",		setconfvalue,	SWM_S_CENTER_NOWRAP },
 	{ "click_to_raise",		setconfvalue,	SWM_S_CLICK_TO_RAISE },
 	{ "clock_enabled",		setconfvalue,	SWM_S_CLOCK_ENABLED },
