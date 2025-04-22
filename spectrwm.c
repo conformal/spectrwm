@@ -535,6 +535,8 @@ int		 focus_default = SWM_STACK_TOP;
 int		 spawn_position = SWM_STACK_TOP;
 bool		 disable_border = false;
 bool		 disable_border_always = false;
+bool		 disable_padding = false;
+bool		 disable_padding_always = false;
 bool		 center_adaptive = false;
 bool		 center_autobalance = false;
 bool		 center_noautostack = false;
@@ -8236,6 +8238,16 @@ stack_master(struct workspace *ws, struct swm_geometry *g, bool rot)
 	DNPRINTF(SWM_D_STACK, "ws:%d g:(%d,%d)+%d+%d rot:%s\n", ws->idx, g->x,
 	    g->y, g->w, g->h, YESNO(rot));
 
+	winno = count_win(ws, SWM_COUNT_TILED);
+
+	if (winno == 1 && ((disable_padding && !(bar_enabled &&
+	    ws->bar_enabled)) || disable_padding_always)) {
+		r_g.x -= region_padding;
+		r_g.y -= region_padding;
+		r_g.w += 2 * region_padding;
+		r_g.h += 2 * region_padding;
+	}
+
 	/* Prepare stacking parameters. */
 	if (rot) {
 		mwin = ws->l_state.horizontal_mwin;
@@ -8260,7 +8272,6 @@ stack_master(struct workspace *ws, struct swm_geometry *g, bool rot)
 	    !center_noautostack)
 		stacks = 2;
 
-	winno = count_win(ws, SWM_COUNT_TILED);
 	if (mwin > winno)
 		mwin = winno;
 	swinno = winno - mwin;
@@ -8584,10 +8595,19 @@ max_config(struct workspace *ws, int id)
 static void
 max_stack(struct workspace *ws, struct swm_geometry *g)
 {
+	struct swm_geometry	r_g = *g;
 	struct ws_win		*w;
 	bool			bordered;
 
 	DNPRINTF(SWM_D_STACK, "workspace: %d\n", ws->idx);
+
+	if ((disable_padding && !(bar_enabled && ws->bar_enabled)) ||
+	    disable_padding_always) {
+		r_g.x -= region_padding;
+		r_g.y -= region_padding;
+		r_g.w += 2 * region_padding;
+		r_g.h += 2 * region_padding;
+	}
 
 	/* Update window geometry. */
 	TAILQ_FOREACH(w, &ws->winlist, entry) {
@@ -8599,16 +8619,16 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 			continue;
 		}
 
-		/* Single tile. */
+		/* Single tile.*/
 		bordered = (!disable_border || (bar_enabled &&
 		    ws->bar_enabled && !disable_border_always));
-		if (bordered != w->bordered || X(w) != g->x || Y(w) != g->y ||
-		    WIDTH(w) != g->w || HEIGHT(w) != g->h) {
+		if (bordered != w->bordered || X(w) != r_g.x || Y(w) != r_g.y ||
+		    WIDTH(w) != r_g.w || HEIGHT(w) != r_g.h) {
 			if (w->bordered != bordered) {
 				w->bordered = bordered;
 				update_gravity(w);
 			}
-			w->g = *g;
+			w->g = r_g;
 			if (bordered) {
 				X(w) += border_width;
 				Y(w) += border_width;
@@ -13419,6 +13439,7 @@ enum {
 	SWM_S_CYCLE_VISIBLE,
 	SWM_S_DIALOG_RATIO,
 	SWM_S_DISABLE_BORDER,
+	SWM_S_DISABLE_PADDING,
 	SWM_S_FOCUS_CLOSE,
 	SWM_S_FOCUS_CLOSE_WRAP,
 	SWM_S_FOCUS_DEFAULT,
@@ -13612,6 +13633,10 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 	case SWM_S_DISABLE_BORDER:
 		disable_border_always = (strcmp(value, "always") == 0);
 		disable_border = (atoi(value) != 0) || disable_border_always;
+		break;
+	case SWM_S_DISABLE_PADDING:
+		disable_padding_always = (strcmp(value, "always") == 0);
+		disable_padding = (atoi(value) != 0) || disable_padding_always;
 		break;
 	case SWM_S_FOCUS_CLOSE:
 		if (strcmp(value, "first") == 0)
@@ -14391,6 +14416,7 @@ struct config_option configopt[] = {
 	{ "cycle_visible",		setconfvalue,	SWM_S_CYCLE_VISIBLE },
 	{ "dialog_ratio",		setconfvalue,	SWM_S_DIALOG_RATIO },
 	{ "disable_border",		setconfvalue,	SWM_S_DISABLE_BORDER },
+	{ "disable_padding",		setconfvalue,	SWM_S_DISABLE_PADDING },
 	{ "focus_close",		setconfvalue,	SWM_S_FOCUS_CLOSE },
 	{ "focus_close_wrap",		setconfvalue,	SWM_S_FOCUS_CLOSE_WRAP },
 	{ "focus_default",		setconfvalue,	SWM_S_FOCUS_DEFAULT },
