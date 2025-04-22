@@ -456,6 +456,10 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
         default static format. See the <code class="Ic">bar_format</code> option
         for more details.</p>
   </dd>
+  <dt id="bar_padding_horizontal"><a class="permalink" href="#bar_padding_horizontal"><code class="Ic">bar_padding_horizontal</code></a></dt>
+  <dd>Set status bar horizontal padding in pixels; default is 0.</dd>
+  <dt id="bar_padding_vertical"><a class="permalink" href="#bar_padding_vertical"><code class="Ic">bar_padding_vertical</code></a></dt>
+  <dd>Set status bar vertical padding in pixels; default is 0.</dd>
   <dt id="bar_workspace_limit"><a class="permalink" href="#bar_workspace_limit"><code class="Ic">bar_workspace_limit</code></a></dt>
   <dd>Set the maximum workspace index (counting from 1) to list in the status
       bar workspace (+L) and urgency hint (+U) indicators. Workspaces beyond
@@ -477,14 +481,22 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
     <p class="Pp">See the <a class="Sx" href="#BINDINGS">BINDINGS</a> section
         below for details on how to find key names.</p>
   </dd>
+  <dt id="center_adaptive"><a class="permalink" href="#center_adaptive"><code class="Ic">center_adaptive</code></a></dt>
+  <dd>In centered mode, enable to center the master area only when centering
+      does not create empty space (e.g., with one stack, revert to
+      non-centered). Default is 0.</dd>
   <dt id="center_autobalance"><a class="permalink" href="#center_autobalance"><code class="Ic">center_autobalance</code></a></dt>
   <dd>Automatically balance the master/stacking areas when toggling centered
       mode. Default is 0.</dd>
+  <dt id="center_noautostack"><a class="permalink" href="#center_noautostack"><code class="Ic">center_noautostack</code></a></dt>
+  <dd>In centered mode, an extra stack is automatically added when there is only
+      one stack. Disable the automatic stack by setting to 1. Can be used in
+      combination with <code class="Ic">center_adaptive</code> to only center
+      the master area when there are at least two stacks. Default is 0.</dd>
   <dt id="center_nowrap"><a class="permalink" href="#center_nowrap"><code class="Ic">center_nowrap</code></a></dt>
-  <dd>In centered mode, secondary stacks are positioned from one side of the
-      master area and spillover to the opposite side. Enable to maintain the
-      original order of secondary stacks, split by the master area without
-      wrapping. Default is 0.</dd>
+  <dd>In centered mode, stacks are positioned from one side of the master area
+      and spillover to the opposite side. Enable to maintain the original order
+      of stacks, split by the master area without wrapping. Default is 0.</dd>
   <dt id="click_to_raise"><a class="permalink" href="#click_to_raise"><code class="Ic">click_to_raise</code></a></dt>
   <dd>Enable or disable raising stacking priority when clicking on a window.
       Default is 1.</dd>
@@ -548,6 +560,11 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
       region. Enable by setting to 1. Setting this to
       <var class="Ar">always</var> removes the border regardless of the bar
       being enabled/disabled. Defaults to 0.</dd>
+  <dt id="disable_padding"><a class="permalink" href="#disable_padding"><code class="Ic">disable_padding</code></a></dt>
+  <dd>Remove region padding when the bar is disabled and there is only one
+      window on the region. Enable by setting to 1. Setting this to
+      <var class="Ar">always</var> removes the region padding regardless of the
+      bar being enabled/disabled. Defaults to 0.</dd>
   <dt id="focus_close"><a class="permalink" href="#focus_close"><code class="Ic">focus_close</code></a></dt>
   <dd>Window to put focus when the focused window is closed. Possible values are
       <var class="Ar">first</var>, <var class="Ar">next</var>,
