@@ -8612,9 +8612,8 @@ max_stack(struct workspace *ws, struct swm_geometry *g)
 			if (bordered) {
 				X(w) += border_width;
 				Y(w) += border_width;
-			} else {
-				WIDTH(w) += 2 * border_width;
-				HEIGHT(w) += 2 * border_width;
+				WIDTH(w) -= 2 * border_width;
+				HEIGHT(w) -= 2 * border_width;
 			}
 
 			adjust_font(w);
