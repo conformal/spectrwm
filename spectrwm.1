@@ -885,6 +885,15 @@ is the Command key on macOS and
 .Ar Mod4
 is the Windows key on a PC.
 The current modifier key mapping can be found by running xmodmap(1).
+.It Ic move_step
+Set the pixel amount to move a window for the
+.Ic move_left ,
+.Ic move_right ,
+.Ic move_up ,
+and
+.Ic move_down
+actions.
+Default is 50.
 .It Ic name
 Set the name of a workspace at start-of-day.
 Defined in the format
@@ -935,6 +944,15 @@ Note that rotation is used by
 .It Ic region_padding
 Pixel width of empty space within region borders.
 Disable by setting to 0.
+.It Ic resize_step
+Set the pixel amount to resize a window for the
+.Ic width_shrink ,
+.Ic width_grow ,
+.Ic height_shrink ,
+and
+.Ic height_grow
+actions.
+Default is 50.
 .It Ic snap_range
 Set the distance in pixels a tiled/maximized window must be moved (with the
 pointer) to unsnap and float freely.
