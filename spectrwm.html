@@ -773,6 +773,11 @@ focus_mode = default # Reset all focus situations to respective default values.<
         <var class="Ar">Mod4</var> is the Windows key on a PC. The current
         modifier key mapping can be found by running xmodmap(1).</p>
   </dd>
+  <dt id="move_step"><a class="permalink" href="#move_step"><code class="Ic">move_step</code></a></dt>
+  <dd>Set the pixel amount to move a window for the
+      <code class="Ic">move_left</code>, <code class="Ic">move_right</code>,
+      <code class="Ic">move_up</code>, and <code class="Ic">move_down</code>
+      actions. Default is 50.</dd>
   <dt id="name"><a class="permalink" href="#name"><code class="Ic">name</code></a></dt>
   <dd>Set the name of a workspace at start-of-day. Defined in the format
       <code class="Li">ws</code>[<var class="Ar">idx</var>]:<var class="Ar">name</var>,
@@ -806,6 +811,11 @@ focus_mode = default # Reset all focus situations to respective default values.<
   <dt id="region_padding"><a class="permalink" href="#region_padding"><code class="Ic">region_padding</code></a></dt>
   <dd>Pixel width of empty space within region borders. Disable by setting to
     0.</dd>
+  <dt id="resize_step"><a class="permalink" href="#resize_step"><code class="Ic">resize_step</code></a></dt>
+  <dd>Set the pixel amount to resize a window for the
+      <code class="Ic">width_shrink</code>, <code class="Ic">width_grow</code>,
+      <code class="Ic">height_shrink</code>, and
+      <code class="Ic">height_grow</code> actions. Default is 50.</dd>
   <dt id="snap_range"><a class="permalink" href="#snap_range"><code class="Ic">snap_range</code></a></dt>
   <dd>Set the distance in pixels a tiled/maximized window must be moved (with
       the pointer) to unsnap and float freely. Set to 0 to unsnap immediately.

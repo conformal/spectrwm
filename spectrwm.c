@@ -495,6 +495,9 @@ enum {
 	SWM_UNFOCUS_QUICK_BELOW,
 };
 
+#define SWM_RESIZE_STEPS	(50)
+#define SWM_MOVE_STEPS		(50)
+
 char		*bar_argv[] = { NULL, NULL };
 char		 bar_ext[SWM_BAR_MAX];
 char		 bar_ext_buf[SWM_BAR_MAX];
@@ -583,6 +586,8 @@ char		*stack_mark_horizontal_flip = NULL;
 char		*stack_mark_horizontal_center = NULL;
 char		*stack_mark_horizontal_center_flip = NULL;
 size_t		 stack_mark_maxlen = 1;	/* Start with null byte. */
+int		 move_step = SWM_MOVE_STEPS;
+int		 resize_step = SWM_RESIZE_STEPS;
 
 #define ROTATION_DEFAULT	(XCB_RANDR_ROTATION_ROTATE_0)
 #define ROTATION_VERT		(XCB_RANDR_ROTATION_ROTATE_0 |		       \
@@ -10452,8 +10457,6 @@ keybindreleased(struct binding *bp, xcb_key_release_event_t *kre)
 	return (false);
 }
 
-#define SWM_RESIZE_STEPS	(50)
-
 static void
 resize_win(struct ws_win *win, struct binding *bp, int opt)
 {
@@ -10481,19 +10484,19 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 
 	switch (opt) {
 	case SWM_ARG_ID_WIDTHSHRINK:
-		WIDTH(win) -= SWM_RESIZE_STEPS;
+		WIDTH(win) -= resize_step;
 		step = true;
 		break;
 	case SWM_ARG_ID_WIDTHGROW:
-		WIDTH(win) += SWM_RESIZE_STEPS;
+		WIDTH(win) += resize_step;
 		step = true;
 		break;
 	case SWM_ARG_ID_HEIGHTSHRINK:
-		HEIGHT(win) -= SWM_RESIZE_STEPS;
+		HEIGHT(win) -= resize_step;
 		step = true;
 		break;
 	case SWM_ARG_ID_HEIGHTGROW:
-		HEIGHT(win) += SWM_RESIZE_STEPS;
+		HEIGHT(win) += resize_step;
 		step = true;
 		break;
 	default:
@@ -10859,8 +10862,6 @@ unsnap_win(struct ws_win *win, bool inplace)
 	}
 }
 
-#define SWM_MOVE_STEPS	(50)
-
 static void
 move_win(struct ws_win *win, struct binding *bp, int opt)
 {
@@ -10878,19 +10879,19 @@ move_win(struct ws_win *win, struct binding *bp, int opt)
 
 	switch (opt) {
 	case SWM_ARG_ID_MOVELEFT:
-		X(win) -= (SWM_MOVE_STEPS - border_width);
+		X(win) -= (move_step - border_width);
 		step = true;
 		break;
 	case SWM_ARG_ID_MOVERIGHT:
-		X(win) += (SWM_MOVE_STEPS - border_width);
+		X(win) += (move_step - border_width);
 		step = true;
 		break;
 	case SWM_ARG_ID_MOVEUP:
-		Y(win) -= (SWM_MOVE_STEPS - border_width);
+		Y(win) -= (move_step - border_width);
 		step = true;
 		break;
 	case SWM_ARG_ID_MOVEDOWN:
-		Y(win) += (SWM_MOVE_STEPS - border_width);
+		Y(win) += (move_step - border_width);
 		step = true;
 		break;
 	default:
@@ -13451,7 +13452,9 @@ enum {
 	SWM_S_MAXIMIZE_HIDE_BAR,
 	SWM_S_MAXIMIZE_HIDE_OTHER,
 	SWM_S_MAXIMIZED_UNFOCUS,
+	SWM_S_MOVE_STEP,
 	SWM_S_REGION_PADDING,
+	SWM_S_RESIZE_STEP,
 	SWM_S_SNAP_RANGE,
 	SWM_S_SPAWN_ORDER,
 	SWM_S_SPAWN_TERM,
@@ -13725,10 +13728,20 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 			return (1);
 		}
 		break;
+	case SWM_S_MOVE_STEP:
+		move_step = atoi(value);
+		if (move_step < 1)
+			move_step = 1;
+		break;
 	case SWM_S_REGION_PADDING:
 		region_padding = atoi(value);
 		if (region_padding < 0)
 			region_padding = 0;
+		break;
+	case SWM_S_RESIZE_STEP:
+		resize_step = atoi(value);
+		if (resize_step < 1)
+			resize_step = 1;
 		break;
 	case SWM_S_SNAP_RANGE:
 		snap_range = atoi(value);
@@ -14433,10 +14446,12 @@ struct config_option configopt[] = {
 	{ "maximize_hide_other",	setconfvalue,	SWM_S_MAXIMIZE_HIDE_OTHER },
 	{ "maximized_unfocus",		setconfvalue,	SWM_S_MAXIMIZED_UNFOCUS },
 	{ "modkey",			setconfmodkey,	0 },
+	{ "move_step",			setconfvalue,	SWM_S_MOVE_STEP },
 	{ "program",			setconfspawn,	0 },
 	{ "quirk",			setconfquirk,	0 },
 	{ "region",			setconfregion,	0 },
 	{ "region_padding",		setconfvalue,	SWM_S_REGION_PADDING },
+	{ "resize_step",		setconfvalue,	SWM_S_RESIZE_STEP },
 	{ "screenshot_app",		NULL,		0 },	/* dummy */
 	{ "screenshot_enabled",		NULL,		0 },	/* dummy */
 	{ "snap_range",			setconfvalue,	SWM_S_SNAP_RANGE },
