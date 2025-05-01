@@ -384,6 +384,8 @@ uint32_t		swm_debug = 0
 #endif
 
 char			**start_argv;
+char			*conf_file = NULL;
+bool			conf_file_user = false;
 xcb_atom_t		a_state;
 xcb_atom_t		a_change_state;
 xcb_atom_t		a_prot;
@@ -398,6 +400,7 @@ xcb_atom_t		a_swm_pid;
 xcb_atom_t		a_swm_ws;
 volatile sig_atomic_t   running = 1;
 volatile sig_atomic_t   restart_wm = 0;
+volatile sig_atomic_t   reload_conf = 0;
 xcb_timestamp_t		event_time = 0;
 int			outputs = 0;
 xcb_window_t		pointer_window = XCB_WINDOW_NONE;
@@ -411,21 +414,7 @@ bool			xinput2_raw = false;
 
 Display			*display;
 xcb_connection_t	*conn;
-xcb_key_symbols_t	*syms;
-
-int			boundary_width = 50;
-int			snap_range = 25;
-bool			cycle_empty = false;
-bool			cycle_visible = false;
-int			term_width = 0;
-int			font_adjusted = 0;
-uint16_t		mod_key = MODKEY;
-xcb_keysym_t		cancel_key = CANCELKEY;
-xcb_keycode_t		cancel_keycode = XCB_NO_SYMBOL;
-bool			warp_focus = false;
-bool			warp_pointer = false;
-bool			workspace_autorotate = false;
-bool			workspace_clamp = false;
+xcb_key_symbols_t	*syms = NULL;
 
 /* dmenu search */
 struct swm_region	*search_r;
@@ -459,9 +448,6 @@ enum {
 #define SWM_STACK_ABOVE		(2)
 #define SWM_STACK_BELOW		(3)
 #define SWM_STACK_PRIOR		(4)
-
-/* dialog windows */
-double			dialog_ratio = 0.6;
 
 /* status bar */
 #define SWM_BAR_MAX		(1024)
@@ -498,19 +484,28 @@ enum {
 #define SWM_RESIZE_STEPS	(50)
 #define SWM_MOVE_STEPS		(50)
 
+/* User-configurable settings. */
 char		*bar_argv[] = { NULL, NULL };
-char		 bar_ext[SWM_BAR_MAX];
-char		 bar_ext_buf[SWM_BAR_MAX];
-char		 bar_vertext[SWM_BAR_MAX];
-bool		 bar_version = false;
-bool		 bar_enabled = true;
-int		 bar_border_width = 1;
-bool		 bar_at_bottom = false;
-bool		 bar_extra = false;
-int		 bar_height = 0;
-int		 bar_padding_horizontal = 0;
-int		 bar_padding_vertical = 0;
-int		 bar_justify = SWM_BAR_JUSTIFY_LEFT;
+int		boundary_width = 50;
+int		snap_range = 25;
+bool		cycle_empty = false;
+bool		cycle_visible = false;
+int		term_width = 0;
+uint16_t	mod_key = MODKEY;
+xcb_keysym_t	cancel_key = CANCELKEY;
+bool		warp_focus = false;
+bool		warp_pointer = false;
+bool		workspace_autorotate = false;
+bool		workspace_clamp = false;
+double		dialog_ratio = 0.6;
+bool		bar_version = false;
+bool		bar_enabled = true;
+int		bar_border_width = 1;
+bool		bar_at_bottom = false;
+int		bar_height = 0;
+int		bar_padding_horizontal = 0;
+int		bar_padding_vertical = 0;
+int		bar_justify = SWM_BAR_JUSTIFY_LEFT;
 char		*bar_format = NULL;
 bool		 bar_action_expand = false;
 int		 bar_workspace_limit = 0;
@@ -548,20 +543,7 @@ int		 border_width = 1;
 int		 region_padding = 0;
 int		 tile_gap = 0;
 bool		 verbose_layout = false;
-bool		 debug_enabled;
-time_t		 time_started;
-pid_t		 bar_pid;
-XFontSet	 bar_fs = NULL;
-XFontSetExtents	*bar_fs_extents;
-char		**bar_fontnames = NULL;
-int		 num_xftfonts = 0;
-char		*bar_fontname_pua = NULL;
-int		 font_pua_index = 0;
-bool		 bar_font_legacy = true;
-char		*bar_fonts = NULL;
-XftColor	search_font_color;
-char		*startup_exception = NULL;
-unsigned int	 nr_exceptions = 0;
+bool		debug_enabled = false;
 char		*workspace_mark_current = NULL;
 char		*workspace_mark_current_suffix = NULL;
 char		*workspace_mark_urgent = NULL;
@@ -585,9 +567,28 @@ char		*stack_mark_horizontal = NULL;
 char		*stack_mark_horizontal_flip = NULL;
 char		*stack_mark_horizontal_center = NULL;
 char		*stack_mark_horizontal_center_flip = NULL;
-size_t		 stack_mark_maxlen = 1;	/* Start with null byte. */
-int		 move_step = SWM_MOVE_STEPS;
-int		 resize_step = SWM_RESIZE_STEPS;
+int		move_step = SWM_MOVE_STEPS;
+int		resize_step = SWM_RESIZE_STEPS;
+
+size_t		stack_mark_maxlen = 1;	/* Start with null byte. */
+int		font_adjusted = 0;
+xcb_keycode_t	cancel_keycode = XCB_NO_SYMBOL;
+char		bar_ext[SWM_BAR_MAX];
+char		bar_ext_buf[SWM_BAR_MAX];
+char		bar_vertext[SWM_BAR_MAX];
+bool		bar_extra = false;
+time_t		time_started;
+pid_t		bar_pid;
+XFontSet	bar_fs = NULL;
+XFontSetExtents	*bar_fs_extents;
+char		**bar_fontnames = NULL;
+int		num_xftfonts = 0;
+char		*bar_fontname_pua = NULL;
+int		font_pua_index = 0;
+bool		bar_font_legacy = true;
+char		*bar_fonts = NULL;
+char		*startup_exception = NULL;
+unsigned int	nr_exceptions = 0;
 
 #define ROTATION_DEFAULT	(XCB_RANDR_ROTATION_ROTATE_0)
 #define ROTATION_VERT		(XCB_RANDR_ROTATION_ROTATE_0 |		       \
@@ -1334,6 +1335,7 @@ enum actionid {
 	FN_QUIT,
 	FN_RAISE,
 	FN_RAISE_TOGGLE,
+	FN_RELOAD,
 	FN_RESIZE,
 	FN_RESIZE_CENTERED,
 	FN_RESTART,
@@ -1488,6 +1490,7 @@ static char	*cleanopt(char *);
 static void	 clear_atom_names(void);
 static void	 clear_attention(struct ws_win *);
 static void	 clear_bindings(void);
+static void	 clear_colors(struct swm_screen *);
 static void	 clear_keybindings(void);
 static void	 clear_quirks(void);
 static void	 clear_spawns(void);
@@ -1639,6 +1642,7 @@ static void	 kill_bar_extra_atexit(void);
 static void	 kill_refs(struct ws_win *);
 static void	 layout_order_reset(void);
 static void	 leavenotify(xcb_leave_notify_event_t *);
+static void	 load_defaults(void);
 static void	 load_float_geom(struct ws_win *);
 static struct ws_win	*manage_window(xcb_window_t, int, bool);
 static void	 map_window(struct ws_win *);
@@ -1695,11 +1699,13 @@ static void	 raise_toggle(struct swm_screen *, struct binding *,
 #if defined(SWM_XCB_HAS_XINPUT) && defined(XCB_INPUT_RAW_BUTTON_PRESS)
 static void	 rawbuttonpress(xcb_input_raw_button_press_event_t *);
 #endif
+static void	 reapply_quirks(struct ws_win *);
 static void	 refresh_stack(struct swm_screen *);
 static int	 refresh_strut(struct swm_screen *);
 static int	 regcompopt(regex_t *, const char *);
 static struct swm_region	*region_under(struct swm_screen *, int, int);
 static void	 regionize(struct ws_win *, int, int);
+static void	 reload(struct swm_screen *, struct binding *, union arg *);
 static int	 reparent_window(struct ws_win *);
 static void	 reparentnotify(xcb_reparent_notify_event_t *);
 static void	 resize(struct swm_screen *, struct binding *, union arg *);
@@ -1709,7 +1715,7 @@ static void	 resize_win_pointer(struct ws_win *, struct binding *, uint32_t,
 static void	 restart(struct swm_screen *, struct binding *, union arg *);
 static bool	 rg_root(struct swm_region *);
 static void	 rotatews(struct workspace *, uint16_t);
-static void	 scan_config(void);
+static char	*scan_config(void);
 static bool	 scan_markup(struct swm_screen *, char *, int *, size_t *);
 static void	 scan_randr(struct swm_screen *);
 static void	 screenchange(xcb_randr_screen_change_notify_event_t *);
@@ -1765,6 +1771,7 @@ static void	 setquirk(const char *, const char *, const char *, uint32_t,
 static void	 setscreencolor(struct swm_screen *, const char *, int, int);
 static void	 setspawn(const char *, const char *, unsigned int);
 static void	 setup_btnbindings(void);
+static void	 setup_colors(struct swm_screen *);
 static void	 setup_ewmh(void);
 static void	 setup_extensions(void);
 static void	 setup_focus(void);
@@ -1864,6 +1871,7 @@ static bool	 ws_maponfocus(struct workspace *);
 static bool	 ws_maxstack(struct workspace *);
 static bool	 ws_maxstack_prior(struct workspace *);
 static bool	 ws_root(struct workspace *);
+static void	 xft_free(struct swm_screen *);
 static int	 xft_init(struct swm_screen *);
 static void	 _add_startup_exception(const char *, va_list);
 static void	 add_startup_exception(const char *, ...);
@@ -3342,6 +3350,9 @@ sighdlr(int sig)
 
 	case SIGHUP:
 		restart_wm = 1;
+		break;
+	case SIGUSR1:
+		reload_conf = 1;
 		break;
 	case SIGINT:
 	case SIGTERM:
@@ -5237,6 +5248,25 @@ fontset_init(void)
 	return (0);
 }
 
+static void
+xft_free(struct swm_screen *s)
+{
+	int		i;
+
+	if (s->bar_xftfonts == NULL)
+		return;
+
+	for (i = 0; i < num_xftfonts; i++)
+		if (s->bar_xftfonts[i])
+			XftFontClose(display, s->bar_xftfonts[i]);
+
+	if (font_pua_index)
+		XftFontClose(display, s->bar_xftfonts[font_pua_index]);
+
+	free(s->bar_xftfonts);
+	s->bar_xftfonts = NULL;
+}
+
 static int
 xft_init(struct swm_screen *s)
 {
@@ -5984,6 +6014,164 @@ fake_keypress(struct ws_win *win, xcb_keysym_t keysym, uint16_t modifiers)
 	    XCB_EVENT_MASK_KEY_RELEASE, (const char *)&event);
 
 	free(keycode);
+}
+
+static void
+setup_colors(struct swm_screen *s)
+{
+	setscreencolor(s, "red", SWM_S_COLOR_FOCUS, 0);
+	setscreencolor(s, "rgb:88/88/88", SWM_S_COLOR_UNFOCUS, 0);
+	setscreencolor(s, "yellow", SWM_S_COLOR_FOCUS_FREE, 0);
+	setscreencolor(s, "rgb:88/88/00", SWM_S_COLOR_UNFOCUS_FREE, 0);
+	setscreencolor(s, "rgb:00/80/80", SWM_S_COLOR_BAR_BORDER, 0);
+	setscreencolor(s, "rgb:80/80/00", SWM_S_COLOR_BAR_BORDER_FREE, 0);
+	setscreencolor(s, "rgb:00/40/40", SWM_S_COLOR_BAR_BORDER_UNFOCUS, 0);
+	setscreencolor(s, "black", SWM_S_COLOR_BAR, 0);
+	setscreencolor(s, "rgb:40/40/00", SWM_S_COLOR_BAR_FREE, 0);
+	setscreencolor(s, "rgb:a0/a0/a0", SWM_S_COLOR_BAR_FONT, 0);
+	setscreencolor(s, "rgb:ff/ff/ff", SWM_S_COLOR_BAR_FONT_FREE, 0);
+}
+
+static void
+clear_colors(struct swm_screen *s)
+{
+	int		i;
+
+	for (i = 0; i < LENGTH(s->c); i++)
+		freecolortype(s, i);
+}
+
+static void
+reapply_quirks(struct ws_win *win)
+{
+	struct quirk				*qp;
+	char					*class, *instance, *name;
+
+	class = win->ch.class_name ? win->ch.class_name : "";
+	instance = win->ch.instance_name ? win->ch.instance_name : "";
+	name = get_win_name(win->id);
+	win->quirks = 0;
+	TAILQ_FOREACH(qp, &quirks, entry) {
+		if (regexec(&qp->regex_class, class, 0, NULL, 0) == 0 &&
+		    regexec(&qp->regex_instance, instance, 0, NULL, 0) == 0 &&
+		    regexec(&qp->regex_name, name, 0, NULL, 0) == 0 &&
+		    (qp->type == 0 || win->type & qp->type)) {
+			DNPRINTF(SWM_D_CLASS, "matched quirk: %s:%s:%s:%u "
+			    "mode: %u, mask: %#x, ws: %d\n", qp->class,
+			    qp->instance, qp->name, qp->type, qp->mode,
+			    qp->quirk, qp->ws);
+			switch (qp->mode) {
+			case SWM_ASOP_ADD:
+				win->quirks |= qp->quirk;
+				break;
+			case SWM_ASOP_SUBTRACT:
+				win->quirks &= ~qp->quirk;
+				break;
+			case SWM_ASOP_BASIC:
+			default:
+				win->quirks = qp->quirk;
+				break;
+			}
+		}
+	}
+	free(name);
+}
+
+static void
+reload(struct swm_screen *s, struct binding *bp, union arg *args)
+{
+	int			i, num_screens;
+	struct swm_region	*r;
+	struct stat		sb;
+	struct ws_win		*w;
+
+	/* Suppress warning. */
+	(void)s;
+	(void)bp;
+	(void)args;
+
+	DNPRINTF(SWM_D_CONF, "previous conf_file: %s\n", conf_file);
+
+	if (conf_file == NULL || !conf_file_user || (conf_file_user &&
+	    (stat(conf_file, &sb) == -1 || !S_ISREG(sb.st_mode)))) {
+		free(conf_file);
+		conf_file_user = false;
+		DNPRINTF(SWM_D_CONF, "scanning for conf\n");
+		conf_file = scan_config();
+	}
+
+	if (conf_file)
+		DNPRINTF(SWM_D_CONF, "using conf_file: %s\n", conf_file);
+	else
+		DNPRINTF(SWM_D_CONF, "using defaults\n");
+
+	/* Cleanup what will be restored to default. */
+
+	bar_extra_stop();
+	clear_quirks();
+	clear_spawns();
+	clear_bindings();
+
+	num_screens = get_screen_count();
+	for (i = 0; i < num_screens; i++) {
+		clear_colors(&screens[i]);
+		xft_free(&screens[i]);
+		TAILQ_FOREACH(r, &screens[i].rl, entry)
+			bar_cleanup(r);
+	}
+
+	if (bar_fontnames) {
+		for (i = 0; i < num_xftfonts; i++)
+			free(bar_fontnames[i]);
+		free(bar_fontnames);
+		bar_fontnames = NULL;
+		num_xftfonts = 0;
+		font_pua_index = 0;
+	}
+
+	if (bar_fs) {
+		XFreeFontSet(display, bar_fs);
+		bar_fs = NULL;
+	}
+
+	/* Restore defaults. */
+
+	load_defaults();
+
+	for (i = 0; i < num_screens; i++)
+		setup_colors(&screens[i]);
+
+	setup_keybindings();
+	setup_btnbindings();
+	setup_quirks();
+	setup_spawn();
+
+	if (conf_file)
+		conf_load(conf_file, SWM_CONF_DEFAULT);
+
+	setup_marks();
+	setup_fonts();
+	validate_spawns();
+
+	for (i = 0; i < num_screens; i++) {
+		TAILQ_FOREACH(r, &screens[i].rl, entry)
+			bar_setup(r);
+
+		/* Update quirks on currently managed windows. */
+		TAILQ_FOREACH(w, &screens[i].managed, manage_entry)
+			reapply_quirks(w);
+
+		refresh_stack(&screens[i]);
+		update_stacking(&screens[i]);
+		refresh_strut(&screens[i]);
+		update_layout(&screens[i]);
+		update_mapping(&screens[i]);
+	}
+
+	grabkeys();
+	grabbuttons();
+
+	DNPRINTF(SWM_D_CONF, "done\n");
 }
 
 static void
@@ -11198,6 +11386,7 @@ static struct action {
 	{ "quit",		quit,		0, {0} },
 	{ "raise",		raise_focus,	0, {0} },
 	{ "raise_toggle",	raise_toggle,	0, {0} },
+	{ "reload",		reload,		0, {0} },
 	{ "resize",		resize, FN_F_NOREPLAY, {.id = SWM_ARG_ID_DONTCENTER} },
 	{ "resize_centered",	resize, FN_F_NOREPLAY, {.id = SWM_ARG_ID_CENTER} },
 	{ "restart",		restart,	0, {0} },
@@ -17646,19 +17835,7 @@ setup_screens(void)
 		    s->visual, xcb_aux_get_depth_of_visual(screen, s->visual));
 
 		/* Set default colors. */
-		setscreencolor(s, "red", SWM_S_COLOR_FOCUS, 0);
-		setscreencolor(s, "rgb:88/88/88", SWM_S_COLOR_UNFOCUS, 0);
-		setscreencolor(s, "yellow", SWM_S_COLOR_FOCUS_FREE, 0);
-		setscreencolor(s, "rgb:88/88/00", SWM_S_COLOR_UNFOCUS_FREE, 0);
-		setscreencolor(s, "rgb:00/80/80", SWM_S_COLOR_BAR_BORDER, 0);
-		setscreencolor(s, "rgb:80/80/00",
-		    SWM_S_COLOR_BAR_BORDER_FREE, 0);
-		setscreencolor(s, "rgb:00/40/40",
-		    SWM_S_COLOR_BAR_BORDER_UNFOCUS, 0);
-		setscreencolor(s, "black", SWM_S_COLOR_BAR, 0);
-		setscreencolor(s, "rgb:40/40/00", SWM_S_COLOR_BAR_FREE, 0);
-		setscreencolor(s, "rgb:a0/a0/a0", SWM_S_COLOR_BAR_FONT, 0);
-		setscreencolor(s, "rgb:ff/ff/ff", SWM_S_COLOR_BAR_FONT_FREE, 0);
+		setup_colors(s);
 
 		/* set default cursor */
 		wa[0] = cursors[XC_LEFT_PTR].cid;
@@ -17771,70 +17948,163 @@ setup_extensions(void)
 }
 
 static void
-setup_globals(void)
+load_defaults(void)
 {
+	boundary_width = 50;
+	snap_range = 25;
+	cycle_empty = false;
+	cycle_visible = false;
+	term_width = 0;
+	mod_key = MODKEY;
+	cancel_key = CANCELKEY;
+	cancel_keycode = XCB_NO_SYMBOL;
+	warp_focus = false;
+	warp_pointer = false;
+	workspace_autorotate = false;
+	workspace_clamp = false;
+	bar_version = false;
+	bar_enabled = true;
+	bar_border_width = 1;
+	bar_at_bottom = false;
+	bar_extra = false;
+	bar_height = 0;
+	bar_padding_horizontal = 0;
+	bar_padding_vertical = 0;
+	bar_justify = SWM_BAR_JUSTIFY_LEFT;
+	bar_action_expand = false;
+	bar_workspace_limit = 0;
+	stack_enabled = true;
+	clock_enabled = true;
+	iconic_enabled = false;
+	fullscreen_unfocus = SWM_UNFOCUS_NONE;
+	fullscreen_hide_other = false;
+	maximized_unfocus = SWM_UNFOCUS_RESTORE;
+	maximize_hide_bar = false;
+	maximize_hide_other = false;
+	max_layout_maximize = true;
+	urgent_enabled = false;
+	urgent_collapse = false;
+	window_class_enabled = false;
+	window_instance_enabled = false;
+	window_name_enabled = false;
+	click_to_raise = true;
+	workspace_indicator = SWM_WSI_DEFAULT;
+	focus_mode = SWM_FOCUS_MODE_DEFAULT;
+	focus_close = SWM_STACK_BELOW;
+	focus_close_wrap = true;
+	focus_default = SWM_STACK_TOP;
+	spawn_position = SWM_STACK_TOP;
+	disable_border = false;
+	disable_border_always = false;
+	disable_padding = false;
+	disable_padding_always = false;
+	center_adaptive = false;
+	center_autobalance = false;
+	center_noautostack = false;
+	center_nowrap = false;
+	border_width = 1;
+	region_padding = 0;
+	tile_gap = 0;
+	verbose_layout = false;
+	move_step = SWM_MOVE_STEPS;
+	resize_step = SWM_RESIZE_STEPS;
+
+	free(bar_argv[0]);
+	bar_argv[0] = NULL;
+
+	free(bar_format);
+	bar_format = NULL;
+
+	free(clock_format);
 	if ((clock_format = strdup("%a %b %d %R %Z %Y")) == NULL)
 		err(1, "clock_format: strdup");
 
+	free(focus_mark_none);
 	if ((focus_mark_none = strdup("")) == NULL)
 		err(1, "focus_mark_none: strdup");
 
+	free(focus_mark_normal);
 	if ((focus_mark_normal = strdup("")) == NULL)
 		err(1, "focus_mark_normal: strdup");
 
+	free(focus_mark_floating);
 	if ((focus_mark_floating = strdup("(f)")) == NULL)
 		err(1, "focus_mark_floating: strdup");
 
+	free(focus_mark_free);
 	if ((focus_mark_free = strdup("(*)")) == NULL)
 		err(1, "focus_mark_free: strdup");
 
+	free(focus_mark_maximized);
 	if ((focus_mark_maximized = strdup("(m)")) == NULL)
 		err(1, "focus_mark_maximized: strdup");
 
+	free(stack_mark_floating);
 	if ((stack_mark_floating = strdup("[~]")) == NULL)
 		err(1, "stack_mark_floating: strdup");
 
+	free(stack_mark_max);
 	if ((stack_mark_max = strdup("[ ]")) == NULL)
 		err(1, "stack_mark_max: strdup");
 
+	free(stack_mark_vertical);
 	if ((stack_mark_vertical = strdup("[|]")) == NULL)
 		err(1, "stack_mark_vertical: strdup");
 
+	free(stack_mark_vertical_flip);
 	if ((stack_mark_vertical_flip = strdup("[>]")) == NULL)
 		err(1, "stack_mark_vertical_flip: strdup");
 
+	free(stack_mark_vertical_center);
 	if ((stack_mark_vertical_center = strdup("(|)")) == NULL)
 		err(1, "stack_mark_vertical: strdup");
 
+	free(stack_mark_vertical_center_flip);
 	if ((stack_mark_vertical_center_flip = strdup("(>)")) == NULL)
 		err(1, "stack_mark_vertical_flip: strdup");
 
+	free(stack_mark_horizontal);
 	if ((stack_mark_horizontal = strdup("[-]")) == NULL)
 		err(1, "stack_mark_horizontal: strdup");
 
+	free(stack_mark_horizontal_flip);
 	if ((stack_mark_horizontal_flip = strdup("[v]")) == NULL)
 		err(1, "stack_mark_horizontal_flip: strdup");
 
+	free(stack_mark_horizontal_center);
 	if ((stack_mark_horizontal_center = strdup("(-)")) == NULL)
 		err(1, "stack_mark_horizontal: strdup");
 
+	free(stack_mark_horizontal_center_flip);
 	if ((stack_mark_horizontal_center_flip = strdup("(v)")) == NULL)
 		err(1, "stack_mark_horizontal_flip: strdup");
 
-	if ((syms = xcb_key_symbols_alloc(conn)) == NULL)
-		errx(1, "unable to allocate key symbols.");
-
+	free(workspace_mark_current);
 	if ((workspace_mark_current = strdup("*")) == NULL)
 		err(1, "workspace_mark_current: strdup");
 
+	free(workspace_mark_urgent);
 	if ((workspace_mark_urgent = strdup("!")) == NULL)
 		err(1, "workspace_mark_urgent: strdup");
 
+	free(workspace_mark_active);
 	if ((workspace_mark_active = strdup("^")) == NULL)
 		err(1, "workspace_mark_active: strdup");
 
+	free(workspace_mark_empty);
 	if ((workspace_mark_empty = strdup("-")) == NULL)
 		err(1, "workspace_mark_empty: strdup");
+
+	if (syms == NULL && (syms = xcb_key_symbols_alloc(conn)) == NULL)
+		errx(1, "unable to allocate key symbols.");
+
+	layout_order_reset();
+}
+
+static void
+setup_globals(void)
+{
+	load_defaults();
 
 	a_state = get_atom_from_string("WM_STATE");
 	a_change_state = get_atom_from_string("WM_CHANGE_STATE");
@@ -17848,11 +18118,9 @@ setup_globals(void)
 	a_utf8_string = get_atom_from_string("UTF8_STRING");
 	a_swm_pid = get_atom_from_string("_SWM_PID");
 	a_swm_ws = get_atom_from_string("_SWM_WS");
-
-	layout_order_reset();
 }
 
-static void
+static char *
 scan_config(void)
 {
 	struct stat		sb;
@@ -17931,7 +18199,8 @@ scan_config(void)
 			    SWM_CONF_FILE_OLD);
 			break;
 		default:
-			goto done;
+			DNPRINTF(SWM_D_INIT, "none found");
+			return (NULL);
 		}
 
 		if (cfile == NULL && conf[0] && stat(conf, &sb) != -1 &&
@@ -17939,13 +18208,13 @@ scan_config(void)
 			cfile = conf;
 
 		if (cfile) {
-			conf_load(cfile, SWM_CONF_DEFAULT);
-			break;
+			DNPRINTF(SWM_D_INIT, "found %s", cfile);
+			ret = strdup(cfile);
+			if (ret == NULL)
+				err(1, "scan_config: strdup");
+			return (ret);
 		}
 	}
-
-done:
-	DNPRINTF(SWM_D_INIT, "done\n");
 }
 
 static void
@@ -17955,7 +18224,7 @@ shutdown_cleanup(void)
 	struct swm_region	*r;
 	struct ws_win		*w;
 	struct workspace	*ws;
-	int			i, j, num_screens;
+	int			i, num_screens;
 
 	/* disable alarm because the following code may not be interrupted */
 	alarm(0);
@@ -17984,22 +18253,8 @@ shutdown_cleanup(void)
 		if (s->gc != XCB_NONE)
 			xcb_free_gc(conn, s->gc);
 
-		for (j = 0; j < LENGTH(s->c); j++)
-			freecolortype(s, j);
-
-		if (!bar_font_legacy) {
-			for (j = 0; j < num_xftfonts; j++)
-				if (s->bar_xftfonts[j])
-					XftFontClose(display,
-					    s->bar_xftfonts[j]);
-
-			if (font_pua_index)
-				XftFontClose(display,
-				    s->bar_xftfonts[font_pua_index]);
-
-			free(s->bar_xftfonts);
-		}
-
+		clear_colors(s);
+		xft_free(s);
 		clear_stack(s);
 
 #ifndef __clang_analyzer__ /* Suppress false warnings. */
@@ -18092,6 +18347,7 @@ shutdown_cleanup(void)
 		XFreeFontSet(display, bar_fs);
 
 	free(bar_argv[0]);
+	free(conf_file);
 
 	xcb_key_symbols_free(syms);
 	xcb_flush(conn);
@@ -18192,14 +18448,15 @@ main(int argc, char *argv[])
 	struct swm_region	*r;
 	xcb_generic_event_t	*evt;
 	xcb_mapping_notify_event_t *mne;
-	char			*cfile = NULL;
 	int			ch, i, num_screens, num_readable;
 	bool			stdin_ready = false;
 
 	while ((ch = getopt(argc, argv, "c:dhv")) != -1) {
 		switch (ch) {
 		case 'c':
-			cfile = optarg;
+			if ((conf_file = strdup(optarg)) == NULL)
+				err(1, "strdup");
+			conf_file_user = true;
 			break;
 		case 'd':
 			swm_debug = SWM_D_ALL;
@@ -18230,6 +18487,7 @@ main(int argc, char *argv[])
 	sigaction(SIGQUIT, &sact, NULL);
 	sigaction(SIGTERM, &sact, NULL);
 	sigaction(SIGHUP, &sact, NULL);
+	sigaction(SIGUSR1, &sact, NULL);
 
 	sact.sa_handler = sighdlr;
 	sact.sa_flags = SA_NOCLDSTOP;
@@ -18283,10 +18541,10 @@ main(int argc, char *argv[])
 	setup_quirks();
 	setup_spawn();
 
-	if (cfile)
-		conf_load(cfile, SWM_CONF_DEFAULT);
-	else
-		scan_config();
+	if (conf_file == NULL)
+		conf_file = scan_config();
+	if (conf_file)
+		conf_load(conf_file, SWM_CONF_DEFAULT);
 
 	setup_marks();
 	setup_fonts();
@@ -18365,6 +18623,10 @@ main(int argc, char *argv[])
 
 		if (restart_wm)
 			restart(NULL, NULL, NULL);
+		if (reload_conf) {
+			reload(NULL, NULL, NULL);
+			reload_conf = 0;
+		}
 
 		if (!running)
 			goto done;
