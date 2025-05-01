@@ -1489,6 +1489,8 @@ quit
 restart
 .It Aq Ar unbound
 restart_of_day
+.It Aq Ar unbound
+reload
 .It Cm M- Ns Aq Cm Space
 cycle_layout
 .It Cm M-\e
@@ -1681,6 +1683,11 @@ Same as
 .Ic restart
 but the configuration file is loaded in full, excluding
 .Ic autorun .
+.It Cm reload
+Reload the configuration without restarting and reinitialize the bar(s) along
+with
+.Ic bar_action
+(if used).
 .It Cm cycle_layout
 Switch to the next layout.
 .It Cm center_layout
@@ -2457,6 +2464,10 @@ currently unsupported by
 Sending
 .Nm
 a HUP signal will restart it.
+USR1 will reload the configuration without restarting and reinitialize the
+bar(s) along with
+.Ic bar_action
+(if used).
 .Sh FILES
 .Bl -tag -width "/etc/spectrwm.confXXX" -compact
 .It Pa ~/.spectrwm.conf

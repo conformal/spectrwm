@@ -1252,6 +1252,8 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dd>restart</dd>
   <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
   <dd>restart_of_day</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>reload</dd>
   <dt id="M-~3"><a class="permalink" href="#M-~3"><code class="Cm">M-</code></a>&#x27E8;<code class="Cm">Space</code>&#x27E9;</dt>
   <dd>cycle_layout</dd>
   <dt><code class="Cm">M-\</code></dt>
@@ -1434,6 +1436,9 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dt id="restart_of_day"><a class="permalink" href="#restart_of_day"><code class="Cm">restart_of_day</code></a></dt>
   <dd>Same as <code class="Ic">restart</code> but the configuration file is
       loaded in full, excluding <code class="Ic">autorun</code>.</dd>
+  <dt id="reload"><a class="permalink" href="#reload"><code class="Cm">reload</code></a></dt>
+  <dd>Reload the configuration without restarting and reinitialize the bar(s)
+      along with <code class="Ic">bar_action</code> (if used).</dd>
   <dt id="cycle_layout"><a class="permalink" href="#cycle_layout"><code class="Cm">cycle_layout</code></a></dt>
   <dd>Switch to the next layout.</dd>
   <dt id="center_layout"><a class="permalink" href="#center_layout"><code class="Cm">center_layout</code></a></dt>
@@ -2055,7 +2060,8 @@ quirk[.*] += IGNORESPAWNWS + IGNOREPID</pre>
 <section class="Sh">
 <h1 class="Sh" id="SIGNALS"><a class="permalink" href="#SIGNALS">SIGNALS</a></h1>
 <p class="Pp">Sending <code class="Nm">spectrwm</code> a HUP signal will restart
-    it.</p>
+    it. USR1 will reload the configuration without restarting and reinitialize
+    the bar(s) along with <code class="Ic">bar_action</code> (if used).</p>
 </section>
 <section class="Sh">
 <h1 class="Sh" id="FILES"><a class="permalink" href="#FILES">FILES</a></h1>
