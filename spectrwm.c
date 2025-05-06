@@ -506,6 +506,8 @@ int		bar_height = 0;
 int		bar_padding_horizontal = 0;
 int		bar_padding_vertical = 0;
 int		bar_justify = SWM_BAR_JUSTIFY_LEFT;
+char		*bar_fonts = NULL;
+char		*bar_fontname_pua = NULL;
 char		*bar_format = NULL;
 bool		 bar_action_expand = false;
 int		 bar_workspace_limit = 0;
@@ -583,10 +585,8 @@ XFontSet	bar_fs = NULL;
 XFontSetExtents	*bar_fs_extents;
 char		**bar_fontnames = NULL;
 int		num_xftfonts = 0;
-char		*bar_fontname_pua = NULL;
 int		font_pua_index = 0;
 bool		bar_font_legacy = true;
-char		*bar_fonts = NULL;
 char		*startup_exception = NULL;
 unsigned int	nr_exceptions = 0;
 
@@ -1875,6 +1875,7 @@ static void	 xft_free(struct swm_screen *);
 static int	 xft_init(struct swm_screen *);
 static void	 _add_startup_exception(const char *, va_list);
 static void	 add_startup_exception(const char *, ...);
+static void	 clear_startup_exceptions(void);
 
 RB_PROTOTYPE_STATIC(binding_tree, binding, entry, binding_cmp);
 RB_PROTOTYPE_STATIC(atom_name_tree, atom_name, entry, atom_name_cmp);
@@ -6134,6 +6135,8 @@ reload(struct swm_screen *s, struct binding *bp, union arg *args)
 		bar_fs = NULL;
 	}
 
+	clear_startup_exceptions();
+
 	/* Restore defaults. */
 
 	load_defaults();
@@ -6158,8 +6161,10 @@ reload(struct swm_screen *s, struct binding *bp, union arg *args)
 			bar_setup(r);
 
 		/* Update quirks on currently managed windows. */
-		TAILQ_FOREACH(w, &screens[i].managed, manage_entry)
+		TAILQ_FOREACH(w, &screens[i].managed, manage_entry) {
 			reapply_quirks(w);
+			draw_frame(w);
+		}
 
 		refresh_stack(&screens[i]);
 		update_stacking(&screens[i]);
@@ -14715,6 +14720,14 @@ add_startup_exception(const char *fmt, ...)
 	va_end(ap);
 }
 
+static void
+clear_startup_exceptions(void)
+{
+	free(startup_exception);
+	startup_exception = NULL;
+	nr_exceptions = 0;
+}
+
 static int
 conf_load(const char *filename, int keymapping)
 {
@@ -18011,6 +18024,12 @@ load_defaults(void)
 
 	free(bar_argv[0]);
 	bar_argv[0] = NULL;
+
+	free(bar_fonts);
+	bar_fonts = NULL;
+
+	free(bar_fontname_pua);
+	bar_fontname_pua = NULL;
 
 	free(bar_format);
 	bar_format = NULL;
