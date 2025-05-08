@@ -844,7 +844,7 @@ enum {
 };
 
 /* physical screen mapping */
-#define SWM_WS_MAX		(22)	/* hard limit */
+#define SWM_WS_MAX		(100)	/* hard limit */
 int		workspace_limit = 10;	/* soft limit */
 
 #define SWM_RATE_DEFAULT	(60)	/* Default for swm_screen. */
@@ -1297,39 +1297,10 @@ enum actionid {
 	FN_MOVE_LEFT,
 	FN_MOVE_RIGHT,
 	FN_MOVE_UP,
-	FN_MVRG_1,
-	FN_MVRG_2,
-	FN_MVRG_3,
-	FN_MVRG_4,
-	FN_MVRG_5,
-	FN_MVRG_6,
-	FN_MVRG_7,
-	FN_MVRG_8,
-	FN_MVRG_9,
+	FN_MVRG_N,
 	KF_MVRG_NEXT,
 	KF_MVRG_PREV,
-	FN_MVWS_1,
-	FN_MVWS_2,
-	FN_MVWS_3,
-	FN_MVWS_4,
-	FN_MVWS_5,
-	FN_MVWS_6,
-	FN_MVWS_7,
-	FN_MVWS_8,
-	FN_MVWS_9,
-	FN_MVWS_10,
-	FN_MVWS_11,
-	FN_MVWS_12,
-	FN_MVWS_13,
-	FN_MVWS_14,
-	FN_MVWS_15,
-	FN_MVWS_16,
-	FN_MVWS_17,
-	FN_MVWS_18,
-	FN_MVWS_19,
-	FN_MVWS_20,
-	FN_MVWS_21,
-	FN_MVWS_22,
+	FN_MVWS_N,
 	FN_NAME_WORKSPACE,
 	FN_PRIOR_LAYOUT,
 	FN_QUIT,
@@ -1340,15 +1311,7 @@ enum actionid {
 	FN_RESIZE_CENTERED,
 	FN_RESTART,
 	FN_RESTART_OF_DAY,
-	FN_RG_1,
-	FN_RG_2,
-	FN_RG_3,
-	FN_RG_4,
-	FN_RG_5,
-	FN_RG_6,
-	FN_RG_7,
-	FN_RG_8,
-	FN_RG_9,
+	FN_RG_N,
 	FN_RG_MOVE_NEXT,
 	FN_RG_MOVE_PREV,
 	FN_RG_NEXT,
@@ -1371,28 +1334,7 @@ enum actionid {
 	FN_WIDTH_SHRINK,
 	FN_WIND_DEL,
 	FN_WIND_KILL,
-	FN_WS_1,
-	FN_WS_2,
-	FN_WS_3,
-	FN_WS_4,
-	FN_WS_5,
-	FN_WS_6,
-	FN_WS_7,
-	FN_WS_8,
-	FN_WS_9,
-	FN_WS_10,
-	FN_WS_11,
-	FN_WS_12,
-	FN_WS_13,
-	FN_WS_14,
-	FN_WS_15,
-	FN_WS_16,
-	FN_WS_17,
-	FN_WS_18,
-	FN_WS_19,
-	FN_WS_20,
-	FN_WS_21,
-	FN_WS_22,
+	FN_WS_N,
 	FN_WS_EMPTY,
 	FN_WS_EMPTY_MOVE,
 	FN_WS_NEXT,
@@ -1421,6 +1363,7 @@ struct binding {
 	enum binding_type	type;		/* Key or Button. */
 	uint32_t		value;		/* KeySym or Button Index. */
 	enum actionid		action;		/* Action Identifier. */
+	int			num;		/* Action argument. */
 	uint32_t		flags;
 	char			*spawn_name;
 };
@@ -1478,7 +1421,7 @@ static void	 below_toggle(struct swm_screen *, struct binding *,
 		     union arg *);
 static int	 binding_cmp(struct binding *, struct binding *);
 static void	 binding_insert(uint16_t, enum binding_type, uint32_t,
-		     enum actionid, uint32_t, const char *);
+		     uint32_t, enum actionid, int, const char *);
 static struct binding	*binding_lookup(uint16_t, enum binding_type, uint32_t);
 static void	 binding_remove(struct binding *);
 static bool	 bounds_intersect(struct swm_geometry *, struct swm_geometry *);
@@ -1740,8 +1683,8 @@ static void	 set_input_focus(xcb_window_t, bool);
 static void	 set_region(struct swm_region *);
 static void	 set_win_state(struct ws_win *, uint32_t);
 static int	 setautorun(uint8_t, const char *, const char *, int, char **);
-static void	 setbinding(uint16_t, enum binding_type, uint32_t,
-		     enum actionid, uint32_t, const char *);
+static void	 setbinding(uint16_t, enum binding_type, uint32_t, uint32_t,
+		     enum actionid, int, const char *);
 static int	 setconfbinding(uint8_t, const char *, const char *, int,
 		     char **);
 static int	 setconfcancelkey(uint8_t, const char *, const char *, int,
@@ -5076,7 +5019,6 @@ bar_toggle(struct swm_screen *s, struct binding *bp, union arg *args)
 
 	/* Suppress warning. */
 	(void)bp;
-	(void)args;
 
 	switch (args->id) {
 	case SWM_ARG_ID_BAR_TOGGLE_WS:
@@ -6776,13 +6718,9 @@ grab_buttons_win(xcb_window_t win)
 		if (xinput2_raw && bp->flags & BINDING_F_REPLAY)
 			continue;
 
-		/* When binding ws actions, skip unused workspaces. */
-		if ((int)bp->action > FN_WS_1 + workspace_limit - 1 &&
-		    bp->action <= FN_WS_22)
-			continue;
-
-		if ((int)bp->action > FN_MVWS_1 + workspace_limit - 1 &&
-		    bp->action <= FN_MVWS_22)
+		/* Skip bindings with invalid workspaces. */
+		if ((bp->action == FN_WS_N || bp->action == FN_MVWS_N) &&
+		    bp->num > workspace_limit)
 			continue;
 
 		if (bp->mod == XCB_MOD_MASK_ANY) {
@@ -7218,9 +7156,9 @@ switchws(struct swm_screen *s, struct binding *bp, union arg *args)
 	struct workspace	*ws;
 
 	/* Suppress warning. */
-	(void)bp;
+	(void)args;
 
-	ws = get_workspace(s, args->id);
+	ws = get_workspace(s, bp->num - 1);
 	if (ws == NULL)
 		return;
 
@@ -7437,9 +7375,9 @@ focusrg(struct swm_screen *s, struct binding *bp, union arg *args)
 	struct swm_region	*r;
 
 	/* Suppress warning. */
-	(void)bp;
+	(void)args;
 
-	r = get_region(s, args->id);
+	r = get_region(s, bp->num);
 	if (r == NULL || s->r_focus == r)
 		return;
 
@@ -8973,15 +8911,15 @@ send_to_rg(struct swm_screen *s, struct binding *bp, union arg *args)
 	struct ws_win		*win;
 
 	/* Suppress warning. */
-	(void)bp;
+	(void)args;
 
-	DNPRINTF(SWM_D_FOCUS, "id: %d\n", args->id);
+	DNPRINTF(SWM_D_FOCUS, "id: %d\n", bp->num);
 
 	win = s->focus;
 	if (win == NULL)
 		return;
 
-	r = get_region(s, args->id);
+	r = get_region(s, bp->num);
 	if (r == NULL)
 		return;
 
@@ -9011,13 +8949,13 @@ send_to_ws(struct swm_screen *s, struct binding *bp, union arg *args)
 	struct ws_win		*win;
 
 	/* Suppress warning. */
-	(void)bp;
+	(void)args;
 
 	win = s->focus;
 	if (win == NULL)
 		return;
 
-	ws = get_workspace(s, args->id);
+	ws = get_workspace(s, bp->num - 1);
 	if (ws == NULL || win->ws == ws)
 		return;
 
@@ -11353,39 +11291,10 @@ static struct action {
 	{ "move_left",		move,		0, {.id = SWM_ARG_ID_MOVELEFT} },
 	{ "move_right",		move,		0, {.id = SWM_ARG_ID_MOVERIGHT} },
 	{ "move_up",		move,		0, {.id = SWM_ARG_ID_MOVEUP} },
-	{ "mvrg_1",		send_to_rg,	0, {.id = 1} },
-	{ "mvrg_2",		send_to_rg,	0, {.id = 2} },
-	{ "mvrg_3",		send_to_rg,	0, {.id = 3} },
-	{ "mvrg_4",		send_to_rg,	0, {.id = 4} },
-	{ "mvrg_5",		send_to_rg,	0, {.id = 5} },
-	{ "mvrg_6",		send_to_rg,	0, {.id = 6} },
-	{ "mvrg_7",		send_to_rg,	0, {.id = 7} },
-	{ "mvrg_8",		send_to_rg,	0, {.id = 8} },
-	{ "mvrg_9",		send_to_rg,	0, {.id = 9} },
+	{ "mvrg_%d",		send_to_rg,	0, {0} },
 	{ "mvrg_next",		send_to_rg_relative,	0, {.id = 1} },
 	{ "mvrg_prev",		send_to_rg_relative,	0, {.id = -1} },
-	{ "mvws_1",		send_to_ws,	0, {.id = 0} },
-	{ "mvws_2",		send_to_ws,	0, {.id = 1} },
-	{ "mvws_3",		send_to_ws,	0, {.id = 2} },
-	{ "mvws_4",		send_to_ws,	0, {.id = 3} },
-	{ "mvws_5",		send_to_ws,	0, {.id = 4} },
-	{ "mvws_6",		send_to_ws,	0, {.id = 5} },
-	{ "mvws_7",		send_to_ws,	0, {.id = 6} },
-	{ "mvws_8",		send_to_ws,	0, {.id = 7} },
-	{ "mvws_9",		send_to_ws,	0, {.id = 8} },
-	{ "mvws_10",		send_to_ws,	0, {.id = 9} },
-	{ "mvws_11",		send_to_ws,	0, {.id = 10} },
-	{ "mvws_12",		send_to_ws,	0, {.id = 11} },
-	{ "mvws_13",		send_to_ws,	0, {.id = 12} },
-	{ "mvws_14",		send_to_ws,	0, {.id = 13} },
-	{ "mvws_15",		send_to_ws,	0, {.id = 14} },
-	{ "mvws_16",		send_to_ws,	0, {.id = 15} },
-	{ "mvws_17",		send_to_ws,	0, {.id = 16} },
-	{ "mvws_18",		send_to_ws,	0, {.id = 17} },
-	{ "mvws_19",		send_to_ws,	0, {.id = 18} },
-	{ "mvws_20",		send_to_ws,	0, {.id = 19} },
-	{ "mvws_21",		send_to_ws,	0, {.id = 20} },
-	{ "mvws_22",		send_to_ws,	0, {.id = 21} },
+	{ "mvws_%d",		send_to_ws,	0, {0} },
 	{ "name_workspace",	name_workspace,	0, {0} },
 	{ "prior_layout",	switchlayout,	0, {.id = SWM_ARG_ID_PRIOR_LAYOUT} },
 	{ "quit",		quit,		0, {0} },
@@ -11396,15 +11305,7 @@ static struct action {
 	{ "resize_centered",	resize, FN_F_NOREPLAY, {.id = SWM_ARG_ID_CENTER} },
 	{ "restart",		restart,	0, {0} },
 	{ "restart_of_day",	restart,	0, {SWM_ARG_ID_RESTARTOFDAY} },
-	{ "rg_1",		focusrg,	0, {.id = 1} },
-	{ "rg_2",		focusrg,	0, {.id = 2} },
-	{ "rg_3",		focusrg,	0, {.id = 3} },
-	{ "rg_4",		focusrg,	0, {.id = 4} },
-	{ "rg_5",		focusrg,	0, {.id = 5} },
-	{ "rg_6",		focusrg,	0, {.id = 6} },
-	{ "rg_7",		focusrg,	0, {.id = 7} },
-	{ "rg_8",		focusrg,	0, {.id = 8} },
-	{ "rg_9",		focusrg,	0, {.id = 9} },
+	{ "rg_%d",		focusrg,	0, {0} },
 	{ "rg_move_next",	cyclerg,	0, {.id = SWM_ARG_ID_CYCLERG_MOVE_UP} },
 	{ "rg_move_prev",	cyclerg,	0, {.id = SWM_ARG_ID_CYCLERG_MOVE_DOWN} },
 	{ "rg_next",		cyclerg,	0, {.id = SWM_ARG_ID_CYCLERG_UP} },
@@ -11427,28 +11328,7 @@ static struct action {
 	{ "width_shrink",	resize,		0, {.id = SWM_ARG_ID_WIDTHSHRINK} },
 	{ "wind_del",		wkill,		0, {.id = SWM_ARG_ID_DELETEWINDOW} },
 	{ "wind_kill",		wkill,		0, {.id = SWM_ARG_ID_KILLWINDOW} },
-	{ "ws_1",		switchws,	0, {.id = 0} },
-	{ "ws_2",		switchws,	0, {.id = 1} },
-	{ "ws_3",		switchws,	0, {.id = 2} },
-	{ "ws_4",		switchws,	0, {.id = 3} },
-	{ "ws_5",		switchws,	0, {.id = 4} },
-	{ "ws_6",		switchws,	0, {.id = 5} },
-	{ "ws_7",		switchws,	0, {.id = 6} },
-	{ "ws_8",		switchws,	0, {.id = 7} },
-	{ "ws_9",		switchws,	0, {.id = 8} },
-	{ "ws_10",		switchws,	0, {.id = 9} },
-	{ "ws_11",		switchws,	0, {.id = 10} },
-	{ "ws_12",		switchws,	0, {.id = 11} },
-	{ "ws_13",		switchws,	0, {.id = 12} },
-	{ "ws_14",		switchws,	0, {.id = 13} },
-	{ "ws_15",		switchws,	0, {.id = 14} },
-	{ "ws_16",		switchws,	0, {.id = 15} },
-	{ "ws_17",		switchws,	0, {.id = 16} },
-	{ "ws_18",		switchws,	0, {.id = 17} },
-	{ "ws_19",		switchws,	0, {.id = 18} },
-	{ "ws_20",		switchws,	0, {.id = 19} },
-	{ "ws_21",		switchws,	0, {.id = 20} },
-	{ "ws_22",		switchws,	0, {.id = 21} },
+	{ "ws_%d",		switchws,	0, {0} },
 	{ "ws_empty",		emptyws,	0, {.id = SWM_ARG_ID_WS_EMPTY} },
 	{ "ws_empty_move",	emptyws,	0, {.id = SWM_ARG_ID_WS_EMPTY_MOVE} },
 	{ "ws_next",		cyclews,	0, {.id = SWM_ARG_ID_CYCLEWS_UP} },
@@ -12286,13 +12166,13 @@ binding_cmp(struct binding *bp1, struct binding *bp2)
 
 static void
 binding_insert(uint16_t mod, enum binding_type type, uint32_t val,
-    enum actionid aid, uint32_t flags, const char *spawn_name)
+    uint32_t flags, enum actionid aid, int num, const char *spawn_name)
 {
 	struct binding		*bp;
 
-	DNPRINTF(SWM_D_KEY, "mod: %u, type: %d, val: %u, action: %s(%d), "
-	    "spawn_name: %s\n", mod, type, val, actions[aid].name, aid,
-	    spawn_name);
+	DNPRINTF(SWM_D_KEY, "mod: %u, type: %d, val: %u, flags: %u, "
+	    "action: %s(%d), num: %d, spawn_name: %s\n", mod, type, val, flags,
+	    actions[aid].name, aid, num, spawn_name);
 
 	if ((bp = malloc(sizeof *bp)) == NULL)
 		err(1, "binding_insert: malloc");
@@ -12302,6 +12182,7 @@ binding_insert(uint16_t mod, enum binding_type type, uint32_t val,
 	bp->value = val;
 	bp->action = aid;
 	bp->flags = flags;
+	bp->num = num;
 	bp->spawn_name = strdupsafe(spawn_name);
 	if (RB_INSERT(binding_tree, &bindings, bp))
 		errx(1, "binding_insert: RB_INSERT");
@@ -12336,8 +12217,8 @@ binding_remove(struct binding *bp)
 }
 
 static void
-setbinding(uint16_t mod, enum binding_type type, uint32_t val,
-    enum actionid aid, uint32_t flags, const char *spawn_name)
+setbinding(uint16_t mod, enum binding_type type, uint32_t val, uint32_t flags,
+    enum actionid aid, int num, const char *spawn_name)
 {
 	struct binding		*bp;
 
@@ -12351,7 +12232,7 @@ setbinding(uint16_t mod, enum binding_type type, uint32_t val,
 		binding_remove(bp);
 
 	if (aid != FN_INVALID)
-		binding_insert(mod, type, val, aid, flags, spawn_name);
+		binding_insert(mod, type, val, flags, aid, num, spawn_name);
 
 	DNPRINTF(SWM_D_KEY, "leave\n");
 }
@@ -12364,6 +12245,7 @@ setconfbinding(uint8_t asop, const char *selector, const char *value, int flags,
 	uint32_t		keybtn, opts;
 	uint16_t		mod;
 	enum actionid		aid;
+	int			num;
 	enum binding_type	type;
 
 	/* Suppress warning. */
@@ -12377,19 +12259,41 @@ setconfbinding(uint8_t asop, const char *selector, const char *value, int flags,
 		DNPRINTF(SWM_D_KEY, "unbind %s\n", value);
 		if (parsebinding(value, &mod, &type, &keybtn, &opts,
 		    emsg) == 0) {
-			setbinding(mod, type, keybtn, FN_INVALID, opts, NULL);
+			setbinding(mod, type, keybtn, opts, FN_INVALID, 0,
+			    NULL);
 			return (0);
 		} else
 			return (1);
 	}
 	/* search by key function name */
 	for (aid = 0; aid < FN_INVALID; aid++) {
+		/* Special handling for actions with a number e.g. "ws_%d". */
+		if (strstr(actions[aid].name, "%d")) {
+			if (sscanf(selector, actions[aid].name, &num) == 1) {
+				DNPRINTF(SWM_D_KEY, "%s: match action\n",
+				    selector);
+				if (num < 1) {
+					ALLOCSTR(emsg, "invalid binding "
+					    "index: %d", num);
+					return (1);
+				}
+				if (parsebinding(value, &mod, &type, &keybtn,
+				    &opts, emsg) == 0) {
+					setbinding(mod, type, keybtn, opts, aid,
+					    num, NULL);
+					return (0);
+				} else
+					return (1);
+			}
+			continue;
+		}
 		if (strncasecmp(selector, actions[aid].name,
 		    SWM_FUNCNAME_LEN) == 0) {
 			DNPRINTF(SWM_D_KEY, "%s: match action\n", selector);
 			if (parsebinding(value, &mod, &type, &keybtn, &opts,
 			    emsg) == 0) {
-				setbinding(mod, type, keybtn, aid, opts, NULL);
+				setbinding(mod, type, keybtn, opts, aid, 0,
+				    NULL);
 				return (0);
 			} else
 				return (1);
@@ -12400,8 +12304,8 @@ setconfbinding(uint8_t asop, const char *selector, const char *value, int flags,
 		DNPRINTF(SWM_D_KEY, "%s: match spawn\n", selector);
 		if (parsebinding(value, &mod, &type, &keybtn, &opts,
 		    emsg) == 0) {
-			setbinding(mod, type, keybtn, FN_SPAWN_CUSTOM, opts,
-			    sp->name);
+			setbinding(mod, type, keybtn, opts, FN_SPAWN_CUSTOM,
+			    0, sp->name);
 			return (0);
 		} else
 			return (1);
@@ -12416,8 +12320,9 @@ setconfbinding(uint8_t asop, const char *selector, const char *value, int flags,
 static void
 setup_keybindings(void)
 {
-#define BINDKEY(m, k, a)	setbinding(m, KEYBIND, k, a, 0, NULL)
-#define BINDKEYSPAWN(m, k, s)	setbinding(m, KEYBIND, k, FN_SPAWN_CUSTOM, 0, s)
+#define BINDKEY(m, k, a)	setbinding(m, KEYBIND, k, 0, a, 0, NULL)
+#define BINDKEYN(m, k, a, n)	setbinding(m, KEYBIND, k, 0, a, n, NULL)
+#define BINDKEYSPAWN(m, k, s)	setbinding(m, KEYBIND, k, 0, FN_SPAWN_CUSTOM, 0, s)
 	BINDKEY(MOD,		XK_grave,		FN_FOCUS_FREE);
 	BINDKEY(MODSHIFT,	XK_grave,		FN_FREE_TOGGLE);
 	BINDKEY(MOD,		XK_b,			FN_BAR_TOGGLE);
@@ -12448,51 +12353,51 @@ setup_keybindings(void)
 	BINDKEY(MOD,		XK_bracketleft,		FN_MOVE_LEFT);
 	BINDKEY(MOD,		XK_bracketright,	FN_MOVE_RIGHT);
 	BINDKEY(MODSHIFT,	XK_bracketleft,		FN_MOVE_UP);
-	BINDKEY(MODSHIFT,	XK_KP_End,		FN_MVRG_1);
-	BINDKEY(MODSHIFT,	XK_KP_Down,		FN_MVRG_2);
-	BINDKEY(MODSHIFT,	XK_KP_Next,		FN_MVRG_3);
-	BINDKEY(MODSHIFT,	XK_KP_Left,		FN_MVRG_4);
-	BINDKEY(MODSHIFT,	XK_KP_Begin,		FN_MVRG_5);
-	BINDKEY(MODSHIFT,	XK_KP_Right,		FN_MVRG_6);
-	BINDKEY(MODSHIFT,	XK_KP_Home,		FN_MVRG_7);
-	BINDKEY(MODSHIFT,	XK_KP_Up,		FN_MVRG_8);
-	BINDKEY(MODSHIFT,	XK_KP_Prior,		FN_MVRG_9);
-	BINDKEY(MODSHIFT,	XK_1,			FN_MVWS_1);
-	BINDKEY(MODSHIFT,	XK_2,			FN_MVWS_2);
-	BINDKEY(MODSHIFT,	XK_3,			FN_MVWS_3);
-	BINDKEY(MODSHIFT,	XK_4,			FN_MVWS_4);
-	BINDKEY(MODSHIFT,	XK_5,			FN_MVWS_5);
-	BINDKEY(MODSHIFT,	XK_6,			FN_MVWS_6);
-	BINDKEY(MODSHIFT,	XK_7,			FN_MVWS_7);
-	BINDKEY(MODSHIFT,	XK_8,			FN_MVWS_8);
-	BINDKEY(MODSHIFT,	XK_9,			FN_MVWS_9);
-	BINDKEY(MODSHIFT,	XK_0,			FN_MVWS_10);
-	BINDKEY(MODSHIFT,	XK_F1,			FN_MVWS_11);
-	BINDKEY(MODSHIFT,	XK_F2,			FN_MVWS_12);
-	BINDKEY(MODSHIFT,	XK_F3,			FN_MVWS_13);
-	BINDKEY(MODSHIFT,	XK_F4,			FN_MVWS_14);
-	BINDKEY(MODSHIFT,	XK_F5,			FN_MVWS_15);
-	BINDKEY(MODSHIFT,	XK_F6,			FN_MVWS_16);
-	BINDKEY(MODSHIFT,	XK_F7,			FN_MVWS_17);
-	BINDKEY(MODSHIFT,	XK_F8,			FN_MVWS_18);
-	BINDKEY(MODSHIFT,	XK_F9,			FN_MVWS_19);
-	BINDKEY(MODSHIFT,	XK_F10,			FN_MVWS_20);
-	BINDKEY(MODSHIFT,	XK_F11,			FN_MVWS_21);
-	BINDKEY(MODSHIFT,	XK_F12,			FN_MVWS_22);
+	BINDKEYN(MODSHIFT,	XK_KP_End,		FN_MVRG_N,	1);
+	BINDKEYN(MODSHIFT,	XK_KP_Down,		FN_MVRG_N,	2);
+	BINDKEYN(MODSHIFT,	XK_KP_Next,		FN_MVRG_N,	3);
+	BINDKEYN(MODSHIFT,	XK_KP_Left,		FN_MVRG_N,	4);
+	BINDKEYN(MODSHIFT,	XK_KP_Begin,		FN_MVRG_N,	5);
+	BINDKEYN(MODSHIFT,	XK_KP_Right,		FN_MVRG_N,	6);
+	BINDKEYN(MODSHIFT,	XK_KP_Home,		FN_MVRG_N,	7);
+	BINDKEYN(MODSHIFT,	XK_KP_Up,		FN_MVRG_N,	8);
+	BINDKEYN(MODSHIFT,	XK_KP_Prior,		FN_MVRG_N,	9);
+	BINDKEYN(MODSHIFT,	XK_1,			FN_MVWS_N,	1);
+	BINDKEYN(MODSHIFT,	XK_2,			FN_MVWS_N,	2);
+	BINDKEYN(MODSHIFT,	XK_3,			FN_MVWS_N,	3);
+	BINDKEYN(MODSHIFT,	XK_4,			FN_MVWS_N,	4);
+	BINDKEYN(MODSHIFT,	XK_5,			FN_MVWS_N,	5);
+	BINDKEYN(MODSHIFT,	XK_6,			FN_MVWS_N,	6);
+	BINDKEYN(MODSHIFT,	XK_7,			FN_MVWS_N,	7);
+	BINDKEYN(MODSHIFT,	XK_8,			FN_MVWS_N,	8);
+	BINDKEYN(MODSHIFT,	XK_9,			FN_MVWS_N,	9);
+	BINDKEYN(MODSHIFT,	XK_0,			FN_MVWS_N,	10);
+	BINDKEYN(MODSHIFT,	XK_F1,			FN_MVWS_N,	11);
+	BINDKEYN(MODSHIFT,	XK_F2,			FN_MVWS_N,	12);
+	BINDKEYN(MODSHIFT,	XK_F3,			FN_MVWS_N,	13);
+	BINDKEYN(MODSHIFT,	XK_F4,			FN_MVWS_N,	14);
+	BINDKEYN(MODSHIFT,	XK_F5,			FN_MVWS_N,	15);
+	BINDKEYN(MODSHIFT,	XK_F6,			FN_MVWS_N,	16);
+	BINDKEYN(MODSHIFT,	XK_F7,			FN_MVWS_N,	17);
+	BINDKEYN(MODSHIFT,	XK_F8,			FN_MVWS_N,	18);
+	BINDKEYN(MODSHIFT,	XK_F9,			FN_MVWS_N,	19);
+	BINDKEYN(MODSHIFT,	XK_F10,			FN_MVWS_N,	20);
+	BINDKEYN(MODSHIFT,	XK_F11,			FN_MVWS_N,	21);
+	BINDKEYN(MODSHIFT,	XK_F12,			FN_MVWS_N,	22);
 	BINDKEY(MODSHIFT,	XK_slash,		FN_NAME_WORKSPACE);
 	BINDKEY(MODSHIFT,	XK_q,			FN_QUIT);
 	BINDKEY(MOD,		XK_r,			FN_RAISE);
 	BINDKEY(MODSHIFT,	XK_r,			FN_RAISE_TOGGLE);
 	BINDKEY(MOD,		XK_q,			FN_RESTART);
-	BINDKEY(MOD,		XK_KP_End,		FN_RG_1);
-	BINDKEY(MOD,		XK_KP_Down,		FN_RG_2);
-	BINDKEY(MOD,		XK_KP_Next,		FN_RG_3);
-	BINDKEY(MOD,		XK_KP_Left,		FN_RG_4);
-	BINDKEY(MOD,		XK_KP_Begin,		FN_RG_5);
-	BINDKEY(MOD,		XK_KP_Right,		FN_RG_6);
-	BINDKEY(MOD,		XK_KP_Home,		FN_RG_7);
-	BINDKEY(MOD,		XK_KP_Up,		FN_RG_8);
-	BINDKEY(MOD,		XK_KP_Prior,		FN_RG_9);
+	BINDKEYN(MOD,		XK_KP_End,		FN_RG_N,	1);
+	BINDKEYN(MOD,		XK_KP_Down,		FN_RG_N,	2);
+	BINDKEYN(MOD,		XK_KP_Next,		FN_RG_N,	3);
+	BINDKEYN(MOD,		XK_KP_Left,		FN_RG_N,	4);
+	BINDKEYN(MOD,		XK_KP_Begin,		FN_RG_N,	5);
+	BINDKEYN(MOD,		XK_KP_Right,		FN_RG_N,	6);
+	BINDKEYN(MOD,		XK_KP_Home,		FN_RG_N,	7);
+	BINDKEYN(MOD,		XK_KP_Up,		FN_RG_N,	8);
+	BINDKEYN(MOD,		XK_KP_Prior,		FN_RG_N,	9);
 	BINDKEY(MODSHIFT,	XK_Right,		FN_RG_NEXT);
 	BINDKEY(MODSHIFT,	XK_Left,		FN_RG_PREV);
 	BINDKEY(MOD,		XK_f,			FN_SEARCH_WIN);
@@ -12515,28 +12420,28 @@ setup_keybindings(void)
 	BINDKEY(MOD,		XK_minus,		FN_WIDTH_SHRINK);
 	BINDKEY(MOD,		XK_x,			FN_WIND_DEL);
 	BINDKEY(MODSHIFT,	XK_x,			FN_WIND_KILL);
-	BINDKEY(MOD,		XK_1,			FN_WS_1);
-	BINDKEY(MOD,		XK_2,			FN_WS_2);
-	BINDKEY(MOD,		XK_3,			FN_WS_3);
-	BINDKEY(MOD,		XK_4,			FN_WS_4);
-	BINDKEY(MOD,		XK_5,			FN_WS_5);
-	BINDKEY(MOD,		XK_6,			FN_WS_6);
-	BINDKEY(MOD,		XK_7,			FN_WS_7);
-	BINDKEY(MOD,		XK_8,			FN_WS_8);
-	BINDKEY(MOD,		XK_9,			FN_WS_9);
-	BINDKEY(MOD,		XK_0,			FN_WS_10);
-	BINDKEY(MOD,		XK_F1,			FN_WS_11);
-	BINDKEY(MOD,		XK_F2,			FN_WS_12);
-	BINDKEY(MOD,		XK_F3,			FN_WS_13);
-	BINDKEY(MOD,		XK_F4,			FN_WS_14);
-	BINDKEY(MOD,		XK_F5,			FN_WS_15);
-	BINDKEY(MOD,		XK_F6,			FN_WS_16);
-	BINDKEY(MOD,		XK_F7,			FN_WS_17);
-	BINDKEY(MOD,		XK_F8,			FN_WS_18);
-	BINDKEY(MOD,		XK_F9,			FN_WS_19);
-	BINDKEY(MOD,		XK_F10,			FN_WS_20);
-	BINDKEY(MOD,		XK_F11,			FN_WS_21);
-	BINDKEY(MOD,		XK_F12,			FN_WS_22);
+	BINDKEYN(MOD,		XK_1,			FN_WS_N,	1);
+	BINDKEYN(MOD,		XK_2,			FN_WS_N,	2);
+	BINDKEYN(MOD,		XK_3,			FN_WS_N,	3);
+	BINDKEYN(MOD,		XK_4,			FN_WS_N,	4);
+	BINDKEYN(MOD,		XK_5,			FN_WS_N,	5);
+	BINDKEYN(MOD,		XK_6,			FN_WS_N,	6);
+	BINDKEYN(MOD,		XK_7,			FN_WS_N,	7);
+	BINDKEYN(MOD,		XK_8,			FN_WS_N,	8);
+	BINDKEYN(MOD,		XK_9,			FN_WS_N,	9);
+	BINDKEYN(MOD,		XK_0,			FN_WS_N,	10);
+	BINDKEYN(MOD,		XK_F1,			FN_WS_N,	11);
+	BINDKEYN(MOD,		XK_F2,			FN_WS_N,	12);
+	BINDKEYN(MOD,		XK_F3,			FN_WS_N,	13);
+	BINDKEYN(MOD,		XK_F4,			FN_WS_N,	14);
+	BINDKEYN(MOD,		XK_F5,			FN_WS_N,	15);
+	BINDKEYN(MOD,		XK_F6,			FN_WS_N,	16);
+	BINDKEYN(MOD,		XK_F7,			FN_WS_N,	17);
+	BINDKEYN(MOD,		XK_F8,			FN_WS_N,	18);
+	BINDKEYN(MOD,		XK_F9,			FN_WS_N,	19);
+	BINDKEYN(MOD,		XK_F10,			FN_WS_N,	20);
+	BINDKEYN(MOD,		XK_F11,			FN_WS_N,	21);
+	BINDKEYN(MOD,		XK_F12,			FN_WS_N,	22);
 	BINDKEY(MOD,		XK_Right,		FN_WS_NEXT);
 	BINDKEY(MOD,		XK_Left,		FN_WS_PREV);
 	BINDKEY(MOD,		XK_Up,			FN_WS_NEXT_ALL);
@@ -12549,18 +12454,19 @@ setup_keybindings(void)
 		BINDKEY(MODSHIFT,	XK_d,		FN_DUMPWINS);
 	}
 #undef BINDKEY
+#undef BINDKEYN
 #undef BINDKEYSPAWN
 }
 
 static void
 setup_btnbindings(void)
 {
-	setbinding(ANYMOD, BTNBIND, XCB_BUTTON_INDEX_1, FN_FOCUS,
-	    BINDING_F_REPLAY, NULL);
-	setbinding(MOD, BTNBIND, XCB_BUTTON_INDEX_3, FN_RESIZE, 0, NULL);
-	setbinding(MODSHIFT, BTNBIND, XCB_BUTTON_INDEX_3, FN_RESIZE_CENTERED, 0,
-	    NULL);
-	setbinding(MOD, BTNBIND, XCB_BUTTON_INDEX_1, FN_MOVE, 0, NULL);
+	setbinding(ANYMOD, BTNBIND, XCB_BUTTON_INDEX_1, BINDING_F_REPLAY,
+	    FN_FOCUS, 0, NULL);
+	setbinding(MOD, BTNBIND, XCB_BUTTON_INDEX_3, 0, FN_RESIZE, 0, NULL);
+	setbinding(MODSHIFT, BTNBIND, XCB_BUTTON_INDEX_3, 0, FN_RESIZE_CENTERED,
+	    0, NULL);
+	setbinding(MOD, BTNBIND, XCB_BUTTON_INDEX_1, 0, FN_MOVE, 0, NULL);
 }
 #undef MODSHIFT
 #undef MOD
@@ -12746,15 +12652,10 @@ grabkeys(void)
 			    bp->mod != ANYMOD)
 				continue;
 
-			/* Skip unused ws binds. */
-			if ((int)bp->action > FN_WS_1 + workspace_limit - 1 &&
-			    bp->action <= FN_WS_22)
-				continue;
-
-			/* Skip unused mvws binds. */
-			if ((int)bp->action > FN_MVWS_1 + workspace_limit - 1 &&
-			    bp->action <= FN_MVWS_22)
-				continue;
+			/* Skip bindings with invalid workspaces. */
+			if (bp->action == FN_WS_N || bp->action == FN_MVWS_N)
+				if (bp->num > workspace_limit)
+					continue;
 
 			/* Try to get keycode for the grab. */
 			keycode = get_keysym_keycode(bp->value);

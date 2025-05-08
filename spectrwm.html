@@ -1029,8 +1029,11 @@ workspace_mark_current_suffix = '+@fg=0;'</pre>
     </div>
   </dd>
   <dt id="workspace_limit"><a class="permalink" href="#workspace_limit"><code class="Ic">workspace_limit</code></a></dt>
-  <dd>Set the total number of workspaces available. Minimum is 1, maximum is 22,
-      default is 10.</dd>
+  <dd>Set the total number of workspaces available. Minimum is 1, maximum is
+      100, default is 10. Note that workspaces 23 and above do not have default
+      bindings. See the <a class="Sx" href="#BINDINGS">BINDINGS</a> section
+      below for defaults and customization. To limit the workspaces listed in
+      the bar, see <code class="Ic">bar_workspace_limit</code>.</dd>
   <dt id="workspace_mark_active"><a class="permalink" href="#workspace_mark_active"><code class="Ic">workspace_mark_active</code></a></dt>
   <dd>Set the string inserted before active workspaces in the
       <code class="Ic">workspace_indicator</code>. Default is '^'.</dd>
@@ -1316,8 +1319,12 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dd>wind_kill</dd>
   <dt id="M-~5"><a class="permalink" href="#M-~5"><code class="Cm">M-</code></a>&#x27E8;<var class="Ar">1-9,0,F1-F12</var>&#x27E9;</dt>
   <dd>ws_&#x27E8;<var class="Ar">1-22</var>&#x27E9;</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>ws_&#x27E8;<var class="Ar">23-100</var>&#x27E9;</dd>
   <dt id="M-S-~4"><a class="permalink" href="#M-S-~4"><code class="Cm">M-S-</code></a>&#x27E8;<var class="Ar">1-9,0,F1-F12</var>&#x27E9;</dt>
   <dd>mvws_&#x27E8;<var class="Ar">1-22</var>&#x27E9;</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>mvws_&#x27E8;<var class="Ar">23-100</var>&#x27E9;</dd>
   <dt id="M-~6"><a class="permalink" href="#M-~6"><code class="Cm">M-</code></a>&#x27E8;<var class="Ar">Keypad
     1-9</var>&#x27E9;</dt>
   <dd>rg_&#x27E8;<var class="Ar">1-9</var>&#x27E9;</dd>
@@ -1500,17 +1507,16 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dd>Kill the program that created the current window.</dd>
   <dt id="ws_"><a class="permalink" href="#ws_"><code class="Cm">ws_</code></a><var class="Ar">n</var></dt>
   <dd>Switch to workspace <var class="Ar">n</var>, where <var class="Ar">n</var>
-      is 1 through <code class="Ic">workspace_limit</code>.</dd>
+      is at least 1.</dd>
   <dt id="mvws_"><a class="permalink" href="#mvws_"><code class="Cm">mvws_</code></a><var class="Ar">n</var></dt>
   <dd>Move current window to workspace <var class="Ar">n</var>, where
-      <var class="Ar">n</var> is 1 through
-      <code class="Ic">workspace_limit</code>.</dd>
+      <var class="Ar">n</var> is at least 1.</dd>
   <dt id="rg_"><a class="permalink" href="#rg_"><code class="Cm">rg_</code></a><var class="Ar">n</var></dt>
   <dd>Focus on region <var class="Ar">n</var>, where <var class="Ar">n</var> is
-      1 through 9.</dd>
+      at least 1.</dd>
   <dt id="mvrg_"><a class="permalink" href="#mvrg_"><code class="Cm">mvrg_</code></a><var class="Ar">n</var></dt>
   <dd>Move current window to region <var class="Ar">n</var>, where
-      <var class="Ar">n</var> is 1 through 9.</dd>
+      <var class="Ar">n</var> is at least 1.</dd>
   <dt id="mvrg_next"><a class="permalink" href="#mvrg_next"><code class="Cm">mvrg_next</code></a></dt>
   <dd>Move current window to workspace in next region.</dd>
   <dt id="mvrg_prev"><a class="permalink" href="#mvrg_prev"><code class="Cm">mvrg_prev</code></a></dt>

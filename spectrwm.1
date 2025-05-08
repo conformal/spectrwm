@@ -1256,7 +1256,13 @@ workspace_mark_current_suffix = '+@fg=0;'
 .Ed
 .It Ic workspace_limit
 Set the total number of workspaces available.
-Minimum is 1, maximum is 22, default is 10.
+Minimum is 1, maximum is 100, default is 10.
+Note that workspaces 23 and above do not have default bindings.
+See the
+.Sx BINDINGS
+section below for defaults and customization.
+To limit the workspaces listed in the bar, see
+.Ic bar_workspace_limit .
 .It Ic workspace_mark_active
 Set the string inserted before active workspaces in the
 .Ic workspace_indicator .
@@ -1557,8 +1563,12 @@ wind_del
 wind_kill
 .It Cm M- Ns Aq Ar 1-9,0,F1-F12
 .Pf ws_ Aq Ar 1-22
+.It Aq Ar unbound
+.Pf ws_ Aq Ar 23-100
 .It Cm M-S- Ns Aq Ar 1-9,0,F1-F12
 .Pf mvws_ Ns Aq Ar 1-22
+.It Aq Ar unbound
+.Pf mvws_ Ns Aq Ar 23-100
 .It Cm M- Ns Aq Ar Keypad 1-9
 .Pf rg_ Aq Ar 1-9
 .It Cm M-S- Ns Aq Ar Keypad 1-9
@@ -1752,27 +1762,25 @@ Switch to workspace
 .Ar n ,
 where
 .Ar n
-is 1 through
-.Ic workspace_limit .
+is at least 1.
 .It Cm mvws_ Ns Ar n
 Move current window to workspace
 .Ar n ,
 where
 .Ar n
-is 1 through
-.Ic workspace_limit .
+is at least 1.
 .It Cm rg_ Ns Ar n
 Focus on region
 .Ar n ,
 where
 .Ar n
-is 1 through 9.
+is at least 1.
 .It Cm mvrg_ Ns Ar n
 Move current window to region
 .Ar n ,
 where
 .Ar n
-is 1 through 9.
+is at least 1.
 .It Cm mvrg_next
 Move current window to workspace in next region.
 .It Cm mvrg_prev
