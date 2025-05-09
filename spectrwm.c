@@ -14642,6 +14642,11 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	int					ws_idx, force_ws = -2;
 	char					*class, *instance, *name;
 
+	if (find_screen(id)) {
+		DNPRINTF(SWM_D_MISC, "skip; win %#x is root window\n", id);
+		goto out;
+	}
+
 	if (find_bar(id)) {
 		DNPRINTF(SWM_D_MISC, "skip; win %#x is region bar\n", id);
 		goto out;
