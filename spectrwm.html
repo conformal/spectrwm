@@ -3,7 +3,7 @@
 <!-- This is an automatically generated file.  Do not edit.
    Copyright (c) 2009-2012 Marco Peereboom <marco@peereboom.us>
    Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
-   Copyright (c) 2011-2024 Reginald Kennedy <rk@rejii.com>
+   Copyright (c) 2011-2025 Reginald Kennedy <rk@rejii.com>
    Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
    Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
    Copyright (c) 2012 David Hill <dhill@mindcry.org>
@@ -456,6 +456,10 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
         default static format. See the <code class="Ic">bar_format</code> option
         for more details.</p>
   </dd>
+  <dt id="bar_padding_horizontal"><a class="permalink" href="#bar_padding_horizontal"><code class="Ic">bar_padding_horizontal</code></a></dt>
+  <dd>Set status bar horizontal padding in pixels; default is 0.</dd>
+  <dt id="bar_padding_vertical"><a class="permalink" href="#bar_padding_vertical"><code class="Ic">bar_padding_vertical</code></a></dt>
+  <dd>Set status bar vertical padding in pixels; default is 0.</dd>
   <dt id="bar_workspace_limit"><a class="permalink" href="#bar_workspace_limit"><code class="Ic">bar_workspace_limit</code></a></dt>
   <dd>Set the maximum workspace index (counting from 1) to list in the status
       bar workspace (+L) and urgency hint (+U) indicators. Workspaces beyond
@@ -477,6 +481,22 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
     <p class="Pp">See the <a class="Sx" href="#BINDINGS">BINDINGS</a> section
         below for details on how to find key names.</p>
   </dd>
+  <dt id="center_adaptive"><a class="permalink" href="#center_adaptive"><code class="Ic">center_adaptive</code></a></dt>
+  <dd>In centered mode, enable to center the master area only when centering
+      does not create empty space (e.g., with one stack, revert to
+      non-centered). Default is 0.</dd>
+  <dt id="center_autobalance"><a class="permalink" href="#center_autobalance"><code class="Ic">center_autobalance</code></a></dt>
+  <dd>Automatically balance the master/stacking areas when toggling centered
+      mode. Default is 0.</dd>
+  <dt id="center_noautostack"><a class="permalink" href="#center_noautostack"><code class="Ic">center_noautostack</code></a></dt>
+  <dd>In centered mode, an extra stack is automatically added when there is only
+      one stack. Disable the automatic stack by setting to 1. Can be used in
+      combination with <code class="Ic">center_adaptive</code> to only center
+      the master area when there are at least two stacks. Default is 0.</dd>
+  <dt id="center_nowrap"><a class="permalink" href="#center_nowrap"><code class="Ic">center_nowrap</code></a></dt>
+  <dd>In centered mode, stacks are positioned from one side of the master area
+      and spillover to the opposite side. Enable to maintain the original order
+      of stacks, split by the master area without wrapping. Default is 0.</dd>
   <dt id="click_to_raise"><a class="permalink" href="#click_to_raise"><code class="Ic">click_to_raise</code></a></dt>
   <dd>Enable or disable raising stacking priority when clicking on a window.
       Default is 1.</dd>
@@ -540,6 +560,11 @@ bar_font = -*-profont-medium-*-*-*-11-*-*-*-*-*-*-*,-*-terminus-medium-*-*-*-14-
       region. Enable by setting to 1. Setting this to
       <var class="Ar">always</var> removes the border regardless of the bar
       being enabled/disabled. Defaults to 0.</dd>
+  <dt id="disable_padding"><a class="permalink" href="#disable_padding"><code class="Ic">disable_padding</code></a></dt>
+  <dd>Remove region padding when the bar is disabled and there is only one
+      window on the region. Enable by setting to 1. Setting this to
+      <var class="Ar">always</var> removes the region padding regardless of the
+      bar being enabled/disabled. Defaults to 0.</dd>
   <dt id="focus_close"><a class="permalink" href="#focus_close"><code class="Ic">focus_close</code></a></dt>
   <dd>Window to put focus when the focused window is closed. Possible values are
       <var class="Ar">first</var>, <var class="Ar">next</var>,
@@ -676,8 +701,12 @@ focus_mode = default # Reset all focus situations to respective default values.<
       while maintaining default floating window behavior. Possible
       <var class="Ar">stack_mode</var> values are
       <var class="Ar">vertical</var>, <var class="Ar">vertical_flip</var>,
+      <var class="Ar">vertical_center</var>,
+      <var class="Ar">vertical_center_flip</var>,
       <var class="Ar">horizontal</var>, <var class="Ar">horizontal_flip</var>,
-      <var class="Ar">max</var> and <var class="Ar">floating</var>.
+      <var class="Ar">horizontal_center</var>,
+      <var class="Ar">horizontal_center_flip</var>, <var class="Ar">max</var>
+      and <var class="Ar">floating</var>.
     <p class="Pp">See <code class="Ic">master_grow</code>,
         <code class="Ic">master_shrink</code>,
         <code class="Ic">master_add</code>, <code class="Ic">master_del</code>,
@@ -744,6 +773,11 @@ focus_mode = default # Reset all focus situations to respective default values.<
         <var class="Ar">Mod4</var> is the Windows key on a PC. The current
         modifier key mapping can be found by running xmodmap(1).</p>
   </dd>
+  <dt id="move_step"><a class="permalink" href="#move_step"><code class="Ic">move_step</code></a></dt>
+  <dd>Set the pixel amount to move a window for the
+      <code class="Ic">move_left</code>, <code class="Ic">move_right</code>,
+      <code class="Ic">move_up</code>, and <code class="Ic">move_down</code>
+      actions. Default is 50.</dd>
   <dt id="name"><a class="permalink" href="#name"><code class="Ic">name</code></a></dt>
   <dd>Set the name of a workspace at start-of-day. Defined in the format
       <code class="Li">ws</code>[<var class="Ar">idx</var>]:<var class="Ar">name</var>,
@@ -777,6 +811,11 @@ focus_mode = default # Reset all focus situations to respective default values.<
   <dt id="region_padding"><a class="permalink" href="#region_padding"><code class="Ic">region_padding</code></a></dt>
   <dd>Pixel width of empty space within region borders. Disable by setting to
     0.</dd>
+  <dt id="resize_step"><a class="permalink" href="#resize_step"><code class="Ic">resize_step</code></a></dt>
+  <dd>Set the pixel amount to resize a window for the
+      <code class="Ic">width_shrink</code>, <code class="Ic">width_grow</code>,
+      <code class="Ic">height_shrink</code>, and
+      <code class="Ic">height_grow</code> actions. Default is 50.</dd>
   <dt id="snap_range"><a class="permalink" href="#snap_range"><code class="Ic">snap_range</code></a></dt>
   <dd>Set the distance in pixels a tiled/maximized window must be moved (with
       the pointer) to unsnap and float freely. Set to 0 to unsnap immediately.
@@ -839,6 +878,14 @@ focus_mode = default # Reset all focus situations to respective default values.<
   <dd>Set the <var class="Ar">horizontal</var> layout mark for the
       <code class="Ic">bar_format</code> stacking indicator (+S). Default is
       '[-]'.</dd>
+  <dt id="stack_mark_horizontal_center"><a class="permalink" href="#stack_mark_horizontal_center"><code class="Ic">stack_mark_horizontal_center</code></a></dt>
+  <dd>Set the <var class="Ar">horizontal_center</var> layout mark for the
+      <code class="Ic">bar_format</code> stacking indicator (+S). Default is
+      '(-)'.</dd>
+  <dt id="stack_mark_horizontal_center_flip"><a class="permalink" href="#stack_mark_horizontal_center_flip"><code class="Ic">stack_mark_horizontal_center_flip</code></a></dt>
+  <dd>Set the <var class="Ar">horizontal_center_flip</var> layout mark for the
+      <code class="Ic">bar_format</code> stacking indicator (+S). Default is
+      '(v)'.</dd>
   <dt id="stack_mark_horizontal_flip"><a class="permalink" href="#stack_mark_horizontal_flip"><code class="Ic">stack_mark_horizontal_flip</code></a></dt>
   <dd>Set the <var class="Ar">horizontal_flip</var> layout mark for the
       <code class="Ic">bar_format</code> stacking indicator (+S). Default is
@@ -851,6 +898,14 @@ focus_mode = default # Reset all focus situations to respective default values.<
   <dd>Set the <var class="Ar">vertical</var> layout mark for the
       <code class="Ic">bar_format</code> stacking indicator (+S). Default is
       '[|]'.</dd>
+  <dt id="stack_mark_vertical_center"><a class="permalink" href="#stack_mark_vertical_center"><code class="Ic">stack_mark_vertical_center</code></a></dt>
+  <dd>Set the <var class="Ar">vertical_center</var> layout mark for the
+      <code class="Ic">bar_format</code> stacking indicator (+S). Default is
+      '(|)'.</dd>
+  <dt id="stack_mark_vertical_center_flip"><a class="permalink" href="#stack_mark_vertical_center_flip"><code class="Ic">stack_mark_vertical_center_flip</code></a></dt>
+  <dd>Set the <var class="Ar">vertical_center_flip</var> layout mark for the
+      <code class="Ic">bar_format</code> stacking indicator (+S). Default is
+      '(&gt;)'.</dd>
   <dt id="stack_mark_vertical_flip"><a class="permalink" href="#stack_mark_vertical_flip"><code class="Ic">stack_mark_vertical_flip</code></a></dt>
   <dd>Set the <var class="Ar">vertical_flip</var> layout mark for the
       <code class="Ic">bar_format</code> stacking indicator (+S). Default is
@@ -1197,8 +1252,12 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dd>restart</dd>
   <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
   <dd>restart_of_day</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>reload</dd>
   <dt id="M-~3"><a class="permalink" href="#M-~3"><code class="Cm">M-</code></a>&#x27E8;<code class="Cm">Space</code>&#x27E9;</dt>
   <dd>cycle_layout</dd>
+  <dt><code class="Cm">M-\</code></dt>
+  <dd>center_layout</dd>
   <dt><code class="Cm">M-S-\</code></dt>
   <dd>flip_layout</dd>
   <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
@@ -1375,10 +1434,15 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dt id="restart"><a class="permalink" href="#restart"><code class="Cm">restart</code></a></dt>
   <dd>Restart <code class="Nm">spectrwm</code>.</dd>
   <dt id="restart_of_day"><a class="permalink" href="#restart_of_day"><code class="Cm">restart_of_day</code></a></dt>
-  <dd>Same as <code class="Ic">restart</code> but configuration file is loaded
-      in full.</dd>
+  <dd>Same as <code class="Ic">restart</code> but the configuration file is
+      loaded in full, excluding <code class="Ic">autorun</code>.</dd>
+  <dt id="reload"><a class="permalink" href="#reload"><code class="Cm">reload</code></a></dt>
+  <dd>Reload the configuration without restarting and reinitialize the bar(s)
+      along with <code class="Ic">bar_action</code> (if used).</dd>
   <dt id="cycle_layout"><a class="permalink" href="#cycle_layout"><code class="Cm">cycle_layout</code></a></dt>
   <dd>Switch to the next layout.</dd>
+  <dt id="center_layout"><a class="permalink" href="#center_layout"><code class="Cm">center_layout</code></a></dt>
+  <dd>Toggle centering of the master area.</dd>
   <dt id="flip_layout"><a class="permalink" href="#flip_layout"><code class="Cm">flip_layout</code></a></dt>
   <dd>Swap the master and stacking areas.</dd>
   <dt id="prior_layout"><a class="permalink" href="#prior_layout"><code class="Cm">prior_layout</code></a></dt>
@@ -1710,6 +1774,8 @@ bind[move] = MOD+Button3</pre>
   <dt>IGNORESPAWNWS</dt>
   <dd>Ignore the spawn workspace when determining the initial workspace for a
       new window.</dd>
+  <dt>IGNOREURGENT</dt>
+  <dd>Ignore urgency hint.</dd>
   <dt>MAXIMIZE</dt>
   <dd>Put the window into maximized state upon being managed.</dd>
   <dt>MINIMALBORDER</dt>
@@ -1721,6 +1787,9 @@ bind[move] = MOD+Button3</pre>
   <dd>Do not change focus to the window when it first appears on the screen. Has
       no effect when <code class="Ic">focus_mode</code> is set to
       <var class="Ar">follow</var>.</dd>
+  <dt>NOFOCUSPOINTER</dt>
+  <dd>Do not focus the window via pointer interaction. The window can still be
+      focused using key bindings.</dd>
   <dt>OBEYAPPFOCUSREQ</dt>
   <dd>When an application requests focus on the window via a _NET_ACTIVE_WINDOW
       client message (source indication of 1), comply with the request. Note
@@ -1991,7 +2060,8 @@ quirk[.*] += IGNORESPAWNWS + IGNOREPID</pre>
 <section class="Sh">
 <h1 class="Sh" id="SIGNALS"><a class="permalink" href="#SIGNALS">SIGNALS</a></h1>
 <p class="Pp">Sending <code class="Nm">spectrwm</code> a HUP signal will restart
-    it.</p>
+    it. USR1 will reload the configuration without restarting and reinitialize
+    the bar(s) along with <code class="Ic">bar_action</code> (if used).</p>
 </section>
 <section class="Sh">
 <h1 class="Sh" id="FILES"><a class="permalink" href="#FILES">FILES</a></h1>

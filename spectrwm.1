@@ -1,6 +1,6 @@
 .\" Copyright (c) 2009-2012 Marco Peereboom <marco@peereboom.us>
 .\" Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
-.\" Copyright (c) 2011-2024 Reginald Kennedy <rk@rejii.com>
+.\" Copyright (c) 2011-2025 Reginald Kennedy <rk@rejii.com>
 .\" Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
 .\" Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
 .\" Copyright (c) 2012 David Hill <dhill@mindcry.org>
@@ -445,6 +445,10 @@ in some circumstances, due to the white-spaces in the default static format.
 See the
 .Ic bar_format
 option for more details.
+.It Ic bar_padding_horizontal
+Set status bar horizontal padding in pixels; default is 0.
+.It Ic bar_padding_vertical
+Set status bar vertical padding in pixels; default is 0.
 .It Ic bar_workspace_limit
 Set the maximum workspace index (counting from 1) to list in the status bar
 workspace (+L) and urgency hint (+U) indicators.
@@ -472,6 +476,27 @@ Default is Escape.
 See the
 .Sx BINDINGS
 section below for details on how to find key names.
+.It Ic center_adaptive
+In centered mode, enable to center the master area only when centering does not
+create empty space (e.g., with one stack, revert to non-centered).
+Default is 0.
+.It Ic center_autobalance
+Automatically balance the master/stacking areas when toggling centered mode.
+Default is 0.
+.It Ic center_noautostack
+In centered mode, an extra stack is automatically added when there is only
+one stack.
+Disable the automatic stack by setting to 1.
+Can be used in combination with
+.Ic center_adaptive
+to only center the master area when there are at least two stacks.
+Default is 0.
+.It Ic center_nowrap
+In centered mode, stacks are positioned from one side of the master area and
+spillover to the opposite side.
+Enable to maintain the original order of stacks, split by the master area
+without wrapping.
+Default is 0.
 .It Ic click_to_raise
 Enable or disable raising stacking priority when clicking on a window.
 Default is 1.
@@ -552,6 +577,14 @@ Enable by setting to 1.
 Setting this to
 .Ar always
 removes the border regardless of the bar being enabled/disabled.
+Defaults to 0.
+.It Ic disable_padding
+Remove region padding when the bar is disabled and there is only one window on
+the region.
+Enable by setting to 1.
+Setting this to
+.Ar always
+removes the region padding regardless of the bar being enabled/disabled.
 Defaults to 0.
 .It Ic focus_close
 Window to put focus when the focused window is closed.
@@ -743,8 +776,12 @@ Possible
 values are
 .Ar vertical ,
 .Ar vertical_flip ,
+.Ar vertical_center ,
+.Ar vertical_center_flip ,
 .Ar horizontal ,
 .Ar horizontal_flip ,
+.Ar horizontal_center ,
+.Ar horizontal_center_flip ,
 .Ar max
 and
 .Ar floating .
@@ -848,6 +885,15 @@ is the Command key on macOS and
 .Ar Mod4
 is the Windows key on a PC.
 The current modifier key mapping can be found by running xmodmap(1).
+.It Ic move_step
+Set the pixel amount to move a window for the
+.Ic move_left ,
+.Ic move_right ,
+.Ic move_up ,
+and
+.Ic move_down
+actions.
+Default is 50.
 .It Ic name
 Set the name of a workspace at start-of-day.
 Defined in the format
@@ -898,6 +944,15 @@ Note that rotation is used by
 .It Ic region_padding
 Pixel width of empty space within region borders.
 Disable by setting to 0.
+.It Ic resize_step
+Set the pixel amount to resize a window for the
+.Ic width_shrink ,
+.Ic width_grow ,
+.Ic height_shrink ,
+and
+.Ic height_grow
+actions.
+Default is 50.
 .It Ic snap_range
 Set the distance in pixels a tiled/maximized window must be moved (with the
 pointer) to unsnap and float freely.
@@ -991,6 +1046,20 @@ layout mark for the
 .Ic bar_format
 stacking indicator (+S).
 Default is '[-]'.
+.It Ic stack_mark_horizontal_center
+Set the
+.Ar horizontal_center
+layout mark for the
+.Ic bar_format
+stacking indicator (+S).
+Default is '(-)'.
+.It Ic stack_mark_horizontal_center_flip
+Set the
+.Ar horizontal_center_flip
+layout mark for the
+.Ic bar_format
+stacking indicator (+S).
+Default is '(v)'.
 .It Ic stack_mark_horizontal_flip
 Set the
 .Ar horizontal_flip
@@ -1012,6 +1081,20 @@ layout mark for the
 .Ic bar_format
 stacking indicator (+S).
 Default is '[|]'.
+.It Ic stack_mark_vertical_center
+Set the
+.Ar vertical_center
+layout mark for the
+.Ic bar_format
+stacking indicator (+S).
+Default is '(|)'.
+.It Ic stack_mark_vertical_center_flip
+Set the
+.Ar vertical_center_flip
+layout mark for the
+.Ic bar_format
+stacking indicator (+S).
+Default is '(>)'.
 .It Ic stack_mark_vertical_flip
 Set the
 .Ar vertical_flip
@@ -1406,8 +1489,12 @@ quit
 restart
 .It Aq Ar unbound
 restart_of_day
+.It Aq Ar unbound
+reload
 .It Cm M- Ns Aq Cm Space
 cycle_layout
+.It Cm M-\e
+center_layout
 .It Cm M-S-\e
 flip_layout
 .It Aq Ar unbound
@@ -1594,9 +1681,17 @@ Restart
 .It Cm restart_of_day
 Same as
 .Ic restart
-but configuration file is loaded in full.
+but the configuration file is loaded in full, excluding
+.Ic autorun .
+.It Cm reload
+Reload the configuration without restarting and reinitialize the bar(s) along
+with
+.Ic bar_action
+(if used).
 .It Cm cycle_layout
 Switch to the next layout.
+.It Cm center_layout
+Toggle centering of the master area.
 .It Cm flip_layout
 Swap the master and stacking areas.
 .It Cm prior_layout
@@ -1966,19 +2061,24 @@ Especially useful for terminal windows that share a process.
 .It IGNORESPAWNWS
 Ignore the spawn workspace when determining the initial workspace for a new
 window.
+.It IGNOREURGENT
+Ignore urgency hint.
 .It MAXIMIZE
 Put the window into maximized state upon being managed.
 .It MINIMALBORDER
 Remove border when window is unfocused and floating.
 .It NOFOCUSCYCLE
-Remove from normal focus cycle (focus_prev or focus_next). The window can still
-be focused using search_win.
+Remove from normal focus cycle (focus_prev or focus_next).
+The window can still be focused using search_win.
 .It NOFOCUSONMAP
 Do not change focus to the window when it first appears on the screen.
 Has no effect when
 .Ic focus_mode
 is set to
 .Ar follow .
+.It NOFOCUSPOINTER
+Do not focus the window via pointer interaction.
+The window can still be focused using key bindings.
 .It OBEYAPPFOCUSREQ
 When an application requests focus on the window via a _NET_ACTIVE_WINDOW
 client message (source indication of 1), comply with the request.
@@ -2364,6 +2464,10 @@ currently unsupported by
 Sending
 .Nm
 a HUP signal will restart it.
+USR1 will reload the configuration without restarting and reinitialize the
+bar(s) along with
+.Ic bar_action
+(if used).
 .Sh FILES
 .Bl -tag -width "/etc/spectrwm.confXXX" -compact
 .It Pa ~/.spectrwm.conf
