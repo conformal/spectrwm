@@ -1492,6 +1492,8 @@ static struct ws_win	*find_main_window(struct ws_win *);
 static struct pid_e	*find_pid(pid_t);
 static struct swm_region	*find_region(xcb_window_t);
 static struct swm_screen	*find_screen(xcb_window_t);
+static struct ws_win	*find_win(xcb_window_t);
+static struct ws_win	*find_win_frame(xcb_window_t);
 static struct ws_win	*find_window(xcb_window_t);
 static void	 floating_toggle(struct swm_screen *, struct binding *,
 		     union arg *);
@@ -1559,6 +1561,7 @@ static const char	*get_stack_mode_label(uint8_t);
 static const char	*get_state_mask_label(uint16_t);
 static xcb_keysym_t	 get_string_keysym(const char *);
 static int32_t	 get_swm_ws(xcb_window_t);
+static xcb_window_t	 get_top_level_window(xcb_window_t);
 static const char	*get_win_input_model_label(struct ws_win *);
 static char	*get_win_name(xcb_window_t);
 static uint32_t	 get_win_state(xcb_window_t);
@@ -6347,13 +6350,10 @@ find_bar(xcb_window_t id)
 }
 
 static struct ws_win *
-find_window(xcb_window_t id)
+find_win(xcb_window_t id)
 {
-	struct ws_win		*win = NULL;
+	struct ws_win		*win;
 	int			i, num_screens;
-	xcb_query_tree_reply_t	*qtr;
-
-	DNPRINTF(SWM_D_MISC, "id: %#x\n", id);
 
 	if (id == XCB_WINDOW_NONE)
 		return (NULL);
@@ -6364,21 +6364,77 @@ find_window(xcb_window_t id)
 			if (id == win->id || id == win->frame)
 				return (win);
 
-	/* If window isn't top-level, try to find managed ancestor. */
-	qtr = xcb_query_tree_reply(conn, xcb_query_tree(conn, id), NULL);
-	if (qtr) {
-		if (qtr->parent != XCB_WINDOW_NONE && qtr->parent != qtr->root)
-			win = find_window(qtr->parent);
+	return (NULL);
+}
 
-		if (win)
-			DNPRINTF(SWM_D_MISC, "%#x is descendent of %#x.\n",
-			    id, qtr->parent);
+static struct ws_win *
+find_win_frame(xcb_window_t id)
+{
+	struct ws_win		*win;
+	int			i, num_screens;
 
+	if (id == XCB_WINDOW_NONE)
+		return (NULL);
+
+	num_screens = get_screen_count();
+	for (i = 0; i < num_screens; i++)
+		TAILQ_FOREACH(win, &screens[i].managed, manage_entry)
+			if (id == win->frame)
+				return (win);
+
+	return (NULL);
+}
+
+static xcb_window_t
+get_top_level_window(xcb_window_t id)
+{
+	xcb_query_tree_reply_t	*qtr = NULL;
+	xcb_window_t		cwin = id;
+
+	DNPRINTF(SWM_D_MISC, "id: %#x\n", id);
+
+	if (id == XCB_WINDOW_NONE)
+		return (XCB_WINDOW_NONE);
+
+	while (cwin != XCB_WINDOW_NONE) {
+		qtr = xcb_query_tree_reply(conn,
+		    xcb_query_tree(conn, cwin), NULL);
+		if (qtr == NULL) {
+			DNPRINTF(SWM_D_MISC, "query failed\n");
+			return (XCB_WINDOW_NONE);
+		}
+
+		if (qtr->parent == qtr->root) {
+			free(qtr);
+			break;
+		}
+
+		cwin = qtr->parent;
 		free(qtr);
 	}
 
-	if (win == NULL)
-		DNPRINTF(SWM_D_MISC, "unmanaged.\n");
+	DNPRINTF(SWM_D_MISC, "result: %#x\n", cwin);
+	return (cwin);
+}
+
+static struct ws_win *
+find_window(xcb_window_t id)
+{
+	struct ws_win		*win = NULL;
+	xcb_window_t		tid;
+
+	DNPRINTF(SWM_D_MISC, "id: %#x\n", id);
+
+	if (id == XCB_WINDOW_NONE)
+		return (NULL);
+
+	win = find_win(id);
+	if (win == NULL) {
+		/* Might be a subwindow of a managed window. */
+		if ((tid = get_top_level_window(id)) == XCB_WINDOW_NONE)
+			return (NULL);
+		win = find_win(tid);
+	}
 
 	return (win);
 }
@@ -14977,15 +15033,19 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	struct quirk				*qp;
 	xcb_get_geometry_reply_t		*gr;
 	xcb_get_window_attributes_reply_t	*war = NULL;
+	xcb_window_t				wid;
 	uint32_t				i, wa[1], new_flags;
 	int					ws_idx, force_ws = -2;
 	char					*class, *instance, *name;
 
-	if (find_screen(id)) {
-		DNPRINTF(SWM_D_MISC, "skip; win %#x is root window\n", id);
-		goto out;
+	/* Search without query. */
+	if ((win = find_win(id))) {
+		DNPRINTF(SWM_D_MISC, "skip; win %#x (f:%#x) already managed\n",
+		    win->id, win->frame);
+		return (win);
 	}
 
+	/* Ensure it isn't one of our windows or root. */
 	if (find_bar(id)) {
 		DNPRINTF(SWM_D_MISC, "skip; win %#x is region bar\n", id);
 		goto out;
@@ -14996,10 +15056,28 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 		goto out;
 	}
 
-	if ((win = find_window(id)) != NULL) {
-		DNPRINTF(SWM_D_MISC, "skip; win %#x (f:%#x) already managed\n",
-		    win->id, win->frame);
+	if (find_screen(id)) {
+		DNPRINTF(SWM_D_MISC, "skip; win %#x is root window\n", id);
 		goto out;
+	}
+
+	/* Check whether the window is top-level or a subwindow. */
+	if ((wid = get_top_level_window(id)) == XCB_WINDOW_NONE) {
+		DNPRINTF(SWM_D_MISC, "skip; win%#x unable to get top-level "
+		    "window\n", id);
+		goto out;
+	}
+
+	if (id != wid) {
+		if ((win = find_win(wid))) {
+			DNPRINTF(SWM_D_MISC, "skip; %#x is subwindow of managed"
+			    " win%#x (f:%#x)\n", id, win->id, win->frame);
+			return (win);
+		} else {
+			DNPRINTF(SWM_D_MISC, "skip; win%#x is not top-level\n",
+			    id);
+			goto out;
+		}
 	}
 
 	war = xcb_get_window_attributes_reply(conn,
@@ -15034,7 +15112,11 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	if ((win->st = calloc(1, sizeof(struct swm_stackable))) == NULL)
 		err(1, "manage_window: st calloc");
 
-	s = find_screen(gr->root);
+	if ((s = find_screen(gr->root)) == NULL) {
+		DNPRINTF(SWM_D_EVENT, "screen not found for %#x\n", gr->root);
+		goto out;
+	}
+
 	win->st->s = win->s = s; /* this never changes */
 	win->st->type = STACKABLE_WIN;
 	win->st->win = win;
@@ -15527,7 +15609,7 @@ expose(xcb_expose_event_t *e)
 	if ((b = find_bar(e->window))) {
 		bar_draw(b);
 		xcb_flush(conn);
-	} else if ((w = find_window(e->window)) && w->frame == e->window) {
+	} else if ((w = find_win_frame(e->window))) {
 		draw_frame(w);
 		debug_refresh(w);
 		xcb_flush(conn);
@@ -15745,7 +15827,7 @@ buttonpress(xcb_button_press_event_t *e)
 out:
 	/* Only release grabs on windows with grabs. */
 	if ((xinput2_raw && e->event == e->root) ||
-	    ((w = find_window(winid)) && w->id == e->event)) {
+	    ((w = find_win(winid)) && w->id == e->event)) {
 		if (replay) {
 			DNPRINTF(SWM_D_EVENT, "replaying\n");
 			xcb_allow_events(conn, XCB_ALLOW_REPLAY_POINTER,
@@ -15776,7 +15858,7 @@ buttonrelease(xcb_button_release_event_t *e)
 
 	/* Only release grabs on windows with grabs. */
 	if ((xinput2_raw && e->event == e->root) ||
-	    ((w = find_window(e->event)) && w->id == e->event)) {
+	    ((w = find_win(e->event)) && w->id == e->event)) {
 		bp = binding_lookup(CLEANMASK(e->state), BTNBIND, e->detail);
 		if (bp == NULL)
 			/* Look for catch-all. */
@@ -15875,7 +15957,7 @@ configurerequest(xcb_configure_request_event_t *e)
 	uint16_t		mask = 0;
 	bool			new = false;
 
-	if ((win = find_window(e->window)) == NULL)
+	if ((win = find_win(e->window)) == NULL)
 		new = true;
 
 	if (swm_debug & SWM_D_EVENT) {
@@ -16004,7 +16086,7 @@ configurenotify(xcb_configure_notify_event_t *e)
 	    e->window, e->event, e->x, e->y, e->width, e->height,
 	    e->border_width, e->above_sibling, YESNO(e->override_redirect));
 
-	win = find_window(e->window);
+	win = find_win(e->window);
 	if (win) {
 		adjust_font(win);
 		if (font_adjusted && win->ws->r) {
@@ -16026,7 +16108,7 @@ destroynotify(xcb_destroy_notify_event_t *e)
 
 	DNPRINTF(SWM_D_EVENT, "win %#x\n", e->window);
 
-	if ((win = find_window(e->window)) == NULL) {
+	if ((win = find_win(e->window)) == NULL) {
 		DNPRINTF(SWM_D_EVENT, "ignore; unmanaged.\n");
 		return;
 	}
@@ -16247,7 +16329,7 @@ enternotify(xcb_enter_notify_event_t *e)
 			return;
 		}
 
-		win = find_window(e->event);
+		win = find_win(e->event);
 		if (win && (win->quirks & SWM_Q_NOFOCUSPOINTER)) {
 			DNPRINTF(SWM_D_EVENT, "ignore; NOFOCUSPOINTER\n");
 			return;
@@ -16566,7 +16648,7 @@ motionnotify(xcb_motion_notify_event_t *e)
 		if (pointer_window != XCB_WINDOW_NONE)
 			win = get_focus_magic(find_window(pointer_window));
 		if (win == NULL && e->event == e->root)
-			win = find_window(e->child);
+			win = find_win(e->child);
 	}
 
 	if (win && !(win->quirks & SWM_Q_NOFOCUSPOINTER))
@@ -16598,7 +16680,7 @@ propertynotify(xcb_property_notify_event_t *e)
 
 	event_time = e->time;
 
-	win = find_window(e->window);
+	win = find_win(e->window);
 	if (win == NULL) {
 		if (e->atom == ewmh[_NET_DESKTOP_NAMES].atom) {
 			s = find_screen(e->window);
@@ -16666,7 +16748,7 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 		return;
 	}
 
-	win = find_window(e->window);
+	win = find_win(e->window);
 	if (win == NULL || (win->id != e->window && win->frame != e->window)) {
 		DNPRINTF(SWM_D_EVENT, "ignore; unmanaged.\n");
 		return;
