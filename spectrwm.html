@@ -927,6 +927,10 @@ focus_mode = default # Reset all focus situations to respective default values.<
         section) to use an alternate copy of the <a class="Xr">xterm(1)</a>
         binary without the setgid bit set.</p>
   </dd>
+  <dt id="uniconify_order"><a class="permalink" href="#uniconify_order"><code class="Ic">uniconify_order</code></a></dt>
+  <dd>Set the window order in the uniconify menu. Possible values are
+      <var class="Ar">earliest</var>, <var class="Ar">latest</var>, and
+      <var class="Ar">workspace</var> (default).</dd>
   <dt id="tile_gap"><a class="permalink" href="#tile_gap"><code class="Ic">tile_gap</code></a></dt>
   <dd>Pixel width of empty space between tiled windows. Negative values cause
       overlap. Set this to the opposite of <code class="Ic">border_width</code>
@@ -1381,6 +1385,8 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dd>iconify</dd>
   <dt id="M-S-w"><a class="permalink" href="#M-S-w"><code class="Cm">M-S-w</code></a></dt>
   <dd>uniconify</dd>
+  <dt>&#x27E8;<var class="Ar">unbound</var>&#x27E9;</dt>
+  <dd>uniconify_quick</dd>
   <dt id="M-e"><a class="permalink" href="#M-e"><code class="Cm">M-e</code></a></dt>
   <dd>maximize_toggle</dd>
   <dt id="M-S-e"><a class="permalink" href="#M-S-e"><code class="Cm">M-S-e</code></a></dt>
@@ -1571,6 +1577,8 @@ bind[ff] = MOD+Shift+b # Now M-S-b launches firefox</pre>
   <dt id="uniconify"><a class="permalink" href="#uniconify"><code class="Cm">uniconify</code></a></dt>
   <dd>Restore (map) window returned by <a class="Xr">dmenu(1)</a>
     selection.</dd>
+  <dt id="uniconify_quick"><a class="permalink" href="#uniconify_quick"><code class="Cm">uniconify_quick</code></a></dt>
+  <dd>Restore (map) the most recently iconified window.</dd>
   <dt id="maximize_toggle"><a class="permalink" href="#maximize_toggle"><code class="Cm">maximize_toggle</code></a></dt>
   <dd>Toggle maximization of focused window.</dd>
   <dt id="fullscreen_toggle"><a class="permalink" href="#fullscreen_toggle"><code class="Cm">fullscreen_toggle</code></a></dt>

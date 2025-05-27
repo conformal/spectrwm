@@ -481,6 +481,12 @@ enum {
 	SWM_UNFOCUS_QUICK_BELOW,
 };
 
+enum {
+	SWM_ORDER_WORKSPACE,
+	SWM_ORDER_EARLIEST,
+	SWM_ORDER_LATEST,
+};
+
 #define SWM_RESIZE_STEPS	(50)
 #define SWM_MOVE_STEPS		(50)
 
@@ -533,6 +539,7 @@ int		 focus_close = SWM_STACK_BELOW;
 bool		 focus_close_wrap = true;
 int		 focus_default = SWM_STACK_TOP;
 int		 spawn_position = SWM_STACK_TOP;
+int		uniconify_order = SWM_ORDER_WORKSPACE;
 bool		 disable_border = false;
 bool		 disable_border_always = false;
 bool		 disable_padding = false;
@@ -683,6 +690,7 @@ struct ws_win {
 	TAILQ_ENTRY(ws_win)	manage_entry;
 	TAILQ_ENTRY(ws_win)	focus_entry;
 	TAILQ_ENTRY(ws_win)	priority_entry;
+	TAILQ_ENTRY(ws_win)	iconify_entry;
 	struct swm_stackable	*st;	/* Always valid, never changes */
 	xcb_window_t		id;
 	xcb_window_t		frame;
@@ -880,6 +888,7 @@ struct swm_screen {
 
 	struct ws_win		*focus;	/* Currently focused window. */
 	struct ws_win_list	fl;	/* Previous focus queue. */
+	struct ws_win_list	iconified;	/* Iconified windows. */
 	struct ws_win_list	managed;	/* All client windows. */
 	int			managed_count;
 	struct swm_strut_list	struts;
@@ -1329,6 +1338,7 @@ enum actionid {
 	FN_SWAP_NEXT,
 	FN_SWAP_PREV,
 	FN_UNICONIFY,
+	FN_UNICONIFY_QUICK,
 	FN_VERSION,
 	FN_WIDTH_GROW,
 	FN_WIDTH_SHRINK,
@@ -1429,6 +1439,7 @@ static bool	 button_has_binding(uint32_t);
 static void	 buttonpress(xcb_button_press_event_t *);
 static void	 buttonrelease(xcb_button_release_event_t *);
 static void	 center_pointer(struct swm_region *);
+static bool	 check_search_resp_win(struct ws_win *, const char *, size_t);
 static char	*cleanopt(char *);
 static void	 clear_atom_names(void);
 static void	 clear_attention(struct ws_win *);
@@ -1766,6 +1777,8 @@ static void	 unescape_selector(char *);
 static char	*unescape_value(const char *);
 static void	 unfocus_win(struct ws_win *);
 static void	 uniconify(struct swm_screen *, struct binding *, union arg *);
+static void	 uniconify_quick(struct swm_screen *, struct binding *, union arg *);
+static void	 uniconify_win(struct ws_win *);
 static void	 unmanage_window(struct ws_win *);
 static void	 unmap_window(struct ws_win *);
 static void	 unmap_workspace(struct workspace *);
@@ -2658,8 +2671,11 @@ ewmh_apply_flags(struct ws_win *win, uint32_t pending)
 
 	if (changed & EWMH_F_HIDDEN) {
 		if (HIDDEN(win)) {
+			TAILQ_INSERT_HEAD(&win->s->iconified, win,
+			    iconify_entry);
 			unmap_window(win);
 		} else {
+			TAILQ_REMOVE(&win->s->iconified, win, iconify_entry);
 			/* Reload floating geometry in case region changed. */
 			if (win_floating(win))
 				load_float_geom(win);
@@ -9323,6 +9339,69 @@ get_win_name(xcb_window_t win)
 }
 
 static void
+uniconify_win(struct ws_win *win)
+{
+	struct swm_screen	*s;
+	bool			follow;
+
+	if (win == NULL)
+		return;
+
+	s = win->s;
+
+	ewmh_apply_flags(win, win->ewmh_flags & ~EWMH_F_HIDDEN);
+	ewmh_update_wm_state(win);
+
+	set_focus_redirect(win);
+	follow = follow_mode(SWM_FOCUS_TYPE_UNICONIFY);
+	if (!follow)
+		set_focus(s, get_focus_magic(win));
+
+	apply_unfocus(win->ws, win);
+	refresh_stack(s);
+	update_stacking(s);
+	refresh_strut(s);
+	stack(win->ws->r);
+	update_mapping(s);
+
+	if (!follow) {
+		update_focus(s);
+		center_pointer(win->ws->r);
+	}
+
+	flush(); /* win can be freed. */
+	if (follow)
+		focus_follow(s, s->r_focus, win);
+
+	if (validate_win(win) == 0) {
+		draw_frame(win);
+		debug_refresh(win);
+	}
+}
+
+static void
+uniconify_quick(struct swm_screen *s, struct binding *bp, union arg *args)
+{
+	struct workspace	*ws;
+	struct swm_region	*r;
+	struct ws_win		*win;
+
+	(void)bp;
+	(void)args;
+
+	if ((r = get_current_region(s)) == NULL)
+		return;
+	ws = r->ws;
+
+	TAILQ_FOREACH(win, &s->iconified, iconify_entry)
+		if (win_free(win) || win->ws == ws)
+			break;
+
+	if (win)
+		uniconify_win(win);
+}
+
+static void
 uniconify(struct swm_screen *s, struct binding *bp, union arg *args)
 {
 	struct swm_region	*r;
@@ -9339,23 +9418,9 @@ uniconify(struct swm_screen *s, struct binding *bp, union arg *args)
 	if ((r = get_current_region(s)) == NULL)
 		return;
 
-	/* make sure we have anything to uniconify */
-	TAILQ_FOREACH(win, &r->ws->winlist, entry) {
-		if (win->ws == NULL)
-			continue; /* should never happen */
-		if (!HIDDEN(win))
-			continue;
-		count++;
-	}
-
-	/* Tack on 'free' wins. */
-	TAILQ_FOREACH(win, &s->r->ws->winlist, entry) {
-		if (win->ws == NULL)
-			continue; /* should never happen */
-		if (!HIDDEN(win))
-			continue;
-		count++;
-	}
+	TAILQ_FOREACH(win, &s->iconified, iconify_entry)
+		if (win_free(win) || win->ws == r->ws)
+			count++;
 
 	DNPRINTF(SWM_D_MISC, "count: %d\n", count);
 
@@ -9370,25 +9435,44 @@ uniconify(struct swm_screen *s, struct binding *bp, union arg *args)
 	if ((lfile = fdopen(select_list_pipe[1], "w")) == NULL)
 		return;
 
-	TAILQ_FOREACH(win, &r->ws->winlist, entry) {
-		if (win->ws == NULL)
-			continue; /* should never happen */
-		if (!HIDDEN(win))
-			continue;
-
-		name = get_win_name(win->id);
-		fprintf(lfile, "%s.%u\n", name, win->id);
-		free(name);
-	}
-
-	/* Tack on 'free' wins. */
-	TAILQ_FOREACH(win, &s->r->ws->winlist, entry) {
-		if (!HIDDEN(win))
-			continue;
-
-		name = get_win_name(win->id);
-		fprintf(lfile, "%s.%u\n", name, win->id);
-		free(name);
+	switch (uniconify_order) {
+	case SWM_ORDER_WORKSPACE:
+		/* Current workspace wins. */
+		TAILQ_FOREACH(win, &r->ws->winlist, entry)
+			if (HIDDEN(win)) {
+				name = get_win_name(win->id);
+				fprintf(lfile, "%s.%u\n", name, win->id);
+				free(name);
+			}
+		/* Tack on 'free' wins. */
+		TAILQ_FOREACH(win, &s->r->ws->winlist, entry)
+			if (HIDDEN(win)) {
+				name = get_win_name(win->id);
+				fprintf(lfile, "%s.%u\n", name, win->id);
+				free(name);
+			}
+		break;
+	case SWM_ORDER_EARLIEST:
+		TAILQ_FOREACH_REVERSE(win, &s->iconified, ws_win_list,
+		    iconify_entry)
+			if (win_free(win) || win->ws == r->ws) {
+				name = get_win_name(win->id);
+				fprintf(lfile, "%s.%u\n", name, win->id);
+				free(name);
+			}
+		break;
+	case SWM_ORDER_LATEST:
+		TAILQ_FOREACH(win, &s->iconified, iconify_entry)
+			if (win_free(win) || win->ws == r->ws) {
+				name = get_win_name(win->id);
+				fprintf(lfile, "%s.%u\n", name, win->id);
+				free(name);
+			}
+		break;
+	default:
+		DNPRINTF(SWM_D_MISC, "uniconify order invalid: %d\n",
+		    uniconify_order);
+		break;
 	}
 
 	fclose(lfile);
@@ -9615,84 +9699,50 @@ search_win(struct swm_screen *s, struct binding *bp, union arg *args)
 	xcb_flush(conn);
 }
 
+static bool
+check_search_resp_win(struct ws_win *win, const char *resp, size_t len)
+{
+	char		*str, *name;
+
+	name = get_win_name(win->id);
+	if (asprintf(&str, "%s.%u", name, win->id) == -1) {
+		free(name);
+		return (false);
+	}
+	free(name);
+
+	if (strncmp(str, resp, len) == 0) {
+		free(str);
+		return (true);
+	}
+	free(str);
+
+	return (false);
+}
+
 static void
 search_resp_uniconify(const char *resp, size_t len)
 {
-	char			*name;
-	struct ws_win		*win;
 	struct swm_screen	*s;
-	char			*str;
-	bool			follow;
+	struct workspace	*ws;
+	struct ws_win		*win;
 
 	DNPRINTF(SWM_D_MISC, "resp: %s\n", resp);
+
 	if (search_r == NULL)
 		return;
 	s = search_r->s;
+	ws = search_r->ws;
 
-	TAILQ_FOREACH(win, &search_r->ws->winlist, entry) {
-		if (!HIDDEN(win))
-			continue;
-		name = get_win_name(win->id);
-		if (asprintf(&str, "%s.%u", name, win->id) == -1) {
-			free(name);
-			continue;
-		}
-		free(name);
-		if (strncmp(str, resp, len) == 0) {
-			free(str);
+	TAILQ_FOREACH(win, &ws->winlist, entry)
+		if (HIDDEN(win) && check_search_resp_win(win, resp, len))
 			break;
-		}
-		free(str);
-	}
-	/* Try root ws. */
 	if (win == NULL)
-		TAILQ_FOREACH(win, &s->r->ws->winlist, entry) {
-			if (!HIDDEN(win))
-				continue;
-			name = get_win_name(win->id);
-			if (asprintf(&str, "%s.%u", name, win->id) == -1) {
-				free(name);
-				continue;
-			}
-			free(name);
-			if (strncmp(str, resp, len) == 0) {
-				free(str);
+		TAILQ_FOREACH(win, &s->r->ws->winlist, entry)
+			if (HIDDEN(win) && check_search_resp_win(win, resp, len))
 				break;
-			}
-			free(str);
-		}
-
-	if (win) {
-		/* XXX this should be a callback to generalize */
-		ewmh_apply_flags(win, win->ewmh_flags & ~EWMH_F_HIDDEN);
-		ewmh_update_wm_state(win);
-
-		set_focus_redirect(win);
-		follow = follow_mode(SWM_FOCUS_TYPE_UNICONIFY);
-		if (!follow)
-			set_focus(s, get_focus_magic(win));
-
-		apply_unfocus(win->ws, win);
-		refresh_stack(s);
-		update_stacking(s);
-		refresh_strut(s);
-		stack(win->ws->r);
-		update_mapping(s);
-
-		if (!follow) {
-			update_focus(s);
-			center_pointer(win->ws->r);
-		}
-
-		flush(); /* win can be freed. */
-		if (follow)
-			focus_follow(s, s->r_focus, win);
-
-		if (validate_win(win) == 0) {
-			draw_frame(win);
-			debug_refresh(win);
-		}
-	}
+	if (win)
+		uniconify_win(win);
 }
 
 static void
@@ -11379,6 +11429,7 @@ static struct action {
 	{ "swap_next",		swapwin,	0, {.id = SWM_ARG_ID_SWAPNEXT} },
 	{ "swap_prev",		swapwin,	0, {.id = SWM_ARG_ID_SWAPPREV} },
 	{ "uniconify",		uniconify,	0, {0} },
+	{ "uniconify_quick",	uniconify_quick, 0, {0} },
 	{ "version",		version,	0, {0} },
 	{ "width_grow",		resize,		0, {.id = SWM_ARG_ID_WIDTHGROW} },
 	{ "width_shrink",	resize,		0, {.id = SWM_ARG_ID_WIDTHSHRINK} },
@@ -13612,6 +13663,7 @@ enum {
 	SWM_S_STACK_ENABLED,
 	SWM_S_TERM_WIDTH,
 	SWM_S_TILE_GAP,
+	SWM_S_UNICONIFY_ORDER,
 	SWM_S_URGENT_COLLAPSE,
 	SWM_S_URGENT_ENABLED,
 	SWM_S_VERBOSE_LAYOUT,
@@ -13927,6 +13979,18 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 		break;
 	case SWM_S_TILE_GAP:
 		tile_gap = atoi(value);
+		break;
+	case SWM_S_UNICONIFY_ORDER:
+		if (strcmp(value, "workspace") == 0)
+			uniconify_order = SWM_ORDER_WORKSPACE;
+		else if (strcmp(value, "earliest") == 0)
+			uniconify_order = SWM_ORDER_EARLIEST;
+		else if (strcmp(value, "latest") == 0)
+			uniconify_order = SWM_ORDER_LATEST;
+		else {
+			ALLOCSTR(emsg, "invalid value: %s", value);
+			return (1);
+		}
 		break;
 	case SWM_S_URGENT_COLLAPSE:
 		urgent_collapse = (atoi(value) != 0);
@@ -14614,6 +14678,7 @@ struct config_option configopt[] = {
 	{ "tile_gap",			setconfvalue,	SWM_S_TILE_GAP },
 	{ "title_class_enabled",	setconfvalue,	SWM_S_WINDOW_CLASS_ENABLED },	/* For backwards compat. */
 	{ "title_name_enabled",		setconfvalue,	SWM_S_WINDOW_INSTANCE_ENABLED },/* For backwards compat. */
+	{ "uniconify_order",		setconfvalue,	SWM_S_UNICONIFY_ORDER },
 	{ "urgent_collapse",		setconfvalue,	SWM_S_URGENT_COLLAPSE },
 	{ "urgent_enabled",		setconfvalue,	SWM_S_URGENT_ENABLED },
 	{ "verbose_layout",		setconfvalue,	SWM_S_VERBOSE_LAYOUT },
@@ -15507,6 +15572,9 @@ unmanage_window(struct ws_win *win)
 	TAILQ_REMOVE(&win->s->priority, win, priority_entry);
 	TAILQ_REMOVE(&win->s->managed, win, manage_entry);
 	win->s->managed_count--;
+
+	if (HIDDEN(win))
+		TAILQ_REMOVE(&win->s->iconified, win, iconify_entry);
 
 	if (win->strut) {
 		SLIST_REMOVE(&win->s->struts, win->strut, swm_strut, entry);
@@ -17760,6 +17828,7 @@ setup_screens(void)
 		SLIST_INIT(&s->stack);
 		SLIST_INIT(&s->struts);
 		TAILQ_INIT(&s->fl);
+		TAILQ_INIT(&s->iconified);
 		TAILQ_INIT(&s->managed);
 
 		s->r->id = XCB_WINDOW_NONE; /* Not needed for root region. */
@@ -17990,6 +18059,7 @@ load_defaults(void)
 	focus_close_wrap = true;
 	focus_default = SWM_STACK_TOP;
 	spawn_position = SWM_STACK_TOP;
+	uniconify_order = SWM_ORDER_WORKSPACE;
 	disable_border = false;
 	disable_border_always = false;
 	disable_padding = false;

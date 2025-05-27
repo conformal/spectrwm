@@ -1130,6 +1130,14 @@ Users may need to set program[term] (see the
 section) to use an alternate copy of the
 .Xr xterm 1
 binary without the setgid bit set.
+.It Ic uniconify_order
+Set the window order in the uniconify menu.
+Possible values are
+.Ar earliest ,
+.Ar latest ,
+and
+.Ar workspace
+(default).
 .It Ic tile_gap
 Pixel width of empty space between tiled windows.
 Negative values cause overlap.
@@ -1623,6 +1631,8 @@ initscr
 iconify
 .It Cm M-S-w
 uniconify
+.It Aq Ar unbound
+uniconify_quick
 .It Cm M-e
 maximize_toggle
 .It Cm M-S-e
@@ -1843,6 +1853,8 @@ Minimize (unmap) currently focused window.
 Restore (map) window returned by
 .Xr dmenu 1
 selection.
+.It Cm uniconify_quick
+Restore (map) the most recently iconified window.
 .It Cm maximize_toggle
 Toggle maximization of focused window.
 .It Cm fullscreen_toggle
