@@ -13859,7 +13859,7 @@ setconfvalue(uint8_t asop, const char *selector, const char *value, int flags,
 			focus_close = SWM_STACK_ABOVE;
 		else if (strcmp(value, "previous") == 0)
 			focus_close = SWM_STACK_BELOW;
-		else if (!strcmp(value, "prior"))
+		else if (strcmp(value, "prior") == 0)
 			focus_close = SWM_STACK_PRIOR;
 		else {
 			ALLOCSTR(emsg, "invalid value: %s", value);
