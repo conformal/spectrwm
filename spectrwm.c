@@ -8412,7 +8412,7 @@ stack_column(struct swm_geometry *g, struct ws_win *fwin, int count, bool rot)
 		}
 
 		if (i == count - 1)
-			cell.h = g->h - cell.y;
+			cell.h = g->h - (cell.y - g->y);
 
 		if (cell.h < min_height)
 			cell.h = min_height;
