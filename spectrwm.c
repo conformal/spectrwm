@@ -1388,6 +1388,8 @@ RB_HEAD(atom_name_tree, atom_name) atom_names = RB_INITIALIZER(&atom_names);
 
 /* function prototypes */
 static void	 adjust_font(struct ws_win *);
+static void	 append_descendants(struct ws_win *, struct ws_win_list *,
+		     struct ws_win_list *, struct ws_win *, int, int);
 static void	 apply_struts(struct swm_screen *, struct swm_geometry *);
 static int	 apply_unfocus(struct workspace *, struct ws_win *);
 static char	*argsep(char **);
@@ -1777,7 +1779,8 @@ static void	 unescape_selector(char *);
 static char	*unescape_value(const char *);
 static void	 unfocus_win(struct ws_win *);
 static void	 uniconify(struct swm_screen *, struct binding *, union arg *);
-static void	 uniconify_quick(struct swm_screen *, struct binding *, union arg *);
+static void	 uniconify_quick(struct swm_screen *, struct binding *,
+		 union arg *);
 static void	 uniconify_win(struct ws_win *);
 static void	 unmanage_window(struct ws_win *);
 static void	 unmap_window(struct ws_win *);
@@ -1806,6 +1809,7 @@ static int	 validate_ws(struct workspace *);
 static void	 version(struct swm_screen *, struct binding *, union arg *);
 static bool	 win_below(struct ws_win *);
 static uint16_t	 win_border(struct ws_win *);
+static bool	 win_descendant(struct ws_win *, struct ws_win *);
 static bool	 win_floating(struct ws_win *);
 static bool	 win_focused(struct ws_win *);
 static bool	 win_free(struct ws_win *);
@@ -5765,13 +5769,90 @@ quit(struct swm_screen *s, struct binding *bp, union arg *args)
 	running = 0;
 }
 
+static bool
+win_descendant(struct ws_win *w1, struct ws_win *w2)
+{
+	struct ws_win	*p;
+	int		depth = 0;
+
+	if (w1 == NULL || w2 == NULL)
+		return false;
+
+	for (p = w2; p != NULL; p = p->parent) {
+		if (p == w1)
+			return true;
+		if (++depth > w1->s->managed_count)
+			return false;
+	}
+	return false;
+}
+
+static void
+append_descendants(struct ws_win *parent, struct ws_win_list *ordered,
+    struct ws_win_list *unordered, struct ws_win *win, int depth, int maxdepth)
+{
+	struct ws_win		*w, *tmpw;
+	struct ws_win_list	children;
+
+	if (depth > maxdepth)
+		return;
+
+	TAILQ_INIT(&children);
+
+	TAILQ_FOREACH_SAFE(w, unordered, priority_entry, tmpw)
+		if (w->parent == parent) {
+			TAILQ_REMOVE(unordered, w, priority_entry);
+			TAILQ_INSERT_TAIL(&children, w, priority_entry);
+		}
+
+	TAILQ_FOREACH(w, &children, priority_entry)
+		if (win_descendant(w, win)) {
+			TAILQ_REMOVE(&children, w, priority_entry);
+			append_descendants(w, ordered, unordered, win,
+			    depth + 1, maxdepth);
+			break;
+		}
+
+	while (!TAILQ_EMPTY(&children)) {
+		w = TAILQ_FIRST(&children);
+		TAILQ_REMOVE(&children, w, priority_entry);
+		append_descendants(w, ordered, unordered, win, depth + 1,
+		    maxdepth);
+	}
+
+	TAILQ_INSERT_TAIL(ordered, parent, priority_entry);
+}
+
 static void
 prioritize_window(struct ws_win *win)
 {
+	struct ws_win		*w, *tmpw;
+	struct ws_win_list	ordered, unordered;
+
+	if (win == NULL)
+		return;
 
 	DNPRINTF(SWM_D_STACK, "win %#x\n", win->id);
-	TAILQ_REMOVE(&win->s->priority, win, priority_entry);
-	TAILQ_INSERT_HEAD(&win->s->priority, win, priority_entry);
+
+	/* Prioritize the window and related windows according to hierarchy. */
+	TAILQ_INIT(&unordered);
+	TAILQ_INIT(&ordered);
+
+	TAILQ_FOREACH_SAFE(w, &win->s->priority, priority_entry, tmpw) {
+		if (win_related(w, win)) {
+			TAILQ_REMOVE(&win->s->priority, w, priority_entry);
+			if (!win_main(w))
+				TAILQ_INSERT_TAIL(&unordered, w,
+				    priority_entry);
+		}
+	}
+
+	append_descendants(win->main, &ordered, &unordered, win, 0,
+	    win->s->managed_count);
+
+	/* Prepend to the priority queue. */
+	TAILQ_CONCAT(&ordered, &win->s->priority, priority_entry);
+	TAILQ_CONCAT(&win->s->priority, &ordered, priority_entry);
 }
 
 static void
@@ -16671,8 +16752,8 @@ maprequest(xcb_map_request_event_t *e)
 		draw_frame(get_ws_focus_prev(ws));
 	}
 
-	prioritize_window(win);
 	update_win_layer_related(win);
+	prioritize_window(win);
 
 	apply_unfocus(ws, win);
 	refresh_stack(s);
