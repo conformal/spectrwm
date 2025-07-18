@@ -17013,7 +17013,6 @@ clientmessage(xcb_client_message_event_t *e)
 	struct workspace	*ws;
 	struct ws_win		*win, *cfw;
 	uint32_t		vals[4];
-	xcb_map_request_event_t	mre;
 	bool			follow = false;
 
 	DNPRINTF(SWM_D_EVENT, "win %#x, atom: %s(%u)\n", e->window,
@@ -17042,13 +17041,7 @@ clientmessage(xcb_client_message_event_t *e)
 
 	win = find_window(e->window);
 	if (win == NULL) {
-		if (e->type == ewmh[_NET_ACTIVE_WINDOW].atom) {
-			/* Manage the window with maprequest. */
-			DNPRINTF(SWM_D_EVENT, "focus unmanaged; mapping.\n");
-			mre.window = e->window;
-			mre.parent = XCB_WINDOW_NONE;
-			maprequest(&mre);
-		}
+		DNPRINTF(SWM_D_EVENT, "ignore; unmanaged.\n");
 		return;
 	}
 
