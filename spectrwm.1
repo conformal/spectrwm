@@ -2124,6 +2124,10 @@ spawn flag to be set on the autorun/program entry when the program is spawned.
 See the
 .Ic spawn_flags
 option for information on how to enable it.
+.It NOTILE
+Disallow the window from being tiled.
+Note that the window will always float regardless of whether _NET_WM_STATE_ABOVE
+is set.
 .El
 .Pp
 Custom quirks in the configuration file are specified as follows:

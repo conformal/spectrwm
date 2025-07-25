@@ -1002,6 +1002,7 @@ struct quirk {
 #define SWM_Q_ICONIFY		(1 << 15)/* Minimize the window when mapped. */
 #define SWM_Q_IGNOREURGENT	(1 << 16)/* Ignore urgency hint. */
 #define SWM_Q_NOFOCUSPOINTER	(1 << 17)/* Don't let the pointer focus. */
+#define SWM_Q_NOTILE		(1 << 18)/* Window is always floating. */
 };
 TAILQ_HEAD(quirk_list, quirk) quirks = TAILQ_HEAD_INITIALIZER(quirks);
 
@@ -1815,6 +1816,7 @@ static bool	 win_focused(struct ws_win *);
 static bool	 win_free(struct ws_win *);
 static uint8_t	 win_gravity(struct ws_win *);
 static bool	 win_main(struct ws_win *);
+static bool	 win_notile(struct ws_win *);
 static bool	 win_raised(struct ws_win *);
 static bool	 win_related(struct ws_win *, struct ws_win *);
 static bool	 win_reparented(struct ws_win *);
@@ -1857,8 +1859,14 @@ win_free(struct ws_win *win)
 static bool
 win_floating(struct ws_win *win)
 {
-	return (win_transient(win) || win->ewmh_flags & EWMH_F_UNTILED ||
+	return (win_notile(win) || win->ewmh_flags & EWMH_F_UNTILED ||
 	    ws_floating(win->ws) || WINDOCK(win) || win_below(win));
+}
+
+static bool
+win_notile(struct ws_win *win)
+{
+	return (win_transient(win) || win->quirks & SWM_Q_NOTILE);
 }
 
 static bool
@@ -8121,7 +8129,7 @@ switchlayout(struct swm_screen *s, struct binding *bp, union arg *args)
 		if (!ws_maxstack_prior(ws) && ws_maxstack(ws)) {
 			/* Enter max layout. */
 			TAILQ_FOREACH(w, &ws->winlist, entry) {
-				if (win_transient(w) || WINDOCK(w) ||
+				if (win_notile(w) || WINDOCK(w) ||
 				    WINDESKTOP(w))
 					continue;
 				w->normalmax = MAXIMIZED(w);
@@ -8134,7 +8142,7 @@ switchlayout(struct swm_screen *s, struct binding *bp, union arg *args)
 		} else if (ws_maxstack_prior(ws) && !ws_maxstack(ws)) {
 			/* Leave max layout. */
 			TAILQ_FOREACH(w, &ws->winlist, entry) {
-				if (win_transient(w) || WINDOCK(w) ||
+				if (win_notile(w) || WINDOCK(w) ||
 				    WINDESKTOP(w))
 					continue;
 				w->maxstackmax = MAXIMIZED(w);
@@ -8253,8 +8261,8 @@ store_float_geom(struct ws_win *win)
 		return;
 
 	/* Exclude fullscreen/maximized/tiled. */
-	if (FULLSCREEN(win) || MAXIMIZED(win) || (!ABOVE(win) &&
-	    !win_transient(win) && !ws_floating(win->ws)))
+	if (FULLSCREEN(win) || MAXIMIZED(win) ||
+	    (!win_notile(win) && !ABOVE(win) && !ws_floating(win->ws)))
 		return;
 
 	/* Retain window geometry and update reference coordinates. */
@@ -8413,7 +8421,7 @@ static void
 adjust_font(struct ws_win *win)
 {
 	if (!(win->quirks & SWM_Q_XTERM_FONTADJ) ||
-	    ABOVE(win) || win_transient(win))
+	    ABOVE(win) || win_notile(win))
 		return;
 
 	if (win->sh.width_inc && win->last_inc != win->sh.width_inc &&
@@ -10374,7 +10382,7 @@ floating_toggle(struct swm_screen *s, struct binding *bp, union arg *args)
 	r = win->ws->r;
 
 	if ((ws_floating(win->ws) && !ws_root(win->ws) && !BELOW(win)) ||
-	    FULLSCREEN(win) || win_transient(win))
+	    FULLSCREEN(win) || win_notile(win))
 		return;
 
 	if (MAXIMIZED(win) || BELOW(win))
@@ -10803,7 +10811,7 @@ resize_win(struct ws_win *win, struct binding *bp, int opt)
 	/* Override floating geometry when resizing maximized windows. */
 	if (MAXIMIZED(win) || ws_floating(win->ws)) {
 		inplace = true;
-	} else if (!(win_transient(win) || ABOVE(win)))
+	} else if (!(win_notile(win) || ABOVE(win)))
 		return;
 
 	switch (opt) {
@@ -10883,7 +10891,7 @@ resize_win_pointer(struct ws_win *win, struct binding *bp,
 
 	if (MAXIMIZED(win) || ws_floating(win->ws))
 		inplace = true;
-	else if (!(win_transient(win) || ABOVE(win)))
+	else if (!(win_notile(win) || ABOVE(win)))
 		return;
 
 	if (center)
@@ -11172,7 +11180,8 @@ unsnap_win(struct ws_win *win, bool inplace)
 	}
 
 	newf = (win->ewmh_flags | SWM_F_MANUAL) & ~EWMH_F_MAXIMIZED;
-	if (!ws_floating(win->ws) || win_free(win))
+	if (!(ws_floating(win->ws) || win->quirks & SWM_Q_NOTILE) ||
+	    win_free(win))
 		newf |= EWMH_F_ABOVE;
 	ewmh_apply_flags(win, newf);
 	ewmh_update_wm_state(win);
@@ -11423,7 +11432,7 @@ move(struct swm_screen *s, struct binding *bp, union arg *args)
 		win = s->focus;
 
 		/* Disallow move_ on tiled. */
-		if (win && !win_transient(win) && !ABOVE(win) &&
+		if (win && !ABOVE(win) && !win_notile(win) &&
 		    !ws_floating(win->ws))
 			return;
 	} else
@@ -13238,6 +13247,7 @@ const char *quirkname[] = {
 	"ICONIFY",
 	"IGNOREURGENT",
 	"NOFOCUSPOINTER",
+	"NOTILE",
 };
 
 /* SWM_Q_DELIM: retain '|' for back compat for now (2009-08-11) */
