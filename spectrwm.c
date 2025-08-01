@@ -6133,6 +6133,7 @@ reload(struct swm_screen *s, struct binding *bp, union arg *args)
 {
 	int			i, num_screens;
 	struct swm_region	*r;
+	struct workspace	*ws;
 	struct stat		sb;
 	struct ws_win		*w;
 
@@ -6221,6 +6222,14 @@ reload(struct swm_screen *s, struct binding *bp, union arg *args)
 		refresh_strut(&screens[i]);
 		update_layout(&screens[i]);
 		update_mapping(&screens[i]);
+
+		/* Unmap workspaces that are no longer visible. */
+		RB_FOREACH(ws, workspace_tree, &screens[i].workspaces)
+			if (ws->r == NULL)
+				unmap_workspace(ws);
+
+		ewmh_update_number_of_desktops(&screens[i]);
+		update_bars(&screens[i]);
 	}
 
 	grabkeys();
