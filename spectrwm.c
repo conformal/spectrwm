@@ -1600,6 +1600,7 @@ static void	 keyrelease(xcb_key_release_event_t *);
 static bool	 keyrepeating(xcb_key_release_event_t *);
 static void	 kill_bar_extra_atexit(void);
 static void	 kill_refs(struct ws_win *);
+static void	 kill_refs_region(struct swm_region *);
 static void	 layout_order_reset(void);
 static void	 leavenotify(xcb_leave_notify_event_t *);
 static void	 load_defaults(void);
@@ -6131,11 +6132,11 @@ reapply_quirks(struct ws_win *win)
 static void
 reload(struct swm_screen *s, struct binding *bp, union arg *args)
 {
-	int			i, num_screens;
 	struct swm_region	*r;
 	struct workspace	*ws;
 	struct stat		sb;
 	struct ws_win		*w;
+	int			i, num_screens;
 
 	/* Suppress warning. */
 	(void)s;
@@ -6208,6 +6209,10 @@ reload(struct swm_screen *s, struct binding *bp, union arg *args)
 	validate_spawns();
 
 	for (i = 0; i < num_screens; i++) {
+		/* Cleanup references to any old regions after loading conf. */
+		TAILQ_FOREACH(r, &screens[i].orl, entry)
+			kill_refs_region(r);
+
 		TAILQ_FOREACH(r, &screens[i].rl, entry)
 			bar_setup(r);
 
@@ -17404,6 +17409,22 @@ enable_wm(void)
 	return (0);
 }
 
+static void
+kill_refs_region(struct swm_region *r)
+{
+	struct workspace	*ws;
+
+	if (r == NULL)
+		return;
+
+	if (r->s->r_focus == r)
+		r->s->r_focus = NULL;
+
+	RB_FOREACH(ws, workspace_tree, &r->s->workspaces)
+		if (ws->old_r == r)
+			ws->old_r = NULL;
+}
+
 static const char *
 get_randr_rotation_label(int rot)
 {
@@ -17560,7 +17581,6 @@ scan_randr(struct swm_screen *s)
 	int						minrate, currate;
 #endif
 	struct swm_region				*r;
-	struct workspace				*ws;
 	xcb_screen_t					*screen;
 
 	if (s == NULL)
@@ -17663,15 +17683,8 @@ scan_randr(struct swm_screen *s)
 out:
 #endif
 	/* Cleanup references to unused regions. */
-	TAILQ_FOREACH(r, &s->orl, entry) {
-		if (s->r_focus == r)
-			s->r_focus = NULL;
-		for (i = 0; i < workspace_limit; i++) {
-			ws = workspace_lookup(s, i);
-			if (ws && ws->old_r == r)
-				ws->old_r = NULL;
-		}
-	}
+	TAILQ_FOREACH(r, &s->orl, entry)
+		kill_refs_region(r);
 
 	DNPRINTF(SWM_D_MISC, "done.\n");
 }
