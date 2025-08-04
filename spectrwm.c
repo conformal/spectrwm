@@ -9040,7 +9040,7 @@ transfer_win(struct ws_win *win, struct workspace *ws)
 	apply_unfocus(ws, NULL);
 
 	/* Set new focus on target ws. */
-	if (!follow) {
+	if (!follow && ws_focused(ows)) {
 		ws->focus = win;
 		set_focus(s, ows->focus);
 		draw_frame(get_ws_focus_prev(ws));
@@ -9053,6 +9053,9 @@ transfer_win(struct ws_win *win, struct workspace *ws)
 	update_win_layer_related(win);
 	refresh_stack(s);
 	update_stacking(s);
+
+	if (ows->r != ws->r && refresh_strut(s))
+		update_layout(s);
 
 	stack(ows->r);
 	if (ws->r) {
@@ -9074,7 +9077,7 @@ transfer_win(struct ws_win *win, struct workspace *ws)
 	if (follow) {
 		if (pointer_window != XCB_WINDOW_NONE)
 			focus_window(pointer_window);
-		else if (ows->focus == NULL)
+		else if (ows->focus == NULL && ws_focused(ows))
 			focus_win(s, get_focus_magic(get_ws_focus(ows)));
 		xcb_flush(conn);
 	}
@@ -17223,33 +17226,8 @@ clientmessage(xcb_client_message_event_t *e)
 		if ((int)e->data.data32[0] >= workspace_limit)
 			return;
 
-		r = win->ws->r;
-		win_to_ws(win, get_workspace(s, e->data.data32[0]),
-		    SWM_WIN_UNFOCUS);
-
-		follow = follow_pointer(s, SWM_FOCUS_TYPE_MOVE);
-
-		/* Stack source and destination ws, if mapped. */
-		if (r != win->ws->r) {
-			if (refresh_strut(s))
-				update_layout(s);
-			else if (r) {
-				stack(r);
-				bar_draw(r->bar);
-			}
-
-			if (win->ws->r) {
-				if (win_floating(win))
-					load_float_geom(win);
-
-				stack(win->ws->r);
-				bar_draw(win->ws->r->bar);
-			}
-			update_mapping(s);
-		}
-
-		if (r == NULL && win->ws->r == NULL)
-			return;
+		transfer_win(win, get_workspace(s, e->data.data32[0]));
+		return;
 	} else if (e->type == a_change_state) {
 		DNPRINTF(SWM_D_EVENT, "WM_CHANGE_STATE state: %s\n",
 		    get_wm_state_label(e->data.data32[0]));
