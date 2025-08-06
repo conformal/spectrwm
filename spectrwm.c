@@ -1022,11 +1022,16 @@ enum {
 	_NET_NUMBER_OF_DESKTOPS,
 	_NET_REQUEST_FRAME_EXTENTS,
 	_NET_RESTACK_WINDOW,
-	_NET_WM_ACTION_ABOVE,
-	_NET_WM_ACTION_CLOSE,
-	_NET_WM_ACTION_FULLSCREEN,
 	_NET_WM_ACTION_MOVE,
 	_NET_WM_ACTION_RESIZE,
+	_NET_WM_ACTION_MINIMIZE,
+	_NET_WM_ACTION_MAXIMIZE_HORZ,
+	_NET_WM_ACTION_MAXIMIZE_VERT,
+	_NET_WM_ACTION_FULLSCREEN,
+	_NET_WM_ACTION_CHANGE_DESKTOP,
+	_NET_WM_ACTION_CLOSE,
+	_NET_WM_ACTION_ABOVE,
+	_NET_WM_ACTION_BELOW,
 	_NET_WM_ALLOWED_ACTIONS,
 	_NET_WM_DESKTOP,
 	_NET_WM_FULL_PLACEMENT,
@@ -1080,11 +1085,16 @@ struct ewmh_hint {
     {"_NET_NUMBER_OF_DESKTOPS", XCB_ATOM_NONE},
     {"_NET_REQUEST_FRAME_EXTENTS", XCB_ATOM_NONE},
     {"_NET_RESTACK_WINDOW", XCB_ATOM_NONE},
-    {"_NET_WM_ACTION_ABOVE", XCB_ATOM_NONE},
-    {"_NET_WM_ACTION_CLOSE", XCB_ATOM_NONE},
-    {"_NET_WM_ACTION_FULLSCREEN", XCB_ATOM_NONE},
     {"_NET_WM_ACTION_MOVE", XCB_ATOM_NONE},
     {"_NET_WM_ACTION_RESIZE", XCB_ATOM_NONE},
+    {"_NET_WM_ACTION_MINIMIZE", XCB_ATOM_NONE},
+    {"_NET_WM_ACTION_MAXIMIZE_HORZ", XCB_ATOM_NONE},
+    {"_NET_WM_ACTION_MAXIMIZE_VERT", XCB_ATOM_NONE},
+    {"_NET_WM_ACTION_FULLSCREEN", XCB_ATOM_NONE},
+    {"_NET_WM_ACTION_CHANGE_DESKTOP", XCB_ATOM_NONE},
+    {"_NET_WM_ACTION_CLOSE", XCB_ATOM_NONE},
+    {"_NET_WM_ACTION_ABOVE", XCB_ATOM_NONE},
+    {"_NET_WM_ACTION_BELOW", XCB_ATOM_NONE},
     {"_NET_WM_ALLOWED_ACTIONS", XCB_ATOM_NONE},
     {"_NET_WM_DESKTOP", XCB_ATOM_NONE},
     {"_NET_WM_FULL_PLACEMENT", XCB_ATOM_NONE},
@@ -2596,16 +2606,25 @@ ewmh_update_actions(struct ws_win *win)
 	if (win == NULL)
 		return;
 
-	action[n++] = ewmh[_NET_WM_ACTION_CLOSE].atom;
-
-	if (ABOVE(win)) {
+	if (win_floating(win) && !FULLSCREEN(win) && !MAXIMIZED(win)) {
 		action[n++] = ewmh[_NET_WM_ACTION_MOVE].atom;
 		action[n++] = ewmh[_NET_WM_ACTION_RESIZE].atom;
-		action[n++] = ewmh[_NET_WM_ACTION_ABOVE].atom;
 	}
 
+	action[n++] = ewmh[_NET_WM_ACTION_MINIMIZE].atom;
+	action[n++] = ewmh[_NET_WM_ACTION_MAXIMIZE_HORZ].atom;
+	action[n++] = ewmh[_NET_WM_ACTION_MAXIMIZE_VERT].atom;
+	action[n++] = ewmh[_NET_WM_ACTION_FULLSCREEN].atom;
+	action[n++] = ewmh[_NET_WM_ACTION_CHANGE_DESKTOP].atom;
+	action[n++] = ewmh[_NET_WM_ACTION_CLOSE].atom;
+
+	if (!win_notile(win))
+		action[n++] = ewmh[_NET_WM_ACTION_ABOVE].atom;
+
+	action[n++] = ewmh[_NET_WM_ACTION_BELOW].atom;
+
 	xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win->id,
-	    ewmh[_NET_WM_ALLOWED_ACTIONS].atom, XCB_ATOM_ATOM, 32, 1, action);
+	    ewmh[_NET_WM_ALLOWED_ACTIONS].atom, XCB_ATOM_ATOM, 32, n, action);
 }
 
 #define _NET_WM_STATE_REMOVE	0    /* remove/unset property */
@@ -8151,6 +8170,7 @@ switchlayout(struct swm_screen *s, struct binding *bp, union arg *args)
 					changed |= ewmh_apply_flags(w,
 					    w->ewmh_flags | EWMH_F_MAXIMIZED);
 					ewmh_update_wm_state(w);
+					ewmh_update_actions(w);
 				}
 			}
 		} else if (ws_maxstack_prior(ws) && !ws_maxstack(ws)) {
@@ -8164,6 +8184,7 @@ switchlayout(struct swm_screen *s, struct binding *bp, union arg *args)
 					changed |= ewmh_apply_flags(w,
 					    w->ewmh_flags & ~EWMH_F_MAXIMIZED);
 					ewmh_update_wm_state(w);
+					ewmh_update_actions(w);
 				}
 			}
 		}
@@ -8900,6 +8921,7 @@ max_config(struct workspace *ws, int id)
 				changed = 0;
 				s = w->s;
 				ewmh_update_wm_state(w);
+				ewmh_update_actions(w);
 			}
 		}
 
@@ -10271,6 +10293,7 @@ apply_unfocus(struct workspace *ws, struct ws_win *win)
 		if (changed) {
 			update_win_layer_related(w);
 			ewmh_update_wm_state(w);
+			ewmh_update_actions(w);
 			changed = 0;
 			++count;
 		}
@@ -10353,6 +10376,7 @@ maximize_toggle(struct swm_screen *s, struct binding *bp, union arg *args)
 
 	ewmh_apply_flags(win, win->ewmh_flags ^ EWMH_F_MAXIMIZED);
 	ewmh_update_wm_state(win);
+	ewmh_update_actions(win);
 
 	if (ws_maxstack(win->ws))
 		win->maxstackmax = MAXIMIZED(win);
@@ -10420,6 +10444,7 @@ floating_toggle(struct swm_screen *s, struct binding *bp, union arg *args)
 
 	ewmh_apply_flags(win, newf);
 	ewmh_update_wm_state(win);
+	ewmh_update_actions(win);
 	update_win_layer_related(win);
 	refresh_stack(s);
 	update_stacking(s);
@@ -10458,6 +10483,7 @@ fullscreen_toggle(struct swm_screen *s, struct binding *bp, union arg *args)
 
 	ewmh_apply_flags(win, win->ewmh_flags ^ EWMH_F_FULLSCREEN);
 	ewmh_update_wm_state(win);
+	ewmh_update_actions(win);
 	update_win_layer_related(win);
 
 	refresh_stack(s);
@@ -10488,6 +10514,7 @@ below_toggle(struct swm_screen *s, struct binding *bp, union arg *args)
 
 	ewmh_apply_flags(win, win->ewmh_flags ^ EWMH_F_BELOW);
 	ewmh_update_wm_state(win);
+	ewmh_update_actions(win);
 	update_win_layer_related(win);
 
 	refresh_stack(s);
@@ -11200,15 +11227,17 @@ unsnap_win(struct ws_win *win, bool inplace)
 	if (!(ws_floating(win->ws) || win->quirks & SWM_Q_NOTILE) ||
 	    win_free(win))
 		newf |= EWMH_F_ABOVE;
-	ewmh_apply_flags(win, newf);
-	ewmh_update_wm_state(win);
-	update_win_layer_related(win);
+	if (ewmh_apply_flags(win, newf)) {
+		ewmh_update_wm_state(win);
+		ewmh_update_actions(win);
+		update_win_layer_related(win);
 
-	refresh_stack(win->s);
-	update_stacking(win->s);
-	if (inplace) {
-		stack(win->ws->r);
-		update_mapping(win->s);
+		refresh_stack(win->s);
+		update_stacking(win->s);
+		if (inplace) {
+			stack(win->ws->r);
+			update_mapping(win->s);
+		}
 	}
 }
 
@@ -17209,7 +17238,11 @@ clientmessage(xcb_client_message_event_t *e)
 		if (ws_maxstack(win->ws) && changed & EWMH_F_MAXIMIZED)
 			win->maxstackmax = MAXIMIZED(win);
 
-		ewmh_update_wm_state(win);
+		if (changed) {
+			ewmh_update_wm_state(win);
+			ewmh_update_actions(win);
+		}
+
 		update_win_layer_related(win);
 		refresh_stack(s);
 		update_stacking(s);
@@ -17240,7 +17273,8 @@ clientmessage(xcb_client_message_event_t *e)
 			return;
 		/* Iconify. */
 		follow = follow_mode(SWM_FOCUS_TYPE_ICONIFY);
-		ewmh_apply_flags(win, win->ewmh_flags | EWMH_F_HIDDEN);
+		if (ewmh_apply_flags(win, win->ewmh_flags | EWMH_F_HIDDEN) == 0)
+			return;
 		ewmh_update_wm_state(win);
 		update_stacking(s);
 		if (s->focus == win && !follow)
