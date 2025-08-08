@@ -224,8 +224,9 @@ uint32_t		swm_debug = 0
 #define EWMH_F_ABOVE			(1 << 6)
 #define EWMH_F_BELOW			(1 << 7)
 #define EWMH_F_DEMANDS_ATTENTION	(1 << 8)
-#define SWM_F_MANUAL			(1 << 9)
-#define SWM_EWMH_ACTION_COUNT_MAX	(10)
+#define EWMH_F_FOCUSED			(1 << 9)
+#define SWM_F_MANUAL			(1 << 10)
+#define SWM_EWMH_ACTION_COUNT_MAX	(11)
 
 #define EWMH_F_MAXIMIZED	(EWMH_F_MAXIMIZED_VERT | EWMH_F_MAXIMIZED_HORZ)
 #define EWMH_F_UNTILED		(EWMH_F_ABOVE | EWMH_F_FULLSCREEN |	       \
@@ -315,6 +316,7 @@ uint32_t		swm_debug = 0
 #define ABOVE(w)		((w)->ewmh_flags & EWMH_F_ABOVE)
 #define BELOW(w)		((w)->ewmh_flags & EWMH_F_BELOW)
 #define DEMANDS_ATTENTION(w)	((w)->ewmh_flags & EWMH_F_DEMANDS_ATTENTION)
+#define FOCUSED(w)		((w)->ewmh_flags & EWMH_F_FOCUSED)
 #define MANUAL(w)		((w)->ewmh_flags & SWM_F_MANUAL)
 #define MAXIMIZED(w)		((w)->ewmh_flags & EWMH_F_MAXIMIZED)
 
@@ -1047,6 +1049,7 @@ enum {
 	_NET_WM_STATE_ABOVE,
 	_NET_WM_STATE_BELOW,
 	_NET_WM_STATE_DEMANDS_ATTENTION,
+	_NET_WM_STATE_FOCUSED,
 	_NET_WM_STRUT,
 	_NET_WM_STRUT_PARTIAL,
 	_NET_WM_WINDOW_TYPE,
@@ -1110,6 +1113,7 @@ struct ewmh_hint {
     {"_NET_WM_STATE_ABOVE", XCB_ATOM_NONE},
     {"_NET_WM_STATE_BELOW", XCB_ATOM_NONE},
     {"_NET_WM_STATE_DEMANDS_ATTENTION", XCB_ATOM_NONE},
+    {"_NET_WM_STATE_FOCUSED", XCB_ATOM_NONE},
     {"_NET_WM_STRUT", XCB_ATOM_NONE},
     {"_NET_WM_STRUT_PARTIAL", XCB_ATOM_NONE},
     {"_NET_WM_WINDOW_TYPE", XCB_ATOM_NONE},
@@ -2661,6 +2665,8 @@ ewmh_change_wm_state(struct ws_win *win, xcb_atom_t state, long action)
 		flag = EWMH_F_BELOW;
 	else if (state == ewmh[_NET_WM_STATE_DEMANDS_ATTENTION].atom)
 		flag = EWMH_F_DEMANDS_ATTENTION;
+	else if (state == ewmh[_NET_WM_STATE_FOCUSED].atom)
+		flag = EWMH_F_FOCUSED;
 	else if (state == ewmh[_SWM_WM_STATE_MANUAL].atom)
 		flag = SWM_F_MANUAL;
 
@@ -2770,6 +2776,8 @@ ewmh_update_wm_state(struct  ws_win *win) {
 		vals[n++] = ewmh[_NET_WM_STATE_BELOW].atom;
 	if (DEMANDS_ATTENTION(win))
 		vals[n++] = ewmh[_NET_WM_STATE_DEMANDS_ATTENTION].atom;
+	if (FOCUSED(win))
+		vals[n++] = ewmh[_NET_WM_STATE_FOCUSED].atom;
 	if (MANUAL(win))
 		vals[n++] = ewmh[_SWM_WM_STATE_MANUAL].atom;
 
@@ -6787,6 +6795,8 @@ unfocus_win(struct ws_win *win)
 		update_window(win);
 	}
 
+	if (ewmh_apply_flags(win, win->ewmh_flags & ~EWMH_F_FOCUSED))
+		ewmh_update_wm_state(win);
 	draw_frame(win);
 	DNPRINTF(SWM_D_FOCUS, "done\n");
 }
@@ -7095,7 +7105,12 @@ update_focus(struct swm_screen *s)
 	} else
 		set_input_focus((s->r_focus ? s->r_focus->id : s->swmwin), true);
 
-	draw_frame(win);
+	if (win) {
+		ewmh_apply_flags(win, win->ewmh_flags | EWMH_F_FOCUSED);
+		ewmh_update_wm_state(win);
+		draw_frame(win);
+	}
+
 	update_bars(s);
 	ewmh_update_active_window(s);
 }
@@ -7490,8 +7505,11 @@ unmap_workspace(struct workspace *ws)
 	if (ws == NULL)
 		return;
 
-	TAILQ_FOREACH(w, &ws->winlist, entry)
+	TAILQ_FOREACH(w, &ws->winlist, entry) {
 		unmap_window(w);
+		if (ewmh_apply_flags(w, w->ewmh_flags & ~EWMH_F_FOCUSED))
+			ewmh_update_wm_state(w);
+	}
 }
 
 static void
@@ -10667,7 +10685,7 @@ draw_frame(struct ws_win *win)
 		DNPRINTF(SWM_D_EVENT, "win %#x frame disabled\n", win->id);
 	}
 
-	if (win_focused(win)) {
+	if (FOCUSED(win)) {
 		if (win_free(win))
 			gcv[0] = getcolorpixel(win->s, (MAXIMIZED(win) ?
 			    SWM_S_COLOR_FOCUS_MAXIMIZED_FREE :
@@ -15538,7 +15556,7 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 	ewmh_get_wm_state(win);
 
 	/* Apply quirks. */
-	new_flags = win->ewmh_flags;
+	new_flags = win->ewmh_flags & ~EWMH_F_FOCUSED;
 
 	if (win->quirks & SWM_Q_FLOAT)
 		new_flags |= EWMH_F_ABOVE;
