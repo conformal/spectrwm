@@ -6255,6 +6255,19 @@ reload(struct swm_screen *s, struct binding *bp, union arg *args)
 		update_layout(&screens[i]);
 		update_mapping(&screens[i]);
 
+		/* Focus region. */
+		if (screens[i].r_focus) {
+			/* Update bar colors for existing focus. */
+			r = screens[i].r_focus;
+			screens[i].r_focus = NULL;
+			set_region(r);
+		} else {
+			/* Focus on the first region. */
+			r = TAILQ_FIRST(&screens[i].rl);
+			if (r)
+				focus_region(r);
+		}
+
 		/* Unmap workspaces that are no longer visible. */
 		RB_FOREACH(ws, workspace_tree, &screens[i].workspaces)
 			if (ws->r == NULL)
