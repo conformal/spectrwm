@@ -1562,6 +1562,7 @@ static XftColor	*getcolorxft(struct swm_screen *, int, int);
 static const char	*get_event_label(xcb_generic_event_t *);
 static struct ws_win	*get_focus_magic(struct ws_win *);
 static struct ws_win	*get_focus_other(struct ws_win *);
+static struct ws_win	*get_focus_prev(struct swm_screen *);
 static const char	*get_gravity_label(uint8_t);
 #ifdef SWM_XCB_HAS_XINPUT
 static const char	*get_input_event_label(xcb_ge_generic_event_t *);
@@ -1711,6 +1712,7 @@ static void	 set_attention(struct ws_win *);
 static void	 set_focus(struct swm_screen *, struct ws_win *);
 static void	 set_focus_prev(struct ws_win *);
 static void	 set_focus_redirect(struct ws_win *);
+static void	 set_frame_focused(struct ws_win *, bool);
 static void	 set_input_focus(xcb_window_t, bool);
 static void	 set_region(struct swm_region *);
 static void	 set_win_state(struct ws_win *, uint32_t);
@@ -6808,8 +6810,7 @@ unfocus_win(struct ws_win *win)
 		update_window(win);
 	}
 
-	if (ewmh_apply_flags(win, win->ewmh_flags & ~EWMH_F_FOCUSED))
-		ewmh_update_wm_state(win);
+	set_frame_focused(win, false);
 	draw_frame(win);
 	DNPRINTF(SWM_D_FOCUS, "done\n");
 }
@@ -6861,8 +6862,6 @@ set_input_focus(xcb_window_t winid, bool force)
 static void
 focus_win(struct swm_screen *s, struct ws_win *win)
 {
-	struct ws_win		*w;
-
 	DNPRINTF(SWM_D_FOCUS, "win %#x\n", WINID(win));
 
 	if (validate_win(win)) {
@@ -6871,6 +6870,7 @@ focus_win(struct swm_screen *s, struct ws_win *win)
 	}
 
 	set_focus(s, win);
+
 	if (win)
 		update_win_layer_related(win);
 
@@ -6878,11 +6878,6 @@ focus_win(struct swm_screen *s, struct ws_win *win)
 	update_stacking(s);
 	update_mapping(s);
 	update_focus(s);
-
-	/* Redraw all frames for now. */
-	TAILQ_FOREACH(w, &s->managed, manage_entry)
-		if (w->mapped)
-			draw_frame(w);
 
 	DNPRINTF(SWM_D_FOCUS, "done\n");
 }
@@ -7048,10 +7043,19 @@ set_focus_prev(struct ws_win *win)
 	}
 }
 
+static struct ws_win *
+get_focus_prev(struct swm_screen *s)
+{
+	if (s->focus)
+		return (TAILQ_NEXT(s->focus, focus_entry));
+	else
+		return (TAILQ_FIRST(&s->fl));
+}
+
 static void
 update_focus(struct swm_screen *s)
 {
-	struct ws_win				*win, *cfw = NULL;
+	struct ws_win				*win, *cfw = NULL, *pfw;
 	xcb_get_window_attributes_reply_t	*war = NULL;
 	xcb_window_t				cfid;
 
@@ -7108,19 +7112,25 @@ update_focus(struct swm_screen *s)
 		clear_attention(win);
 
 	/* 5. Set input focus. */
-	if (win && cfw == win)
-		return; /* Already has input focus. */
+	if (win == NULL || cfw != win) {
+		if (win && win->mapped) {
+			focus_win_input(((win_noinput(win) &&
+			    win_transient(win)) ?  win->main : win), false);
+			set_region(win->ws->r);
+		} else
+			set_input_focus((s->r_focus ? s->r_focus->id :
+			    s->swmwin), true);
+	}
 
-	if (win && win->mapped) {
-		focus_win_input(((win_noinput(win) && win_transient(win)) ?
-		    win->main : win), false);
-		set_region(win->ws->r);
-	} else
-		set_input_focus((s->r_focus ? s->r_focus->id : s->swmwin), true);
+	/* 6. Update borders. */
+	pfw = get_focus_prev(s);
+	if (pfw) {
+		set_frame_focused(pfw, false);
+		draw_frame(pfw);
+	}
 
 	if (win) {
-		ewmh_apply_flags(win, win->ewmh_flags | EWMH_F_FOCUSED);
-		ewmh_update_wm_state(win);
+		set_frame_focused(win, true);
 		draw_frame(win);
 	}
 
@@ -7478,10 +7488,8 @@ cyclews(struct swm_screen *s, struct binding *bp, union arg *args)
 			prioritize_window(winfocus);
 			draw_frame(get_ws_focus_prev(nws));
 
-			if (nws->r != r) {
+			if (nws->r != r)
 				set_region(nws->r);
-				draw_frame(ws->focus);
-			}
 
 			apply_unfocus(nws, NULL);
 			refresh_stack(r->s);
@@ -7520,8 +7528,7 @@ unmap_workspace(struct workspace *ws)
 
 	TAILQ_FOREACH(w, &ws->winlist, entry) {
 		unmap_window(w);
-		if (ewmh_apply_flags(w, w->ewmh_flags & ~EWMH_F_FOCUSED))
-			ewmh_update_wm_state(w);
+		set_frame_focused(w, false);
 	}
 }
 
@@ -10678,6 +10685,23 @@ constrain_window(struct ws_win *win, struct swm_geometry *b, uint32_t *opts)
 		if (HEIGHT(win) < 1)
 			HEIGHT(win) = 1;
 	}
+}
+
+static void
+set_frame_focused(struct ws_win *win, bool focused)
+{
+	uint32_t		newf;
+
+	if (win == NULL)
+		return;
+
+	if (focused)
+		newf = win->ewmh_flags | EWMH_F_FOCUSED;
+	else
+		newf = win->ewmh_flags & ~EWMH_F_FOCUSED;
+
+	if (ewmh_apply_flags(win, newf))
+		ewmh_update_wm_state(win);
 }
 
 static void
@@ -15864,7 +15888,7 @@ static void
 focusin(xcb_focus_in_event_t *e)
 {
 	struct swm_region	*r;
-	struct ws_win		*win;
+	struct ws_win		*win, *cfw;
 	struct swm_screen	*s = NULL;
 
 	DNPRINTF(SWM_D_EVENT, "win %#x, mode: %s(%u), detail: %s(%u)\n",
@@ -15885,14 +15909,20 @@ focusin(xcb_focus_in_event_t *e)
 
 	/* Managed window. */
 	if ((win = find_window(e->event))) {
+		s = win->s;
+		cfw = s->focus;
+
 		/* Ignore if there is a current focus and its unrelated. */
-		if (win->mapped && win != win->ws->focus &&
-		    (win->ws->focus == NULL ||
-		    win_related(win, win->ws->focus))) {
-			set_focus(win->s, win);
-			draw_frame(get_ws_focus_prev(win->ws));
+		if (win->mapped && win != cfw &&
+		    (cfw == NULL || win_related(win, cfw))) {
+			set_focus(s, win);
+			set_frame_focused(win, true);
+			if (cfw) {
+				set_frame_focused(cfw, false);
+				draw_frame(cfw);
+			}
 			draw_frame(win);
-			update_stacking(win->s);
+			update_stacking(s);
 			flush();
 		}
 	} else {
@@ -15911,8 +15941,13 @@ focusin(xcb_focus_in_event_t *e)
 			if (win) {
 				focus_win_input(win, false);
 				set_focus(s, win);
+				set_frame_focused(win, true);
+				cfw = get_focus_prev(s);
+				if (cfw) {
+					set_frame_focused(cfw, false);
+					draw_frame(cfw);
+				}
 				draw_frame(win);
-				draw_frame(get_ws_focus_prev(win->ws));
 				flush();
 			}
 		}
@@ -16836,7 +16871,11 @@ maprequest(xcb_map_request_event_t *e)
 
 	if (setfocus) {
 		set_focus(s, get_focus_magic(win));
-		draw_frame(get_ws_focus_prev(ws));
+		w = get_focus_prev(s);
+		if (w) {
+			set_frame_focused(w, false);
+			draw_frame(w);
+		}
 	}
 
 	update_win_layer_related(win);
