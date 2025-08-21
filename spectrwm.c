@@ -16829,7 +16829,7 @@ maprequest(xcb_map_request_event_t *e)
 {
 	struct swm_screen	*s;
 	struct workspace	*ws;
-	struct ws_win		*win, *w;
+	struct ws_win		*win, *w, *pfw = NULL;
 	bool			follow, setfocus = false;
 
 	DNPRINTF(SWM_D_EVENT, "win %#x, parent: %#x\n", e->window, e->parent);
@@ -16871,10 +16871,12 @@ maprequest(xcb_map_request_event_t *e)
 
 	if (setfocus) {
 		set_focus(s, get_focus_magic(win));
-		w = get_focus_prev(s);
-		if (w) {
-			set_frame_focused(w, false);
-			draw_frame(w);
+		pfw = get_focus_prev(s);
+		if (pfw) {
+			set_frame_focused(pfw, false);
+			draw_frame(pfw);
+			if (win->ws != pfw->ws)
+				apply_unfocus(pfw->ws, NULL);
 		}
 	}
 
@@ -16888,8 +16890,11 @@ maprequest(xcb_map_request_event_t *e)
 	if (ws->r) {
 		if (refresh_strut(s))
 			update_layout(s);
-		else
+		else {
 			stack(ws->r);
+			if (pfw && pfw->ws != ws)
+				stack(pfw->ws->r);
+		}
 		update_mapping(s);
 
 		if (!follow) {
