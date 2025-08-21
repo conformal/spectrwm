@@ -8115,7 +8115,7 @@ focus(struct swm_screen *s, struct binding *bp, union arg *args)
 	update_mapping(s);
 
 	update_focus(s);
-	center_pointer(r);
+	center_pointer(winfocus ? winfocus->ws->r : r);
 	flush();
 out:
 	DNPRINTF(SWM_D_FOCUS, "done\n");
@@ -9468,8 +9468,8 @@ iconify(struct swm_screen *s, struct binding *bp, union arg *args)
 	stack(win->ws->r);
 	update_mapping(s);
 	if (!follow) {
-		update_focus(win->s);
-		center_pointer(win->ws->r);
+		update_focus(s);
+		center_pointer(nfw ? nfw->ws->r : win->ws->r);
 	}
 
 	flush(); /* win can be freed. */
