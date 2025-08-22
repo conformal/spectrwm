@@ -1402,6 +1402,7 @@ struct atom_name {
 RB_HEAD(atom_name_tree, atom_name) atom_names = RB_INITIALIZER(&atom_names);
 
 /* function prototypes */
+static bool	 accepts_focus(struct ws_win *);
 static void	 adjust_font(struct ws_win *);
 static void	 append_descendants(struct ws_win *, struct ws_win_list *,
 		     struct ws_win_list *, struct ws_win *, int, int);
@@ -1727,6 +1728,8 @@ static int	 setconfcolor(uint8_t, const char *, const char *, int,
 		     char **);
 static int	 setconfcolorlist(uint8_t, const char *, const char *, int,
 		     char **);
+static int	 setconffocusmode(uint8_t, const char *, const char *, int,
+		     char **);
 static int	 setconfmodkey(uint8_t, const char *, const char *, int,
 		     char **);
 static int	 setconfquirk(uint8_t, const char *, const char *, int,
@@ -1777,6 +1780,8 @@ static void	 spawn_select(struct swm_region *, union arg *, const char *,
 static xcb_window_t	 st_window_id(struct swm_stackable *);
 static void	 stack_config(struct swm_screen *, struct binding *,
 		     union arg *);
+static struct ws_win	*stack_column(struct swm_geometry *, struct ws_win *,
+		     int, bool);
 static void	 stack_master(struct workspace *, struct swm_geometry *, bool);
 static void	 store_float_geom(struct ws_win *);
 static char	*strdupsafe(const char *);
@@ -1818,6 +1823,7 @@ static void	 update_stackable(struct swm_stackable *,
 		     struct swm_stackable *);
 static void	 update_win_layer(struct ws_win *);
 static void	 update_win_layer_related(struct ws_win *);
+static void	 update_win_refs(struct ws_win *);
 static void	 update_window(struct ws_win *);
 static void	 updatenumlockmask(void);
 static void	 usage(void);
@@ -1831,9 +1837,12 @@ static bool	 win_descendant(struct ws_win *, struct ws_win *);
 static bool	 win_floating(struct ws_win *);
 static bool	 win_focused(struct ws_win *);
 static bool	 win_free(struct ws_win *);
+static bool	 win_globallyactive(struct ws_win *);
 static uint8_t	 win_gravity(struct ws_win *);
 static bool	 win_main(struct ws_win *);
+static bool	 win_noinput(struct ws_win *);
 static bool	 win_notile(struct ws_win *);
+static bool	 win_prioritized(struct ws_win *);
 static bool	 win_raised(struct ws_win *);
 static bool	 win_related(struct ws_win *, struct ws_win *);
 static bool	 win_reparented(struct ws_win *);
@@ -6828,6 +6837,12 @@ win_noinput(struct ws_win *win)
 	return (!accepts_focus(win) && !win->take_focus);
 }
 
+static bool
+win_globallyactive(struct ws_win *win)
+{
+	return (!accepts_focus(win) && win->take_focus);
+}
+
 static void
 focus_win_input(struct ws_win *win, bool force_input)
 {
@@ -7058,6 +7073,7 @@ update_focus(struct swm_screen *s)
 	struct ws_win				*win, *cfw = NULL, *pfw;
 	xcb_get_window_attributes_reply_t	*war = NULL;
 	xcb_window_t				cfid;
+	bool					hasinputfocus;
 
 	if (s == NULL)
 		return;
@@ -7091,8 +7107,10 @@ update_focus(struct swm_screen *s)
 		free(war);
 	}
 
+	hasinputfocus = win_related(win, cfw) && win_globallyactive(cfw);
+
 	/* 3. Handle current focus. */
-	if (cfw && cfw != win) {
+	if (cfw && cfw != win && !hasinputfocus) {
 		if (cfw->mapped && win_reparented(cfw) && (win == NULL ||
 		    (cfw->ws != win->ws && !ws_root(cfw->ws) &&
 		     !ws_root(win->ws))))
@@ -7112,7 +7130,7 @@ update_focus(struct swm_screen *s)
 		clear_attention(win);
 
 	/* 5. Set input focus. */
-	if (win == NULL || cfw != win) {
+	if (win == NULL || !hasinputfocus) {
 		if (win && win->mapped) {
 			focus_win_input(((win_noinput(win) &&
 			    win_transient(win)) ?  win->main : win), false);
