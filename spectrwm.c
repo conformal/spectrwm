@@ -1588,6 +1588,7 @@ static int	 get_screen_count(void);
 static const struct xcb_setup_t	*get_setup(void);
 static const char	*get_source_type_label(uint32_t);
 static const char	*get_stack_mode_label(uint8_t);
+static const char	*get_state_action_label(uint32_t);
 static const char	*get_state_mask_label(uint16_t);
 static xcb_keysym_t	 get_string_keysym(const char *);
 static int32_t	 get_swm_ws(xcb_window_t);
@@ -1654,6 +1655,7 @@ static int	 parseconfcolor(uint8_t, const char *, const char *, int, bool,
 static int	 parsequirks(const char *, uint32_t *, int *, char **);
 static void	 pressbutton(struct swm_screen *, struct binding *,
 		     union arg *);
+static void	 print_clientmessage(xcb_client_message_event_t *);
 static void	 print_stackable(struct swm_stackable *);
 static void	 print_stacking(struct swm_screen *);
 static void	 print_strut(struct swm_strut *);
@@ -2653,8 +2655,9 @@ ewmh_change_wm_state(struct ws_win *win, xcb_atom_t state, long action)
 	uint32_t		new_flags;
 	uint32_t		ret = 0;
 
-	DNPRINTF(SWM_D_PROP, "win %#x, state: %s(%u), " "action: %ld\n",
-	    WINID(win), get_atom_label(state), state, action);
+	DNPRINTF(SWM_D_PROP, "win %#x state:%s(%u) action:%s(%ld)\n",
+	    WINID(win), get_atom_label(state), state,
+	    get_state_action_label(action), action);
 
 	if (win == NULL)
 		goto out;
@@ -17154,6 +17157,78 @@ win_gravity(struct ws_win *win)
 		return (XCB_GRAVITY_NORTH_WEST);
 }
 
+static const char *
+get_state_action_label(uint32_t val)
+{
+	switch (val) {
+	case _NET_WM_STATE_REMOVE:
+		return ("Remove");
+	case _NET_WM_STATE_ADD:
+		return ("Add");
+	case _NET_WM_STATE_TOGGLE:
+		return ("Toggle");
+	default:
+		return ("Invalid");
+	}
+}
+
+static void
+print_clientmessage(xcb_client_message_event_t *e)
+{
+	DPRINTF("%s(%u) win:%#x", get_atom_label(e->type), e->type, e->window);
+
+	if (e->type == ewmh[_NET_ACTIVE_WINDOW].atom) {
+		DPRINTF(" source:%s(%d) timestamp:%#x active_window:%#x",
+		    get_source_type_label(e->data.data32[0]), e->data.data32[0],
+		    e->data.data32[1], e->data.data32[2]);
+	} else if (e->type == ewmh[_NET_CLOSE_WINDOW].atom) {
+		DPRINTF(" timestamp:%#x source:%s(%d)", e->data.data32[0],
+		    get_source_type_label(e->data.data32[1]),
+		    e->data.data32[1]);
+	} else if (e->type == ewmh[_NET_CURRENT_DESKTOP].atom) {
+		DPRINTF(" new_index:%d timestamp:%#x", e->data.data32[0],
+		    e->data.data32[1]);
+	} else if (e->type == ewmh[_NET_DESKTOP_GEOMETRY].atom) {
+		DPRINTF(" new_width:%u new_height:%u", e->data.data32[0],
+		    e->data.data32[1]);
+	} else if (e->type == ewmh[_NET_DESKTOP_VIEWPORT].atom) {
+		DPRINTF(" new_vx:%d new_vy:%d", e->data.data32[0],
+		    e->data.data32[1]);
+	} else if (e->type == ewmh[_NET_MOVERESIZE_WINDOW].atom) {
+		DPRINTF(" gravity_flags:%#x x:%d y:%d width:%u height:%u",
+		    e->data.data32[0], e->data.data32[1], e->data.data32[2],
+		    e->data.data32[3], e->data.data32[4]);
+	/*} else if (e->type == ewmh[_NET_REQUEST_FRAME_EXTENTS].atom) {*/
+	} else if (e->type == ewmh[_NET_RESTACK_WINDOW].atom) {
+		DPRINTF(" source:%s(%d) sibling:%#x detail:%u",
+		    get_source_type_label(e->data.data32[0]), e->data.data32[0],
+		    e->data.data32[1], e->data.data32[2]);
+	/*} else if (e->type == ewmh[_NET_SHOWING_DESKTOP].atom) {*/
+	} else if (e->type == ewmh[_NET_WM_DESKTOP].atom) {
+		DPRINTF(" new_desktop:%d source:%s(%d)", e->data.data32[0],
+		    get_source_type_label(e->data.data32[1]),
+		    e->data.data32[1]);
+	} else if (e->type == ewmh[_NET_WM_MOVERESIZE].atom) {
+		DPRINTF(" x_root:%d y_root:%d direction:%d button:%d "
+		    "source:%s(%d)", e->data.data32[0], e->data.data32[1],
+		    e->data.data32[2], e->data.data32[3],
+		    get_source_type_label(e->data.data32[4]),
+		    e->data.data32[4]);
+	} else 	if (e->type == ewmh[_NET_WM_STATE].atom) {
+		DPRINTF(" action:%s(%u) prop1:%s(%u) prop2:%s(%u) "
+		    "source:%s(%u)", get_state_action_label(e->data.data32[0]),
+		    e->data.data32[0], get_atom_label(e->data.data32[1]),
+		    e->data.data32[1], get_atom_label(e->data.data32[2]),
+		    e->data.data32[2], get_source_type_label(e->data.data32[3]),
+		    e->data.data32[3]);
+	} else if (e->type == a_change_state) {
+		DPRINTF("state:%s(%d)", get_wm_state_label(e->data.data32[0]),
+		    e->data.data32[0]);
+	}
+
+	DPRINTF("\n");
+}
+
 static void
 clientmessage(xcb_client_message_event_t *e)
 {
@@ -17164,8 +17239,9 @@ clientmessage(xcb_client_message_event_t *e)
 	uint32_t		vals[4];
 	bool			follow = false;
 
-	DNPRINTF(SWM_D_EVENT, "win %#x, atom: %s(%u)\n", e->window,
-	    get_atom_label(e->type), e->type);
+	DNPRINTF(SWM_D_EVENT, "");
+	if (swm_debug & SWM_D_EVENT)
+		print_clientmessage(e);
 
 	if (e->type == ewmh[_NET_CURRENT_DESKTOP].atom) {
 		s = find_screen(e->window);
@@ -17198,11 +17274,6 @@ clientmessage(xcb_client_message_event_t *e)
 	cfw = s->focus;
 
 	if (e->type == ewmh[_NET_ACTIVE_WINDOW].atom) {
-		DNPRINTF(SWM_D_EVENT, "_NET_ACTIVE_WINDOW, source_type: "
-		    "%s(%d), timestamp: %#x, active_window: %#x\n",
-		    get_source_type_label(e->data.data32[0]), e->data.data32[0],
-		    e->data.data32[1], e->data.data32[2]);
-
 		/*
 		 * Allow focus changes that are a result of direct user
 		 * action and from applications that use the old EWMH spec.
@@ -17244,7 +17315,6 @@ clientmessage(xcb_client_message_event_t *e)
 			return;
 		}
 	} else if (e->type == ewmh[_NET_CLOSE_WINDOW].atom) {
-		DNPRINTF(SWM_D_EVENT, "_NET_CLOSE_WINDOW\n");
 		if (win->can_delete)
 			client_msg(win, a_delete, 0);
 		else
@@ -17252,7 +17322,6 @@ clientmessage(xcb_client_message_event_t *e)
 		xcb_flush(conn);
 		return;
 	} else if (e->type == ewmh[_NET_MOVERESIZE_WINDOW].atom) {
-		DNPRINTF(SWM_D_EVENT, "_NET_MOVERESIZE_WINDOW\n");
 		if ((!MANUAL(win) || win->quirks & SWM_Q_ANYWHERE ||
 		    ws_floating(win->ws)) && !FULLSCREEN(win) &&
 		    !MAXIMIZED(win)) {
@@ -17296,7 +17365,6 @@ clientmessage(xcb_client_message_event_t *e)
 			return;
 		}
 	} else if (e->type == ewmh[_NET_RESTACK_WINDOW].atom) {
-		DNPRINTF(SWM_D_EVENT, "_NET_RESTACK_WINDOW\n");
 		vals[0] = e->data.data32[1]; /* Sibling window. */
 		vals[1] = e->data.data32[2]; /* Stack mode detail. */
 
@@ -17308,7 +17376,6 @@ clientmessage(xcb_client_message_event_t *e)
 		xcb_flush(conn);
 		return;
 	} else 	if (e->type == ewmh[_NET_WM_STATE].atom) {
-		DNPRINTF(SWM_D_EVENT, "_NET_WM_STATE\n");
 		uint32_t changed;
 
 		changed = ewmh_change_wm_state(win, e->data.data32[1],
@@ -17349,19 +17416,12 @@ clientmessage(xcb_client_message_event_t *e)
 		if (r != win->ws->r)
 			return;
 	} else if (e->type == ewmh[_NET_WM_DESKTOP].atom) {
-		DNPRINTF(SWM_D_EVENT, "_NET_WM_DESKTOP, new_desktop: %d, "
-		    "source_type: %s(%d)\n", e->data.data32[0],
-		    get_source_type_label(e->data.data32[1]),
-		    e->data.data32[1]);
-
 		if ((int)e->data.data32[0] >= workspace_limit)
 			return;
 
 		transfer_win(win, get_workspace(s, e->data.data32[0]));
 		return;
 	} else if (e->type == a_change_state) {
-		DNPRINTF(SWM_D_EVENT, "WM_CHANGE_STATE state: %s\n",
-		    get_wm_state_label(e->data.data32[0]));
 		if (e->data.data32[0] != XCB_ICCCM_WM_STATE_ICONIC)
 			return;
 		/* Iconify. */
@@ -17382,7 +17442,6 @@ clientmessage(xcb_client_message_event_t *e)
 		if (r != win->ws->r)
 			return;
 	} else if (e->type == ewmh[_NET_WM_MOVERESIZE].atom) {
-		DNPRINTF(SWM_D_EVENT, "_NET_WM_MOVERESIZE\n");
 		moveresize_win(win, e);
 		return;
 	}
