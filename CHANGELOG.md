@@ -1,3 +1,61 @@
+spectrwm 3.7.0
+==============
+
+Released on Aug 26, 2025
+
+Adds a centered mode for tiled layouts, configuration reload, increases the
+maximum number of workspaces, and more.
+
+* Add centered mode for tiled layouts.
+  - Add `center_layout` action (default: `M-backslash`). Toggle centering of
+    the master area.
+  - Add `center_adaptive` option to only center when centering does not create
+    empty space.
+  - Add `center_autobalance` option to automatically balance the master/stacking
+    areas when toggling centered mode.
+  - Add `center_noautostack` option to disable automatically adding an extra
+    stack when centering a layout with a single stack.
+  - Add `center_nowrap` option to allow the centered master area to split the
+    original order of stacks instead of maintaining tiling order.
+  - Add corresponding layout and stack_mark options.
+* Add configuration reload.
+  - On reload, the configuration is reloaded without restarting and the bar(s)
+    are reinitialized along with `bar_action` (if used).
+  - Add `reload` action (default: `unbound`). Initiates a reload.
+  - Add `SIGUSR1` signal handling to initiate a reload.
+* Improve uniconify.
+  - Add `uniconify_order` option to set the window order in the uniconify menu.
+  - Add `uniconify_quick` action (default: `unbound`). Uniconify the most
+    recently iconified window.
+* Improve EWMH support.
+  - Add support for `_NET_WM_STATE_FOCUSED`.
+  - Improve `_NET_WM_DESKTOP` request handling.
+  - Improve `_NET_WM_ALLOWED_ACTIONS` support.
+  - Fix `_NET_WM_ALLOWED_ACTIONS` property change issue.
+  - Fix `_NET_DESKTOP_NAMES` handling.
+* Add new quirks.
+  - Add `NOTILE` quirk to disallow windows from being tiled.
+  - Add `IGNOREURGENT` quirk to ignore the urgency hint on windows.
+  - Add `NOFOCUSPOINTER` quirk to disable click-to-focus on windows.
+* Increase the maximum `workspace_limit` to 100. Note that bindings for
+  workspaces 23 and above are unbound by default.
+* Add `move_step` and `resize_step` options to configure the pixel amount to
+  move/resize a window when using the respective action bindings.
+* Add `bar_padding_horizontal` and `bar_padding_vertical` options to adjust
+  the padding of bar text.
+* Add `disable_padding` option to disable region padding when there is a single
+  window.
+* Improve transient window stacking to prevent dialogs from getting buried.
+* Change the `restart_of_day` action to ignore `autorun` entries.
+* Fix compatibility issue with Wine.
+* Fix pointer centering when focusing free mode windows.
+* Fix free mode maximized/fullscreen unfocus handling issue.
+* Fix move/resize refocus issue with globally active input model windows.
+* Fix popup window refocus issue for free mode windows.
+* Improve window management checks to better handle buggy programs.
+* Improve debug output.
+
+
 spectrwm 3.6.0
 ==============
 
