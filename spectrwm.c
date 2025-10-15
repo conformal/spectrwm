@@ -8665,6 +8665,8 @@ stack_master(struct workspace *ws, struct swm_geometry *g, bool rot)
 		slice = r_g.w / SWM_V_SLICE;
 	}
 
+	s_g1 = s_g2 = m_g = r_g;
+
 	if (center && stacks == 1 && mwin && center_autostack &&
 	    !center_noautostack)
 		stacks = 2;
@@ -8682,8 +8684,6 @@ stack_master(struct workspace *ws, struct swm_geometry *g, bool rot)
 
 	/* Add master area. */
 	if (mwin) {
-		m_g = r_g;
-
 		/* Find first master window. */
 		TAILQ_FOREACH(w, &ws->winlist, entry)
 			if (win_tiled(w))
@@ -8701,8 +8701,6 @@ stack_master(struct workspace *ws, struct swm_geometry *g, bool rot)
 
 	/* Add stack area(s). */
 	if (stacks) {
-		s_g1 = s_g2 = r_g;
-
 		if (mwin) {
 			m_g.w = slice * mscale;
 			if (w_inc > 1 && w_inc < slice) {
