@@ -3589,8 +3589,10 @@ getcolor(struct swm_screen *s, int c, int i)
 	switch (c) {
 	case SWM_S_COLOR_BAR_UNFOCUS:
 	case SWM_S_COLOR_BAR_FREE:
-	case SWM_S_COLOR_BAR_SELECTED:
 		c = SWM_S_COLOR_BAR;
+		break;
+	case SWM_S_COLOR_BAR_SELECTED:
+		c = SWM_S_COLOR_BAR_BORDER;
 		break;
 	case SWM_S_COLOR_BAR_FONT_UNFOCUS:
 	case SWM_S_COLOR_BAR_FONT_FREE:
