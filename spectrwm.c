@@ -1719,6 +1719,7 @@ static void	 set_frame_focused(struct ws_win *, bool);
 static void	 set_input_focus(xcb_window_t, bool);
 static void	 set_region(struct swm_region *);
 static void	 set_win_state(struct ws_win *, uint32_t);
+static void	 set_ws_focus(struct workspace *, struct ws_win *);
 static int	 setautorun(uint8_t, const char *, const char *, int, char **);
 static void	 setbinding(uint16_t, enum binding_type, uint32_t, uint32_t,
 		     enum actionid, int, const char *);
@@ -1842,6 +1843,7 @@ static bool	 win_free(struct ws_win *);
 static bool	 win_globallyactive(struct ws_win *);
 static uint8_t	 win_gravity(struct ws_win *);
 static bool	 win_main(struct ws_win *);
+static bool	 win_mapped_ws(struct ws_win *);
 static bool	 win_noinput(struct ws_win *);
 static bool	 win_notile(struct ws_win *);
 static bool	 win_prioritized(struct ws_win *);
@@ -1960,6 +1962,13 @@ static bool
 win_prioritized(struct ws_win *win)
 {
 	return (TAILQ_FIRST(&win->s->priority) == win);
+}
+
+static bool
+win_mapped_ws(struct ws_win *win)
+{
+	return (win && (win->mapped || (!HIDDEN(win) &&
+	    (!ws_maponfocus(win->ws) || win_related(win->ws->focus, win)))));
 }
 
 static bool
@@ -3021,8 +3030,8 @@ ewmh_update_active_window(struct swm_screen *s)
 		awid = XCB_WINDOW_NONE;
 
 	if (awid != s->active_window) {
-		DNPRINTF(SWM_D_FOCUS, "root: %#x win: %#x\n", s->root,
-		    s->active_window);
+		DNPRINTF(SWM_D_FOCUS, "root:%#x win:%#x prev:%#x\n", s->root,
+		    awid, s->active_window);
 		xcb_change_property(conn, XCB_PROP_MODE_REPLACE, s->root,
 		    ewmh[_NET_ACTIVE_WINDOW].atom, XCB_ATOM_WINDOW, 32, 1,
 		    &awid);
@@ -7013,11 +7022,31 @@ get_focus_magic(struct ws_win *win)
 }
 
 static void
-set_focus(struct swm_screen *s, struct ws_win *win)
+set_ws_focus(struct workspace *ws, struct ws_win *win)
 {
 	struct ws_win		*w;
 
-	DNPRINTF(SWM_D_FOCUS, "screen %d, win: %#x\n", s->idx, WINID(win));
+	if (ws == NULL)
+		return;
+
+	DNPRINTF(SWM_D_FOCUS, "screen:%d ws:%d win:%#x\n", ws->s->idx, ws->idx,
+	    WINID(win));
+
+	if ((w = win->ws->focus) != win) {
+		win->ws->focus = win;
+		win->ws->focus_raise = NULL;
+		if (w)
+			update_win_layer(w);
+		if (win->ws->always_raise)
+			update_win_layer(win);
+	}
+	set_focus_redirect(win);
+}
+
+static void
+set_focus(struct swm_screen *s, struct ws_win *win)
+{
+	DNPRINTF(SWM_D_FOCUS, "screen:%d win:%#x\n", s->idx, WINID(win));
 
 	if (win == NULL) {
 		s->focus = NULL;
@@ -7030,16 +7059,8 @@ set_focus(struct swm_screen *s, struct ws_win *win)
 	TAILQ_REMOVE(&s->fl, win, focus_entry);
 	TAILQ_INSERT_HEAD(&s->fl, win, focus_entry);
 
-	if ((w = win->ws->focus) != win) {
-		win->ws->focus = win;
-		win->ws->focus_raise = NULL;
-		if (w)
-			update_win_layer(w);
-		if (win->ws->always_raise)
-			update_win_layer(win);
-	}
+	set_ws_focus(win->ws, win);
 	s->focus = win;
-	set_focus_redirect(win);
 }
 
 static void
@@ -13170,6 +13191,8 @@ rawbuttonpress(xcb_input_raw_button_press_event_t *e)
 	struct action			*ap;
 	xcb_query_pointer_reply_t	*qpr;
 
+	event_time = e->time;
+
 	DPRINTF("length: %u, deviceid: %u, time: %#x, detail: %#x, "
 	    "sourceid: %u, valuators_len: %u, flags: %#x\n", e->length,
 	    e->deviceid, e->time, e->detail, e->sourceid,
@@ -16783,7 +16806,7 @@ click_focus(struct swm_screen *s, xcb_window_t id, int x, int y)
 		}
 
 		/* If region is empty, set default focus. */
-		if (r && TAILQ_EMPTY(&r->ws->winlist)) {
+		if (r && TAILQ_EMPTY(&r->ws->winlist) && !win_free(s->focus)) {
 			w = find_window(get_input_focus());
 			if (w) {
 				rr = w->ws->r;
@@ -16869,7 +16892,8 @@ maprequest(xcb_map_request_event_t *e)
 		if (win->quirks & SWM_Q_FOCUSONMAP_SINGLE) {
 			/* See if other wins of same type are already mapped. */
 			TAILQ_FOREACH(w, &ws->winlist, entry) {
-				if (w == win || !w->mapped)
+				if (w == win || (!w->mapped &&
+				    !win_mapped_ws(w)))
 					continue;
 
 				if (w->ch.class_name &&
@@ -16891,14 +16915,17 @@ maprequest(xcb_map_request_event_t *e)
 		ewmh_update_wm_state(win);
 
 	if (setfocus) {
-		set_focus(s, get_focus_magic(win));
-		pfw = get_focus_prev(s);
-		if (pfw) {
-			set_frame_focused(pfw, false);
-			draw_frame(pfw);
-			if (win->ws != pfw->ws)
-				apply_unfocus(pfw->ws, NULL);
-		}
+		if (ws->r) {
+			set_focus(s, get_focus_magic(win));
+			pfw = get_focus_prev(s);
+			if (pfw) {
+				set_frame_focused(pfw, false);
+				draw_frame(pfw);
+				if (win->ws != pfw->ws)
+					apply_unfocus(pfw->ws, NULL);
+			}
+		} else
+			set_ws_focus(ws, get_focus_magic(win));
 	}
 
 	update_win_layer_related(win);
@@ -17285,7 +17312,11 @@ clientmessage(xcb_client_message_event_t *e)
 			    win->ewmh_flags & ~EWMH_F_HIDDEN))
 				ewmh_update_wm_state(win);
 
-			set_focus(s, win);
+			if (win->ws->r)
+				set_focus(s, win);
+			else
+				set_ws_focus(win->ws, win);
+
 			apply_unfocus(win->ws, win);
 			update_win_layer_related(win);
 			prioritize_window(win);
@@ -17413,7 +17444,7 @@ clientmessage(xcb_client_message_event_t *e)
 		update_mapping(s);
 
 		r = get_current_region(s);
-		if (r != win->ws->r)
+		if (r != win->ws->r && !win_free(win))
 			return;
 	} else if (e->type == ewmh[_NET_WM_DESKTOP].atom) {
 		if ((int)e->data.data32[0] >= workspace_limit)
@@ -17439,7 +17470,7 @@ clientmessage(xcb_client_message_event_t *e)
 		update_mapping(s);
 
 		r = get_current_region(s);
-		if (r != win->ws->r)
+		if (r != win->ws->r && !win_free(win))
 			return;
 	} else if (e->type == ewmh[_NET_WM_MOVERESIZE].atom) {
 		moveresize_win(win, e);
