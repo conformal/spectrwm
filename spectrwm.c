@@ -5,7 +5,7 @@
  * Copyright (c) 2009 Pierre-Yves Ritschard <pyr@spootnik.org>
  * Copyright (c) 2010 Tuukka Kataja <stuge@xor.fi>
  * Copyright (c) 2011 Jason L. Wright <jason@thought.net>
- * Copyright (c) 2011-2025 Reginald Kennedy <rk@rejii.com>
+ * Copyright (c) 2011-2026 Reginald Kennedy <rk@rejii.com>
  * Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
  * Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
  * Copyright (c) 2012-2015 David Hill <dhill@mindcry.org>
@@ -18942,7 +18942,15 @@ main(int argc, char *argv[])
 			bar_setup(r);
 
 #ifdef __OpenBSD__
-	if (pledge("stdio proc exec", NULL) == -1)
+	/* Limit fs access of the process to what is needed for spawn/reload. */
+	if (unveil("/", "rx") == -1)
+		err(1, "unveil /");
+	if (unveil(_PATH_DEVNULL, "rw") == -1)
+		err(1, "unveil %s", _PATH_DEVNULL);
+	if (unveil(NULL, NULL) == -1)
+		err(1, "unveil lock");
+
+	if (pledge("stdio rpath wpath proc exec", NULL) == -1)
 		err(1, "pledge");
 #endif
 
