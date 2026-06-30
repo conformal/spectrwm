@@ -1,6 +1,6 @@
 .\" Copyright (c) 2009-2012 Marco Peereboom <marco@peereboom.us>
 .\" Copyright (c) 2009 Darrin Chandler <dwchandler@stilyagin.com>
-.\" Copyright (c) 2011-2025 Reginald Kennedy <rk@rejii.com>
+.\" Copyright (c) 2011-2026 Reginald Kennedy <rk@rejii.com>
 .\" Copyright (c) 2011-2012 Lawrence Teo <lteo@lteo.net>
 .\" Copyright (c) 2011-2012 Tiago Cunha <tcunha@gmx.com>
 .\" Copyright (c) 2012 David Hill <dhill@mindcry.org>
@@ -198,6 +198,7 @@ Disable border by setting to 0.
 .It Ic bar_color Ns Bq Ar x
 Background color of status bar(s) on screen number
 .Ar x .
+Default is black.
 .Pp
 A comma-separated list of multiple colors can be specified.
 The first value is used as the default background color.
@@ -209,11 +210,11 @@ where n is the color index counting from 0.
 Background color of a status bar for a focused region on screen number
 .Ar x
 when a workspace-free window is focused.
+Default is rgb:40/40/00.
 .Pp
 A comma-separated list of multiple colors can be specified, with the same
 syntax and behavior as
 .Ic bar_color .
-Default is rgb:40/40/00.
 .Pp
 Note that
 .Ic bar_color
@@ -231,13 +232,13 @@ Defaults to the value of
 .It Ic bar_color_unfocus Ns Bq Ar x
 Background color of status bar(s) for unfocused region(s) on screen number
 .Ar x .
+Defaults to the value of
+.Ic bar_color .
 .Pp
 A comma-separated list of multiple colors can be specified, with the same
 syntax and behavior as
 .Ic bar_color
 for unfocused bar(s).
-Defaults to the value of
-.Ic bar_color .
 .Pp
 Note that
 .Ic bar_color
@@ -303,6 +304,7 @@ application can help with the XLFD setting.
 .It Ic bar_font_color Ns Bq Ar x
 Foreground color of the status bar(s) on screen number
 .Ar x .
+Default is rgb:a0/a0/a0.
 .Pp
 A comma-separated list of multiple colors can be specified.
 The first value is used as the default foreground color.
@@ -314,11 +316,11 @@ where n is the color index counting from 0.
 Foreground color of a status bar for a focused region on screen number
 .Ar x
 when a workspace-free window is focused.
+Default is rgb:ff/ff/ff.
 .Pp
 A comma-separated list of multiple colors can be specified, with the same
 syntax and behavior as
 .Ic bar_font_color .
-Default is rgb:ff/ff/ff.
 .Pp
 Note that
 .Ic bar_font_color
@@ -329,13 +331,13 @@ this option.
 .It Ic bar_font_color_unfocus Ns Bq Ar x
 Foreground color of status bar(s) for unfocused region(s) on screen number
 .Ar x .
+Defaults to the value of
+.Ic bar_font_color .
 .Pp
 A comma-separated list of multiple colors can be specified, with the same
 syntax and behavior as
 .Ic bar_font_color
 for unfocused bar(s).
-Defaults to the value of
-.Ic bar_font_color .
 .Pp
 Note that
 .Ic bar_font_color
@@ -439,6 +441,8 @@ Possible values are
 .Ar center ,
 and
 .Ar right .
+Default is
+.Ar left .
 .Pp
 Note that if the output is not left justified, it may not be properly aligned
 in some circumstances, due to the white-spaces in the default static format.
@@ -462,11 +466,13 @@ See the
 section below.
 .It Ic border_width
 Set window border thickness in pixels.
+Default is 1.
 Disable all borders by setting to 0.
 .It Ic boundary_width
 Set region containment boundary width in pixels.
 This is how far a window must be dragged/resized (with the pointer) beyond the
 region edge before it is allowed outside the region.
+Default is 50.
 Disable the window containment effect by setting to 0.
 .It Ic cancelkey
 Change the key used as an alternative means of terminating move/resize
@@ -502,9 +508,13 @@ Enable or disable raising stacking priority when clicking on a window.
 Default is 1.
 .It Ic clock_enabled
 Enable or disable displaying the clock in the status bar.
+Default is 1.
 Disable by setting to 0 so a custom clock could be used in the
 .Ic bar_action
 script.
+Note that this option is ignored when
+.Ic bar_format
+is configured.
 .It Ic color_focus_free
 Border color of the currently focused window that is in free mode.
 Default is yellow.
@@ -513,8 +523,8 @@ Border color of the currently focused maximized window that is in free mode.
 Defaults to the value of
 .Ic color_focus_free .
 .It Ic color_unfocus_free
-Border color of unfocused windows that are in free mode, default is
-rgb:88/88/00.
+Border color of unfocused windows that are in free mode.
+Default is rgb:88/88/00.
 .It Ic color_unfocus_maximized_free
 Border color of unfocused maximized windows that are in free mode.
 Defaults to the value of
@@ -569,8 +579,8 @@ is also enabled, focus will go to the region where the workspace is mapped.
 Some applications have dialogue windows that are too small to be useful.
 This ratio adjusts the window/region size ratio for transient windows
 having the TRANSSZ quirk.
-For example, 0.6 is 60% of the the monitor size if the current region spans
-the monitor.
+For example, 0.6 (default) is 60% of the the monitor size if the current region
+spans the monitor.
 .It Ic disable_border
 Remove border when bar is disabled and there is only one window on the region.
 Enable by setting to 1.
@@ -1108,6 +1118,7 @@ If this value is greater than 0,
 .Nm
 will attempt to adjust the font sizes in the terminal to keep the terminal
 width above this number as the window is resized.
+Default is 0.
 .Pp
 Note that only
 .Xr xterm 1
@@ -1152,6 +1163,8 @@ urgent windows and the default leading space.
 Enable by setting to 1.
 .It Ic urgent_enabled
 Enable or disable the urgency hint indicator in the status bar.
+Enable by setting to 1.
+.Pp
 Note that many terminal emulators require an explicit setting for the bell
 character to trigger urgency on the window.
 In
