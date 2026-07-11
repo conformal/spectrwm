@@ -18612,6 +18612,7 @@ shutdown_cleanup(void)
 			w->g.x -= w->g_floatref.x;
 			w->g.y -= w->g_floatref.y;
 			update_window(w);
+			unparent_window(w);
 
 			if (ws_maxstack(w->ws)) {
 				w->ewmh_flags &= ~EWMH_F_MAXIMIZED;
