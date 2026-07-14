@@ -1623,7 +1623,7 @@ static void	 leavenotify(xcb_leave_notify_event_t *);
 static void	 load_defaults(void);
 static void	 load_float_geom(struct ws_win *);
 static struct ws_win	*manage_window(xcb_window_t, int, bool);
-static void	 map_window(struct ws_win *);
+static bool	 map_window(struct ws_win *);
 static void	 mapnotify(xcb_map_notify_event_t *);
 static void	 mappingnotify(xcb_mapping_notify_event_t *);
 static void	 maprequest(xcb_map_request_event_t *);
@@ -1809,7 +1809,7 @@ static void	 uniconify_quick(struct swm_screen *, struct binding *,
 		 union arg *);
 static void	 uniconify_win(struct ws_win *);
 static void	 unmanage_window(struct ws_win *);
-static void	 unmap_window(struct ws_win *);
+static bool	 unmap_window(struct ws_win *);
 static void	 unmap_workspace(struct workspace *);
 static void	 unmapnotify(xcb_unmap_notify_event_t *);
 static void	 unparent_window(struct ws_win *);
@@ -5644,7 +5644,7 @@ set_win_state(struct ws_win *win, uint32_t state)
 	DNPRINTF(SWM_D_EVENT, "win %#x, state: %s(%u)\n", WINID(win),
 	    get_wm_state_label(state), state);
 
-	if (win == NULL)
+	if (win == NULL || win->id == XCB_WINDOW_NONE)
 		return;
 
 	win->state = state;
@@ -6029,11 +6029,11 @@ update_stackable(struct swm_stackable *st, struct swm_stackable *st_sib)
 	    XCB_CONFIG_WINDOW_SIBLING | XCB_CONFIG_WINDOW_STACK_MODE, val);
 }
 
-static void
+static bool
 map_window(struct ws_win *win)
 {
 	if (win == NULL)
-		return;
+		return (false);
 
 	DNPRINTF(SWM_D_EVENT, "win %#x, mapped: %s\n",
 	    win->id, YESNO(win->mapped));
@@ -6041,11 +6041,11 @@ map_window(struct ws_win *win)
 	if (!win_reparented(win)) {
 		DNPRINTF(SWM_D_EVENT, "skip win %#x; not reparented\n",
 		    win->id);
-		return;
+		return (false);
 	}
 
 	if (win->mapped)
-		return;
+		return (false);
 
 	xcb_map_window(conn, win->frame);
 	xcb_map_window(conn, win->id);
@@ -6054,13 +6054,15 @@ map_window(struct ws_win *win)
 	win->mapping += 2;
 	win->mapped = true;
 	set_win_state(win, XCB_ICCCM_WM_STATE_NORMAL);
+
+	return (true);
 }
 
-static void
+static bool
 unmap_window(struct ws_win *win)
 {
 	if (win == NULL)
-		return;
+		return (false);
 
 	DNPRINTF(SWM_D_EVENT, "win %#x, mapped: %s\n", win->id,
 	    YESNO(win->mapped));
@@ -6068,11 +6070,11 @@ unmap_window(struct ws_win *win)
 	if (!win_reparented(win)) {
 		DNPRINTF(SWM_D_EVENT, "skip win %#x; not reparented\n",
 		    win->id);
-		return;
+		return (false);
 	}
 
 	if (!win->mapped)
-		return;
+		return (false);
 
 	if (win->debug != XCB_WINDOW_NONE)
 		xcb_unmap_window(conn, win->debug);
@@ -6081,6 +6083,8 @@ unmap_window(struct ws_win *win)
 	win->unmapping += 2;
 	win->mapped = false;
 	set_win_state(win, XCB_ICCCM_WM_STATE_ICONIC);
+
+	return (true);
 }
 
 static void
@@ -15667,10 +15671,13 @@ manage_window(xcb_window_t id, int spawn_pos, bool mapping)
 		refresh_stack(s);
 		update_stacking(s);
 
-		if (win->ws->r && !HIDDEN(win))
-			map_window(win);
-		else
-			unmap_window(win);
+		if (win->ws->r && !HIDDEN(win)) {
+			if (!map_window(win))
+				set_win_state(win, XCB_ICCCM_WM_STATE_NORMAL);
+		} else {
+			if (!unmap_window(win))
+				set_win_state(win, XCB_ICCCM_WM_STATE_ICONIC);
+		}
 
 		update_window(win);
 
@@ -15808,6 +15815,7 @@ unmanage_window(struct ws_win *win)
 
 	kill_refs(win);
 	unparent_window(win);
+	set_win_state(win, XCB_ICCCM_WM_STATE_WITHDRAWN);
 
 	TAILQ_REMOVE(&win->ws->winlist, win, entry);
 	TAILQ_REMOVE(&win->s->fl, win, focus_entry);
@@ -17117,7 +17125,6 @@ unmapnotify(xcb_unmap_notify_event_t *e)
 		/* EWMH advises removal of _NET_WM_DESKTOP and _NET_WM_STATE. */
 		xcb_delete_property(conn, win->id, ewmh[_NET_WM_DESKTOP].atom);
 		xcb_delete_property(conn, win->id, ewmh[_NET_WM_STATE].atom);
-		set_win_state(win, XCB_ICCCM_WM_STATE_WITHDRAWN);
 		unmanage_window(win);
 	}
 
