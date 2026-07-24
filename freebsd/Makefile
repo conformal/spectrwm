@@ -1,58 +1,84 @@
-.sinclude <bsd.port.pre.mk>
+PORTNAME=	spectrwm
+DISTVERSIONPREFIX=	SPECTRWM_
+DISTVERSION=	3_5_1
+PORTREVISION=	1
+CATEGORIES=     x11-wm
 
-PREFIX?= /usr/local
-LOCALBASE?= /usr/local
+MAINTAINER=	pyrus@bsdmail.com
+COMMENT=	Small, dynamic tiling window manager for X11
+WWW=		https://github.com/conformal/spectrwm
 
-SWM_BINDIR?= $(PREFIX)/bin
-SWM_LIBDIR?= $(PREFIX)/lib
-SWM_MANDIR?= $(PREFIX)/man
+LICENSE=	ISCL
 
-CC?= cc
+LIB_DEPENDS+= libxcb-util.so:x11/xcb-util            \
+			  libxcb-icccm.so:x11/xcb-util-wm        \
+			  libxcb-keysyms.so:x11/xcb-util-keysyms \
+			  libfontconfig.so:x11-fonts/fontconfig
+RUN_DEPENDS+= dmenu:x11/dmenu
 
-LVERS!=	awk -F = '/major/ { printf( "%s.", $$2 ) } /minor/ { printf( "%s", $$2 ) }' ${.CURDIR}/../lib/shlib_version
-BUILDVERSION!= sh "${.CURDIR}/../buildver.sh"
-.if !${BUILDVERSION} == ""
-CFLAGS+= -DSPECTRWM_BUILDSTR=\"$(BUILDVERSION)\"
-.endif
+USE_GITHUB=	yes
+GH_ACCOUNT=	conformal
 
-CFLAGS+= -std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Wno-uninitialized -g
-CFLAGS+= -I. -I${LOCALBASE}/include -I${LOCALBASE}/include/freetype2
-CFLAGS+= -DSWM_LIB=\"$(SWM_LIBDIR)/libswmhack.so.$(LVERS)\"
-LDADD+= -lutil -L${LOCALBASE}/lib -lX11 -lX11-xcb -lxcb \
-	-lxcb-icccm -lxcb-keysyms -lxcb-randr -lxcb-util -lxcb-xinput -lxcb-xtest -lfontconfig -lXft -lXcursor
+OPTIONS_DEFINE=	 EXAMPLES
+OPTIONS_DEFAUTL= EXAMPLES
+EXAMPLES_DESC=   Example configuration files for different langauges
 
+.include	<bsd.port.options.mk>
 
-all: spectrwm libswmhack.so.$(LVERS)
+USES=		compiler:c11 xorg
+USE_XORG=	x11 xcb xcursor xft xrandr xt
 
-spectrwm.c:
-	ln -sf ../spectrwm.c
-	ln -sf ../version.h
-	ln -sf ../linux/queue_compat.h
+USE_LDCONFIG=	yes
+CONFEXAMPLES=	spectrwm_cz.conf    \
+				spectrwm_es.conf    \
+				spectrwm_fr.conf    \
+				spectrwm_fr_ch.conf \
+				spectrwm_se.conf    \
+				spectrwm_us.conf
 
-swm_hack.c:
-	ln -sf ../lib/swm_hack.c
+SCRIPTEXAMPLES=	baraction.sh screenshot.sh
 
-spectrwm: spectrwm.o
-	$(CC) $(LDFLAGS) $(LDADD) -o ${.TARGET} ${.ALLSRC}
+CFLAGS+= -std=c99 -Wmissing-prototypes -Wall -Wextra -Wshadow -Werror -Wno-uninitialized   \
+		 -I${LOCALBASE}/include           \
+		 -I${LOCALBASE}/include/freetype2 \
+		 -I${WRKSCR}/freebsd              \
+		 -L${LOCALBASE}/lib
 
-swm_hack.so: swm_hack.c
-	$(CC) $(CFLAGS) -c -shared -fpic -DPIC -o ${.TARGET} ${.ALLSRC}
+LDFLAGS+= -lX11 -lX11-xcb -lxcb -lxcb-icccm -lxcb-keysyms -lxcb-randr \
+		  -lxcb-util -lxcb-xinput -lxcb-xtest -lXcursor -lXft         \
+		  -lfontconfig -lutil
 
-libswmhack.so.$(LVERS): swm_hack.so
-	$(CC) $(LDFLAGS) -shared -fpic -o ${.TARGET} ${.ALLSRC}
+post-patch:
+	@${REINPLACE_CMD} -e 's|/etc/|${PREFIX}/etc/|g' ${WRKSRC}/spectrwm.*
 
-install: all
-	install -m 755 -d $(SWM_BINDIR)
-	install -m 755 -d $(SWM_LIBDIR)
-	install -m 755 -d $(SWM_MANDIR)/man1
-	install -m 755 spectrwm $(SWM_BINDIR)
-	install -m 755 libswmhack.so.$(LVERS) $(SWM_LIBDIR)
-	install -m 644 ../spectrwm.1 $(SWM_MANDIR)/man1/spectrwm.1
-	ln -sf spectrwm $(SWM_BINDIR)/scrotwm
+do-build:
+	${LN} -sf ${WRKSRC}/linux/pledge.h ${WRKSRC}/pledge.h
+	${LN} -sf ${WRKSRC}/linux/queue_compat.h ${WRKSRC}/queue_compat.h
 
-clean:
-	rm -f spectrwm *.o *.so libswmhack.so.* spectrwm.c swm_hack.c version.h queue_compat.h
+	${CC} ${CFLAGS} ${LDFLAGS} -DSWM_LIB=\"${PREFIX}/lib/libswmhack.so\" \
+		-o ${WRKSRC}/${PORTNAME} ${WRKSRC}/${PORTNAME}.c
 
-.PHONY:	all install clean
+	${CC} ${CFLAGS} -shared -fpic -DPIC ${LDFLAGS} \
+		-o ${WRKSRC}/libswmhack.so ${WRKSRC}/lib/swm_hack.c
 
-.sinclude <bsd.port.post.mk>
+pre-install:
+	${MKDIR} ${STAGEDIR}${PREFIX}/share/xsessions/
+	${MKDIR} ${STAGEDIR}${EXAMPLESDIR}
+
+do-install:
+	${INSTALL_PROGRAM} ${WRKSRC}/${PORTNAME} ${STAGEDIR}${PREFIX}/bin
+	${INSTALL_LIB}  ${WRKSRC}/libswmhack.so ${STAGEDIR}${PREFIX}/lib
+	${INSTALL_MAN}  ${WRKSRC}/spectrwm.1 ${STAGEDIR}${MAN1PREFIX}/man/man1
+	${INSTALL_DATA} ${WRKSRC}/spectrwm.conf ${STAGEDIR}${PREFIX}/etc/spectrwm.conf.sample
+	${INSTALL_DATA} ${WRKSRC}/linux/spectrwm.desktop ${STAGEDIR}${PREFIX}/share/xsessions/spectrwm.desktop
+
+do-install-EXAMPLES-on:
+.for file in ${CONFEXAMPLES}
+	${INSTALL_DATA} ${WRKSRC}/${file} ${STAGEDIR}${EXAMPLESDIR}
+.endfor
+
+.for file in ${SCRIPTEXAMPLES}
+	${INSTALL_SCRIPT} ${WRKSRC}/${file} ${STAGEDIR}${EXAMPLESDIR}
+.endfor
+
+.include <bsd.port.mk>
